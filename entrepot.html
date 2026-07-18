@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAMO Seafood — Entrepôt</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eef2f5; color: #1a2b3c; }
+  header { background: #12343b; color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+  header .brand { font-weight: 700; font-size: 18px; }
+  header button { background:#2a5a63; color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .login { max-width: 360px; margin: 90px auto; text-align:center; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:26px; }
+  .login input { width:100%; padding:12px; border:1px solid #cdd6df; border-radius:10px; font-size:15px; margin:14px 0; }
+  .btn { width:100%; background:#12343b; color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
+  .err { color:#c62828; font-size:13px; min-height:18px; margin-top:6px; }
+  .board { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:16px; }
+  @media (max-width:900px){ .board { grid-template-columns:1fr 1fr; } }
+  @media (max-width:600px){ .board { grid-template-columns:1fr; } }
+  .col { background:#e3ebef; border-radius:12px; padding:10px; min-height:120px; }
+  .col h3 { font-size:13px; text-transform:uppercase; letter-spacing:.5px; color:#3a5a63; margin-bottom:10px; display:flex; justify-content:space-between; }
+  .col h3 .n { background:#12343b; color:#fff; border-radius:20px; padding:0 8px; font-size:12px; }
+  .oc { background:#fff; border-radius:10px; padding:10px; margin-bottom:10px; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+  .oc .ref { font-weight:700; color:#12343b; }
+  .oc .cl { font-size:13px; color:#2a5a63; margin:2px 0; }
+  .oc pre { font-family:inherit; font-size:12px; color:#4a5b6c; white-space:pre-wrap; margin:6px 0; }
+  .oc .meta { font-size:11px; color:#8b98a5; }
+  .oc .row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .oc button { border:none; border-radius:7px; padding:6px 8px; font-size:12px; cursor:pointer; }
+  .adv { background:#1565c0; color:#fff; }
+  .pay { background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7 !important; }
+  .paid { background:#2e7d32; color:#fff; }
+  .empty { color:#9aa7b4; font-size:12px; padding:6px; }
+  .refresh { margin:10px 16px 0; font-size:12px; color:#6b7a89; }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login">
+  <div class="card">
+    <h2>🏭 Entrepôt FAMO</h2>
+    <p style="font-size:13px;color:#6b7a89;margin-top:6px">Accès réservé au personnel</p>
+    <input id="code" type="password" placeholder="Code d'accès">
+    <button class="btn" onclick="enter()">Entrer</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="brand">🏭 FAMO Seafood — Entrepôt</div>
+    <button onclick="load()">↻ Rafraîchir</button>
+  </header>
+  <div class="refresh" id="stamp"></div>
+  <div class="board">
+    <div class="col"><h3>Reçue <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
+    <div class="col"><h3>Prête <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
+    <div class="col"><h3>Sortie livraison <span class="n" id="n2">0</span></h3><div id="c2"></div></div>
+    <div class="col"><h3>Facturée <span class="n" id="n3">0</span></h3><div id="c3"></div></div>
+  </div>
+</div>
+
+<script>
+const STATUS = ["Reçue","Prête","Sortie en livraison","Facturée"];
+let CODE = "";
+const eur = n => "€" + Number(n).toFixed(2).replace(".",",");
+
+async function enter(){
+  CODE = document.getElementById("code").value.trim();
+  const err = document.getElementById("err"); err.textContent = "Vérification…";
+  const r = await fetch("/api/allorders?code=" + encodeURIComponent(CODE));
+  if(!r.ok){ err.textContent = "Code invalide"; return; }
+  document.getElementById("loginView").style.display="none";
+  document.getElementById("app").style.display="block";
+  const d = await r.json(); render(d.orders);
+}
+
+async function load(){
+  const r = await fetch("/api/allorders?code=" + encodeURIComponent(CODE));
+  if(!r.ok) return;
+  const d = await r.json(); render(d.orders);
+}
+
+function render(orders){
+  for(let i=0;i<4;i++){ document.getElementById("c"+i).innerHTML=""; }
+  const counts=[0,0,0,0];
+  orders.forEach(o=>{
+    const si = STATUS.indexOf(o.statut); if(si<0) return; counts[si]++;
+    const next = si<3 ? STATUS[si+1] : null;
+    const paid = o.paiement==="Payé";
+    const el=document.createElement("div"); el.className="oc";
+    el.innerHTML='<div class="ref">'+o.ref+'</div>'+
+      '<div class="cl">'+o.client+'</div>'+
+      '<pre>'+o.lignes+'</pre>'+
+      '<div class="meta">Livraison : '+(o.dateLiv||"—")+' · Total : <strong>'+eur(o.total)+'</strong></div>'+
+      (o.notes?'<div class="meta">📝 '+o.notes+'</div>':'')+
+      '<div class="row">'+
+        (next?'<button class="adv" onclick="adv(\''+o.id+'\',\''+next+'\')">→ '+next+'</button>':'')+
+        '<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"✓ Payé":"Marquer payé")+'</button>'+
+      '</div>';
+    document.getElementById("c"+si).appendChild(el);
+  });
+  for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML='<div class="empty">—</div>'; }
+  document.getElementById("stamp").textContent = "Mis à jour : " + new Date().toLocaleTimeString("fr-BE");
+}
+
+async function adv(id,statut){ await upd({id,statut}); }
+async function togglePay(id,paiement){ await upd({id,paiement}); }
+async function upd(patch){
+  const r = await fetch("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:CODE},patch))});
+  if(!r.ok){ alert("Erreur mise à jour"); return; }
+  load();
+}
+document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
+</script>
+</body>
+</html>
