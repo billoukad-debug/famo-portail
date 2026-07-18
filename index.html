@@ -7,37 +7,57 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; color: #1a2b3c; }
-  header { background: #0b3d5c; color: #fff; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  header { background: #0b3d5c; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
   header .brand { font-size: 20px; font-weight: 700; }
-  header .client { font-size: 14px; opacity: .9; }
-  .wrap { max-width: 1000px; margin: 24px auto; padding: 0 16px; display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-  @media (max-width: 820px){ .wrap { grid-template-columns: 1fr; } }
+  header .client { font-size: 13px; opacity: .9; }
+  .tabs { background: #0b3d5c; padding: 0 24px; display: flex; gap: 4px; }
+  .tabs button { background: none; border: none; color: #cfe0ec; padding: 12px 18px; font-size: 14px; cursor: pointer; border-bottom: 3px solid transparent; }
+  .tabs button.active { color: #fff; border-bottom-color: #4fc3f7; font-weight: 600; }
+  .wrap { max-width: 1050px; margin: 20px auto; padding: 0 16px; display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
+  @media (max-width: 860px){ .wrap { grid-template-columns: 1fr; } }
   h2 { font-size: 16px; margin-bottom: 12px; color: #0b3d5c; }
   .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); padding: 16px; }
-  .prod { display: flex; align-items: center; justify-content: space-between; padding: 12px 6px; border-bottom: 1px solid #eef1f4; }
-  .prod:last-child { border-bottom: none; }
-  .prod .info { flex: 1; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar input[type=text]{ flex:1; min-width:140px; padding:9px; border:1px solid #cdd6df; border-radius:8px; font-size:14px; }
+  .toolbar button { padding:9px 12px; border:1px solid #cdd6df; background:#f7f9fb; border-radius:8px; font-size:13px; cursor:pointer; }
+  .toolbar button.on { background:#0b3d5c; color:#fff; border-color:#0b3d5c; }
+  .cattitle { font-size: 12px; text-transform: uppercase; letter-spacing:.5px; color:#8b98a5; margin:14px 0 4px; font-weight:700; }
+  .prod { display: flex; align-items: center; gap:10px; padding: 10px 4px; border-bottom: 1px solid #eef1f4; }
+  .prod .star { cursor:pointer; font-size:18px; color:#d9e2ea; user-select:none; }
+  .prod .star.fav { color:#ffb300; }
+  .prod .info { flex: 1; min-width:0; }
   .prod .name { font-weight: 600; }
   .prod .meta { font-size: 12px; color: #6b7a89; margin-top: 2px; }
   .prod .price { font-weight: 700; color: #0b3d5c; }
   .prod .base { font-size: 11px; color: #9aa7b4; text-decoration: line-through; margin-left: 6px; font-weight: 400; }
-  .qty { display: flex; align-items: center; gap: 8px; margin-left: 14px; }
+  .prod .cmt { width:100%; margin-top:4px; padding:5px; border:1px solid #e3e9ef; border-radius:6px; font-size:12px; }
+  .qty { display: flex; align-items: center; gap: 6px; }
   .qty button { width: 30px; height: 30px; border: 1px solid #cdd6df; background: #f7f9fb; border-radius: 8px; font-size: 18px; cursor: pointer; color: #0b3d5c; }
-  .qty input { width: 52px; height: 30px; text-align: center; border: 1px solid #cdd6df; border-radius: 8px; font-size: 14px; }
-  .cart-line { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; }
-  .cart-line .l { color: #4a5b6c; }
+  .qty input { width: 50px; height: 30px; text-align: center; border: 1px solid #cdd6df; border-radius: 8px; font-size: 14px; }
+  .badge { background: #e3f2fd; color: #1565c0; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
+  .cart-line { font-size: 14px; padding: 8px 0; border-bottom:1px solid #f2f5f7; }
+  .cart-line .top { display:flex; justify-content:space-between; }
+  .cart-line .l { color: #24313f; font-weight:500; }
+  .cart-line .c { font-size:12px; color:#8b98a5; font-style:italic; }
   .total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; color: #0b3d5c; border-top: 2px solid #eef1f4; margin-top: 10px; padding-top: 10px; }
   .empty { color: #9aa7b4; font-size: 13px; padding: 10px 0; }
-  textarea { width: 100%; border: 1px solid #cdd6df; border-radius: 8px; padding: 8px; font-size: 13px; margin-top: 8px; resize: vertical; min-height: 54px; font-family: inherit; }
+  label.fld { font-size:12px; color:#6b7a89; display:block; margin-top:12px; margin-bottom:4px; }
+  input[type=date], textarea { width: 100%; border: 1px solid #cdd6df; border-radius: 8px; padding: 9px; font-size: 13px; font-family: inherit; }
+  textarea { resize: vertical; min-height: 48px; }
   .btn { width: 100%; margin-top: 14px; background: #1565c0; color: #fff; border: none; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
   .btn:disabled { background: #b7c4d1; cursor: not-allowed; }
-  .badge { background: #e3f2fd; color: #1565c0; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
   .confirm { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; padding: 12px; border-radius: 10px; margin-top: 12px; font-size: 13px; display: none; }
+  .confirm button { margin-top:8px; background:#2e7d32; color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
   .login { max-width: 380px; margin: 80px auto; text-align: center; }
   .login .card { padding: 30px 24px; }
   .login input { width: 100%; padding: 12px; border: 1px solid #cdd6df; border-radius: 10px; font-size: 15px; margin: 14px 0; }
   .login .logo { font-size: 40px; }
   .err { color: #c62828; font-size: 13px; margin-top: 8px; min-height: 18px; }
+  .ord { border:1px solid #eef1f4; border-radius:10px; padding:12px; margin-bottom:10px; }
+  .ord .h { display:flex; justify-content:space-between; font-weight:600; color:#0b3d5c; }
+  .ord .st { font-size:11px; padding:2px 8px; border-radius:20px; background:#eef4f8; color:#3a5a72; }
+  .ord pre { font-family:inherit; font-size:13px; color:#4a5b6c; white-space:pre-wrap; margin-top:6px; }
+  .hidden { display:none !important; }
 </style>
 </head>
 <body>
@@ -53,27 +73,47 @@
   </div>
 </div>
 
-<div id="appView" style="display:none">
+<div id="appView" class="hidden">
   <header>
     <div class="brand">🐟 FAMO Seafood</div>
     <div class="client" id="clientInfo"></div>
   </header>
-  <div class="wrap">
-    <div><div class="card"><h2>Catalogue — vos tarifs</h2><div id="catalogue"></div></div></div>
+  <div class="tabs">
+    <button id="tabCat" class="active" onclick="showTab('cat')">Catalogue</button>
+    <button id="tabOrd" onclick="showTab('ord')">Mes commandes</button>
+  </div>
+
+  <div id="catView" class="wrap">
+    <div><div class="card">
+      <h2>Catalogue — vos tarifs</h2>
+      <div class="toolbar">
+        <input type="text" id="search" placeholder="Rechercher un produit…" oninput="renderCatalogue()">
+        <button id="favBtn" onclick="toggleFavFilter()">⭐ Favoris</button>
+      </div>
+      <div id="catalogue"></div>
+    </div></div>
     <div><div class="card">
       <h2>Votre commande</h2>
       <div id="cart"><div class="empty">Aucun article sélectionné.</div></div>
-      <div id="totalBox" style="display:none"><div class="total"><span>Total</span><span id="totalVal">€0,00</span></div></div>
-      <textarea id="notes" placeholder="Note pour la livraison (optionnel)…"></textarea>
+      <div id="totalBox" class="hidden"><div class="total"><span>Total</span><span id="totalVal">€0,00</span></div></div>
+      <label class="fld">Date de livraison souhaitée</label>
+      <input type="date" id="dateLiv">
+      <label class="fld">Note pour la livraison (optionnel)</label>
+      <textarea id="notes" placeholder="Ex: livrer avant 8h…"></textarea>
       <button class="btn" id="sendBtn" disabled onclick="send()">Envoyer la commande</button>
       <div class="confirm" id="confirm"></div>
     </div></div>
   </div>
+
+  <div id="ordView" class="wrap hidden" style="grid-template-columns:1fr;">
+    <div class="card"><h2>Historique de mes commandes</h2><div id="ordList"><div class="empty">Chargement…</div></div></div>
+  </div>
 </div>
 
 <script>
-let CLIENT = null, PRODUCTS = [], panier = {};
+let CLIENT = null, PRODUCTS = [], panier = {}, comments = {}, favs = {}, favOnly = false;
 const eur = n => "€" + Number(n).toFixed(2).replace(".", ",");
+const favKey = () => "famo_favs_" + (CLIENT ? CLIENT.id : "x");
 
 async function login(){
   const email = document.getElementById("email").value.trim();
@@ -83,49 +123,110 @@ async function login(){
     const r = await fetch("/api/catalogue?email=" + encodeURIComponent(email));
     const d = await r.json();
     if(!r.ok){ err.textContent = d.error || "Erreur"; return; }
-    CLIENT = d.client; PRODUCTS = d.products; panier = {};
-    document.getElementById("loginView").style.display = "none";
-    document.getElementById("appView").style.display = "block";
+    CLIENT = d.client; PRODUCTS = d.products; panier = {}; comments = {};
+    try { favs = JSON.parse(localStorage.getItem(favKey()) || "{}"); } catch(e){ favs = {}; }
+    document.getElementById("loginView").classList.add("hidden");
+    document.getElementById("appView").classList.remove("hidden");
     document.getElementById("clientInfo").innerHTML = "Connecté : <strong>" + CLIENT.nom + "</strong>" + (CLIENT.adresse ? " · " + CLIENT.adresse.split("\n")[0] : "");
+    const t = new Date(Date.now()+86400000).toISOString().slice(0,10);
+    document.getElementById("dateLiv").value = t;
     renderCatalogue(); renderCart();
   }catch(e){ err.textContent = "Erreur réseau"; }
 }
 
+function toggleFavFilter(){ favOnly = !favOnly; document.getElementById("favBtn").classList.toggle("on", favOnly); renderCatalogue(); }
+function toggleFav(id){ favs[id] = !favs[id]; if(!favs[id]) delete favs[id]; localStorage.setItem(favKey(), JSON.stringify(favs)); renderCatalogue(); }
+
 function renderCatalogue(){
-  document.getElementById("catalogue").innerHTML = PRODUCTS.map((p,i)=>{
-    const remise = p.prix < p.base ? '<span class="base">'+eur(p.base)+'</span>' : "";
-    const badge = p.prix < p.base ? '<span class="badge">négocié</span>' : "";
-    return '<div class="prod"><div class="info"><div class="name">'+p.nom+' '+badge+'</div><div class="meta">'+p.cat+' · <span class="price">'+eur(p.prix)+'</span>'+remise+' / '+p.unite+'</div></div><div class="qty"><button onclick="chg('+i+',-1)">−</button><input id="q'+i+'" type="number" min="0" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)"><button onclick="chg('+i+',1)">+</button></div></div>';
-  }).join("");
+  const q = (document.getElementById("search").value || "").toLowerCase();
+  let list = PRODUCTS.map((p,i)=>({p,i}))
+    .filter(x => x.p.nom.toLowerCase().includes(q))
+    .filter(x => !favOnly || favs[x.p.id]);
+  const cats = {};
+  list.forEach(x => { const c = x.p.cat || "Autres"; (cats[c] = cats[c] || []).push(x); });
+  let html = "";
+  Object.keys(cats).sort().forEach(cat => {
+    html += '<div class="cattitle">'+cat+'</div>';
+    html += cats[cat].map(({p,i})=>{
+      const remise = p.prix < p.base ? '<span class="base">'+eur(p.base)+'</span>' : "";
+      const badge = p.prix < p.base ? '<span class="badge">négocié</span>' : "";
+      const star = favs[p.id] ? "★" : "☆";
+      return '<div class="prod"><span class="star '+(favs[p.id]?"fav":"")+'" onclick="toggleFav(\''+p.id+'\')">'+star+'</span>'+
+        '<div class="info"><div class="name">'+p.nom+' '+badge+'</div>'+
+        '<div class="meta">'+p.cat+' · <span class="price">'+eur(p.prix)+'</span>'+remise+' / '+p.unite+'</div>'+
+        (panier[i] ? '<input class="cmt" placeholder="Commentaire (ex: en filets)…" value="'+(comments[i]||"").replace(/"/g,"&quot;")+'" oninput="setCmt('+i+',this.value)">' : '')+
+        '</div>'+
+        '<div class="qty"><button onclick="chg('+i+',-1)">−</button><input id="q'+i+'" type="number" min="0" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)"><button onclick="chg('+i+',1)">+</button></div></div>';
+    }).join("");
+  });
+  document.getElementById("catalogue").innerHTML = html || '<div class="empty">Aucun produit.</div>';
 }
 function chg(i,d){ setQ(i,(panier[i]||0)+d); }
-function setQ(i,v){ v=Math.max(0,parseInt(v)||0); if(v===0) delete panier[i]; else panier[i]=v; const el=document.getElementById("q"+i); if(el) el.value=v; renderCart(); }
+function setQ(i,v){ v=Math.max(0,parseInt(v)||0); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
+function setCmt(i,v){ comments[i]=v; renderCart(); }
+
 function renderCart(){
   const cart=document.getElementById("cart"); const keys=Object.keys(panier);
-  if(!keys.length){ cart.innerHTML='<div class="empty">Aucun article sélectionné.</div>'; document.getElementById("totalBox").style.display="none"; document.getElementById("sendBtn").disabled=true; return; }
+  if(!keys.length){ cart.innerHTML='<div class="empty">Aucun article sélectionné.</div>'; document.getElementById("totalBox").classList.add("hidden"); document.getElementById("sendBtn").disabled=true; return; }
   let total=0;
-  cart.innerHTML=keys.map(i=>{ const p=PRODUCTS[i],q=panier[i],st=p.prix*q; total+=st; return '<div class="cart-line"><span class="l">'+p.nom+' × '+q+' '+p.unite+'</span><span>'+eur(st)+'</span></div>'; }).join("");
+  cart.innerHTML=keys.map(i=>{ const p=PRODUCTS[i],qn=panier[i],st=p.prix*qn; total+=st;
+    return '<div class="cart-line"><div class="top"><span class="l">'+p.nom+' × '+qn+' '+p.unite+'</span><span>'+eur(st)+'</span></div>'+(comments[i]?'<div class="c">↳ '+comments[i]+'</div>':'')+'</div>'; }).join("");
   document.getElementById("totalVal").textContent=eur(total);
-  document.getElementById("totalBox").style.display="block";
+  document.getElementById("totalBox").classList.remove("hidden");
   document.getElementById("sendBtn").disabled=false;
 }
+
 async function send(){
   const keys=Object.keys(panier); if(!keys.length) return;
   const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Envoi…";
   const total=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
-  const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite).join("\n");
+  const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
+  const dateLiv=document.getElementById("dateLiv").value;
   try{
-    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:CLIENT.id,lignes:lignes,total:total,notes:document.getElementById("notes").value})});
+    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:CLIENT.id,lignes:lignes,total:total,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
     const d=await r.json();
     const box=document.getElementById("confirm");
     if(!r.ok){ box.style.display="block"; box.style.background="#ffebee"; box.style.color="#c62828"; box.textContent="Erreur : "+(d.error||"envoi échoué"); btn.disabled=false; btn.textContent="Envoyer la commande"; return; }
+    window._lastOrder={ref:d.ref,lignes:lignes,total:total,dateLiv:dateLiv,client:CLIENT.nom};
     box.style.display="block";
-    box.innerHTML='✅ <strong>Commande '+d.ref+' envoyée !</strong><br>Total : <strong>'+eur(total)+'</strong><br>Enregistrée dans Airtable.';
-    panier={}; document.getElementById("notes").value=""; renderCatalogue(); renderCart();
+    box.innerHTML='✅ <strong>Commande '+d.ref+' envoyée !</strong><br>Livraison souhaitée : '+(dateLiv||"—")+'<br>Total : <strong>'+eur(total)+'</strong><br>Enregistrée dans Airtable.<br><button onclick="printOrder()">🖨️ Imprimer la confirmation</button>';
+    panier={}; comments={}; document.getElementById("notes").value=""; renderCatalogue(); renderCart();
     btn.textContent="Envoyer la commande";
     box.scrollIntoView({behavior:"smooth"});
   }catch(e){ btn.disabled=false; btn.textContent="Envoyer la commande"; alert("Erreur réseau"); }
 }
+
+function printOrder(){
+  const o=window._lastOrder; if(!o) return;
+  const w=window.open("","_blank");
+  w.document.write('<html><head><title>'+o.ref+'</title><style>body{font-family:Arial;padding:30px;color:#1a2b3c}h1{color:#0b3d5c}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #ccc;padding:8px;text-align:left}.tot{font-size:18px;font-weight:bold;margin-top:12px}</style></head><body>'+
+    '<h1>🐟 FAMO Seafood</h1><h2>Confirmation de commande</h2>'+
+    '<p><strong>Réf :</strong> '+o.ref+'<br><strong>Client :</strong> '+o.client+'<br><strong>Livraison souhaitée :</strong> '+(o.dateLiv||"—")+'</p>'+
+    '<table><tr><th>Détail</th></tr>'+o.lignes.split("\n").map(l=>'<tr><td>'+l+'</td></tr>').join("")+'</table>'+
+    '<p class="tot">Total : '+eur(o.total)+'</p></body></html>');
+  w.document.close(); w.print();
+}
+
+function showTab(t){
+  document.getElementById("tabCat").classList.toggle("active", t==="cat");
+  document.getElementById("tabOrd").classList.toggle("active", t==="ord");
+  document.getElementById("catView").classList.toggle("hidden", t!=="cat");
+  document.getElementById("ordView").classList.toggle("hidden", t!=="ord");
+  if(t==="ord") loadOrders();
+}
+
+async function loadOrders(){
+  const box=document.getElementById("ordList"); box.innerHTML='<div class="empty">Chargement…</div>';
+  try{
+    const r=await fetch("/api/orders?email="+encodeURIComponent(document.getElementById("email").value.trim()));
+    const d=await r.json();
+    if(!r.ok||!d.orders||!d.orders.length){ box.innerHTML='<div class="empty">Aucune commande pour le moment.</div>'; return; }
+    box.innerHTML=d.orders.map(o=>'<div class="ord"><div class="h"><span>'+o.ref+'</span><span class="st">'+o.statut+'</span></div>'+
+      '<div style="font-size:12px;color:#8b98a5">'+(o.date||"")+' · Paiement : '+o.paiement+' · Total : <strong>'+eur(o.total)+'</strong></div>'+
+      '<pre>'+o.lignes+'</pre></div>').join("");
+  }catch(e){ box.innerHTML='<div class="empty">Erreur réseau.</div>'; }
+}
+
 document.getElementById("email").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
 </script>
 </body>
