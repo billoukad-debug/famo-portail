@@ -6,11 +6,11 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { clientId, lignes, total, notes } = body;
+    const { clientId, lignes, total, notes, dateLivraison } = body;
     if (!clientId || !lignes) return res.status(400).json({ error: "données manquantes" });
     const ref = "CMD-" + Date.now();
     const today = new Date().toISOString().slice(0, 10);
-    const payload = { records: [{ fields: {
+    const fields = {
       "Référence": ref,
       "Date": today,
       "Lignes (produits / quantités)": lignes,
@@ -19,7 +19,9 @@ module.exports = async (req, res) => {
       "Total": total,
       "Notes": notes || "",
       "Client": [clientId]
-    } }] };
+    };
+    if (dateLivraison) fields["Date livraison souhaitée"] = dateLivraison;
+    const payload = { records: [{ fields }] };
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Commandes`, {
       method: "POST",
       headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
