@@ -1,0 +1,32 @@
+const TOKEN = process.env.AIRTABLE_TOKEN;
+const STAFF_CODE = process.env.STAFF_CODE || "famo2026";
+const BASE = "appcdduLth9iGX8I0";
+async function at(path){
+  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+  return r.json();
+}
+module.exports = async (req, res) => {
+  try {
+    const code = String((req.query && req.query.code) || "");
+    if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
+    const cl = await at("Clients");
+    const nameById = {};
+    (cl.records || []).forEach(r => { nameById[r.id] = r.fields["Nom"] || ""; });
+    const cmd = await at("Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc");
+    const orders = (cmd.records || []).map(r => ({
+      id: r.id,
+      ref: r.fields["Référence"] || "",
+      date: r.fields["Date"] || "",
+      dateLiv: r.fields["Date livraison souhaitée"] || "",
+      client: (r.fields["Client"] || []).map(id => nameById[id] || id).join(", "),
+      lignes: r.fields["Lignes (produits / quantités)"] || "",
+      total: r.fields["Total"] || 0,
+      statut: r.fields["Statut"] || "Reçue",
+      paiement: r.fields["Statut paiement"] || "En attente",
+      notes: r.fields["Notes"] || ""
+    }));
+    res.status(200).json({ orders });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+};
