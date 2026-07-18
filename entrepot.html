@@ -25,14 +25,20 @@
   .oc .ref { font-weight:700; color:#12343b; }
   .oc .cl { font-size:13px; color:#2a5a63; margin:2px 0; }
   .oc pre { font-family:inherit; font-size:12px; color:#4a5b6c; white-space:pre-wrap; margin:6px 0; }
+  .oc textarea { width:100%; font-family:inherit; font-size:12px; border:1px solid #cdd6df; border-radius:6px; padding:6px; min-height:70px; }
+  .oc .tin { width:90px; padding:4px; border:1px solid #cdd6df; border-radius:6px; font-size:12px; }
   .oc .meta { font-size:11px; color:#8b98a5; }
   .oc .row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
   .oc button { border:none; border-radius:7px; padding:6px 8px; font-size:12px; cursor:pointer; }
   .adv { background:#1565c0; color:#fff; }
   .pay { background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7 !important; }
   .paid { background:#2e7d32; color:#fff; }
+  .edit { background:#eceff1; color:#37474f; }
+  .doc { background:#f3e5f5; color:#6a1b9a; }
+  .save { background:#2e7d32; color:#fff; }
   .empty { color:#9aa7b4; font-size:12px; padding:6px; }
   .refresh { margin:10px 16px 0; font-size:12px; color:#6b7a89; }
+  .warn { margin:10px 16px; padding:10px; background:#fff8e1; border:1px solid #ffe082; border-radius:8px; font-size:12px; color:#8d6e00; }
 </style>
 </head>
 <body>
@@ -53,6 +59,7 @@
     <button onclick="load()">↻ Rafraîchir</button>
   </header>
   <div class="refresh" id="stamp"></div>
+  <div class="warn">⚠️ Les documents générés (BL / facture) sont des <strong>impressions internes</strong>. Ils ne remplacent pas une facture électronique conforme Peppol, obligatoire en B2B belge — à mettre en place séparément.</div>
   <div class="board">
     <div class="col"><h3>Reçue <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
     <div class="col"><h3>Prête <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
@@ -62,9 +69,22 @@
 </div>
 
 <script>
+/* ====== À COMPLÉTER : coordonnées légales de FAMO ====== */
+const FAMO = {
+  nom: "FAMO Seafood",
+  adresse: "Adresse à compléter",
+  cp: "Code postal / Ville à compléter",
+  tva: "BE 0000.000.000",
+  tel: "",
+  iban: "BE00 0000 0000 0000",
+  tauxTVA: 6   // % — vérifier le taux applicable avec votre comptable
+};
+/* ====================================================== */
+
 const STATUS = ["Reçue","Prête","Sortie en livraison","Facturée"];
-let CODE = "";
+let CODE = "", ORDERS = [];
 const eur = n => "€" + Number(n).toFixed(2).replace(".",",");
+const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 
 async function enter(){
   CODE = document.getElementById("code").value.trim();
@@ -73,36 +93,85 @@ async function enter(){
   if(!r.ok){ err.textContent = "Code invalide"; return; }
   document.getElementById("loginView").style.display="none";
   document.getElementById("app").style.display="block";
-  const d = await r.json(); render(d.orders);
+  const d = await r.json(); ORDERS=d.orders; render();
 }
-
 async function load(){
   const r = await fetch("/api/allorders?code=" + encodeURIComponent(CODE));
   if(!r.ok) return;
-  const d = await r.json(); render(d.orders);
+  const d = await r.json(); ORDERS=d.orders; render();
 }
 
-function render(orders){
+function render(){
   for(let i=0;i<4;i++){ document.getElementById("c"+i).innerHTML=""; }
   const counts=[0,0,0,0];
-  orders.forEach(o=>{
+  ORDERS.forEach((o,idx)=>{
     const si = STATUS.indexOf(o.statut); if(si<0) return; counts[si]++;
     const next = si<3 ? STATUS[si+1] : null;
     const paid = o.paiement==="Payé";
     const el=document.createElement("div"); el.className="oc";
-    el.innerHTML='<div class="ref">'+o.ref+'</div>'+
-      '<div class="cl">'+o.client+'</div>'+
-      '<pre>'+o.lignes+'</pre>'+
-      '<div class="meta">Livraison : '+(o.dateLiv||"—")+' · Total : <strong>'+eur(o.total)+'</strong></div>'+
-      (o.notes?'<div class="meta">📝 '+o.notes+'</div>':'')+
+    el.innerHTML='<div class="ref">'+esc(o.ref)+'</div>'+
+      '<div class="cl">'+esc(o.client)+'</div>'+
+      '<pre id="p'+idx+'">'+esc(o.lignes)+'</pre>'+
+      '<div class="meta">Livraison : '+esc(o.dateLiv||"—")+' · Total : <strong>'+eur(o.total)+'</strong></div>'+
+      (o.notes?'<div class="meta">📝 '+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
         (next?'<button class="adv" onclick="adv(\''+o.id+'\',\''+next+'\')">→ '+next+'</button>':'')+
+        '<button class="edit" onclick="editLines('+idx+')">✏️ Quantités réelles</button>'+
+        '<button class="doc" onclick="doc('+idx+',\'BL\')">📄 BL</button>'+
+        '<button class="doc" onclick="doc('+idx+',\'FA\')">🧾 Facture</button>'+
         '<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"✓ Payé":"Marquer payé")+'</button>'+
-      '</div>';
+      '</div><div id="e'+idx+'"></div>';
     document.getElementById("c"+si).appendChild(el);
   });
   for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML='<div class="empty">—</div>'; }
   document.getElementById("stamp").textContent = "Mis à jour : " + new Date().toLocaleTimeString("fr-BE");
+}
+
+function editLines(idx){
+  const o=ORDERS[idx]; const box=document.getElementById("e"+idx);
+  if(box.innerHTML){ box.innerHTML=""; return; }
+  box.innerHTML='<div style="margin-top:8px"><textarea id="ta'+idx+'">'+esc(o.lignes)+'</textarea>'+
+    '<div class="row">Total réel : <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'">'+
+    '<button class="save" onclick="saveLines('+idx+')">💾 Enregistrer</button></div>'+
+    '<div class="meta">Corrigez les quantités réellement sorties (poids variable), puis enregistrez avant d\'imprimer le BL.</div></div>';
+}
+async function saveLines(idx){
+  const o=ORDERS[idx];
+  const lignes=document.getElementById("ta"+idx).value;
+  const total=parseFloat(document.getElementById("tt"+idx).value)||0;
+  await upd({id:o.id, lignes:lignes, total:total});
+}
+
+function doc(idx,type){
+  const o=ORDERS[idx];
+  const isFA = type==="FA";
+  const htva = o.total / (1 + FAMO.tauxTVA/100);
+  const tva = o.total - htva;
+  const titre = isFA ? "FACTURE" : "BON DE LIVRAISON";
+  const num = (isFA?"FA-":"BL-") + o.ref.replace("CMD-","");
+  const w=window.open("","_blank");
+  w.document.write('<html><head><meta charset="utf-8"><title>'+num+'</title><style>'+
+    'body{font-family:Arial,sans-serif;padding:34px;color:#1a2b3c;font-size:13px}'+
+    '.hd{display:flex;justify-content:space-between;border-bottom:2px solid #0b3d5c;padding-bottom:10px}'+
+    'h1{color:#0b3d5c;font-size:22px}h2{font-size:17px;margin-top:18px}'+
+    '.box{margin-top:14px;padding:10px;border:1px solid #ddd;border-radius:6px;display:inline-block;min-width:230px}'+
+    'table{width:100%;border-collapse:collapse;margin-top:14px}td,th{border:1px solid #ccc;padding:7px;text-align:left}'+
+    'th{background:#f0f4f7}.tot{margin-top:14px;text-align:right;font-size:15px}'+
+    '.tot .g{font-size:19px;font-weight:bold;color:#0b3d5c}'+
+    '.ft{margin-top:26px;font-size:11px;color:#777;border-top:1px solid #ddd;padding-top:8px}'+
+    '</style></head><body>'+
+    '<div class="hd"><div><h1>🐟 '+esc(FAMO.nom)+'</h1><div>'+esc(FAMO.adresse)+'<br>'+esc(FAMO.cp)+'<br>TVA : '+esc(FAMO.tva)+(FAMO.tel?'<br>'+esc(FAMO.tel):'')+'</div></div>'+
+    '<div style="text-align:right"><h2>'+titre+'</h2><div>N° '+esc(num)+'<br>Date : '+new Date().toLocaleDateString("fr-BE")+
+    (o.dateLiv?'<br>Livraison : '+esc(o.dateLiv):'')+'<br>Réf. commande : '+esc(o.ref)+'</div></div></div>'+
+    '<div class="box"><strong>Client</strong><br>'+esc(o.client)+'</div>'+
+    '<table><tr><th>Désignation</th></tr>'+String(o.lignes||"").split("\n").filter(x=>x.trim()).map(l=>'<tr><td>'+esc(l)+'</td></tr>').join("")+'</table>'+
+    (isFA
+      ? '<div class="tot">Total HTVA : '+eur(htva)+'<br>TVA '+FAMO.tauxTVA+'% : '+eur(tva)+'<br><span class="g">TOTAL TVAC : '+eur(o.total)+'</span></div>'+
+        '<div class="ft">Paiement : '+esc(o.paiement)+' · IBAN : '+esc(FAMO.iban)+'<br>Document généré par le système FAMO. Vérifiez la conformité (mentions légales, taux TVA, facturation électronique Peppol) avec votre comptable.</div>'
+      : '<div class="tot"><span class="g">Total : '+eur(o.total)+'</span></div>'+
+        '<div class="ft">Signature client : ______________________<br><br>Marchandise reçue en bon état et conforme.</div>')+
+    '</body></html>');
+  w.document.close(); w.print();
 }
 
 async function adv(id,statut){ await upd({id,statut}); }
