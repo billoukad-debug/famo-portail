@@ -1,176 +1,231 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="nl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FAMO Seafood — Portail client</title>
+<title>Famo Trading — Bestelportaal</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; color: #1a2b3c; }
-  header { background: #0b3d5c; color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-  header .brand { font-size: 20px; font-weight: 700; }
-  header .client { font-size: 13px; opacity: .9; }
-  .tabs { background: #0b3d5c; padding: 0 24px; display: flex; gap: 4px; }
-  .tabs button { background: none; border: none; color: #cfe0ec; padding: 12px 18px; font-size: 14px; cursor: pointer; border-bottom: 3px solid transparent; }
-  .tabs button.active { color: #fff; border-bottom-color: #4fc3f7; font-weight: 600; }
-  .wrap { max-width: 1050px; margin: 20px auto; padding: 0 16px; display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
-  @media (max-width: 860px){ .wrap { grid-template-columns: 1fr; } }
-  h2 { font-size: 16px; margin-bottom: 12px; color: #0b3d5c; }
-  .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); padding: 16px; }
-  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-  .toolbar input[type=text]{ flex:1; min-width:140px; padding:9px; border:1px solid #cdd6df; border-radius:8px; font-size:14px; }
-  .toolbar button { padding:9px 12px; border:1px solid #cdd6df; background:#f7f9fb; border-radius:8px; font-size:13px; cursor:pointer; }
-  .toolbar button.on { background:#0b3d5c; color:#fff; border-color:#0b3d5c; }
-  .cattitle { font-size: 12px; text-transform: uppercase; letter-spacing:.5px; color:#8b98a5; margin:14px 0 4px; font-weight:700; }
-  .prod { display: flex; align-items: center; gap:10px; padding: 10px 4px; border-bottom: 1px solid #eef1f4; }
-  .prod .star { cursor:pointer; font-size:18px; color:#d9e2ea; user-select:none; }
-  .prod .star.fav { color:#ffb300; }
-  .prod .info { flex: 1; min-width:0; }
-  .prod .name { font-weight: 600; }
-  .prod .meta { font-size: 12px; color: #6b7a89; margin-top: 2px; }
-  .prod .price { font-weight: 700; color: #0b3d5c; }
-  .prod .base { font-size: 11px; color: #9aa7b4; text-decoration: line-through; margin-left: 6px; font-weight: 400; }
-  .prod .cmt { width:100%; margin-top:4px; padding:5px; border:1px solid #e3e9ef; border-radius:6px; font-size:12px; }
-  .qty { display: flex; align-items: center; gap: 6px; }
-  .qty button { width: 30px; height: 30px; border: 1px solid #cdd6df; background: #f7f9fb; border-radius: 8px; font-size: 18px; cursor: pointer; color: #0b3d5c; }
-  .qty input { width: 50px; height: 30px; text-align: center; border: 1px solid #cdd6df; border-radius: 8px; font-size: 14px; }
-  .badge { background: #e3f2fd; color: #1565c0; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
-  .cart-line { font-size: 14px; padding: 8px 0; border-bottom:1px solid #f2f5f7; }
-  .cart-line .top { display:flex; justify-content:space-between; }
-  .cart-line .l { color: #24313f; font-weight:500; }
-  .cart-line .c { font-size:12px; color:#8b98a5; font-style:italic; }
-  .total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; color: #0b3d5c; border-top: 2px solid #eef1f4; margin-top: 10px; padding-top: 10px; }
-  .empty { color: #9aa7b4; font-size: 13px; padding: 10px 0; }
-  label.fld { font-size:12px; color:#6b7a89; display:block; margin-top:12px; margin-bottom:4px; }
-  input[type=date], textarea { width: 100%; border: 1px solid #cdd6df; border-radius: 8px; padding: 9px; font-size: 13px; font-family: inherit; }
-  textarea { resize: vertical; min-height: 48px; }
-  .btn { width: 100%; margin-top: 14px; background: #1565c0; color: #fff; border: none; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
-  .btn:disabled { background: #b7c4d1; cursor: not-allowed; }
-  .confirm { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; padding: 12px; border-radius: 10px; margin-top: 12px; font-size: 13px; display: none; }
-  .confirm button { margin-top:8px; background:#2e7d32; color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
-  .login { max-width: 380px; margin: 80px auto; text-align: center; }
-  .login .card { padding: 30px 24px; }
-  .login input { width: 100%; padding: 12px; border: 1px solid #cdd6df; border-radius: 10px; font-size: 15px; margin: 14px 0; }
-  .login .logo { font-size: 40px; }
-  .err { color: #c62828; font-size: 13px; margin-top: 8px; min-height: 18px; }
-  .ord { border:1px solid #eef1f4; border-radius:10px; padding:12px; margin-bottom:10px; }
-  .ord .h { display:flex; justify-content:space-between; font-weight:600; color:#0b3d5c; }
-  .ord .st { font-size:11px; padding:2px 8px; border-radius:20px; background:#eef4f8; color:#3a5a72; }
-  .ord pre { font-family:inherit; font-size:13px; color:#4a5b6c; white-space:pre-wrap; margin-top:6px; }
+  :root {
+    --navy:#0b2e4f; --navy2:#123d63; --ocean:#1273b8; --ocean-l:#e8f3fb;
+    --ink:#16striped2334; --text:#1c2a3a; --mut:#64748b; --line:#e2e8f0;
+    --bg:#f1f5f9; --card:#ffffff; --ok:#16a34a; --ok-l:#ecfdf5;
+    --warn:#d97706; --err:#dc2626; --gold:#f59e0b;
+    --r:14px; --sh:0 1px 3px rgba(15,23,42,.08),0 4px 14px rgba(15,23,42,.05);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif; background:var(--bg); color:var(--text); font-size:15px; }
+  button { font-family:inherit; cursor:pointer; }
+  input,textarea { font-family:inherit; }
+
+  /* ---------- LOGIN ---------- */
+  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:linear-gradient(160deg,var(--navy) 0%,var(--navy2) 55%,var(--ocean) 130%); }
+  .login-card { background:#fff; border-radius:20px; padding:38px 32px; width:100%; max-width:400px; box-shadow:0 20px 60px rgba(2,12,27,.4); text-align:center; }
+  .login-card .logo { width:64px; height:64px; border-radius:18px; background:var(--ocean-l); display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 14px; }
+  .login-card h1 { font-size:22px; color:var(--navy); letter-spacing:-.3px; }
+  .login-card .sub { color:var(--mut); font-size:13.5px; margin:6px 0 22px; }
+  .login-card input { width:100%; padding:13px 14px; border:1.5px solid var(--line); border-radius:12px; font-size:15px; margin-bottom:12px; transition:border .15s; }
+  .login-card input:focus { outline:none; border-color:var(--ocean); }
+  .btn-p { width:100%; background:var(--ocean); color:#fff; border:none; padding:14px; border-radius:12px; font-size:15px; font-weight:600; transition:background .15s; }
+  .btn-p:hover { background:#0e5f99; }
+  .btn-p:disabled { background:#94a3b8; cursor:default; }
+  .err-msg { color:var(--err); font-size:13px; margin-top:10px; min-height:18px; }
+  .login-foot { margin-top:18px; font-size:11.5px; color:#94a3b8; }
+
+  /* ---------- APP SHELL ---------- */
+  .topbar { background:var(--navy); color:#fff; position:sticky; top:0; z-index:50; box-shadow:0 2px 10px rgba(2,12,27,.25); }
+  .topbar-in { max-width:1080px; margin:0 auto; padding:0 18px; display:flex; align-items:center; justify-content:space-between; height:58px; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:17px; letter-spacing:-.2px; }
+  .brand .bl { width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .whoami { font-size:12.5px; opacity:.85; text-align:right; line-height:1.35; }
+  .whoami b { font-size:13px; }
+  .tabs { max-width:1080px; margin:0 auto; padding:0 18px; display:flex; gap:2px; }
+  .tabs button { background:none; border:none; color:#b7cbdd; padding:11px 16px 13px; font-size:14px; font-weight:600; border-bottom:3px solid transparent; }
+  .tabs button.on { color:#fff; border-bottom-color:var(--gold); }
+  .cart-pill { background:var(--gold); color:#1c1300; font-size:11px; font-weight:800; border-radius:20px; padding:1px 7px; margin-left:6px; }
+
+  .page { max-width:1080px; margin:20px auto 60px; padding:0 18px; display:grid; grid-template-columns:1fr 360px; gap:18px; align-items:start; }
+  @media (max-width:900px){ .page { grid-template-columns:1fr; } .side { order:-1; position:static; } }
+  .card { background:var(--card); border-radius:var(--r); box-shadow:var(--sh); padding:18px; }
+  .card h2 { font-size:15.5px; color:var(--navy); margin-bottom:14px; letter-spacing:-.2px; }
+
+  /* ---------- CATALOGUE ---------- */
+  .toolbar { display:flex; gap:8px; margin-bottom:14px; }
+  .search { flex:1; display:flex; align-items:center; gap:8px; background:var(--bg); border:1.5px solid var(--line); border-radius:11px; padding:0 12px; }
+  .search input { flex:1; border:none; background:none; padding:10px 0; font-size:14px; }
+  .search input:focus { outline:none; }
+  .fav-btn { border:1.5px solid var(--line); background:#fff; border-radius:11px; padding:0 14px; font-size:13.5px; font-weight:600; color:var(--mut); }
+  .fav-btn.on { background:#fff8e6; border-color:var(--gold); color:#92600a; }
+  .cat-h { font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:var(--mut); margin:18px 2px 6px; display:flex; align-items:center; gap:8px; }
+  .cat-h::after { content:""; flex:1; height:1px; background:var(--line); }
+  .prow { display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid #f0f4f8; }
+  .prow:last-child { border-bottom:none; }
+  .star { font-size:20px; color:#cbd5e1; cursor:pointer; user-select:none; width:26px; text-align:center; transition:transform .1s; }
+  .star:active { transform:scale(1.25); }
+  .star.on { color:var(--gold); }
+  .pinfo { flex:1; min-width:0; }
+  .pname { font-weight:650; font-size:14.5px; }
+  .pmeta { font-size:12.5px; color:var(--mut); margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .pprice { font-weight:750; color:var(--navy); font-size:13.5px; }
+  .pbase { text-decoration:line-through; color:#a8b6c4; font-size:11.5px; }
+  .tag { background:var(--ocean-l); color:var(--ocean); font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px; }
+  .cmt-in { width:100%; margin-top:7px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; font-size:12.5px; background:#fbfdfe; }
+  .qty { display:flex; align-items:center; gap:7px; }
+  .qty button { width:36px; height:36px; border:1.5px solid var(--line); background:#fff; border-radius:10px; font-size:19px; color:var(--navy); font-weight:600; transition:all .12s; }
+  .qty button:hover { border-color:var(--ocean); background:var(--ocean-l); }
+  .qty input { width:52px; height:36px; text-align:center; border:1.5px solid var(--line); border-radius:10px; font-size:14.5px; font-weight:600; }
+  .qty input:focus { outline:none; border-color:var(--ocean); }
+  .empty { color:#94a3b8; font-size:13.5px; padding:14px 4px; text-align:center; }
+
+  /* ---------- CART ---------- */
+  .side { position:sticky; top:74px; }
+  .cline { padding:9px 0; border-bottom:1px solid #f0f4f8; font-size:13.5px; }
+  .cline .r1 { display:flex; justify-content:space-between; gap:10px; }
+  .cline .nm { font-weight:600; }
+  .cline .cm { font-size:12px; color:var(--mut); font-style:italic; margin-top:2px; }
+  .total-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:12px; padding-top:12px; border-top:2px solid var(--line); }
+  .total-row .lbl { font-size:13px; color:var(--mut); font-weight:600; }
+  .total-row .val { font-size:22px; font-weight:800; color:var(--navy); letter-spacing:-.5px; }
+  .fld-l { display:block; font-size:12px; font-weight:700; color:var(--mut); margin:14px 0 5px; text-transform:uppercase; letter-spacing:.4px; }
+  input[type=date] { width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:11px; font-size:14px; background:#fff; }
+  textarea.notes { width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:11px; font-size:13.5px; min-height:56px; resize:vertical; }
+  .confirm { background:var(--ok-l); border:1.5px solid #a7f3d0; color:#065f46; padding:14px; border-radius:12px; margin-top:12px; font-size:13.5px; line-height:1.55; display:none; }
+  .confirm .print-b { margin-top:10px; background:var(--ok); color:#fff; border:none; padding:9px 14px; border-radius:9px; font-size:13px; font-weight:600; }
+
+  /* ---------- ORDERS ---------- */
+  .ord { border:1.5px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; transition:border .15s; }
+  .ord:hover { border-color:#cbd8e4; }
+  .ord .h { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .ord .ref { font-weight:750; color:var(--navy); font-size:14.5px; }
+  .chip { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; white-space:nowrap; }
+  .chip.s0 { background:#eff6ff; color:#1d4ed8; }
+  .chip.s1 { background:#fefce8; color:#a16207; }
+  .chip.s2 { background:#f0f9ff; color:#0369a1; }
+  .chip.s3 { background:var(--ok-l); color:#047857; }
+  .ord .meta { font-size:12.5px; color:var(--mut); margin-top:4px; }
+  .ord pre { font-family:inherit; font-size:13px; color:#475569; white-space:pre-wrap; margin-top:8px; background:#f8fafc; border-radius:9px; padding:9px 11px; }
   .hidden { display:none !important; }
 </style>
 </head>
 <body>
 
-<div id="loginView" class="login">
-  <div class="card">
+<div id="loginView" class="login-wrap">
+  <div class="login-card">
     <div class="logo">🐟</div>
-    <h2 style="margin-top:8px">FAMO Seafood</h2>
-    <p style="font-size:13px;color:#6b7a89">Portail de commande — connectez-vous</p>
-    <input id="email" type="email" placeholder="Votre email" value="commande@leponton-test.be">
-    <button class="btn" onclick="login()">Se connecter</button>
-    <div class="err" id="loginErr"></div>
+    <h1>Famo Trading</h1>
+    <p class="sub">Bestelportaal voor professionele klanten</p>
+    <input id="email" type="email" placeholder="E-mailadres" value="commande@leponton-test.be" autocomplete="email">
+    <button class="btn-p" id="loginBtn" onclick="login()">Aanmelden</button>
+    <div class="err-msg" id="loginErr"></div>
+    <div class="login-foot">Famo Trading BV · Jezusstraat 34, 2000 Antwerpen · BTW BE 0788.705.713</div>
   </div>
 </div>
 
 <div id="appView" class="hidden">
-  <header>
-    <div class="brand">🐟 FAMO Seafood</div>
-    <div class="client" id="clientInfo"></div>
-  </header>
-  <div class="tabs">
-    <button id="tabCat" class="active" onclick="showTab('cat')">Catalogue</button>
-    <button id="tabOrd" onclick="showTab('ord')">Mes commandes</button>
+  <div class="topbar">
+    <div class="topbar-in">
+      <div class="brand"><span class="bl">🐟</span> Famo Trading</div>
+      <div class="whoami" id="clientInfo"></div>
+    </div>
+    <div class="tabs">
+      <button id="tabCat" class="on" onclick="showTab('cat')">Catalogus <span id="cartPill" class="cart-pill hidden">0</span></button>
+      <button id="tabOrd" onclick="showTab('ord')">Mijn bestellingen</button>
+    </div>
   </div>
 
-  <div id="catView" class="wrap">
-    <div><div class="card">
-      <h2>Catalogue — vos tarifs</h2>
+  <div id="catView" class="page">
+    <div class="card">
+      <h2>Catalogus — uw prijzen</h2>
       <div class="toolbar">
-        <input type="text" id="search" placeholder="Rechercher un produit…" oninput="renderCatalogue()">
-        <button id="favBtn" onclick="toggleFavFilter()">⭐ Favoris</button>
+        <div class="search">🔍<input type="text" id="search" placeholder="Zoek een product…" oninput="renderCatalogue()"></div>
+        <button id="favBtn" class="fav-btn" onclick="toggleFavFilter()">★ Favorieten</button>
       </div>
       <div id="catalogue"></div>
-    </div></div>
-    <div><div class="card">
-      <h2>Votre commande</h2>
-      <div id="cart"><div class="empty">Aucun article sélectionné.</div></div>
-      <div id="totalBox" class="hidden"><div class="total"><span>Total</span><span id="totalVal">€0,00</span></div></div>
-      <label class="fld">Date de livraison souhaitée</label>
-      <input type="date" id="dateLiv">
-      <label class="fld">Note pour la livraison (optionnel)</label>
-      <textarea id="notes" placeholder="Ex: livrer avant 8h…"></textarea>
-      <button class="btn" id="sendBtn" disabled onclick="send()">Envoyer la commande</button>
-      <div class="confirm" id="confirm"></div>
-    </div></div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <h2>Uw bestelling</h2>
+        <div id="cart"><div class="empty">Nog geen artikelen geselecteerd.</div></div>
+        <div id="totalBox" class="hidden"><div class="total-row"><span class="lbl">TOTAAL</span><span class="val" id="totalVal">€ 0,00</span></div></div>
+        <label class="fld-l">Gewenste leverdatum</label>
+        <input type="date" id="dateLiv">
+        <label class="fld-l">Opmerking (optioneel)</label>
+        <textarea class="notes" id="notes" placeholder="Bv. leveren vóór 8u…"></textarea>
+        <button class="btn-p" id="sendBtn" style="margin-top:14px" disabled onclick="send()">Bestelling versturen</button>
+        <div class="confirm" id="confirm"></div>
+      </div>
+    </div>
   </div>
 
-  <div id="ordView" class="wrap hidden" style="grid-template-columns:1fr;">
-    <div class="card"><h2>Historique de mes commandes</h2><div id="ordList"><div class="empty">Chargement…</div></div></div>
+  <div id="ordView" class="page hidden" style="grid-template-columns:1fr;">
+    <div class="card"><h2>Mijn bestellingen</h2><div id="ordList"><div class="empty">Laden…</div></div></div>
   </div>
 </div>
 
 <script>
-let CLIENT = null, PRODUCTS = [], panier = {}, comments = {}, favs = {}, favOnly = false;
-const eur = n => "€" + Number(n).toFixed(2).replace(".", ",");
-const favKey = () => "famo_favs_" + (CLIENT ? CLIENT.id : "x");
+let CLIENT=null, PRODUCTS=[], panier={}, comments={}, favs={}, favOnly=false;
+const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
+const NLSTATUS={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
+const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
+const favKey=()=>"famo_favs_"+(CLIENT?CLIENT.id:"x");
+const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 
 async function login(){
-  const email = document.getElementById("email").value.trim();
-  const err = document.getElementById("loginErr");
-  err.textContent = "Connexion…";
+  const email=document.getElementById("email").value.trim();
+  const err=document.getElementById("loginErr"), btn=document.getElementById("loginBtn");
+  btn.disabled=true; err.textContent="";
   try{
-    const r = await fetch("/api/catalogue?email=" + encodeURIComponent(email));
-    const d = await r.json();
-    if(!r.ok){ err.textContent = d.error || "Erreur"; return; }
-    CLIENT = d.client; PRODUCTS = d.products; panier = {}; comments = {};
-    try { favs = JSON.parse(localStorage.getItem(favKey()) || "{}"); } catch(e){ favs = {}; }
+    const r=await fetch("/api/catalogue?email="+encodeURIComponent(email));
+    const d=await r.json();
+    if(!r.ok){ err.textContent=d.error||"Fout bij aanmelden"; btn.disabled=false; return; }
+    CLIENT=d.client; PRODUCTS=d.products; panier={}; comments={};
+    try{ favs=JSON.parse(localStorage.getItem(favKey())||"{}"); }catch(e){ favs={}; }
     document.getElementById("loginView").classList.add("hidden");
     document.getElementById("appView").classList.remove("hidden");
-    document.getElementById("clientInfo").innerHTML = "Connecté : <strong>" + CLIENT.nom + "</strong>" + (CLIENT.adresse ? " · " + CLIENT.adresse.split("\n")[0] : "");
-    const t = new Date(Date.now()+86400000).toISOString().slice(0,10);
-    document.getElementById("dateLiv").value = t;
+    document.getElementById("clientInfo").innerHTML="<b>"+esc(CLIENT.nom)+"</b><br>"+esc((CLIENT.adresse||"").split("\n")[0]);
+    document.getElementById("dateLiv").value=new Date(Date.now()+86400000).toISOString().slice(0,10);
     renderCatalogue(); renderCart();
-  }catch(e){ err.textContent = "Erreur réseau"; }
+  }catch(e){ err.textContent="Netwerkfout"; btn.disabled=false; }
 }
 
-function toggleFavFilter(){ favOnly = !favOnly; document.getElementById("favBtn").classList.toggle("on", favOnly); renderCatalogue(); }
-function toggleFav(id){ favs[id] = !favs[id]; if(!favs[id]) delete favs[id]; localStorage.setItem(favKey(), JSON.stringify(favs)); renderCatalogue(); }
+function toggleFavFilter(){ favOnly=!favOnly; document.getElementById("favBtn").classList.toggle("on",favOnly); renderCatalogue(); }
+function toggleFav(id){ favs[id]=!favs[id]; if(!favs[id]) delete favs[id]; localStorage.setItem(favKey(),JSON.stringify(favs)); renderCatalogue(); }
 
 function renderCatalogue(){
-  const q = (document.getElementById("search").value || "").toLowerCase();
-  let list = PRODUCTS.map((p,i)=>({p,i}))
-    .filter(x => x.p.nom.toLowerCase().includes(q))
-    .filter(x => !favOnly || favs[x.p.id]);
-  const cats = {};
-  list.forEach(x => { const c = x.p.cat || "Autres"; (cats[c] = cats[c] || []).push(x); });
-  let html = "";
-  Object.keys(cats).sort().forEach(cat => {
-    html += '<div class="cattitle">'+cat+'</div>';
-    html += cats[cat].map(({p,i})=>{
-      const remise = p.prix < p.base ? '<span class="base">'+eur(p.base)+'</span>' : "";
-      const badge = p.prix < p.base ? '<span class="badge">négocié</span>' : "";
-      const star = favs[p.id] ? "★" : "☆";
-      return '<div class="prod"><span class="star '+(favs[p.id]?"fav":"")+'" onclick="toggleFav(\''+p.id+'\')">'+star+'</span>'+
-        '<div class="info"><div class="name">'+p.nom+' '+badge+'</div>'+
-        '<div class="meta">'+p.cat+' · <span class="price">'+eur(p.prix)+'</span>'+remise+' / '+p.unite+'</div>'+
-        (panier[i] ? '<input class="cmt" placeholder="Commentaire (ex: en filets)…" value="'+(comments[i]||"").replace(/"/g,"&quot;")+'" oninput="setCmt('+i+',this.value)">' : '')+
+  const q=(document.getElementById("search").value||"").toLowerCase();
+  let list=PRODUCTS.map((p,i)=>({p,i})).filter(x=>x.p.nom.toLowerCase().includes(q)).filter(x=>!favOnly||favs[x.p.id]);
+  const cats={};
+  list.forEach(x=>{ const c=x.p.cat||"Overige"; (cats[c]=cats[c]||[]).push(x); });
+  let h="";
+  Object.keys(cats).sort().forEach(cat=>{
+    h+='<div class="cat-h">'+esc(cat)+'</div>';
+    h+=cats[cat].map(({p,i})=>{
+      const neg=p.prix<p.base;
+      return '<div class="prow">'+
+        '<span class="star '+(favs[p.id]?"on":"")+'" onclick="toggleFav(\''+p.id+'\')">'+(favs[p.id]?"★":"☆")+'</span>'+
+        '<div class="pinfo"><div class="pname">'+esc(p.nom)+'</div>'+
+        '<div class="pmeta"><span class="pprice">'+eur(p.prix)+'</span>'+(neg?'<span class="pbase">'+eur(p.base)+'</span><span class="tag">uw prijs</span>':'')+'<span>/ '+esc(p.unite)+'</span></div>'+
+        (panier[i]?'<input class="cmt-in" placeholder="Opmerking bij dit product…" value="'+esc(comments[i]||"")+'" oninput="setCmt('+i+',this.value)">':'')+
         '</div>'+
-        '<div class="qty"><button onclick="chg('+i+',-1)">−</button><input id="q'+i+'" type="number" min="0" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)"><button onclick="chg('+i+',1)">+</button></div></div>';
+        '<div class="qty"><button onclick="chg('+i+',-1)">−</button><input id="q'+i+'" type="number" min="0" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)"><button onclick="chg('+i+',1)">+</button></div>'+
+        '</div>';
     }).join("");
   });
-  document.getElementById("catalogue").innerHTML = html || '<div class="empty">Aucun produit.</div>';
+  document.getElementById("catalogue").innerHTML=h||'<div class="empty">Geen producten gevonden.</div>';
 }
 function chg(i,d){ setQ(i,(panier[i]||0)+d); }
 function setQ(i,v){ v=Math.max(0,parseInt(v)||0); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
 function setCmt(i,v){ comments[i]=v; renderCart(); }
 
 function renderCart(){
-  const cart=document.getElementById("cart"); const keys=Object.keys(panier);
-  if(!keys.length){ cart.innerHTML='<div class="empty">Aucun article sélectionné.</div>'; document.getElementById("totalBox").classList.add("hidden"); document.getElementById("sendBtn").disabled=true; return; }
+  const cart=document.getElementById("cart"), keys=Object.keys(panier);
+  const pill=document.getElementById("cartPill");
+  const n=keys.reduce((s,k)=>s+panier[k],0);
+  pill.textContent=n; pill.classList.toggle("hidden",!n);
+  if(!keys.length){ cart.innerHTML='<div class="empty">Nog geen artikelen geselecteerd.</div>'; document.getElementById("totalBox").classList.add("hidden"); document.getElementById("sendBtn").disabled=true; return; }
   let total=0;
   cart.innerHTML=keys.map(i=>{ const p=PRODUCTS[i],qn=panier[i],st=p.prix*qn; total+=st;
-    return '<div class="cart-line"><div class="top"><span class="l">'+p.nom+' × '+qn+' '+p.unite+'</span><span>'+eur(st)+'</span></div>'+(comments[i]?'<div class="c">↳ '+comments[i]+'</div>':'')+'</div>'; }).join("");
+    return '<div class="cline"><div class="r1"><span class="nm">'+esc(p.nom)+' × '+qn+'</span><span>'+eur(st)+'</span></div>'+(comments[i]?'<div class="cm">↳ '+esc(comments[i])+'</div>':'')+'</div>'; }).join("");
   document.getElementById("totalVal").textContent=eur(total);
   document.getElementById("totalBox").classList.remove("hidden");
   document.getElementById("sendBtn").disabled=false;
@@ -178,53 +233,58 @@ function renderCart(){
 
 async function send(){
   const keys=Object.keys(panier); if(!keys.length) return;
-  const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Envoi…";
+  const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Versturen…";
   const total=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
   const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
   const dateLiv=document.getElementById("dateLiv").value;
   try{
-    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:CLIENT.id,lignes:lignes,total:total,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
+    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:CLIENT.id,lignes,total,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
     const d=await r.json();
     const box=document.getElementById("confirm");
-    if(!r.ok){ box.style.display="block"; box.style.background="#ffebee"; box.style.color="#c62828"; box.textContent="Erreur : "+(d.error||"envoi échoué"); btn.disabled=false; btn.textContent="Envoyer la commande"; return; }
-    window._lastOrder={ref:d.ref,lignes:lignes,total:total,dateLiv:dateLiv,client:CLIENT.nom};
+    if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"versturen mislukt"); btn.disabled=false; btn.textContent="Bestelling versturen"; return; }
+    window._lastOrder={ref:d.ref,lignes,total,dateLiv,client:CLIENT.nom};
     box.style.display="block";
-    box.innerHTML='✅ <strong>Commande '+d.ref+' envoyée !</strong><br>Livraison souhaitée : '+(dateLiv||"—")+'<br>Total : <strong>'+eur(total)+'</strong><br>Enregistrée dans Airtable.<br><button onclick="printOrder()">🖨️ Imprimer la confirmation</button>';
-    panier={}; comments={}; document.getElementById("notes").value=""; renderCatalogue(); renderCart();
-    btn.textContent="Envoyer la commande";
+    box.innerHTML='✅ <b>Bestelling '+d.ref+' verstuurd!</b><br>Leverdatum: '+(dateLiv||"—")+'<br>Totaal: <b>'+eur(total)+'</b><br><button class="print-b" onclick="printOrder()">🖨 Bevestiging afdrukken</button>';
+    panier={}; comments={}; document.getElementById("notes").value="";
+    renderCatalogue(); renderCart();
+    btn.textContent="Bestelling versturen";
     box.scrollIntoView({behavior:"smooth"});
-  }catch(e){ btn.disabled=false; btn.textContent="Envoyer la commande"; alert("Erreur réseau"); }
+  }catch(e){ btn.disabled=false; btn.textContent="Bestelling versturen"; alert("Netwerkfout"); }
 }
 
 function printOrder(){
   const o=window._lastOrder; if(!o) return;
   const w=window.open("","_blank");
-  w.document.write('<html><head><title>'+o.ref+'</title><style>body{font-family:Arial;padding:30px;color:#1a2b3c}h1{color:#0b3d5c}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #ccc;padding:8px;text-align:left}.tot{font-size:18px;font-weight:bold;margin-top:12px}</style></head><body>'+
-    '<h1>🐟 FAMO Seafood</h1><h2>Confirmation de commande</h2>'+
-    '<p><strong>Réf :</strong> '+o.ref+'<br><strong>Client :</strong> '+o.client+'<br><strong>Livraison souhaitée :</strong> '+(o.dateLiv||"—")+'</p>'+
-    '<table><tr><th>Détail</th></tr>'+o.lignes.split("\n").map(l=>'<tr><td>'+l+'</td></tr>').join("")+'</table>'+
-    '<p class="tot">Total : '+eur(o.total)+'</p></body></html>');
+  w.document.write('<html><head><meta charset="utf-8"><title>'+o.ref+'</title><style>body{font-family:Arial;padding:32px;color:#1c2a3a}h1{color:#0b2e4f;font-size:20px}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{border:1px solid #cbd5e1;padding:8px;text-align:left;font-size:13px}th{background:#f1f5f9}.tot{font-size:17px;font-weight:bold;margin-top:14px;color:#0b2e4f}.ft{margin-top:24px;font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:8px}</style></head><body>'+
+    '<h1>🐟 Famo Trading BV</h1><div style="font-size:12px;color:#64748b">Jezusstraat 34, 2000 Antwerpen · BTW BE 0788.705.713</div>'+
+    '<h2 style="margin-top:18px;font-size:16px">Bevestiging bestelling</h2>'+
+    '<p style="font-size:13px;margin-top:6px"><b>Ref:</b> '+o.ref+'<br><b>Klant:</b> '+o.client+'<br><b>Leverdatum:</b> '+(o.dateLiv||"—")+'</p>'+
+    '<table><tr><th>Artikel</th></tr>'+o.lignes.split("\n").map(l=>'<tr><td>'+l+'</td></tr>').join("")+'</table>'+
+    '<p class="tot">Totaal: '+eur(o.total)+'</p>'+
+    '<div class="ft">Dit is een bevestiging van uw bestelling, geen factuur.</div></body></html>');
   w.document.close(); w.print();
 }
 
 function showTab(t){
-  document.getElementById("tabCat").classList.toggle("active", t==="cat");
-  document.getElementById("tabOrd").classList.toggle("active", t==="ord");
-  document.getElementById("catView").classList.toggle("hidden", t!=="cat");
-  document.getElementById("ordView").classList.toggle("hidden", t!=="ord");
+  document.getElementById("tabCat").classList.toggle("on",t==="cat");
+  document.getElementById("tabOrd").classList.toggle("on",t==="ord");
+  document.getElementById("catView").classList.toggle("hidden",t!=="cat");
+  document.getElementById("ordView").classList.toggle("hidden",t!=="ord");
   if(t==="ord") loadOrders();
 }
 
 async function loadOrders(){
-  const box=document.getElementById("ordList"); box.innerHTML='<div class="empty">Chargement…</div>';
+  const box=document.getElementById("ordList"); box.innerHTML='<div class="empty">Laden…</div>';
   try{
     const r=await fetch("/api/orders?email="+encodeURIComponent(document.getElementById("email").value.trim()));
     const d=await r.json();
-    if(!r.ok||!d.orders||!d.orders.length){ box.innerHTML='<div class="empty">Aucune commande pour le moment.</div>'; return; }
-    box.innerHTML=d.orders.map(o=>'<div class="ord"><div class="h"><span>'+o.ref+'</span><span class="st">'+o.statut+'</span></div>'+
-      '<div style="font-size:12px;color:#8b98a5">'+(o.date||"")+' · Paiement : '+o.paiement+' · Total : <strong>'+eur(o.total)+'</strong></div>'+
-      '<pre>'+o.lignes+'</pre></div>').join("");
-  }catch(e){ box.innerHTML='<div class="empty">Erreur réseau.</div>'; }
+    if(!r.ok||!d.orders||!d.orders.length){ box.innerHTML='<div class="empty">Nog geen bestellingen.</div>'; return; }
+    box.innerHTML=d.orders.map(o=>{
+      const si=STATUS.indexOf(o.statut);
+      return '<div class="ord"><div class="h"><span class="ref">'+esc(o.ref)+'</span><span class="chip s'+(si<0?0:si)+'">'+esc(NLSTATUS[o.statut]||o.statut)+'</span></div>'+
+      '<div class="meta">'+esc(o.date||"")+' · Betaling: '+esc(o.paiement==="Payé"?"Betaald":"Open")+' · <b>'+eur(o.total)+'</b></div>'+
+      '<pre>'+esc(o.lignes)+'</pre></div>'; }).join("");
+  }catch(e){ box.innerHTML='<div class="empty">Netwerkfout.</div>'; }
 }
 
 document.getElementById("email").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });

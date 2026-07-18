@@ -7,12 +7,14 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { code, id, statut, paiement } = body;
+    const { code, id, statut, paiement, lignes, total } = body;
     if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
     if (!id) return res.status(400).json({ error: "id requis" });
     const fields = {};
     if (statut) fields["Statut"] = statut;
     if (paiement) fields["Statut paiement"] = paiement;
+    if (typeof lignes === "string") fields["Lignes (produits / quantités)"] = lignes;
+    if (typeof total === "number") fields["Total"] = total;
     if (!Object.keys(fields).length) return res.status(400).json({ error: "rien à mettre à jour" });
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Commandes/${id}`, {
       method: "PATCH",
@@ -21,7 +23,7 @@ module.exports = async (req, res) => {
     });
     const j = await r.json();
     if (j.error) return res.status(500).json(j);
-    res.status(200).json({ ok: true, statut: (j.fields && j.fields["Statut"]) || statut });
+    res.status(200).json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
