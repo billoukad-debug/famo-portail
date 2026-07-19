@@ -21,14 +21,15 @@ async function atAll(path){
   return { records };
 }
 
-async function logCorrection(record, after, note){
+async function logCorrection(record, after, note, movementType){
   const before = Number(record.fields["Quantité disponible"] || 0);
+  const type = ["Correction inventaire", "Entrée stock", "Retour client"].includes(movementType) ? movementType : "Correction inventaire";
   const result = await at(encodeURIComponent("Mouvements de stock"), {
     method: "POST",
     body: JSON.stringify({ records: [{ fields: {
-      "Mouvement": `Correction inventaire — ${record.fields["Produit"] || record.id}`,
+      "Mouvement": `${type} — ${record.fields["Produit"] || record.id}`,
       "Date et heure": new Date().toISOString(),
-      "Type": "Correction inventaire",
+      "Type": type,
       "Produit": record.fields["Produit"] || "",
       "Quantité": Math.round((after - before) * 1000) / 1000,
       "Stock avant": before,
@@ -66,6 +67,12 @@ module.exports = async (req, res) => {
     if (!body.id || quantity == null || quantity < 0 || quantity > 1000000) {
       return res.status(400).json({ error: "Ongeldige voorraadhoeveelheid" });
     }
+    const note = String(body.note || "").trim().slice(0, 200);
+    const movementType = String(body.movementType || "Correction inventaire");
+    if (!note) return res.status(400).json({ error: "Vul een reden of referentie in voor deze voorraadwijziging" });
+    if (!["Correction inventaire", "Entrée stock", "Retour client"].includes(movementType)) {
+      return res.status(400).json({ error: "Ongeldig voorraadtype" });
+    }
     const current = await at(`Stock/${body.id}`);
     if (current.error) return res.status(404).json({ error: "Artikel niet gevonden" });
     const rounded = Math.round(quantity * 1000) / 1000;
@@ -74,7 +81,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({ fields: { "Quantité disponible": rounded } })
     });
     if (saved.error) return res.status(500).json(saved);
-    const journalWarning = await logCorrection(current, rounded, body.note);
+    const journalWarning = await logCorrection(current, rounded, note, movementType);
     return res.status(200).json({ ok: true, quantity: Number(saved.fields["Quantité disponible"] || 0), journalWarning });
   } catch (error) {
     return res.status(500).json({ error: String(error) });
