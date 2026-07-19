@@ -104,6 +104,8 @@
   .chip.s3 { background:var(--ok-l); color:#047857; }
   .ord .meta { font-size:12.5px; color:var(--mut); margin-top:4px; }
   .ord pre { font-family:inherit; font-size:13px; color:#475569; white-space:pre-wrap; margin-top:8px; background:#f8fafc; border-radius:9px; padding:9px 11px; }
+  .rebtn { margin-top:10px; background:var(--ocean-l); color:var(--ocean); border:1.5px solid #bfdcf0; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:650; }
+  .rebtn:hover { background:#d9ecf9; }
   .hidden { display:none !important; }
 </style>
 </head>
@@ -269,6 +271,26 @@ function printOrder(){
   w.document.close(); w.print();
 }
 
+// Recharge le panier à partir d'une commande passée.
+function reorder(i){
+  const o=(window._ORDERS||[])[i]; if(!o) return;
+  const norm=s=>String(s||"").toLowerCase().trim();
+  panier={}; comments={};
+  const notFound=[];
+  String(o.lignes||"").split("\n").map(l=>l.trim()).filter(Boolean).forEach(l=>{
+    const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)/);
+    if(!m){ notFound.push(l); return; }
+    const nom=m[1].trim(), qty=Math.round(parseFloat(m[2].replace(",","."))||0);
+    const idx=PRODUCTS.findIndex(p=>norm(p.nom)===norm(nom));
+    if(idx<0){ notFound.push(nom); return; }
+    if(qty>0) panier[idx]=qty;
+  });
+  showTab("cat");
+  renderCatalogue(); renderCart();
+  if(notFound.length) alert("Deze artikelen staan niet meer in de catalogus en zijn niet toegevoegd:\n- "+notFound.join("\n- "));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
 function showTab(t){
   document.getElementById("tabCat").classList.toggle("on",t==="cat");
   document.getElementById("tabOrd").classList.toggle("on",t==="ord");
@@ -283,11 +305,13 @@ async function loadOrders(){
     const r=await fetch("/api/orders?user="+encodeURIComponent(USER)+"&pw="+encodeURIComponent(PW));
     const d=await r.json();
     if(!r.ok||!d.orders||!d.orders.length){ box.innerHTML='<div class="empty">Nog geen bestellingen.</div>'; return; }
-    box.innerHTML=d.orders.map(o=>{
+    box.innerHTML=d.orders.map((o,i)=>{
       const si=STATUS.indexOf(o.statut);
       return '<div class="ord"><div class="h"><span class="ref">'+esc(o.ref)+'</span><span class="chip s'+(si<0?0:si)+'">'+esc(NLSTATUS[o.statut]||o.statut)+'</span></div>'+
       '<div class="meta">'+esc(o.date||"")+' · Betaling: '+esc(o.paiement==="Payé"?"Betaald":"Open")+' · <b>'+eur(o.total)+'</b></div>'+
-      '<pre>'+esc(o.lignes)+'</pre></div>'; }).join("");
+      '<pre>'+esc(o.lignes)+'</pre>'+
+      '<button class="rebtn" onclick="reorder('+i+')">🔁 Opnieuw bestellen</button></div>'; }).join("");
+    window._ORDERS=d.orders;
   }catch(e){ box.innerHTML='<div class="empty">Netwerkfout.</div>'; }
 }
 

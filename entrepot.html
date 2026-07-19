@@ -141,6 +141,8 @@ function render(){
       '<div class="cl">'+esc(o.client)+'</div>'+
       '<pre>'+esc(o.lignes)+'</pre>'+
       '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
+      (o.factuurnummer?'<div class="meta">🧾 '+esc(o.factuurnummer)+'</div>':'')+
+      (o.stockAf?'<div class="meta" style="color:#16a34a">✓ Voorraad afgeboekt</div>':'')+
       (o.notes?'<div class="meta">📝 '+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
         (next?'<button class="adv" onclick="adv(\''+o.id+'\',\''+next+'\')">'+NEXTLBL[next]+'</button>':'')+
@@ -174,7 +176,7 @@ function doc(idx,type){
   const htva=o.total/(1+FAMO.tauxTVA/100), tva=o.total-htva;
   const titre=isFA?"FACTUUR":"LEVERINGSBON";
   const seq=o.ref.replace("CMD-","");
-  const num=(isFA?"FA-":"LB-")+seq;
+  const num=isFA ? (o.factuurnummer || "FA-"+seq) : ("LB-"+seq);
   const d=new Date();
   const verval=new Date(d.getTime()+30*86400000);
   const fdate=x=>x.toLocaleDateString("nl-BE");
@@ -246,7 +248,17 @@ async function adv(id,statut){ await upd({id,statut}); }
 async function togglePay(id,paiement){ await upd({id,paiement}); }
 async function upd(patch){
   const r=await fetch("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:CODE},patch))});
+  const d=await r.json().catch(()=>({}));
   if(!r.ok){ alert("Fout bij bijwerken"); return; }
+  if(d.stock){
+    const done=(d.stock.done||[]).map(x=>x.nom+": "+x.van+" → "+x.naar).join("\n");
+    const miss=(d.stock.missing||[]);
+    let msg="";
+    if(done) msg+="Voorraad afgeboekt:\n"+done;
+    if(miss.length) msg+=(msg?"\n\n":"")+"⚠️ Niet gevonden in voorraad (niets afgeboekt):\n- "+miss.join("\n- ")+"\n\nControleer de productnamen in Airtable.";
+    if(msg) alert(msg);
+  }
+  if(d.factuurnummer) alert("Factuurnummer toegekend: "+d.factuurnummer);
   load();
 }
 document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });

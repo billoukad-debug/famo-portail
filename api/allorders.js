@@ -32,7 +32,9 @@ module.exports = async (req, res) => {
       total: r.fields["Total"] || 0,
       statut: r.fields["Statut"] || "Reçue",
       paiement: r.fields["Statut paiement"] || "En attente",
-      notes: r.fields["Notes"] || ""
+      notes: r.fields["Notes"] || "",
+      factuurnummer: r.fields["Factuurnummer"] || "",
+      stockAf: !!r.fields["Stock afgeboekt"]
     }));
     res.status(200).json({ orders });
   } catch (e) {
