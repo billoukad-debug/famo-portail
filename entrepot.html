@@ -117,11 +117,14 @@ const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"
 async function enter(){
   CODE=document.getElementById("code").value.trim();
   const err=document.getElementById("err"); err.textContent="Controleren…";
-  const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
-  if(!r.ok){ err.textContent="Ongeldige code"; return; }
-  document.getElementById("loginView").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  const d=await r.json(); ORDERS=d.orders; render();
+  try{
+    const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
+    if(!r.ok){ err.textContent="Code ongeldig of server niet beschikbaar"; return; }
+    const d=await r.json();
+    document.getElementById("loginView").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    ORDERS=d.orders||[]; render();
+  }catch(e){ err.textContent="Verbinding mislukt. Vernieuw de pagina en probeer opnieuw."; }
 }
 async function load(){
   const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
