@@ -1,0 +1,22 @@
+name: Controle du code
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  controle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntaxe des API et des pages HTML
+        run: node scripts/check.js
+
+      - name: Variables non definies dans les API
+        run: npx --yes eslint api/
