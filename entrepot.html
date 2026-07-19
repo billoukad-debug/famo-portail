@@ -66,6 +66,11 @@
   .edit-head{font-size:12px;font-weight:750;color:var(--navy);margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
   .empty { color:#94a3b8; font-size:12.5px; padding:8px; text-align:center; }
   .hidden { display:none !important; }
+  .day-panel{margin:14px 16px 0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:18px}
+  .day-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.day-head h2{font-size:20px;color:var(--navy)}.day-head p{font-size:13px;color:var(--mut);margin-top:4px}
+  .day-actions{display:flex;gap:8px}.day-actions button{min-height:44px;border-radius:6px;padding:0 14px;font-weight:750;border:1px solid var(--line);background:#fff;color:var(--navy)}
+  .day-actions .print-all{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .pick-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}.pick-summary-row{border:1px solid #d8e1e5;border-radius:7px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px}.pick-summary-row strong{font-size:15px}.pick-summary-row span{font:800 20px "IBM Plex Mono",monospace;color:var(--navy);white-space:nowrap}.day-empty{padding:24px;color:var(--mut);text-align:center;background:#f7f9fa;border-radius:7px}
 
   /* ---------- FAMO WAREHOUSE V2 ---------- */
   :root { --navy:#071d2b; --ocean:#0c668d; --ocean-l:#e5f2f7; --text:#10242f; --mut:#51646e; --line:#bdcbd2; --bg:#dfe7ea; --gold:#ff642e; --ok:#16724a; --purple:#5d4597; }
@@ -120,6 +125,7 @@
     .top-actions a,.refresh-b,.pick-b { flex:1; justify-content:center; }
     .board { grid-template-columns:1fr; padding:10px; }
     .warn,.stamp { margin-left:10px; margin-right:10px; }
+    .day-panel{margin:10px}.day-head{display:block}.day-actions{margin-top:12px}.day-actions button{flex:1}.pick-summary{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -140,7 +146,8 @@
   <div class="topbar"><div class="topbar-in">
     <div class="brand">Famo Trading — Magazijn</div>
     <div class="top-actions">
-      <button class="pick-b" onclick="printPicklist()">Voorbereidingslijst</button>
+      <button class="pick-b" onclick="toggleDayView()">Dagvoorbereiding</button>
+      <button class="pick-b" onclick="printPicklist()">Per bestelling afdrukken</button>
       <a href="/invoer.html">Bestelling invoeren</a>
       <a href="/stock.html">Voorraad</a>
       <button class="refresh-b" onclick="load()">↻ Vernieuwen</button>
@@ -148,6 +155,7 @@
   </div></div>
   <div class="stamp" id="stamp"></div>
   <div class="warn">⚠️ De documenten (leveringsbon / factuur) zijn interne afdrukken. Voor B2B is een elektronische Peppol-factuur wettelijk verplicht — dit loopt via de boekhouding (Billtobox).</div>
+  <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div id="pickSummary" class="pick-summary"></div></section>
   <div class="board">
     <div class="col c0"><h3>Ontvangen <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
     <div class="col c1"><h3>Klaar <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
@@ -219,16 +227,40 @@ function render(){
       (o.stockAf?'<div class="meta" style="color:#16a34a">✓ Voorraad afgeboekt</div>':'')+
       (o.notes?'<div class="meta">📝 '+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
-        (o.statut==="Reçue"?'<button class="adv" onclick="editLines('+idx+')">✓ Artikels controleren</button>':(next?'<button class="adv" onclick="adv(\''+o.id+'\',\''+next+'\')">'+NEXTLBL[next]+'</button>':''))+
-        (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">✏️ Aantallen</button>':'')+
-        '<button class="doc" onclick="doc('+idx+',\'BL\')">📄 Leverbon</button>'+
-        '<button class="doc" onclick="doc('+idx+',\'FA\')">🧾 Factuur</button>'+
-        '<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"✓ Betaald":"Markeer betaald")+'</button>'+
+        (o.statut==="Reçue"?'<button class="adv" onclick="editLines('+idx+')">Artikels controleren</button>':(next?'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+NEXTLBL[next]+'</button>':''))+
+        (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
+        '<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>'+
+        '<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>'+
+        '<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"Betaald":"Markeer betaald")+'</button>'+
       '</div><div id="e'+idx+'"></div>';
     document.getElementById("c"+si).appendChild(el);
   });
   for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML='<div class="empty">—</div>'; }
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
+  if(!document.getElementById("dayPanel").classList.contains("hidden")) renderDayView();
+}
+
+function preparationOrders(){ return ORDERS.filter(o=>o.statut==="Reçue"||o.statut==="Prête"); }
+function consolidatedItems(){
+  const totals={};
+  preparationOrders().forEach(o=>String(o.lignes||"").split("\n").filter(Boolean).map(parseOrderLine).forEach(line=>{
+    const key=(line.name+"|"+line.unit).toLowerCase();
+    if(!totals[key]) totals[key]={name:line.name,unit:line.unit,quantity:0,orders:0};
+    totals[key].quantity+=line.quantity; totals[key].orders++;
+  }));
+  return Object.values(totals).sort((a,b)=>a.name.localeCompare(b.name,"nl"));
+}
+function renderDayView(){
+  const orders=preparationOrders(),items=consolidatedItems();
+  document.getElementById("dayMeta").textContent=orders.length+" bestellingen · "+items.length+" verschillende producten";
+  document.getElementById("pickSummary").innerHTML=items.length?items.map(x=>'<div class="pick-summary-row"><div><strong>'+esc(x.name)+'</strong><div class="pm">'+x.orders+' bestel'+(x.orders===1?'ling':'lingen')+'</div></div><span>'+x.quantity+(x.unit?' '+esc(x.unit):'')+'</span></div>').join(""):'<div class="day-empty">Er zijn momenteel geen bestellingen om voor te bereiden.</div>';
+}
+function toggleDayView(){ const panel=document.getElementById("dayPanel"); panel.classList.toggle("hidden"); if(!panel.classList.contains("hidden")){ renderDayView(); panel.scrollIntoView({behavior:"smooth",block:"start"}); } }
+function printConsolidatedPicklist(){
+  const orders=preparationOrders(),items=consolidatedItems(); if(!items.length){ alert("Er zijn geen producten om voor te bereiden."); return; }
+  const w=window.open("","_blank"); if(!w) return;
+  w.document.write('<html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}p{font-size:12px;color:#51646e}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #071d2b;padding:8px}td{font-size:15px;border-bottom:1px solid #bdcbd2;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#51646e}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+new Date().toLocaleString("nl-BE")+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>');
+  w.document.close(); w.print();
 }
 
 function parseOrderLine(line){
@@ -375,6 +407,13 @@ function doc(idx,type){
 }
 
 async function adv(id,statut){ await upd({id,statut}); }
+async function confirmAdvance(id,statut,index){
+  const ref=ORDERS[index]?ORDERS[index].ref:"";
+  let message="Bestelling "+ref+" naar ‘"+(NL[statut]||statut)+"’ verplaatsen?";
+  if(statut==="Sortie en livraison") message+="\n\nDe definitieve hoeveelheden worden vastgezet en de voorraad wordt afgeboekt. Controleer de voorbereiding en leverbon eerst.";
+  if(statut==="Facturée") message+="\n\nEr wordt een definitief factuurnummer toegekend.";
+  if(confirm(message)) await adv(id,statut);
+}
 async function togglePay(id,paiement){ await upd({id,paiement}); }
 async function upd(patch){
   const r=await fetch("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:CODE},patch))});
