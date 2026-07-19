@@ -240,14 +240,16 @@ function renderCart(){
 async function send(){
   const keys=Object.keys(panier); if(!keys.length) return;
   const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Versturen…";
-  const total=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
-  const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
+  const shownTotal=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
+  const items=keys.map(i=>({productId:PRODUCTS[i].id,quantity:panier[i]}));
   const dateLiv=document.getElementById("dateLiv").value;
   try{
-    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:USER,pw:PW,lignes,total,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
+    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:USER,pw:PW,items,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
     const d=await r.json();
     const box=document.getElementById("confirm");
     if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"versturen mislukt"); btn.disabled=false; btn.textContent="Bestelling versturen"; return; }
+    const total=typeof d.total==="number"?d.total:shownTotal;
+    const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
     window._lastOrder={ref:d.ref,lignes,total,dateLiv,client:CLIENT.nom};
     box.style.display="block";
     box.innerHTML='✅ <b>Bestelling '+d.ref+' verstuurd!</b><br>Leverdatum: '+(dateLiv||"—")+'<br>Totaal: <b>'+eur(total)+'</b><br><button class="print-b" onclick="printOrder()">🖨 Bevestiging afdrukken</button>';

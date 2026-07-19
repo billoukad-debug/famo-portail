@@ -9,6 +9,11 @@ async function at(path, opts){
   return r.json();
 }
 
+function numberOf(value){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 // "Zalmfilet × 3 doos (in filets)"  ->  { nom:"Zalmfilet", qty:3 }
 function parseLines(txt){
   return String(txt || "").split("\n").map(l => l.trim()).filter(Boolean).map(l => {
@@ -18,24 +23,29 @@ function parseLines(txt){
   }).filter(Boolean);
 }
 
-// Déduit les quantités du stock. Ne bloque jamais la commande : renvoie un rapport.
+// Déduit toutes les quantités en une seule mise à jour Airtable. Aucune ligne ne
+// part si un produit est inconnu : le magasin peut corriger le BL sans dérive de stock.
 async function deductStock(lignes){
   const report = { done: [], missing: [] };
   const items = parseLines(lignes);
-  if (!items.length) return report;
+  if (!items.length) return { ...report, error: "Geen geldige artikellijnen gevonden" };
 
   const st = await at("Stock");
   const recs = st.records || [];
   const norm = s => String(s || "").toLowerCase().trim();
 
+  const updates = [];
   for (const it of items){
     const rec = recs.find(r => norm(r.fields["Produit"]) === norm(it.nom));
     if (!rec){ report.missing.push(it.nom); continue; }
-    const cur = Number(rec.fields["Quantité disponible"] || 0);
+    const cur = numberOf(rec.fields["Quantité disponible"]);
     const next = Math.round((cur - it.qty) * 1000) / 1000;
-    await at(`Stock/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Quantité disponible": next } }) });
+    updates.push({ id: rec.id, fields: { "Quantité disponible": next } });
     report.done.push({ nom: it.nom, van: cur, naar: next });
   }
+  if (report.missing.length) return report;
+  const saved = await at("Stock", { method: "PATCH", body: JSON.stringify({ records: updates }) });
+  if (saved.error) return { ...report, error: saved.error.message || "Voorraad kon niet worden bijgewerkt" };
   return report;
 }
 
@@ -68,10 +78,20 @@ module.exports = async (req, res) => {
     const f = cur.fields || {};
 
     const fields = {};
+    if (paiement && !["Payé", "En attente"].includes(paiement)) return res.status(400).json({ error: "Ongeldige betaalstatus" });
     if (paiement) fields["Statut paiement"] = paiement;
     if (typeof lignes === "string") fields["Lignes (produits / quantités)"] = lignes;
     if (typeof total === "number") fields["Total"] = total;
-    if (statut) fields["Statut"] = statut;
+    const statuses = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
+    if (statut && !statuses.includes(statut)) return res.status(400).json({ error: "Ongeldige bestelstatus" });
+    if (statut) {
+      const currentIndex = statuses.indexOf(f["Statut"] || "Reçue");
+      const nextIndex = statuses.indexOf(statut);
+      if (nextIndex !== currentIndex && nextIndex !== currentIndex + 1) {
+        return res.status(409).json({ error: "Volg de bestelstappen in de juiste volgorde" });
+      }
+      fields["Statut"] = statut;
+    }
 
     let stockReport = null, factuurnummer = null;
 
@@ -79,6 +99,12 @@ module.exports = async (req, res) => {
     if (statut === "Sortie en livraison" && !f["Stock afgeboekt"]) {
       const useLines = (typeof lignes === "string" ? lignes : f["Lignes (produits / quantités)"]);
       stockReport = await deductStock(useLines);
+      if (stockReport.error || stockReport.missing.length) {
+        return res.status(409).json({
+          error: stockReport.error || "Niet alle artikelen zijn in voorraad teruggevonden",
+          stock: stockReport
+        });
+      }
       fields["Stock afgeboekt"] = true;
     }
 

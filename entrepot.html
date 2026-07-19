@@ -249,7 +249,10 @@ async function togglePay(id,paiement){ await upd({id,paiement}); }
 async function upd(patch){
   const r=await fetch("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:CODE},patch))});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok){ alert("Fout bij bijwerken"); return; }
+  if(!r.ok){
+    const missing=d.stock&&d.stock.missing&&d.stock.missing.length?"\n\nNiet gevonden in voorraad:\n- "+d.stock.missing.join("\n- "):"";
+    alert((d.error||"Fout bij bijwerken")+missing); return;
+  }
   if(d.stock){
     const done=(d.stock.done||[]).map(x=>x.nom+": "+x.van+" → "+x.naar).join("\n");
     const miss=(d.stock.missing||[]);
