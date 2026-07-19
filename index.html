@@ -6,11 +6,11 @@
 <title>Famo Trading — Bestelportaal</title>
 <style>
   :root {
-    --navy:#0b2e4f; --navy2:#123d63; --ocean:#1273b8; --ocean-l:#e8f3fb;
-    --ink:#16striped2334; --text:#1c2a3a; --mut:#64748b; --line:#e2e8f0;
-    --bg:#f1f5f9; --card:#ffffff; --ok:#16a34a; --ok-l:#ecfdf5;
-    --warn:#d97706; --err:#dc2626; --gold:#f59e0b;
-    --r:14px; --sh:0 1px 3px rgba(15,23,42,.08),0 4px 14px rgba(15,23,42,.05);
+    --navy:#071d2b; --navy2:#0d2b3f; --ocean:#0c668d; --ocean-l:#e5f2f7;
+    --ink:#10242f; --text:#172b35; --mut:#60717a; --line:#d2dde2;
+    --bg:#edf2f4; --card:#ffffff; --ok:#16724a; --ok-l:#e9f6ef;
+    --warn:#c8622b; --err:#b42318; --gold:#ff642e;
+    --r:10px; --sh:0 1px 2px rgba(7,29,43,.08),0 10px 30px rgba(7,29,43,.06);
   }
   * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif; background:var(--bg); color:var(--text); font-size:15px; }
@@ -107,27 +107,111 @@
   .rebtn { margin-top:10px; background:var(--ocean-l); color:var(--ocean); border:1.5px solid #bfdcf0; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:650; }
   .rebtn:hover { background:#d9ecf9; }
   .hidden { display:none !important; }
+
+  /* ---------- FAMO V2 / COLD-CHAIN INTERFACE ---------- */
+  body { font-family:"IBM Plex Sans","Aptos","Segoe UI",sans-serif; background:
+    linear-gradient(90deg,rgba(7,29,43,.035) 1px,transparent 1px),
+    linear-gradient(rgba(7,29,43,.035) 1px,transparent 1px),var(--bg); background-size:32px 32px; }
+  button,input,textarea { font-family:inherit; }
+  button:focus-visible,input:focus-visible,textarea:focus-visible { outline:3px solid rgba(255,100,46,.35); outline-offset:2px; }
+  .login-wrap { background:var(--navy); position:relative; overflow:hidden; }
+  .login-wrap::before { content:""; position:absolute; inset:0; background:
+    linear-gradient(115deg,transparent 0 58%,rgba(255,255,255,.035) 58% 59%,transparent 59%),
+    radial-gradient(circle at 82% 18%,rgba(15,107,146,.32),transparent 28%); }
+  .login-card { position:relative; max-width:430px; padding:0; text-align:left; border-radius:12px; overflow:hidden; box-shadow:0 28px 90px rgba(0,0,0,.42); }
+  .login-card::before { content:"FAMO / BESTELPORTAAL"; display:block; background:var(--gold); color:#fff; padding:11px 28px; font:700 11px/1 "IBM Plex Mono",monospace; letter-spacing:1.4px; }
+  .login-card .login-body { padding:32px 30px 28px; }
+  .login-card .logo,.brand .bl { border-radius:7px; background:var(--navy); color:#fff; font-size:0; position:relative; }
+  .login-card .logo { width:54px; height:54px; margin:0 0 22px; }
+  .login-card .logo::after,.brand .bl::after { content:"F"; font:800 27px/1 "IBM Plex Sans",sans-serif; color:#fff; position:absolute; inset:0; display:grid; place-items:center; }
+  .login-card h1 { font-size:30px; letter-spacing:-1px; color:var(--ink); }
+  .login-card .sub { margin:5px 0 24px; font-size:14px; }
+  .login-card input { height:50px; border-radius:7px; background:#f7fafb; border-color:#c8d5db; }
+  .login-card input:focus { background:#fff; border-color:var(--ocean); box-shadow:0 0 0 3px rgba(12,102,141,.12); }
+  .btn-p { min-height:50px; border-radius:7px; background:var(--gold); font-weight:750; letter-spacing:.1px; }
+  .btn-p:hover { background:#e9501d; }
+  .login-foot { border-top:1px solid var(--line); padding-top:16px; line-height:1.55; }
+  .topbar { background:var(--navy); box-shadow:none; border-bottom:4px solid var(--gold); }
+  .topbar-in { height:64px; }
+  .brand { font-size:19px; letter-spacing:-.4px; }
+  .brand .bl { width:36px; height:36px; }
+  .brand .bl::after { font-size:19px; }
+  .whoami { border-left:1px solid rgba(255,255,255,.18); padding-left:18px; }
+  .tabs button { min-height:49px; text-transform:uppercase; font-size:12px; letter-spacing:.8px; border-bottom:4px solid transparent; }
+  .tabs button.on { border-bottom-color:var(--gold); }
+  .cart-pill { background:var(--gold); color:#fff; border-radius:4px; }
+  .page { max-width:1180px; grid-template-columns:minmax(0,1fr) 370px; gap:22px; margin-top:24px; }
+  .card { border:1px solid #d3dee3; border-radius:10px; box-shadow:var(--sh); }
+  .card h2 { text-transform:uppercase; letter-spacing:.8px; font-size:12px; }
+  .toolbar { position:sticky; top:117px; z-index:4; background:var(--bg); padding:0 0 12px; }
+  .search { height:48px; border-radius:7px; background:#fff; box-shadow:0 2px 9px rgba(7,29,43,.04); }
+  .fav-btn { min-height:48px; border-radius:7px; }
+  .fav-btn.on { background:#fff2ec; border-color:var(--gold); color:#a53e18; }
+  .cat-h { color:var(--navy); margin:24px 0 8px; letter-spacing:1.2px; }
+  .prow { background:#fff; border:1px solid #d6e0e5; border-left:4px solid transparent; padding:15px 14px; margin-bottom:6px; border-radius:8px; transition:border-color .12s,transform .12s; }
+  .prow:has(.qty input:not([value="0"])) { border-left-color:var(--gold); }
+  .prow:hover { border-color:#b9cbd3; transform:translateY(-1px); }
+  .pname { font-size:15.5px; font-weight:700; color:var(--ink); }
+  .pprice,.total-row .val,.cline .r1 span:last-child,.ord .ref { font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+  .pprice { font-size:15px; color:var(--navy); }
+  .tag { background:#fff0e9; color:#a7401a; border-radius:4px; text-transform:uppercase; letter-spacing:.45px; }
+  .star { width:38px; height:38px; display:grid; place-items:center; border:1px solid var(--line); border-radius:7px; }
+  .star.on { color:var(--gold); border-color:#ffc2aa; background:#fff6f2; }
+  .qty button,.qty input { height:44px; border-radius:7px; }
+  .qty button { width:44px; background:#f8fafb; }
+  .qty input { width:58px; font-family:"IBM Plex Mono",monospace; font-size:16px; }
+  .cmt-in { padding:10px 11px; border-radius:6px; border-left:3px solid var(--gold); }
+  .side { top:137px; }
+  .side .card { border-top:4px solid var(--gold); }
+  .cline { padding:11px 0; }
+  .total-row { border-top-color:var(--navy); padding-top:16px; }
+  .total-row .val { font-size:30px; color:var(--navy); }
+  .fld-l { letter-spacing:.75px; }
+  input[type=date],textarea.notes { border-radius:7px; background:#f9fbfc; }
+  .confirm { border-radius:7px; border-left:5px solid var(--ok); }
+  .ord { background:#fff; border-radius:8px; border-left:5px solid var(--ocean); padding:16px; }
+  .chip { border-radius:4px; text-transform:uppercase; letter-spacing:.5px; }
+  .rebtn { border-radius:6px; min-height:44px; }
+  @media (max-width:900px){
+    .page { grid-template-columns:1fr; padding:0 14px; }
+    .side { position:static; order:-1; }
+    .toolbar { top:117px; }
+  }
+  @media (max-width:600px){
+    .login-card .login-body { padding:28px 22px 22px; }
+    .topbar-in { height:58px; }
+    .whoami { max-width:45%; }
+    .page { margin-top:14px; }
+    .toolbar { top:108px; flex-wrap:wrap; }
+    .search { flex-basis:100%; }
+    .fav-btn { flex:1; }
+    .prow { align-items:flex-start; flex-wrap:wrap; }
+    .pinfo { min-width:calc(100% - 64px); }
+    .qty { margin-left:50px; width:calc(100% - 50px); justify-content:flex-end; }
+  }
 </style>
 </head>
 <body>
 
 <div id="loginView" class="login-wrap">
   <div class="login-card">
-    <div class="logo">🐟</div>
-    <h1>Famo Trading</h1>
-    <p class="sub">Bestelportaal voor professionele klanten</p>
-    <input id="user" type="text" placeholder="Gebruikersnaam" autocomplete="username">
-    <input id="pw" type="password" placeholder="Wachtwoord" autocomplete="current-password">
-    <button class="btn-p" id="loginBtn" onclick="login()">Aanmelden</button>
-    <div class="err-msg" id="loginErr"></div>
-    <div class="login-foot">Famo Trading BV · Jezusstraat 34, 2000 Antwerpen · BTW BE 0788.705.713</div>
+    <div class="login-body">
+      <div class="logo" aria-hidden="true">F</div>
+      <h1>Famo Trading</h1>
+      <p class="sub">Bestelportaal voor professionele klanten</p>
+      <input id="user" type="text" placeholder="Gebruikersnaam" autocomplete="username">
+      <input id="pw" type="password" placeholder="Wachtwoord" autocomplete="current-password">
+      <button class="btn-p" id="loginBtn" onclick="login()">Aanmelden</button>
+      <div class="err-msg" id="loginErr"></div>
+      <div class="login-foot">Famo Trading BV · Jezusstraat 34, 2000 Antwerpen<br>BTW BE 0788.705.713</div>
+    </div>
   </div>
 </div>
 
 <div id="appView" class="hidden">
   <div class="topbar">
     <div class="topbar-in">
-      <div class="brand"><span class="bl">🐟</span> Famo Trading</div>
+      <div class="brand"><span class="bl" aria-hidden="true">F</span> Famo Trading</div>
       <div class="whoami" id="clientInfo"></div>
     </div>
     <div class="tabs">
@@ -178,11 +262,11 @@ async function login(){
   const p=document.getElementById("pw").value;
   const err=document.getElementById("loginErr"), btn=document.getElementById("loginBtn");
   if(!u||!p){ err.textContent="Vul gebruikersnaam en wachtwoord in."; return; }
-  btn.disabled=true; err.textContent="";
+  btn.disabled=true; btn.textContent="Aanmelden…"; err.textContent="Verbinding controleren…";
   try{
     const r=await fetch("/api/catalogue?user="+encodeURIComponent(u)+"&pw="+encodeURIComponent(p));
     const d=await r.json();
-    if(!r.ok){ err.textContent=d.error||"Fout bij aanmelden"; btn.disabled=false; return; }
+    if(!r.ok){ err.textContent=d.error||"Fout bij aanmelden"; btn.disabled=false; btn.textContent="Aanmelden"; return; }
     USER=u; PW=p;
     CLIENT=d.client; PRODUCTS=d.products; panier={}; comments={};
     try{ favs=JSON.parse(localStorage.getItem(favKey())||"{}"); }catch(e){ favs={}; }
@@ -191,7 +275,7 @@ async function login(){
     document.getElementById("clientInfo").innerHTML="<b>"+esc(CLIENT.nom)+"</b><br>"+esc((CLIENT.adresse||"").split("\n")[0]);
     document.getElementById("dateLiv").value=new Date(Date.now()+86400000).toISOString().slice(0,10);
     renderCatalogue(); renderCart();
-  }catch(e){ err.textContent="Netwerkfout"; btn.disabled=false; }
+  }catch(e){ err.textContent="Netwerkfout — probeer opnieuw"; btn.disabled=false; btn.textContent="Aanmelden"; }
 }
 
 function toggleFavFilter(){ favOnly=!favOnly; document.getElementById("favBtn").classList.toggle("on",favOnly); renderCatalogue(); }

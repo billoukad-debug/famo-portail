@@ -55,13 +55,20 @@
   .empty { color:#94a3b8; font-size:13px; padding:12px 0; text-align:center; }
   .ok-box { background:#ecfdf5; border:1.5px solid #a7f3d0; color:#065f46; padding:13px; border-radius:12px; margin-top:12px; font-size:13.5px; display:none; }
   .hidden { display:none !important; }
+
+  /* ---------- FAMO STAFF V2 ---------- */
+  :root{--navy:#071d2b;--ocean:#0c668d;--ocean-l:#e5f2f7;--text:#172b35;--mut:#60717a;--line:#d2dde2;--bg:#edf2f4;--ok:#16724a;--gold:#ff642e;--sh:0 1px 2px rgba(7,29,43,.08),0 10px 30px rgba(7,29,43,.06)}
+  body{font-family:"IBM Plex Sans","Aptos","Segoe UI",sans-serif;background:linear-gradient(90deg,rgba(7,29,43,.035) 1px,transparent 1px),linear-gradient(rgba(7,29,43,.035) 1px,transparent 1px),var(--bg);background-size:32px 32px}
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(255,100,46,.35);outline-offset:2px}
+  .login-wrap{background:var(--navy)}.login-card{border-radius:10px;border-top:8px solid var(--gold);text-align:left;max-width:410px}.login-card .staff-mark{width:48px;height:48px;display:grid;place-items:center;background:var(--navy);color:#fff;border-radius:6px;font-size:25px;font-weight:800}.login-card h1{font-size:27px;letter-spacing:-.7px}.login-card input{height:52px;border-radius:6px;text-align:left}.btn-p{min-height:50px;border-radius:6px;background:var(--gold);font-weight:800}.topbar{background:var(--navy);border-bottom:5px solid var(--gold)}.topbar-in{height:66px}.brand{font-size:18px;letter-spacing:-.3px}.topbar a{background:rgba(255,255,255,.1);color:#fff;min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:6px;font-weight:700}.page{max-width:1120px;grid-template-columns:minmax(0,1fr) 370px;gap:22px;margin-top:24px}.card{border-radius:9px;border:1px solid #d2dde2;box-shadow:var(--sh)}.card:nth-child(2){position:sticky;top:90px;border-top:5px solid var(--gold)}.card h2,.fld-l{text-transform:uppercase;letter-spacing:.8px}.card h2{font-size:12px}.fld-l{font-size:11px}select,input[type=date],input[type=text],textarea{min-height:46px;border-radius:6px;background:#f9fbfc}.src button{min-height:46px;border-radius:6px}.src button.on{background:#fff0e9;border-color:var(--gold);color:#a7401a}.cat-h{color:var(--navy);letter-spacing:1.1px;margin-top:22px}.prow{background:#fff;border:1px solid #d6e0e5;border-left:4px solid transparent;border-radius:7px;padding:13px;margin-bottom:6px}.pname{font-size:15.5px;font-weight:700}.pprice,.total-row .val,.cline .r1 span:last-child{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}.tag{border-radius:4px;background:#fff0e9;color:#a7401a;text-transform:uppercase}.qty button,.qty input{height:44px;border-radius:6px}.qty button{width:44px}.qty input{font-family:"IBM Plex Mono",monospace}.cmt-in{border-left:3px solid var(--gold);border-radius:6px;padding:9px}.total-row{border-top-color:var(--navy)}.total-row .val{font-size:29px}.ok-box{border-radius:6px;border-left:5px solid var(--ok)}
+  @media(max-width:880px){.page{grid-template-columns:1fr}.card:nth-child(2){position:static;order:-1}}@media(max-width:560px){.page{padding:0 12px}.prow{align-items:flex-start;flex-wrap:wrap}.pinfo{min-width:100%}.qty{width:100%;justify-content:flex-end}}
 </style>
 </head>
 <body>
 
 <div id="loginView" class="login-wrap">
   <div class="login-card">
-    <div style="font-size:36px">📝</div>
+    <div class="staff-mark" aria-hidden="true">F</div>
     <h1>Bestelling invoeren</h1>
     <p class="sub">Voor telefoon- en WhatsApp-bestellingen</p>
     <input id="code" type="password" placeholder="Toegangscode">
@@ -72,7 +79,7 @@
 
 <div id="app" class="hidden">
   <div class="topbar"><div class="topbar-in">
-    <div class="brand">📝 Bestelling invoeren</div>
+    <div class="brand">Famo — Bestelling invoeren</div>
     <a href="/entrepot.html">→ Magazijn</a>
   </div></div>
 

@@ -60,13 +60,68 @@
   .ehint { font-size:11px; color:var(--mut); margin-top:5px; }
   .empty { color:#94a3b8; font-size:12.5px; padding:8px; text-align:center; }
   .hidden { display:none !important; }
+
+  /* ---------- FAMO WAREHOUSE V2 ---------- */
+  :root { --navy:#071d2b; --ocean:#0c668d; --ocean-l:#e5f2f7; --text:#10242f; --mut:#51646e; --line:#bdcbd2; --bg:#dfe7ea; --gold:#ff642e; --ok:#16724a; --purple:#5d4597; }
+  body { font-family:"IBM Plex Sans","Aptos","Segoe UI",sans-serif; background:var(--bg); }
+  button:focus-visible,input:focus-visible,textarea:focus-visible { outline:4px solid rgba(255,100,46,.35); outline-offset:2px; }
+  .login-wrap { background:var(--navy); }
+  .login-card { border-radius:10px; border-top:8px solid var(--gold); text-align:left; }
+  .login-card .logo { width:48px; height:48px; display:grid; place-items:center; background:var(--navy); color:#fff; border-radius:6px; font-size:0; }
+  .login-card .logo::after { content:"F"; font-size:25px; font-weight:800; }
+  .login-card h1 { font-size:26px; letter-spacing:-.7px; }
+  .login-card input { height:54px; border-radius:6px; text-align:left; letter-spacing:3px; }
+  .btn-p { min-height:54px; border-radius:6px; background:var(--gold); font-weight:800; }
+  .topbar { background:var(--navy); border-bottom:5px solid var(--gold); }
+  .topbar-in { min-height:68px; height:auto; gap:16px; }
+  .brand { font-size:19px; letter-spacing:-.4px; }
+  .top-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  .top-actions a,.refresh-b,.pick-b { min-height:46px; display:inline-flex; align-items:center; border-radius:6px; padding:0 14px; font-size:13px; font-weight:750; text-decoration:none; }
+  .top-actions a,.refresh-b { color:#fff; background:rgba(255,255,255,.1); }
+  .pick-b { border:0; background:var(--gold); color:#fff; }
+  .stamp { color:#334b57; font-family:"IBM Plex Mono",monospace; font-weight:600; padding-top:10px; }
+  .warn { margin-top:8px; border-radius:6px; border-left:5px solid #d28a18; }
+  .board { gap:14px; padding-top:14px; align-items:start; }
+  .col { border-radius:9px; padding:10px; border:1px solid rgba(7,29,43,.13); min-height:180px; }
+  .col > h3 { font-size:13px; color:var(--navy); padding:4px 2px 6px; }
+  .col > h3 .n { border-radius:4px; font-family:"IBM Plex Mono",monospace; font-size:13px; padding:3px 10px; }
+  .col.c0 { background:#dce8f4; border-top:7px solid #1d5fbf; }
+  .col.c1 { background:#f5e6cc; border-top:7px solid #c46e09; }
+  .col.c2 { background:#d5edf2; border-top:7px solid #087f96; }
+  .col.c3 { background:#d9eddf; border-top:7px solid var(--ok); }
+  .oc { border-radius:7px; padding:14px; margin-bottom:12px; border:1px solid #b9c8cf; box-shadow:0 2px 8px rgba(7,29,43,.08); }
+  .oc .ref { font-family:"IBM Plex Mono",monospace; font-size:19px; letter-spacing:-.5px; }
+  .oc .cl { color:#a63f19; font-size:16px; margin:3px 0 9px; }
+  .order-lines { background:#f1f5f6; border:1px solid #dae3e7; border-radius:6px; padding:5px 10px; }
+  .order-line { display:flex; align-items:baseline; gap:10px; padding:6px 0; border-bottom:1px solid #d7e0e4; }
+  .order-line:last-child { border-bottom:0; }
+  .order-line .q { min-width:38px; text-align:right; font-family:"IBM Plex Mono",monospace; font-size:21px; font-weight:800; color:var(--navy); }
+  .order-line .d { font-size:14px; font-weight:600; line-height:1.25; }
+  .oc .meta { margin-top:8px; font-size:13px; color:#3d535e; }
+  .oc button { min-height:50px; border-radius:6px; font-size:14px; font-weight:750; }
+  .oc .adv { width:100%; min-height:58px; font-size:17px; margin-top:11px; background:var(--gold); }
+  .oc .row { gap:8px; }
+  .oc .row .edit,.oc .row .doc,.oc .row .pay,.oc .row .paid { flex:1 1 105px; }
+  .edit { background:#e7ecef; color:var(--navy); border:1px solid #c0cdd3!important; }
+  .doc { background:#fff; color:var(--navy); border:1px solid var(--navy)!important; }
+  .pay { background:#ecf8f0; color:#0c6039; border:1px solid #77c398!important; }
+  .oc textarea { min-height:110px; border-radius:6px; font-size:15px; }
+  .tin { height:50px; border-radius:6px; font-family:"IBM Plex Mono",monospace; }
+  @media (max-width:1150px){ .board { grid-template-columns:1fr 1fr; } }
+  @media (max-width:680px){
+    .topbar-in { align-items:flex-start; padding:12px; flex-direction:column; }
+    .top-actions { width:100%; justify-content:flex-start; }
+    .top-actions a,.refresh-b,.pick-b { flex:1; justify-content:center; }
+    .board { grid-template-columns:1fr; padding:10px; }
+    .warn,.stamp { margin-left:10px; margin-right:10px; }
+  }
 </style>
 </head>
 <body>
 
 <div id="loginView" class="login-wrap">
   <div class="login-card">
-    <div class="logo">🏭</div>
+    <div class="logo" aria-hidden="true">F</div>
     <h1>Famo Trading — Magazijn</h1>
     <p class="sub">Enkel voor personeel</p>
     <input id="code" type="password" placeholder="••••••" autocomplete="off">
@@ -77,9 +132,10 @@
 
 <div id="app" class="hidden">
   <div class="topbar"><div class="topbar-in">
-    <div class="brand">🏭 Famo Trading — Magazijn</div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <a href="/invoer.html" style="color:#b7cbdd;font-size:13px;text-decoration:none">📝 Invoeren</a>
+    <div class="brand">Famo Trading — Magazijn</div>
+    <div class="top-actions">
+      <button class="pick-b" onclick="printPicklist()">Voorbereidingslijst</button>
+      <a href="/invoer.html">Bestelling invoeren</a>
       <button class="refresh-b" onclick="load()">↻ Vernieuwen</button>
     </div>
   </div></div>
@@ -113,6 +169,14 @@ const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Factur
 let CODE="", ORDERS=[];
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+function renderLines(txt){
+  return '<div class="order-lines">'+String(txt||"").split("\n").filter(Boolean).map(line=>{
+    const clean=line.replace(/\s*\[€[^\]]+\]/g,"");
+    const m=clean.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*(.*)$/);
+    if(!m) return '<div class="order-line"><span class="d">'+esc(clean)+'</span></div>';
+    return '<div class="order-line"><span class="q">'+esc(m[2])+'</span><span class="d">'+esc(m[3])+' · '+esc(m[1].trim())+'</span></div>';
+  }).join("")+'</div>';
+}
 
 async function enter(){
   CODE=document.getElementById("code").value.trim();
@@ -142,7 +206,7 @@ function render(){
     const el=document.createElement("div"); el.className="oc";
     el.innerHTML='<div class="ref">'+esc(o.ref)+'</div>'+
       '<div class="cl">'+esc(o.client)+'</div>'+
-      '<pre>'+esc(o.lignes)+'</pre>'+
+      renderLines(o.lignes)+
       '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
       (o.factuurnummer?'<div class="meta">🧾 '+esc(o.factuurnummer)+'</div>':'')+
       (o.stockAf?'<div class="meta" style="color:#16a34a">✓ Voorraad afgeboekt</div>':'')+
@@ -171,6 +235,15 @@ function editLines(idx){
 async function saveLines(idx){
   const o=ORDERS[idx];
   await upd({id:o.id, lignes:document.getElementById("ta"+idx).value, total:parseFloat(document.getElementById("tt"+idx).value)||0});
+}
+
+function printPicklist(){
+  const todo=ORDERS.filter(o=>o.statut==="Reçue"||o.statut==="Prête");
+  if(!todo.length){ alert("Er zijn geen bestellingen om voor te bereiden."); return; }
+  const w=window.open("","_blank"); if(!w) return;
+  const blocks=todo.map(o=>'<section><header><b>'+esc(o.ref)+' — '+esc(o.client)+'</b><span>Levering: '+esc(o.dateLiv||"—")+'</span></header><table>'+String(o.lignes||"").split("\n").filter(Boolean).map(l=>'<tr><td class="box">☐</td><td>'+esc(l.replace(/\s*\[€[^\]]+\]/g,""))+'</td></tr>').join("")+'</table></section>').join("");
+  w.document.write('<html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}section{border:2px solid #071d2b;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #bdcbd2;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>');
+  w.document.close(); w.print();
 }
 
 function doc(idx,type){
