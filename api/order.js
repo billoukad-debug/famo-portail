@@ -6,6 +6,18 @@ async function at(path){
   return r.json();
 }
 
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
+
 async function authClient(user, pw){
   if (!user || !pw) return null;
   const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${String(user).toLowerCase().replace(/'/g, "")}'`);
@@ -35,8 +47,8 @@ function cleanComment(value){
 async function buildOrderLines(clientId, items){
   if (!Array.isArray(items) || !items.length) throw new Error("Geen artikelen");
 
-  const cat = await at(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
-  const negotiated = await at(`${encodeURIComponent("Prix négociés")}`);
+  const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
+  const negotiated = await atAll(`${encodeURIComponent("Prix négociés")}`);
   const priceByProduct = new Map();
   (negotiated.records || []).forEach(record => {
     const clients = record.fields["Client"] || [];

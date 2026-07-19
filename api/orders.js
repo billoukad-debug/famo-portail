@@ -6,6 +6,18 @@ async function at(path){
   return r.json();
 }
 
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
+
 async function authClient(user, pw){
   if (!user || !pw) return null;
   const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${String(user).toLowerCase().replace(/'/g, "")}'`);
@@ -24,7 +36,7 @@ module.exports = async (req, res) => {
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
 
-    const cmd = await at(`Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc`);
+    const cmd = await atAll(`Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc`);
     const orders = (cmd.records || [])
       .filter(r => (r.fields["Client"] || []).includes(clientId))
       .map(r => ({

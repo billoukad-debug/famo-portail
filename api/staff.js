@@ -9,6 +9,18 @@ async function at(path, opts){
   return r.json();
 }
 
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
+
 function numberOf(value){
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -20,8 +32,8 @@ function cleanComment(value){
 
 async function buildOrderLines(clientId, items){
   if (!Array.isArray(items) || !items.length) throw new Error("Klant en artikelen vereist");
-  const cat = await at(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
-  const negotiated = await at(`${encodeURIComponent("Prix négociés")}`);
+  const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
+  const negotiated = await atAll(`${encodeURIComponent("Prix négociés")}`);
   const prices = new Map();
   (negotiated.records || []).forEach(record => {
     const clients = record.fields["Client"] || [];
@@ -88,7 +100,7 @@ module.exports = async (req, res) => {
 
     // Liste des clients
     if (!q.client) {
-      const cl = await at("Clients");
+      const cl = await atAll("Clients");
       const clients = (cl.records || []).map(r => ({
         id: r.id,
         nom: r.fields["Nom"] || "",
@@ -100,8 +112,8 @@ module.exports = async (req, res) => {
 
     // Catalogue avec les prix négociés d'un client donné
     const clientId = q.client;
-    const cat = await at(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
-    const neg = await at(`${encodeURIComponent("Prix négociés")}`);
+    const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
+    const neg = await atAll(`${encodeURIComponent("Prix négociés")}`);
     const negMap = {};
     (neg.records || []).forEach(r => {
       const cli = r.fields["Client"] || [];

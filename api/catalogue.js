@@ -6,6 +6,18 @@ async function at(path){
   return r.json();
 }
 
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
+
 // Authentifie par gebruikersnaam + wachtwoord. Renvoie l'enregistrement client ou null.
 async function authClient(user, pw){
   if (!user || !pw) return null;
@@ -26,8 +38,8 @@ module.exports = async (req, res) => {
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
 
-    const cat = await at(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
-    const neg = await at(`${encodeURIComponent("Prix négociés")}`);
+    const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
+    const neg = await atAll(`${encodeURIComponent("Prix négociés")}`);
     const negMap = {};
     (neg.records || []).forEach(r => {
       const cli = r.fields["Client"] || [];

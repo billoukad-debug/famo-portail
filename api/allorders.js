@@ -5,11 +5,23 @@ async function at(path){
   const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
   return r.json();
 }
+
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
 module.exports = async (req, res) => {
   try {
     const code = String((req.query && req.query.code) || "");
     if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
-    const cl = await at("Clients");
+    const cl = await atAll("Clients");
     const nameById = {}, infoById = {};
     (cl.records || []).forEach(r => {
       nameById[r.id] = r.fields["Nom"] || "";
@@ -20,7 +32,7 @@ module.exports = async (req, res) => {
         klantnr: r.fields["Klantnummer"] || ""
       };
     });
-    const cmd = await at("Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc");
+    const cmd = await atAll("Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc");
     const orders = (cmd.records || []).map(r => ({
       id: r.id,
       ref: r.fields["Référence"] || "",

@@ -9,6 +9,18 @@ async function at(path, opts){
   return response.json();
 }
 
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
+
 function amount(value){
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
@@ -21,7 +33,7 @@ module.exports = async (req, res) => {
     if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
 
     if (req.method === "GET") {
-      const stock = await at("Stock?sort%5B0%5D%5Bfield%5D=Produit&sort%5B0%5D%5Bdirection%5D=asc");
+      const stock = await atAll("Stock?sort%5B0%5D%5Bfield%5D=Produit&sort%5B0%5D%5Bdirection%5D=asc");
       if (stock.error) return res.status(500).json(stock);
       return res.status(200).json({ items: (stock.records || []).map(record => ({
         id: record.id,

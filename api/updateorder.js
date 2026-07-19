@@ -9,6 +9,18 @@ async function at(path, opts){
   return r.json();
 }
 
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
+
 function numberOf(value){
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -30,7 +42,7 @@ async function deductStock(lignes){
   const items = parseLines(lignes);
   if (!items.length) return { ...report, error: "Geen geldige artikellijnen gevonden" };
 
-  const st = await at("Stock");
+  const st = await atAll("Stock");
   const recs = st.records || [];
   const norm = s => String(s || "").toLowerCase().trim();
 
@@ -56,7 +68,7 @@ async function deductStock(lignes){
 // Numéro de facture séquentiel : FA-2026-0001
 async function nextInvoiceNumber(){
   const year = new Date().getFullYear();
-  const j = await at(`Commandes?fields%5B%5D=${encodeURIComponent("Factuurnummer")}`);
+  const j = await atAll(`Commandes?fields%5B%5D=${encodeURIComponent("Factuurnummer")}`);
   let max = 0;
   (j.records || []).forEach(r => {
     const v = r.fields["Factuurnummer"];
