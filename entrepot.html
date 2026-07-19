@@ -169,6 +169,7 @@
   <div class="stamp" id="stamp"></div>
   <div class="warn">⚠️ De documenten (leveringsbon / factuur) zijn interne afdrukken. Voor B2B is een elektronische Peppol-factuur wettelijk verplicht — dit loopt via de boekhouding (Billtobox).</div>
   <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div class="day-filter"><label for="dayFilter">Leverdatum</label><select id="dayFilter" onchange="setDayFilter(this.value)"><option value="today">Vandaag</option><option value="tomorrow">Morgen</option><option value="overdue">Te laat</option><option value="nodate">Zonder datum</option><option value="all">Alle open bestellingen</option><option value="custom">Kies datum…</option></select><input id="dayCustom" class="hidden" type="date" onchange="renderDayView()"></div><div id="pickSummary" class="pick-summary"></div></section>
+  <section class="warehouse-toolbar" aria-label="Bestellingen zoeken en sorteren"><label for="orderSearch">Zoeken</label><input id="orderSearch" type="search" placeholder="Referentie, klant of artikel…" oninput="setOrderQuery(this.value)"><label for="orderSort">Sorteren</label><select id="orderSort" onchange="setOrderSort(this.value)"><option value="delivery">Leverdatum: eerst</option><option value="recent">Recent toegevoegd</option><option value="client">Klant: A–Z</option><option value="total">Totaal: hoog naar laag</option></select><button type="button" onclick="clearOrderFilters()">Wissen</button><span id="boardSummary" role="status"></span></section>
   <div class="board">
     <div class="col c0"><h3>Ontvangen <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
     <div class="col c1"><h3>Klaar <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
@@ -195,7 +196,7 @@ const FAMO = {
 const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
 const NL={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
 const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Facturée":"→ Gefactureerd"};
-let CODE="", ORDERS=[], DAY_FILTER="today";
+let CODE="", ORDERS=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery";
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 function renderLines(txt){
@@ -228,7 +229,8 @@ async function load(){
 function render(){
   for(let i=0;i<4;i++) document.getElementById("c"+i).innerHTML="";
   const counts=[0,0,0,0];
-  ORDERS.forEach((o,idx)=>{
+  const visible=orderView();
+  visible.forEach(({o,idx})=>{
     const si=STATUS.indexOf(o.statut); if(si<0) return; counts[si]++;
     const next=si<3?STATUS[si+1]:null;
     const paid=o.paiement==="Payé";
@@ -252,9 +254,25 @@ function render(){
     document.getElementById("c"+si).appendChild(el);
   });
   for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML='<div class="empty">—</div>'; }
+  const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
   if(!document.getElementById("dayPanel").classList.contains("hidden")) renderDayView();
 }
+
+function orderView(){
+  const q=ORDER_QUERY.trim().toLocaleLowerCase("nl-BE");
+  const rows=ORDERS.map((o,idx)=>({o,idx})).filter(({o})=>!q||[o.ref,o.client,o.lignes,o.notes].join(" ").toLocaleLowerCase("nl-BE").includes(q));
+  const delivery=o=>String(o.dateLiv||"9999-12-31"), recent=o=>String(o.date||"");
+  return rows.sort((a,b)=>{
+    if(ORDER_SORT==="client") return String(a.o.client).localeCompare(String(b.o.client),"nl");
+    if(ORDER_SORT==="total") return Number(b.o.total||0)-Number(a.o.total||0);
+    if(ORDER_SORT==="recent") return recent(b.o).localeCompare(recent(a.o));
+    return delivery(a.o).localeCompare(delivery(b.o));
+  });
+}
+function setOrderQuery(value){ORDER_QUERY=value;render()}
+function setOrderSort(value){ORDER_SORT=value;render()}
+function clearOrderFilters(){ORDER_QUERY="";ORDER_SORT="delivery";document.getElementById("orderSearch").value="";document.getElementById("orderSort").value="delivery";render()}
 
 function dayKey(offset=0){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+offset);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())}
 function setDayFilter(value){DAY_FILTER=value;document.getElementById("dayCustom").classList.toggle("hidden",value!=="custom");if(value==="custom"&&!document.getElementById("dayCustom").value)document.getElementById("dayCustom").value=dayKey();renderDayView()}
