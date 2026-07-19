@@ -128,6 +128,7 @@
     .day-panel{margin:10px}.day-head{display:block}.day-actions{margin-top:12px}.day-actions button{flex:1}.pick-summary{grid-template-columns:1fr}
   }
 </style>
+<link rel="stylesheet" href="/staff.css">
 </head>
 <body>
 
@@ -142,7 +143,19 @@
   </div>
 </div>
 
-<div id="app" class="hidden">
+<div id="app" class="hidden staff-app">
+  <aside class="staff-sidebar" aria-label="Personeelsnavigatie">
+    <a class="staff-logo" href="/entrepot.html"><span class="staff-logo-mark">F</span>Famo Trading</a>
+    <div class="staff-nav-label">Operaties</div>
+    <a class="staff-nav-link active" href="/entrepot.html"><span class="staff-nav-icon orders"></span>Commandes</a>
+    <a class="staff-nav-link active" href="/entrepot.html"><span class="staff-nav-icon warehouse"></span>Magazijn</a>
+    <a class="staff-nav-link" href="#dayPanel" onclick="toggleDayView()"><span class="staff-nav-icon pick"></span>Préparation du jour</a>
+    <a class="staff-nav-link" href="/invoer.html"><span class="staff-nav-icon entry"></span>Saisie manuelle</a>
+    <a class="staff-nav-link" href="/stock.html"><span class="staff-nav-icon stock"></span>Stock</a>
+    <div class="staff-nav-spacer"></div><div class="staff-nav-foot">FAMO V1<br>Opérations internes</div>
+  </aside>
+  <div class="staff-main">
+  <div class="staff-mobilebar"><a class="staff-logo" href="/entrepot.html"><span class="staff-logo-mark">F</span>Famo</a><a href="/invoer.html">Saisie</a><a href="/stock.html">Stock</a></div>
   <div class="topbar"><div class="topbar-in">
     <div class="brand">Famo Trading — Magazijn</div>
     <div class="top-actions">
@@ -162,6 +175,7 @@
     <div class="col c2"><h3>Onderweg <span class="n" id="n2">0</span></h3><div id="c2"></div></div>
     <div class="col c3"><h3>Gefactureerd <span class="n" id="n3">0</span></h3><div id="c3"></div></div>
   </div>
+</div>
 </div>
 
 <script>
