@@ -113,7 +113,7 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { code, id, statut, paiement, lignes, total, preparationValidee } = body;
+    const { code, id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl } = body;
     if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
     if (!id) return res.status(400).json({ error: "id requis" });
 
@@ -164,9 +164,26 @@ module.exports = async (req, res) => {
         });
       }
       fields["Stock afgeboekt"] = true;
-      fields["Livrée le"] = new Date().toISOString();
       const movementError = await createStockMovements(stockReport, f["Référence"] || id);
       if (movementError) stockReport.journalWarning = movementError;
+    }
+
+    if (statut === "Facturée") {
+      const alreadyConfirmed = !!f["Livraison confirmée"];
+      if (!alreadyConfirmed && !deliveryConfirmed) {
+        return res.status(409).json({ error: "Bevestig eerst de ontvangst van de levering" });
+      }
+      if (deliveryConfirmed) {
+        const receivedBy = String(recipient || "").trim();
+        if (!receivedBy) return res.status(400).json({ error: "Vul in wie de levering heeft ontvangen" });
+        if (proofUrl && !/^https:\/\//i.test(String(proofUrl))) {
+          return res.status(400).json({ error: "De link naar het leveringsbewijs moet met https:// beginnen" });
+        }
+        fields["Livraison confirmée"] = true;
+        fields["Réceptionné par"] = receivedBy;
+        fields["Livrée le"] = new Date().toISOString();
+        if (proofUrl) fields["Preuve de livraison"] = [{ url: String(proofUrl), filename: "leveringsbewijs" }];
+      }
     }
 
     // Numéro de facture attribué une seule fois

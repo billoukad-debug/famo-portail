@@ -225,9 +225,10 @@ function render(){
       '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
       (o.factuurnummer?'<div class="meta">🧾 '+esc(o.factuurnummer)+'</div>':'')+
       (o.stockAf?'<div class="meta" style="color:#16a34a">✓ Voorraad afgeboekt</div>':'')+
+      (o.livraisonConfirmee?'<div class="meta" style="color:#16a34a">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
       (o.notes?'<div class="meta">📝 '+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
-        (o.statut==="Reçue"?'<button class="adv" onclick="editLines('+idx+')">Artikels controleren</button>':(next?'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+NEXTLBL[next]+'</button>':''))+
+        (o.statut==="Reçue"?'<button class="adv" onclick="editLines('+idx+')">Artikels controleren</button>':(next?'<button class="adv" onclick="'+(next==="Facturée"?'confirmDelivery('+idx+')':'confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')')+'">'+NEXTLBL[next]+'</button>':''))+
         (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
         '<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>'+
         '<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>'+
@@ -407,6 +408,22 @@ function doc(idx,type){
 }
 
 async function adv(id,statut){ await upd({id,statut}); }
+function confirmDelivery(idx){
+  const o=ORDERS[idx], box=document.getElementById("e"+idx);
+  if(box.innerHTML){ box.innerHTML=""; return; }
+  box.innerHTML='<div class="edit-head">Bevestig de ontvangst voordat u factureert.</div>'+
+    '<div class="pick-editor" style="padding:12px">'+
+      '<label class="ehint" style="display:block;font-weight:700">Ontvangen door<input class="tin" id="receiver'+idx+'" type="text" value="'+esc(o.receptionnePar||"")+'" placeholder="Naam ontvanger" style="display:block;width:100%;margin-top:5px"></label>'+
+      '<label class="ehint" style="display:block;margin-top:10px">Link naar leveringsbewijs <span style="font-weight:400">(optioneel: foto/signatuur)</span><input class="tin" id="proof'+idx+'" type="url" placeholder="https://…" style="display:block;width:100%;margin-top:5px"></label>'+
+      '<button class="save" style="margin-top:12px" onclick="saveDelivery('+idx+')">✓ Ontvangst bevestigen & factureren</button>'+
+    '</div>';
+}
+async function saveDelivery(idx){
+  const o=ORDERS[idx], recipient=document.getElementById("receiver"+idx).value.trim(), proofUrl=document.getElementById("proof"+idx).value.trim();
+  if(!recipient){ alert("Vul in wie de levering heeft ontvangen."); return; }
+  if(proofUrl && !/^https:\/\//i.test(proofUrl)){ alert("Gebruik een beveiligde https://-link voor het bewijs."); return; }
+  await upd({id:o.id,statut:"Facturée",deliveryConfirmed:true,recipient,proofUrl});
+}
 async function confirmAdvance(id,statut,index){
   const ref=ORDERS[index]?ORDERS[index].ref:"";
   let message="Bestelling "+ref+" naar ‘"+(NL[statut]||statut)+"’ verplaatsen?";

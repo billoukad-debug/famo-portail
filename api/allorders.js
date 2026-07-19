@@ -50,6 +50,9 @@ module.exports = async (req, res) => {
       preparationValidee: !!r.fields["Préparation validée"],
       prepareeLe: r.fields["Préparée le"] || "",
       livreeLe: r.fields["Livrée le"] || "",
+      livraisonConfirmee: !!r.fields["Livraison confirmée"],
+      receptionnePar: r.fields["Réceptionné par"] || "",
+      preuveLivraison: (r.fields["Preuve de livraison"] || []).map(file => ({ url: file.url || "", filename: file.filename || "" })),
       factureeLe: r.fields["Facturée le"] || ""
     }));
     res.status(200).json({ orders });
