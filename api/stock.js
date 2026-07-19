@@ -56,7 +56,8 @@ module.exports = async (req, res) => {
       return res.status(200).json({ items: (stock.records || []).map(record => ({
         id: record.id,
         product: record.fields["Produit"] || "",
-        quantity: Number(record.fields["Quantité disponible"] || 0)
+        quantity: Number(record.fields["Quantité disponible"] || 0),
+        lowThreshold: Number(record.fields["Seuil bas"] || 0)
       })) });
     }
 
