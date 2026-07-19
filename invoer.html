@@ -54,6 +54,7 @@
   .total-row .val { font-size:22px; font-weight:800; color:var(--navy); }
   .empty { color:#94a3b8; font-size:13px; padding:12px 0; text-align:center; }
   .ok-box { background:#ecfdf5; border:1.5px solid #a7f3d0; color:#065f46; padding:13px; border-radius:12px; margin-top:12px; font-size:13.5px; display:none; }
+  .review-box{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:8px;background:#f8fafb}.review-box h3{font-size:13px;margin-bottom:8px}.review-line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #e7ecef;font-size:13px}.review-line:last-of-type{border-bottom:0}.review-meta{font-size:12px;color:var(--mut);line-height:1.6;margin-bottom:10px}.review-actions{display:flex;gap:8px;margin-top:12px}.review-actions button{flex:1;min-height:44px;border-radius:6px;border:1px solid var(--line);font-weight:700}.review-actions .confirm{background:var(--gold);border-color:var(--gold);color:#fff}
   .hidden { display:none !important; }
 
   /* ---------- FAMO STAFF V2 ---------- */
@@ -121,11 +122,12 @@
       </div>
 
       <label class="fld-l">Leverdatum</label>
-      <input type="date" id="dateLiv">
+      <input type="date" id="dateLiv" onchange="hideReview()">
       <label class="fld-l">Opmerking</label>
-      <textarea id="notes" placeholder="Bv. leveren vóór 8u…"></textarea>
+      <textarea id="notes" placeholder="Bv. leveren vóór 8u…" oninput="hideReview()"></textarea>
 
-      <button class="btn-p" id="sendBtn" style="margin-top:14px" disabled onclick="send()">Bestelling opslaan</button>
+      <div id="reviewBox" class="review-box hidden"></div>
+      <button class="btn-p" id="sendBtn" style="margin-top:14px" disabled onclick="reviewOrder()">Bestelling controleren</button>
       <div class="ok-box" id="okBox"></div>
     </div>
   </div>
@@ -147,7 +149,7 @@ async function enter(){
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("clientSel").innerHTML='<option value="">— Kies een klant —</option>'+
     CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(c.nom)+'</option>').join("");
-  document.getElementById("dateLiv").value=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); const p=n=>String(n).padStart(2,"0"); document.getElementById("dateLiv").value=tomorrow.getFullYear()+"-"+p(tomorrow.getMonth()+1)+"-"+p(tomorrow.getDate());
 }
 
 async function loadClient(){
@@ -184,22 +186,32 @@ function stepFor(i){ return /kg/i.test(String((PRODUCTS[i]||{}).unite||""))?.1:1
 function chg(i,d){ setQ(i,(panier[i]||0)+d*stepFor(i)); }
 function setQ(i,v){ v=Math.max(0,Math.round((parseFloat(String(v).replace(",","."))||0)*1000)/1000); if(stepFor(i)===1)v=Math.round(v); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
 function setCmt(i,v){ comments[i]=v; renderCart(); }
-function setSrc(s,el){ SRC=s; ["s1","s2","s3","s4"].forEach(id=>document.getElementById(id).classList.remove("on")); el.classList.add("on"); }
+function setSrc(s,el){ SRC=s; ["s1","s2","s3","s4"].forEach(id=>document.getElementById(id).classList.remove("on")); el.classList.add("on"); hideReview(); }
 
 function renderCart(){
   const cart=document.getElementById("cart"), keys=Object.keys(panier);
+  hideReview();
   if(!keys.length){ cart.innerHTML='<div class="empty">Nog niets gekozen.</div>'; document.getElementById("totalBox").classList.add("hidden"); document.getElementById("sendBtn").disabled=true; return; }
   let total=0;
   cart.innerHTML=keys.map(i=>{ const p=PRODUCTS[i],qn=panier[i],st=p.prix*qn; total+=st;
     return '<div class="cline"><div class="r1"><span>'+esc(p.nom)+' × '+qn+'</span><span>'+eur(st)+'</span></div>'+(comments[i]?'<div class="cm">↳ '+esc(comments[i])+'</div>':'')+'</div>'; }).join("");
   document.getElementById("totalVal").textContent=eur(total);
   document.getElementById("totalBox").classList.remove("hidden");
-  document.getElementById("sendBtn").disabled=false;
+  document.getElementById("sendBtn").disabled=false; document.getElementById("sendBtn").textContent="Bestelling controleren";
+}
+
+function hideReview(){ const box=document.getElementById("reviewBox"); if(box){ box.classList.add("hidden"); box.innerHTML=""; } }
+function reviewOrder(){
+  const keys=Object.keys(panier); if(!keys.length||!CID) return;
+  const total=keys.reduce((sum,i)=>sum+PRODUCTS[i].prix*panier[i],0), client=(CLIENTS.find(c=>c.id===CID)||{}).nom||"—";
+  const box=document.getElementById("reviewBox");
+  box.innerHTML='<h3>Controleer de bestelling</h3><div class="review-meta"><b>'+esc(client)+'</b><br>Levering: '+esc(document.getElementById("dateLiv").value||"Niet opgegeven")+' · Bron: '+esc(SRC)+'</div>'+keys.map(i=>'<div class="review-line"><span>'+esc(PRODUCTS[i].nom)+' × '+panier[i]+' '+esc(PRODUCTS[i].unite)+'</span><strong>'+eur(PRODUCTS[i].prix*panier[i])+'</strong></div>').join("")+'<div class="total-row"><span>TOTAAL</span><span class="val">'+eur(total)+'</span></div><div class="review-actions"><button type="button" onclick="hideReview()">Aanpassen</button><button type="button" class="confirm" onclick="send()">Definitief opslaan</button></div>';
+  box.classList.remove("hidden"); box.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 
 async function send(){
   const keys=Object.keys(panier); if(!keys.length||!CID) return;
-  const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Opslaan…";
+  const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Opslaan…"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=true);
   const shownTotal=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
   const items=keys.map(i=>({productId:PRODUCTS[i].id,quantity:panier[i],comment:comments[i]||""}));
   try{
@@ -207,14 +219,14 @@ async function send(){
       body:JSON.stringify({code:CODE,clientId:CID,items,notes:document.getElementById("notes").value,dateLivraison:document.getElementById("dateLiv").value,bron:SRC})});
     const d=await r.json();
     const box=document.getElementById("okBox");
-    if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"opslaan mislukt"); btn.disabled=false; btn.textContent="Bestelling opslaan"; return; }
+    if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"opslaan mislukt"); btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); return; }
     const total=typeof d.total==="number"?d.total:shownTotal;
     box.style.display="block";
-    box.innerHTML='✅ <b>Bestelling '+d.ref+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+SRC+'<br>Ze staat nu in het magazijn onder « Ontvangen ».';
+    box.innerHTML='<b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+'<br>Ze staat nu in het magazijn onder « Ontvangen ».';
     panier={}; comments={}; document.getElementById("notes").value="";
     renderCatalogue(); renderCart();
-    btn.textContent="Bestelling opslaan";
-  }catch(e){ btn.disabled=false; btn.textContent="Bestelling opslaan"; alert("Netwerkfout"); }
+    btn.textContent="Bestelling controleren";
+  }catch(e){ const box=document.getElementById("okBox"); box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Netwerkfout. Probeer opnieuw."; btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); }
 }
 document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
 </script>
