@@ -114,7 +114,8 @@
     <div class="logo">🐟</div>
     <h1>Famo Trading</h1>
     <p class="sub">Bestelportaal voor professionele klanten</p>
-    <input id="email" type="email" placeholder="E-mailadres" value="commande@leponton-test.be" autocomplete="email">
+    <input id="user" type="text" placeholder="Gebruikersnaam" autocomplete="username">
+    <input id="pw" type="password" placeholder="Wachtwoord" autocomplete="current-password">
     <button class="btn-p" id="loginBtn" onclick="login()">Aanmelden</button>
     <div class="err-msg" id="loginErr"></div>
     <div class="login-foot">Famo Trading BV · Jezusstraat 34, 2000 Antwerpen · BTW BE 0788.705.713</div>
@@ -163,7 +164,7 @@
 </div>
 
 <script>
-let CLIENT=null, PRODUCTS=[], panier={}, comments={}, favs={}, favOnly=false;
+let CLIENT=null, PRODUCTS=[], panier={}, comments={}, favs={}, favOnly=false, USER="", PW="";
 const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
 const NLSTATUS={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
@@ -171,13 +172,16 @@ const favKey=()=>"famo_favs_"+(CLIENT?CLIENT.id:"x");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 
 async function login(){
-  const email=document.getElementById("email").value.trim();
+  const u=document.getElementById("user").value.trim();
+  const p=document.getElementById("pw").value;
   const err=document.getElementById("loginErr"), btn=document.getElementById("loginBtn");
+  if(!u||!p){ err.textContent="Vul gebruikersnaam en wachtwoord in."; return; }
   btn.disabled=true; err.textContent="";
   try{
-    const r=await fetch("/api/catalogue?email="+encodeURIComponent(email));
+    const r=await fetch("/api/catalogue?user="+encodeURIComponent(u)+"&pw="+encodeURIComponent(p));
     const d=await r.json();
     if(!r.ok){ err.textContent=d.error||"Fout bij aanmelden"; btn.disabled=false; return; }
+    USER=u; PW=p;
     CLIENT=d.client; PRODUCTS=d.products; panier={}; comments={};
     try{ favs=JSON.parse(localStorage.getItem(favKey())||"{}"); }catch(e){ favs={}; }
     document.getElementById("loginView").classList.add("hidden");
@@ -238,7 +242,7 @@ async function send(){
   const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
   const dateLiv=document.getElementById("dateLiv").value;
   try{
-    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:CLIENT.id,lignes,total,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
+    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:USER,pw:PW,lignes,total,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
     const d=await r.json();
     const box=document.getElementById("confirm");
     if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"versturen mislukt"); btn.disabled=false; btn.textContent="Bestelling versturen"; return; }
@@ -276,7 +280,7 @@ function showTab(t){
 async function loadOrders(){
   const box=document.getElementById("ordList"); box.innerHTML='<div class="empty">Laden…</div>';
   try{
-    const r=await fetch("/api/orders?email="+encodeURIComponent(document.getElementById("email").value.trim()));
+    const r=await fetch("/api/orders?user="+encodeURIComponent(USER)+"&pw="+encodeURIComponent(PW));
     const d=await r.json();
     if(!r.ok||!d.orders||!d.orders.length){ box.innerHTML='<div class="empty">Nog geen bestellingen.</div>'; return; }
     box.innerHTML=d.orders.map(o=>{
@@ -287,7 +291,8 @@ async function loadOrders(){
   }catch(e){ box.innerHTML='<div class="empty">Netwerkfout.</div>'; }
 }
 
-document.getElementById("email").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
+document.getElementById("user").addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("pw").focus(); });
+document.getElementById("pw").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
 </script>
 </body>
 </html>

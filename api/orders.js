@@ -1,16 +1,29 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE = "appcdduLth9iGX8I0";
+
 async function at(path){
   const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
   return r.json();
 }
+
+async function authClient(user, pw){
+  if (!user || !pw) return null;
+  const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${String(user).toLowerCase().replace(/'/g, "")}'`);
+  const cl = await at(`Clients?filterByFormula=${f}`);
+  if (!cl.records || !cl.records.length) return null;
+  const rec = cl.records[0];
+  const stored = rec.fields["Wachtwoord"];
+  if (!stored || String(stored) !== String(pw)) return null;
+  return rec;
+}
+
 module.exports = async (req, res) => {
   try {
-    const email = String((req.query && req.query.email) || "").trim().toLowerCase();
-    if (!email) return res.status(400).json({ error: "email requis" });
-    const cl = await at(`Clients?filterByFormula=${encodeURIComponent(`LOWER({Email})='${email}'`)}`);
-    if (!cl.records || !cl.records.length) return res.status(404).json({ error: "Client introuvable" });
-    const clientId = cl.records[0].id;
+    const q = req.query || {};
+    const client = await authClient(q.user, q.pw);
+    if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
+    const clientId = client.id;
+
     const cmd = await at(`Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc`);
     const orders = (cmd.records || [])
       .filter(r => (r.fields["Client"] || []).includes(clientId))
