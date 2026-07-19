@@ -46,7 +46,11 @@ module.exports = async (req, res) => {
       paiement: r.fields["Statut paiement"] || "En attente",
       notes: r.fields["Notes"] || "",
       factuurnummer: r.fields["Factuurnummer"] || "",
-      stockAf: !!r.fields["Stock afgeboekt"]
+      stockAf: !!r.fields["Stock afgeboekt"],
+      preparationValidee: !!r.fields["Préparation validée"],
+      prepareeLe: r.fields["Préparée le"] || "",
+      livreeLe: r.fields["Livrée le"] || "",
+      factureeLe: r.fields["Facturée le"] || ""
     }));
     res.status(200).json({ orders });
   } catch (e) {

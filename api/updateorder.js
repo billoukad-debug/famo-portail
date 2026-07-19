@@ -21,6 +21,25 @@ async function atAll(path){
   return { records };
 }
 
+async function createStockMovements(report, reference){
+  if (!report.done || !report.done.length) return null;
+  const now = new Date().toISOString();
+  const result = await at(encodeURIComponent("Mouvements de stock"), {
+    method: "POST",
+    body: JSON.stringify({ records: report.done.map(item => ({ fields: {
+      "Mouvement": `${reference} — ${item.nom}`,
+      "Date et heure": now,
+      "Type": "Sortie livraison",
+      "Produit": item.nom,
+      "Quantité": -item.qty,
+      "Stock avant": item.van,
+      "Stock après": item.naar,
+      "Référence commande": reference
+    }})) })
+  });
+  return result.error ? (result.error.message || "Journal de stock non enregistré") : null;
+}
+
 function numberOf(value){
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -66,7 +85,7 @@ async function deductStock(lignes){
     }
     const next = Math.round((cur - it.qty) * 1000) / 1000;
     updates.push({ id: rec.id, fields: { "Quantité disponible": next } });
-    report.done.push({ nom: it.nom, van: cur, naar: next });
+    report.done.push({ nom: it.nom, qty: it.qty, van: cur, naar: next });
   }
   if (report.missing.length || report.insufficient.length) return report;
   const saved = await at("Stock", { method: "PATCH", body: JSON.stringify({ records: updates }) });
@@ -94,7 +113,7 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { code, id, statut, paiement, lignes, total } = body;
+    const { code, id, statut, paiement, lignes, total, preparationValidee } = body;
     if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
     if (!id) return res.status(400).json({ error: "id requis" });
 
@@ -104,7 +123,7 @@ module.exports = async (req, res) => {
 
     // Once goods left the warehouse, changing quantities would no longer match
     // the stock movement and the delivery note. Create a correction instead.
-    if (f["Stock afgeboekt"] && (typeof lignes === "string" || typeof total === "number")) {
+    if (f["Stock afgeboekt"] && (typeof lignes === "string" || typeof total === "number" || preparationValidee)) {
       return res.status(409).json({ error: "Deze levering is al uit voorraad geboekt en kan niet meer worden gewijzigd" });
     }
 
@@ -124,10 +143,18 @@ module.exports = async (req, res) => {
       fields["Statut"] = statut;
     }
 
+    if (preparationValidee || statut === "Prête") {
+      fields["Préparation validée"] = true;
+      fields["Préparée le"] = new Date().toISOString();
+    }
+
     let stockReport = null, factuurnummer = null;
 
     // Stock déduit au moment où la marchandise part réellement
     if (statut === "Sortie en livraison" && !f["Stock afgeboekt"]) {
+      if (!f["Préparation validée"]) {
+        return res.status(409).json({ error: "Valideer eerst alle artikelen van deze bestelling" });
+      }
       const useLines = (typeof lignes === "string" ? lignes : f["Lignes (produits / quantités)"]);
       stockReport = await deductStock(useLines);
       if (stockReport.error || stockReport.missing.length || stockReport.insufficient.length) {
@@ -137,12 +164,16 @@ module.exports = async (req, res) => {
         });
       }
       fields["Stock afgeboekt"] = true;
+      fields["Livrée le"] = new Date().toISOString();
+      const movementError = await createStockMovements(stockReport, f["Référence"] || id);
+      if (movementError) stockReport.journalWarning = movementError;
     }
 
     // Numéro de facture attribué une seule fois
     if (statut === "Facturée" && !f["Factuurnummer"]) {
       factuurnummer = await nextInvoiceNumber();
       fields["Factuurnummer"] = factuurnummer;
+      fields["Facturée le"] = new Date().toISOString();
     }
 
     if (!Object.keys(fields).length) return res.status(400).json({ error: "rien à mettre à jour" });

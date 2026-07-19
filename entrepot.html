@@ -282,7 +282,7 @@ async function saveLines(idx){
   const unchecked=lines.findIndex((_,i)=>!document.getElementById("ok"+idx+"_"+i).checked);
   if(unchecked>=0){ alert("Valideer elk artikel afzonderlijk voordat u opslaat."); return; }
   const actualLines=lines.map((line,i)=>formatOrderLine(line,document.getElementById("aq"+idx+"_"+i).value));
-  const patch={id:o.id, lignes:actualLines.join("\n"), total:parseFloat(document.getElementById("tt"+idx).value)||0};
+  const patch={id:o.id, lignes:actualLines.join("\n"), total:parseFloat(document.getElementById("tt"+idx).value)||0, preparationValidee:true};
   if(o.statut==="Reçue") patch.statut="Prête";
   await upd(patch);
 }

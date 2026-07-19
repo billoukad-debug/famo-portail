@@ -21,6 +21,24 @@ async function atAll(path){
   return { records };
 }
 
+async function logCorrection(record, after, note){
+  const before = Number(record.fields["Quantité disponible"] || 0);
+  const result = await at(encodeURIComponent("Mouvements de stock"), {
+    method: "POST",
+    body: JSON.stringify({ records: [{ fields: {
+      "Mouvement": `Correction inventaire — ${record.fields["Produit"] || record.id}`,
+      "Date et heure": new Date().toISOString(),
+      "Type": "Correction inventaire",
+      "Produit": record.fields["Produit"] || "",
+      "Quantité": Math.round((after - before) * 1000) / 1000,
+      "Stock avant": before,
+      "Stock après": after,
+      "Note": note || "Correction manuelle depuis l’écran de stock"
+    }}] })
+  });
+  return result.error ? (result.error.message || "Journal de stock non enregistré") : null;
+}
+
 function amount(value){
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
@@ -47,12 +65,16 @@ module.exports = async (req, res) => {
     if (!body.id || quantity == null || quantity < 0 || quantity > 1000000) {
       return res.status(400).json({ error: "Ongeldige voorraadhoeveelheid" });
     }
+    const current = await at(`Stock/${body.id}`);
+    if (current.error) return res.status(404).json({ error: "Artikel niet gevonden" });
+    const rounded = Math.round(quantity * 1000) / 1000;
     const saved = await at(`Stock/${body.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ fields: { "Quantité disponible": Math.round(quantity * 1000) / 1000 } })
+      body: JSON.stringify({ fields: { "Quantité disponible": rounded } })
     });
     if (saved.error) return res.status(500).json(saved);
-    return res.status(200).json({ ok: true, quantity: Number(saved.fields["Quantité disponible"] || 0) });
+    const journalWarning = await logCorrection(current, rounded, body.note);
+    return res.status(200).json({ ok: true, quantity: Number(saved.fields["Quantité disponible"] || 0), journalWarning });
   } catch (error) {
     return res.status(500).json({ error: String(error) });
   }
