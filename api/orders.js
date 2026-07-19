@@ -42,6 +42,7 @@ module.exports = async (req, res) => {
       .map(r => ({
         ref: r.fields["Référence"] || "",
         date: r.fields["Date"] || "",
+        dateLiv: r.fields["Date livraison souhaitée"] || "",
         lignes: r.fields["Lignes (produits / quantités)"] || "",
         total: r.fields["Total"] || 0,
         statut: r.fields["Statut"] || "",
