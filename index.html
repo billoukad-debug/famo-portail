@@ -241,7 +241,7 @@ async function send(){
   const keys=Object.keys(panier); if(!keys.length) return;
   const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Versturen…";
   const shownTotal=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
-  const items=keys.map(i=>({productId:PRODUCTS[i].id,quantity:panier[i]}));
+  const items=keys.map(i=>({productId:PRODUCTS[i].id,quantity:panier[i],comment:comments[i]||""}));
   const dateLiv=document.getElementById("dateLiv").value;
   try{
     const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:USER,pw:PW,items,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});

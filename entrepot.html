@@ -181,11 +181,13 @@ function doc(idx,type){
   const verval=new Date(d.getTime()+30*86400000);
   const fdate=x=>x.toLocaleDateString("nl-BE");
 
-  // Chaque ligne "Naam × 3 doos (opmerking)" est décomposée pour le tableau
+  // Prices are frozen on the order line: "Naam × 3 doos [€12.50] (opmerking)".
+  // Existing orders without this price marker remain printable.
   const rows=String(o.lignes||"").split("\n").filter(x=>x.trim()).map(l=>{
-    const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*(\S*)\s*(\(.*\))?$/);
-    if(m) return {nom:m[1].trim(), aantal:m[2], eenheid:m[3]||"", opm:(m[4]||"").replace(/[()]/g,"")};
-    return {nom:l, aantal:"", eenheid:"", opm:""};
+    const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)(.*)$/);
+    if(!m) return {nom:l, aantal:"", eenheid:"", prijs:null, opm:""};
+    const tail=m[4]||"", price=tail.match(/\[€\s*([\d.,]+)\]/), comment=tail.match(/\((.*?)\)/);
+    return {nom:m[1].trim(), aantal:m[2], eenheid:m[3].trim(), prijs:price?parseFloat(price[1].replace(",",".")):null, opm:comment?comment[1]:""};
   });
 
   const w=window.open("","_blank");
@@ -226,7 +228,7 @@ function doc(idx,type){
       (isFA?'<th class="num">Tarief</th><th class="num">BTW</th><th class="num">Subtotaal</th>':'')+'</tr>'+
     rows.map(r=>'<tr><td>'+esc(r.nom)+(r.opm?'<br><i style="color:#64748b;font-size:11px">'+esc(r.opm)+'</i>':'')+'</td>'+
       '<td class="num">'+esc(r.aantal)+'</td><td>'+esc(r.eenheid)+'</td>'+
-      (isFA?'<td class="num"></td><td class="num">'+FAMO.tauxTVA+',0%</td><td class="num"></td>':'')+'</tr>').join("")+
+      (isFA?'<td class="num">'+(r.prijs==null?"":eur(r.prijs))+'</td><td class="num">'+FAMO.tauxTVA+',0%</td><td class="num">'+(r.prijs==null?"":eur(r.prijs*(parseFloat(String(r.aantal).replace(",","."))||0))+'</td>':'')+'</tr>').join("")+
     '</table>'+
 
     (isFA

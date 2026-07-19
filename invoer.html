@@ -178,14 +178,15 @@ function renderCart(){
 async function send(){
   const keys=Object.keys(panier); if(!keys.length||!CID) return;
   const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Opslaan…";
-  const total=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
-  const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
+  const shownTotal=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
+  const items=keys.map(i=>({productId:PRODUCTS[i].id,quantity:panier[i],comment:comments[i]||""}));
   try{
     const r=await fetch("/api/staff",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({code:CODE,clientId:CID,lignes,total,notes:document.getElementById("notes").value,dateLivraison:document.getElementById("dateLiv").value,bron:SRC})});
+      body:JSON.stringify({code:CODE,clientId:CID,items,notes:document.getElementById("notes").value,dateLivraison:document.getElementById("dateLiv").value,bron:SRC})});
     const d=await r.json();
     const box=document.getElementById("okBox");
     if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"opslaan mislukt"); btn.disabled=false; btn.textContent="Bestelling opslaan"; return; }
+    const total=typeof d.total==="number"?d.total:shownTotal;
     box.style.display="block";
     box.innerHTML='✅ <b>Bestelling '+d.ref+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+SRC+'<br>Ze staat nu in het magazijn onder « Ontvangen ».';
     panier={}; comments={}; document.getElementById("notes").value="";

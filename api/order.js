@@ -26,6 +26,10 @@ function numberOf(value){
   return Number.isFinite(n) ? n : 0;
 }
 
+function cleanComment(value){
+  return String(value || "").replace(/[\r\n]+/g, " ").replace(/[()\[\]]/g, "").trim().slice(0, 200);
+}
+
 // The browser may choose quantities, but never product names or prices.  Those
 // always come back from Airtable for the authenticated customer.
 async function buildOrderLines(clientId, items){
@@ -57,7 +61,10 @@ async function buildOrderLines(clientId, items){
     const price = priceByProduct.has(productId) ? priceByProduct.get(productId) : numberOf(fields["Prix de base"]);
     const unit = fields["Unité"] || "";
     const name = fields["Produit"] || "Artikel";
-    lines.push(`${name} × ${quantity}${unit ? " " + unit : ""}`);
+    const comment = cleanComment(item.comment);
+    // Keep the agreed unit price with the order. It makes a later invoice
+    // reproducible even if the catalogue price changes in the meantime.
+    lines.push(`${name} × ${quantity}${unit ? " " + unit : ""} [€${price.toFixed(2)}]${comment ? " (" + comment + ")" : ""}`);
     total += price * quantity;
   }
   return { lignes: lines.join("\n"), total: roundMoney(total) };

@@ -9,6 +9,47 @@ async function at(path, opts){
   return r.json();
 }
 
+function numberOf(value){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function cleanComment(value){
+  return String(value || "").replace(/[\r\n]+/g, " ").replace(/[()\[\]]/g, "").trim().slice(0, 200);
+}
+
+async function buildOrderLines(clientId, items){
+  if (!Array.isArray(items) || !items.length) throw new Error("Klant en artikelen vereist");
+  const cat = await at(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
+  const negotiated = await at(`${encodeURIComponent("Prix négociés")}`);
+  const prices = new Map();
+  (negotiated.records || []).forEach(record => {
+    const clients = record.fields["Client"] || [];
+    const products = record.fields["Produit"] || [];
+    if (clients.includes(clientId) && products[0]) prices.set(products[0], numberOf(record.fields["Prix négocié"]));
+  });
+  const products = new Map((cat.records || []).map(record => [record.id, record]));
+  const merged = new Map();
+  for (const item of items) {
+    const productId = String(item && item.productId || "");
+    const quantity = numberOf(item && item.quantity);
+    if (!productId || quantity <= 0 || quantity > 100000 || !products.has(productId)) throw new Error("Ongeldig artikel of aantal");
+    const old = merged.get(productId) || { quantity: 0, comment: "" };
+    old.quantity += quantity;
+    old.comment = cleanComment(item.comment) || old.comment;
+    merged.set(productId, old);
+  }
+  let total = 0;
+  const lines = [];
+  for (const [productId, item] of merged) {
+    const fields = products.get(productId).fields;
+    const price = prices.has(productId) ? prices.get(productId) : numberOf(fields["Prix de base"]);
+    total += price * item.quantity;
+    lines.push(`${fields["Produit"] || "Artikel"} × ${item.quantity}${fields["Unité"] ? " " + fields["Unité"] : ""} [€${price.toFixed(2)}]${item.comment ? " (" + item.comment + ")" : ""}`);
+  }
+  return { lignes: lines.join("\n"), total: Math.round(total * 100) / 100 };
+}
+
 module.exports = async (req, res) => {
   try {
     // ---------- POST : créer une commande au nom d'un client ----------
@@ -17,17 +58,20 @@ module.exports = async (req, res) => {
       if (typeof body === "string") body = JSON.parse(body || "{}");
       if (!body) body = {};
       if (body.code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
-      const { clientId, lignes, total, notes, dateLivraison, bron } = body;
-      if (!clientId || !lignes) return res.status(400).json({ error: "Klant en artikelen vereist" });
+      const { clientId, notes, dateLivraison, bron } = body;
+      if (!clientId) return res.status(400).json({ error: "Klant en artikelen vereist" });
+      let order;
+      try { order = await buildOrderLines(clientId, body.items); }
+      catch (e) { return res.status(400).json({ error: String(e.message || e) }); }
 
       const ref = "CMD-" + Date.now();
       const fields = {
         "Référence": ref,
         "Date": new Date().toISOString().slice(0, 10),
-        "Lignes (produits / quantités)": lignes,
+        "Lignes (produits / quantités)": order.lignes,
         "Statut": "Reçue",
         "Statut paiement": "En attente",
-        "Total": total,
+        "Total": order.total,
         "Notes": (bron ? "[" + bron + "] " : "") + (notes || ""),
         "Client": [clientId]
       };
@@ -35,7 +79,7 @@ module.exports = async (req, res) => {
 
       const j = await at("Commandes", { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
       if (j.error) return res.status(500).json(j);
-      return res.status(200).json({ ref, id: j.records[0].id });
+      return res.status(200).json({ ref, id: j.records[0].id, total: order.total });
     }
 
     // ---------- GET ----------
