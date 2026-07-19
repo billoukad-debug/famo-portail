@@ -160,7 +160,7 @@
     <div class="brand">Famo Trading — Magazijn</div>
     <div class="top-actions">
       <button class="pick-b" onclick="toggleDayView()">Dagvoorbereiding</button>
-      <button class="pick-b" onclick="printPicklist()">Per bestelling afdrukken</button>
+      <button class="pick-b" onclick="printPicklist()">Alle bestelbonnen afdrukken</button>
       <a href="/invoer.html">Bestelling invoeren</a>
       <a href="/stock.html">Voorraad</a>
       <button class="refresh-b" onclick="load()">↻ Vernieuwen</button>
@@ -168,7 +168,7 @@
   </div></div>
   <div class="stamp" id="stamp"></div>
   <div class="warn">⚠️ De documenten (leveringsbon / factuur) zijn interne afdrukken. Voor B2B is een elektronische Peppol-factuur wettelijk verplicht — dit loopt via de boekhouding (Billtobox).</div>
-  <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div id="pickSummary" class="pick-summary"></div></section>
+  <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div class="day-filter"><label for="dayFilter">Leverdatum</label><select id="dayFilter" onchange="setDayFilter(this.value)"><option value="today">Vandaag</option><option value="tomorrow">Morgen</option><option value="overdue">Te laat</option><option value="nodate">Zonder datum</option><option value="all">Alle open bestellingen</option><option value="custom">Kies datum…</option></select><input id="dayCustom" class="hidden" type="date" onchange="renderDayView()"></div><div id="pickSummary" class="pick-summary"></div></section>
   <div class="board">
     <div class="col c0"><h3>Ontvangen <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
     <div class="col c1"><h3>Klaar <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
@@ -195,7 +195,7 @@ const FAMO = {
 const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
 const NL={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
 const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Facturée":"→ Gefactureerd"};
-let CODE="", ORDERS=[];
+let CODE="", ORDERS=[], DAY_FILTER="today";
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 function renderLines(txt){
@@ -256,7 +256,22 @@ function render(){
   if(!document.getElementById("dayPanel").classList.contains("hidden")) renderDayView();
 }
 
-function preparationOrders(){ return ORDERS.filter(o=>o.statut==="Reçue"||o.statut==="Prête"); }
+function dayKey(offset=0){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+offset);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())}
+function setDayFilter(value){DAY_FILTER=value;document.getElementById("dayCustom").classList.toggle("hidden",value!=="custom");if(value==="custom"&&!document.getElementById("dayCustom").value)document.getElementById("dayCustom").value=dayKey();renderDayView()}
+function preparationOrders(){
+  const today=dayKey(),custom=document.getElementById("dayCustom"),selected=custom?custom.value:"";
+  return ORDERS.filter(o=>{
+    if(o.statut!=="Reçue"&&o.statut!=="Prête")return false;
+    const date=String(o.dateLiv||"").slice(0,10);
+    if(DAY_FILTER==="all")return true;
+    if(DAY_FILTER==="today")return date===today;
+    if(DAY_FILTER==="tomorrow")return date===dayKey(1);
+    if(DAY_FILTER==="overdue")return !!date&&date<today;
+    if(DAY_FILTER==="nodate")return !date;
+    if(DAY_FILTER==="custom")return date===selected;
+    return false;
+  });
+}
 function consolidatedItems(){
   const totals={};
   preparationOrders().forEach(o=>String(o.lignes||"").split("\n").filter(Boolean).map(parseOrderLine).forEach(line=>{
