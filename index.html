@@ -2,407 +2,79 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Famo Trading — Bestelportaal</title>
 <style>
-  :root {
-    --navy:#071d2b; --navy2:#0d2b3f; --ocean:#0c668d; --ocean-l:#e5f2f7;
-    --ink:#10242f; --text:#172b35; --mut:#60717a; --line:#d2dde2;
-    --bg:#edf2f4; --card:#ffffff; --ok:#16724a; --ok-l:#e9f6ef;
-    --warn:#c8622b; --err:#b42318; --gold:#ff642e;
-    --r:10px; --sh:0 1px 2px rgba(7,29,43,.08),0 10px 30px rgba(7,29,43,.06);
-  }
-  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif; background:var(--bg); color:var(--text); font-size:15px; }
-  button { font-family:inherit; cursor:pointer; }
-  input,textarea { font-family:inherit; }
-
-  /* ---------- LOGIN ---------- */
-  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
-    background:linear-gradient(160deg,var(--navy) 0%,var(--navy2) 55%,var(--ocean) 130%); }
-  .login-card { background:#fff; border-radius:20px; padding:38px 32px; width:100%; max-width:400px; box-shadow:0 20px 60px rgba(2,12,27,.4); text-align:center; }
-  .login-card .logo { width:64px; height:64px; border-radius:18px; background:var(--ocean-l); display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 14px; }
-  .login-card h1 { font-size:22px; color:var(--navy); letter-spacing:-.3px; }
-  .login-card .sub { color:var(--mut); font-size:13.5px; margin:6px 0 22px; }
-  .login-card input { width:100%; padding:13px 14px; border:1.5px solid var(--line); border-radius:12px; font-size:15px; margin-bottom:12px; transition:border .15s; }
-  .login-card input:focus { outline:none; border-color:var(--ocean); }
-  .btn-p { width:100%; background:var(--ocean); color:#fff; border:none; padding:14px; border-radius:12px; font-size:15px; font-weight:600; transition:background .15s; }
-  .btn-p:hover { background:#0e5f99; }
-  .btn-p:disabled { background:#94a3b8; cursor:default; }
-  .err-msg { color:var(--err); font-size:13px; margin-top:10px; min-height:18px; }
-  .login-foot { margin-top:18px; font-size:11.5px; color:#94a3b8; }
-
-  /* ---------- APP SHELL ---------- */
-  .topbar { background:var(--navy); color:#fff; position:sticky; top:0; z-index:50; box-shadow:0 2px 10px rgba(2,12,27,.25); }
-  .topbar-in { max-width:1080px; margin:0 auto; padding:0 18px; display:flex; align-items:center; justify-content:space-between; height:58px; }
-  .brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:17px; letter-spacing:-.2px; }
-  .brand .bl { width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; font-size:18px; }
-  .whoami { font-size:12.5px; opacity:.85; text-align:right; line-height:1.35; }
-  .whoami b { font-size:13px; }
-  .tabs { max-width:1080px; margin:0 auto; padding:0 18px; display:flex; gap:2px; }
-  .tabs button { background:none; border:none; color:#b7cbdd; padding:11px 16px 13px; font-size:14px; font-weight:600; border-bottom:3px solid transparent; }
-  .tabs button.on { color:#fff; border-bottom-color:var(--gold); }
-  .cart-pill { background:var(--gold); color:#1c1300; font-size:11px; font-weight:800; border-radius:20px; padding:1px 7px; margin-left:6px; }
-
-  .page { max-width:1080px; margin:20px auto 60px; padding:0 18px; display:grid; grid-template-columns:1fr 360px; gap:18px; align-items:start; }
-  @media (max-width:900px){ .page { grid-template-columns:1fr; } .side { order:-1; position:static; } }
-  .card { background:var(--card); border-radius:var(--r); box-shadow:var(--sh); padding:18px; }
-  .card h2 { font-size:15.5px; color:var(--navy); margin-bottom:14px; letter-spacing:-.2px; }
-
-  /* ---------- CATALOGUE ---------- */
-  .toolbar { display:flex; gap:8px; margin-bottom:14px; }
-  .search { flex:1; display:flex; align-items:center; gap:8px; background:var(--bg); border:1.5px solid var(--line); border-radius:11px; padding:0 12px; }
-  .search input { flex:1; border:none; background:none; padding:10px 0; font-size:14px; }
-  .search input:focus { outline:none; }
-  .fav-btn { border:1.5px solid var(--line); background:#fff; border-radius:11px; padding:0 14px; font-size:13.5px; font-weight:600; color:var(--mut); }
-  .fav-btn.on { background:#fff8e6; border-color:var(--gold); color:#92600a; }
-  .cat-h { font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:var(--mut); margin:18px 2px 6px; display:flex; align-items:center; gap:8px; }
-  .cat-h::after { content:""; flex:1; height:1px; background:var(--line); }
-  .prow { display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid #f0f4f8; }
-  .prow:last-child { border-bottom:none; }
-  .star { font-size:20px; color:#cbd5e1; cursor:pointer; user-select:none; width:26px; text-align:center; transition:transform .1s; }
-  .star:active { transform:scale(1.25); }
-  .star.on { color:var(--gold); }
-  .pinfo { flex:1; min-width:0; }
-  .pname { font-weight:650; font-size:14.5px; }
-  .pmeta { font-size:12.5px; color:var(--mut); margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  .pprice { font-weight:750; color:var(--navy); font-size:13.5px; }
-  .pbase { text-decoration:line-through; color:#a8b6c4; font-size:11.5px; }
-  .tag { background:var(--ocean-l); color:var(--ocean); font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px; }
-  .cmt-in { width:100%; margin-top:7px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; font-size:12.5px; background:#fbfdfe; }
-  .qty { display:flex; align-items:center; gap:7px; }
-  .qty button { width:36px; height:36px; border:1.5px solid var(--line); background:#fff; border-radius:10px; font-size:19px; color:var(--navy); font-weight:600; transition:all .12s; }
-  .qty button:hover { border-color:var(--ocean); background:var(--ocean-l); }
-  .qty input { width:52px; height:36px; text-align:center; border:1.5px solid var(--line); border-radius:10px; font-size:14.5px; font-weight:600; }
-  .qty input:focus { outline:none; border-color:var(--ocean); }
-  .empty { color:#94a3b8; font-size:13.5px; padding:14px 4px; text-align:center; }
-
-  /* ---------- CART ---------- */
-  .side { position:sticky; top:74px; }
-  .cline { padding:9px 0; border-bottom:1px solid #f0f4f8; font-size:13.5px; }
-  .cline .r1 { display:flex; justify-content:space-between; gap:10px; }
-  .cline .nm { font-weight:600; }
-  .cline .cm { font-size:12px; color:var(--mut); font-style:italic; margin-top:2px; }
-  .total-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:12px; padding-top:12px; border-top:2px solid var(--line); }
-  .total-row .lbl { font-size:13px; color:var(--mut); font-weight:600; }
-  .total-row .val { font-size:22px; font-weight:800; color:var(--navy); letter-spacing:-.5px; }
-  .fld-l { display:block; font-size:12px; font-weight:700; color:var(--mut); margin:14px 0 5px; text-transform:uppercase; letter-spacing:.4px; }
-  input[type=date] { width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:11px; font-size:14px; background:#fff; }
-  textarea.notes { width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:11px; font-size:13.5px; min-height:56px; resize:vertical; }
-  .confirm { background:var(--ok-l); border:1.5px solid #a7f3d0; color:#065f46; padding:14px; border-radius:12px; margin-top:12px; font-size:13.5px; line-height:1.55; display:none; }
-  .confirm .print-b { margin-top:10px; background:var(--ok); color:#fff; border:none; padding:9px 14px; border-radius:9px; font-size:13px; font-weight:600; }
-
-  /* ---------- ORDERS ---------- */
-  .ord { border:1.5px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; transition:border .15s; }
-  .ord:hover { border-color:#cbd8e4; }
-  .ord .h { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-  .ord .ref { font-weight:750; color:var(--navy); font-size:14.5px; }
-  .chip { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; white-space:nowrap; }
-  .chip.s0 { background:#eff6ff; color:#1d4ed8; }
-  .chip.s1 { background:#fefce8; color:#a16207; }
-  .chip.s2 { background:#f0f9ff; color:#0369a1; }
-  .chip.s3 { background:var(--ok-l); color:#047857; }
-  .ord .meta { font-size:12.5px; color:var(--mut); margin-top:4px; }
-  .ord pre { font-family:inherit; font-size:13px; color:#475569; white-space:pre-wrap; margin-top:8px; background:#f8fafc; border-radius:9px; padding:9px 11px; }
-  .rebtn { margin-top:10px; background:var(--ocean-l); color:var(--ocean); border:1.5px solid #bfdcf0; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:650; }
-  .rebtn:hover { background:#d9ecf9; }
-  .hidden { display:none !important; }
-
-  /* ---------- FAMO V2 / COLD-CHAIN INTERFACE ---------- */
-  body { font-family:"IBM Plex Sans","Aptos","Segoe UI",sans-serif; background:
-    linear-gradient(90deg,rgba(7,29,43,.035) 1px,transparent 1px),
-    linear-gradient(rgba(7,29,43,.035) 1px,transparent 1px),var(--bg); background-size:32px 32px; }
-  button,input,textarea { font-family:inherit; }
-  button:focus-visible,input:focus-visible,textarea:focus-visible { outline:3px solid rgba(255,100,46,.35); outline-offset:2px; }
-  .login-wrap { background:var(--navy); position:relative; overflow:hidden; }
-  .login-wrap::before { content:""; position:absolute; inset:0; background:
-    linear-gradient(115deg,transparent 0 58%,rgba(255,255,255,.035) 58% 59%,transparent 59%),
-    radial-gradient(circle at 82% 18%,rgba(15,107,146,.32),transparent 28%); }
-  .login-card { position:relative; max-width:430px; padding:0; text-align:left; border-radius:12px; overflow:hidden; box-shadow:0 28px 90px rgba(0,0,0,.42); }
-  .login-card::before { content:"FAMO / BESTELPORTAAL"; display:block; background:var(--gold); color:#fff; padding:11px 28px; font:700 11px/1 "IBM Plex Mono",monospace; letter-spacing:1.4px; }
-  .login-card .login-body { padding:32px 30px 28px; }
-  .login-card .logo,.brand .bl { border-radius:7px; background:var(--navy); color:#fff; font-size:0; position:relative; }
-  .login-card .logo { width:54px; height:54px; margin:0 0 22px; }
-  .login-card .logo::after,.brand .bl::after { content:"F"; font:800 27px/1 "IBM Plex Sans",sans-serif; color:#fff; position:absolute; inset:0; display:grid; place-items:center; }
-  .login-card h1 { font-size:30px; letter-spacing:-1px; color:var(--ink); }
-  .login-card .sub { margin:5px 0 24px; font-size:14px; }
-  .login-card input { height:50px; border-radius:7px; background:#f7fafb; border-color:#c8d5db; }
-  .login-card input:focus { background:#fff; border-color:var(--ocean); box-shadow:0 0 0 3px rgba(12,102,141,.12); }
-  .btn-p { min-height:50px; border-radius:7px; background:var(--gold); font-weight:750; letter-spacing:.1px; }
-  .btn-p:hover { background:#e9501d; }
-  .login-foot { border-top:1px solid var(--line); padding-top:16px; line-height:1.55; }
-  .topbar { background:var(--navy); box-shadow:none; border-bottom:4px solid var(--gold); }
-  .topbar-in { height:64px; }
-  .brand { font-size:19px; letter-spacing:-.4px; }
-  .brand .bl { width:36px; height:36px; }
-  .brand .bl::after { font-size:19px; }
-  .whoami { border-left:1px solid rgba(255,255,255,.18); padding-left:18px; }
-  .tabs button { min-height:49px; text-transform:uppercase; font-size:12px; letter-spacing:.8px; border-bottom:4px solid transparent; }
-  .tabs button.on { border-bottom-color:var(--gold); }
-  .cart-pill { background:var(--gold); color:#fff; border-radius:4px; }
-  .page { max-width:1180px; grid-template-columns:minmax(0,1fr) 370px; gap:22px; margin-top:24px; }
-  .card { border:1px solid #d3dee3; border-radius:10px; box-shadow:var(--sh); }
-  .card h2 { text-transform:uppercase; letter-spacing:.8px; font-size:12px; }
-  .toolbar { position:sticky; top:117px; z-index:4; background:var(--bg); padding:0 0 12px; }
-  .search { height:48px; border-radius:7px; background:#fff; box-shadow:0 2px 9px rgba(7,29,43,.04); }
-  .fav-btn { min-height:48px; border-radius:7px; }
-  .fav-btn.on { background:#fff2ec; border-color:var(--gold); color:#a53e18; }
-  .cat-h { color:var(--navy); margin:24px 0 8px; letter-spacing:1.2px; }
-  .prow { background:#fff; border:1px solid #d6e0e5; border-left:4px solid transparent; padding:15px 14px; margin-bottom:6px; border-radius:8px; transition:border-color .12s,transform .12s; }
-  .prow:has(.qty input:not([value="0"])) { border-left-color:var(--gold); }
-  .prow:hover { border-color:#b9cbd3; transform:translateY(-1px); }
-  .pname { font-size:15.5px; font-weight:700; color:var(--ink); }
-  .pprice,.total-row .val,.cline .r1 span:last-child,.ord .ref { font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
-  .pprice { font-size:15px; color:var(--navy); }
-  .tag { background:#fff0e9; color:#a7401a; border-radius:4px; text-transform:uppercase; letter-spacing:.45px; }
-  .star { width:38px; height:38px; display:grid; place-items:center; border:1px solid var(--line); border-radius:7px; }
-  .star.on { color:var(--gold); border-color:#ffc2aa; background:#fff6f2; }
-  .qty button,.qty input { height:44px; border-radius:7px; }
-  .qty button { width:44px; background:#f8fafb; }
-  .qty input { width:58px; font-family:"IBM Plex Mono",monospace; font-size:16px; }
-  .cmt-in { padding:10px 11px; border-radius:6px; border-left:3px solid var(--gold); }
-  .side { top:137px; }
-  .side .card { border-top:4px solid var(--gold); }
-  .cline { padding:11px 0; }
-  .total-row { border-top-color:var(--navy); padding-top:16px; }
-  .total-row .val { font-size:30px; color:var(--navy); }
-  .fld-l { letter-spacing:.75px; }
-  input[type=date],textarea.notes { border-radius:7px; background:#f9fbfc; }
-  .confirm { border-radius:7px; border-left:5px solid var(--ok); }
-  .ord { background:#fff; border-radius:8px; border-left:5px solid var(--ocean); padding:16px; }
-  .chip { border-radius:4px; text-transform:uppercase; letter-spacing:.5px; }
-  .rebtn { border-radius:6px; min-height:44px; }
-  @media (max-width:900px){
-    .page { grid-template-columns:1fr; padding:0 14px; }
-    .side { position:static; order:-1; }
-    .toolbar { top:117px; }
-  }
-  @media (max-width:600px){
-    .login-card .login-body { padding:28px 22px 22px; }
-    .topbar-in { height:58px; }
-    .whoami { max-width:45%; }
-    .page { margin-top:14px; }
-    .toolbar { top:108px; flex-wrap:wrap; }
-    .search { flex-basis:100%; }
-    .fav-btn { flex:1; }
-    .prow { align-items:flex-start; flex-wrap:wrap; }
-    .pinfo { min-width:calc(100% - 64px); }
-    .qty { margin-left:50px; width:calc(100% - 50px); justify-content:flex-end; }
-  }
+  :root{--ink:#0d0d0d;--muted:#6b6b6b;--quiet:#9b9b9b;--line:#e5e5e5;--soft:#f6f6f6;--side:#f7f7f7;--white:#fff;--brand:#235e86;--danger:#b33a2b;--success:#28734d;--r:10px}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--white);font-size:14px}button,input,textarea{font:inherit;color:inherit}button{cursor:pointer}.hidden{display:none!important}.tnum{font-variant-numeric:tabular-nums}svg{display:block}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .icon{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+  .login{min-height:100vh;display:grid;grid-template-columns:minmax(360px,44%) 1fr;background:#f4f4f4}.login-panel{background:#fff;padding:42px clamp(28px,6vw,88px);display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--line)}.login-form{width:100%;max-width:380px;margin:auto}.logo{width:38px;height:38px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:17px}.login h1{font-size:28px;letter-spacing:-.04em;margin:30px 0 7px}.login .lead{color:var(--muted);line-height:1.5;margin:0 0 28px}.field{display:block;margin:0 0 15px}.field span{display:block;font-size:13px;color:var(--muted);margin:0 0 7px}.input{width:100%;height:44px;border:1px solid #ddd;border-radius:9px;padding:0 12px;background:#fff;transition:.15s}.input:hover{border-color:#c9c9c9}.input:focus{border-color:#aaa;outline:3px solid #eee}.primary{border:0;border-radius:9px;background:var(--ink);color:#fff;height:44px;padding:0 16px;font-weight:550;display:inline-flex;align-items:center;justify-content:center;gap:8px}.primary:hover{background:#292929}.primary:disabled{background:#e9e9e9;color:#aaa;cursor:default}.primary.full{width:100%}.login-error{min-height:20px;color:var(--danger);font-size:13px;margin:10px 0}.login-foot{font-size:12px;color:var(--quiet);line-height:1.6;margin-top:32px}.login-art{display:grid;place-items:center;padding:8vw;color:#a4a4a4}.login-art-inner{max-width:440px}.login-art .mark{font-size:64px;line-height:1;color:#dedede;font-weight:650;letter-spacing:-.06em}.login-art p{font-size:16px;line-height:1.6;color:#888}
+  .app{min-height:100vh;display:flex}.sidebar{width:240px;flex:0 0 240px;background:var(--side);border-right:1px solid #ededed;padding:14px 12px;display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:60}.brand{height:42px;display:flex;align-items:center;gap:10px;padding:0 6px;font-weight:600}.brand .logo{width:25px;height:25px;border-radius:6px;font-size:12px}.nav-label{font-size:11px;color:var(--quiet);padding:18px 10px 7px}.nav-btn{width:100%;height:38px;border:0;background:transparent;border-radius:8px;padding:0 10px;display:flex;align-items:center;gap:10px;color:#5f5f5f;text-align:left}.nav-btn:hover{background:#eee}.nav-btn.active{background:#e9e9e9;color:var(--ink);font-weight:520}.nav-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--ink);color:#fff;font-size:11px;display:grid;place-items:center}.sidebar-spacer{flex:1}.account{position:relative}.account-btn{height:auto;min-height:52px;padding:8px}.avatar{width:28px;height:28px;border-radius:50%;background:#e9e9e9;display:grid;place-items:center;font-size:11px;font-weight:650}.account-copy{min-width:0;flex:1}.account-copy b,.account-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.account-copy b{font-size:12.5px}.account-copy small{font-size:11px;color:var(--quiet);margin-top:2px}.account-menu{position:absolute;bottom:58px;left:0;width:215px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:6px;box-shadow:0 12px 34px rgba(0,0,0,.12)}.account-meta{padding:10px;border-bottom:1px solid #eee;margin-bottom:5px;font-size:12px;color:var(--muted);line-height:1.5}.main{margin-left:240px;width:calc(100% - 240px);min-height:100vh}.mobile-head{display:none}.view{min-height:100vh}.catalogue-layout{display:grid;grid-template-columns:minmax(420px,1fr) 352px;min-height:100vh}.catalogue-main{padding:34px clamp(28px,5vw,76px) 80px;max-width:920px;width:100%;justify-self:center}.page-head h1{font-size:20px;letter-spacing:-.025em;margin:0 0 6px}.page-head p{margin:0;color:var(--quiet);font-size:13px}.toolbar{margin:24px 0 16px;display:flex;flex-wrap:wrap;gap:10px}.search{height:42px;border:1px solid #e2e2e2;border-radius:9px;display:flex;align-items:center;gap:9px;padding:0 12px;flex:1;min-width:220px}.search:focus-within{border-color:#bbb;box-shadow:0 0 0 3px #f0f0f0}.search input{border:0;outline:0;min-width:0;flex:1}.segments{display:flex;background:#f2f2f2;padding:3px;border-radius:9px}.seg{height:34px;border:0;background:transparent;color:var(--muted);border-radius:7px;padding:0 12px}.seg.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}.count{width:100%;font-size:12px;color:var(--quiet)}.category{margin-top:24px}.category-title{font-size:12px;color:var(--quiet);margin:0 0 7px}.product{border-top:1px solid #f0f0f0;padding:10px 7px;border-radius:10px;transition:.12s}.product.selected{background:#f7f8f9;border-top-color:transparent;margin-top:1px}.product-row{display:flex;align-items:center;gap:12px}.icon-btn{border:0;background:transparent;width:34px;height:34px;padding:0;border-radius:8px;display:grid;place-items:center;color:#aaa}.icon-btn:hover{background:#eee;color:var(--ink)}.fav.on{color:var(--brand)}.product-info{min-width:0;flex:1}.product-name{font-weight:520;font-size:14.5px;line-height:1.35}.product-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:3px;color:var(--quiet);font-size:12px}.price{color:var(--ink);font-weight:570;font-size:13px}.base{text-decoration:line-through;color:#aaa}.deal{color:var(--brand);font-size:11px}.qty{display:flex;align-items:center;border:1px solid #e4e4e4;border-radius:9px;background:#fff;overflow:hidden;height:38px}.qty button{width:36px;height:100%;border:0;background:#fff;color:#777;font-size:18px}.qty button:hover{background:#f3f3f3;color:#000}.qty input{width:38px;border:0;text-align:center;outline:0;font-weight:550;background:#fff}.comment{margin:8px 0 0 46px;width:calc(100% - 46px);height:36px;border:1px solid #e5e5e5;border-radius:8px;padding:0 10px;font-size:12.5px}.empty{padding:46px 18px;text-align:center;color:var(--quiet);line-height:1.55}.empty .empty-icon{width:38px;height:38px;border-radius:10px;background:#f2f2f2;margin:0 auto 12px;display:grid;place-items:center;color:#888}.text-btn{border:0;background:transparent;color:var(--muted);height:36px;padding:0 9px;border-radius:7px}.text-btn:hover{background:#f0f0f0;color:var(--ink)}
+  .composer{border-left:1px solid var(--line);height:100vh;position:sticky;top:0;display:flex;flex-direction:column;background:#fff}.composer-head{padding:20px 22px 14px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}.composer-head h2{font-size:15px;margin:0}.composer-head small{display:block;color:var(--quiet);margin-top:3px}.composer-body{padding:6px 22px 24px;overflow:auto;flex:1}.cart-line{padding:12px 0;border-bottom:1px solid #f3f3f3}.cart-r1,.cart-r2,.total{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.cart-name{font-weight:520}.cart-sub{font-weight:550}.cart-r2{margin-top:4px;color:var(--quiet);font-size:12px}.cart-comment{font-size:12px;color:var(--muted);font-style:italic;margin-top:5px}.remove{width:25px;height:25px}.order-field{display:block;color:var(--muted);font-size:12px;margin:16px 0 6px}.date,.notes{width:100%;border:1px solid #dedede;border-radius:9px;background:#fff}.date{height:42px;padding:0 11px}.notes{min-height:64px;padding:10px 11px;resize:vertical}.total{border-top:1px solid #ddd;margin-top:19px;padding-top:16px}.total span:first-child{color:var(--muted)}.total strong{font-size:23px;letter-spacing:-.025em}.send-error{color:var(--danger);font-size:12.5px;line-height:1.45;margin-top:13px}.confirmation{padding:24px 0}.success-icon{width:39px;height:39px;border-radius:50%;background:#eaf3ee;color:var(--success);display:grid;place-items:center}.confirmation h3{font-size:17px;margin:15px 0 7px}.confirmation>p{color:var(--muted);line-height:1.5;margin:0 0 18px}.conf-row{display:flex;justify-content:space-between;padding:7px 0}.secondary{width:100%;height:42px;border:1px solid #dedede;border-radius:9px;background:#fff;margin-top:9px}.secondary:hover{background:#f5f5f5}
+  .orders,.help{max-width:920px;padding:36px clamp(28px,6vw,80px) 80px}.orders-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px}.orders-list{border-top:1px solid var(--line)}.order{padding:18px 2px;border-bottom:1px solid var(--line)}.order-top{display:flex;align-items:center;gap:12px}.order-ref{font-weight:600}.status{font-size:11px;border-radius:10px;padding:3px 8px;background:#f0f0f0;color:#555}.status.s0{color:#235e86;background:#edf4f8}.status.s1{color:#8a651b;background:#fbf6e8}.status.s2{color:#176a75;background:#eaf6f6}.status.s3{color:#28734d;background:#eaf3ee}.order-total{margin-left:auto;font-weight:600}.order-meta{font-size:12px;color:var(--quiet);margin-top:6px}.order-lines{white-space:pre-wrap;color:var(--muted);font-size:13px;line-height:1.55;margin:12px 0}.order-actions{display:flex;gap:8px}.small-btn{height:36px;border:1px solid #ddd;background:#fff;border-radius:8px;padding:0 12px}.small-btn:hover{background:#f5f5f5}.help-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:25px}.help-card{border:1px solid var(--line);border-radius:11px;padding:18px}.help-card h3{font-size:14px;margin:10px 0 5px}.help-card p{font-size:13px;color:var(--muted);line-height:1.55;margin:0}.help-card a{color:var(--ink)}
+  .mobile-cartbar,.sheet,.scrim{display:none}.spinner{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  @media(max-width:980px){.catalogue-layout{grid-template-columns:1fr}.composer{display:none}.catalogue-main{max-width:760px}.mobile-cartbar{position:fixed;left:0;right:0;bottom:0;z-index:45;background:#fff;border-top:1px solid var(--line);padding:11px 16px calc(11px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between}.mobile-cartbar.hidden{display:none!important}.mobile-cartbar small{display:block;color:var(--quiet);margin-top:2px}.sheet{display:flex;position:fixed;z-index:90;left:0;right:0;bottom:0;max-height:88vh;background:#fff;border-radius:15px 15px 0 0;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -14px 44px rgba(0,0,0,.16)}.sheet.hidden{display:none!important}.sheet-handle{width:38px;height:4px;border-radius:3px;background:#d5d5d5;margin:8px auto 0}.sheet .composer{display:flex;position:static;height:min(84vh,720px);border:0}.scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:80}.scrim.hidden{display:none!important}}
+  @media(max-width:720px){.login{display:block;background:#fff}.login-panel{min-height:100vh;border:0;padding:28px 22px}.login-art{display:none}.sidebar{transform:translateX(-105%);transition:transform .2s ease;box-shadow:18px 0 45px transparent}.sidebar.open{transform:translateX(0);box-shadow:18px 0 45px rgba(0,0,0,.12)}.main{margin-left:0;width:100%;padding-top:58px}.mobile-head{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--line);position:fixed;inset:0 0 auto 0;background:#fff;z-index:50}.mobile-head .brand{padding:0}.catalogue-main,.orders,.help{padding:25px 16px 100px}.toolbar{margin-top:20px}.search{flex-basis:100%}.product{padding:12px 2px}.product-row{gap:7px}.qty{height:40px}.qty button{width:34px}.qty input{width:32px}.comment{margin-left:41px;width:calc(100% - 41px)}.help-grid{grid-template-columns:1fr}.orders-top{align-items:center}.order-top{flex-wrap:wrap}.order-total{margin-left:0;width:100%}.order-actions{flex-wrap:wrap}}
 </style>
 </head>
 <body>
-
-<div id="loginView" class="login-wrap">
-  <div class="login-card">
-    <div class="login-body">
-      <div class="logo" aria-hidden="true">F</div>
-      <h1>Famo Trading</h1>
-      <p class="sub">Bestelportaal voor professionele klanten</p>
-      <input id="user" type="text" placeholder="Gebruikersnaam" autocomplete="username">
-      <input id="pw" type="password" placeholder="Wachtwoord" autocomplete="current-password">
-      <button class="btn-p" id="loginBtn" onclick="login()">Aanmelden</button>
-      <div class="err-msg" id="loginErr"></div>
-      <div class="login-foot">Famo Trading BV · Jezusstraat 34, 2000 Antwerpen<br>BTW BE 0788.705.713</div>
-    </div>
-  </div>
+<div id="loginView" class="login">
+  <section class="login-panel"><div class="login-form"><div class="logo">F</div><h1>Welkom terug</h1><p class="lead">Bestel verse producten aan uw persoonlijke prijzen.</p><label class="field"><span>Gebruikersnaam</span><input id="user" class="input" autocomplete="username"></label><label class="field"><span>Wachtwoord</span><input id="pw" class="input" type="password" autocomplete="current-password"></label><button id="loginBtn" class="primary full" onclick="login()">Aanmelden</button><div id="loginErr" class="login-error" role="alert"></div><div class="login-foot">Famo Trading BV<br>Jezusstraat 34, 2000 Antwerpen<br>BTW BE 0788.705.713</div></div></section>
+  <aside class="login-art"><div class="login-art-inner"><div class="mark">Famo.</div><p>Een rustig bestelportaal voor professionele keukens. Snel bestellen, duidelijke prijzen, minder administratie.</p></div></aside>
 </div>
-
-<div id="appView" class="hidden">
-  <div class="topbar">
-    <div class="topbar-in">
-      <div class="brand"><span class="bl" aria-hidden="true">F</span> Famo Trading</div>
-      <div class="whoami" id="clientInfo"></div>
-    </div>
-    <div class="tabs">
-      <button id="tabCat" class="on" onclick="showTab('cat')">Catalogus <span id="cartPill" class="cart-pill hidden">0</span></button>
-      <button id="tabOrd" onclick="showTab('ord')">Mijn bestellingen</button>
-    </div>
-  </div>
-
-  <div id="catView" class="page">
-    <div class="card">
-      <h2>Catalogus — uw prijzen</h2>
-      <div class="toolbar">
-        <div class="search">🔍<input type="text" id="search" placeholder="Zoek een product…" oninput="renderCatalogue()"></div>
-        <button id="favBtn" class="fav-btn" onclick="toggleFavFilter()">★ Favorieten</button>
-      </div>
-      <div id="catalogue"></div>
-    </div>
-    <div class="side">
-      <div class="card">
-        <h2>Uw bestelling</h2>
-        <div id="cart"><div class="empty">Nog geen artikelen geselecteerd.</div></div>
-        <div id="totalBox" class="hidden"><div class="total-row"><span class="lbl">TOTAAL</span><span class="val" id="totalVal">€ 0,00</span></div></div>
-        <label class="fld-l">Gewenste leverdatum</label>
-        <input type="date" id="dateLiv">
-        <label class="fld-l">Opmerking (optioneel)</label>
-        <textarea class="notes" id="notes" placeholder="Bv. leveren vóór 8u…"></textarea>
-        <button class="btn-p" id="sendBtn" style="margin-top:14px" disabled onclick="send()">Bestelling versturen</button>
-        <div class="confirm" id="confirm"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="ordView" class="page hidden" style="grid-template-columns:1fr;">
-    <div class="card"><h2>Mijn bestellingen</h2><div id="ordList"><div class="empty">Laden…</div></div></div>
-  </div>
+<div id="appView" class="app hidden">
+  <div id="drawerScrim" class="scrim hidden" onclick="closeDrawer()"></div>
+  <aside id="sidebar" class="sidebar">
+    <div class="brand"><span class="logo">F</span><span>Famo Trading</span></div>
+    <button class="nav-btn active" data-view="cat" onclick="showView('cat')"><span data-icon="grid"></span>Catalogus<span id="navCart" class="nav-badge hidden">0</span></button>
+    <button class="nav-btn" data-view="orders" onclick="showView('orders')"><span data-icon="list"></span>Mijn bestellingen</button>
+    <div class="nav-label">Sneltoegang</div>
+    <button class="nav-btn" data-view="favs" onclick="showView('favs')"><span data-icon="star"></span>Favorieten</button>
+    <button class="nav-btn" data-view="help" onclick="showView('help')"><span data-icon="help"></span>Hulp</button>
+    <div class="sidebar-spacer"></div>
+    <div class="account"><div id="accountMenu" class="account-menu hidden"><div id="accountMeta" class="account-meta"></div><button class="nav-btn" onclick="logout()"><span data-icon="logout"></span>Afmelden</button></div><button class="nav-btn account-btn" onclick="toggleAccount()"><span id="avatar" class="avatar">—</span><span class="account-copy"><b id="clientName">Klant</b><small id="clientAddress"></small></span><span data-icon="chevron"></span></button></div>
+  </aside>
+  <header class="mobile-head"><button class="icon-btn" aria-label="Menu openen" onclick="openDrawer()"><span data-icon="menu"></span></button><div class="brand"><span class="logo">F</span>Famo Trading</div><button class="icon-btn" aria-label="Bestelling openen" onclick="openSheet()"><span data-icon="bag"></span></button></header>
+  <main class="main">
+    <section id="catView" class="view catalogue-layout">
+      <div class="catalogue-main"><header class="page-head"><h1>Catalogus</h1><p>Bestel aan uw afgesproken prijzen.</p></header><div class="toolbar"><label class="search"><span data-icon="search"></span><input id="search" type="search" placeholder="Zoek een product" oninput="renderCatalogue()"></label><div class="segments"><button id="allBtn" class="seg active" onclick="setFilter(false)">Alle producten</button><button id="favBtn" class="seg" onclick="setFilter(true)">Favorieten</button></div><div id="productCount" class="count"></div></div><div id="catalogue"></div></div>
+      <aside id="desktopComposer" class="composer"></aside>
+    </section>
+    <section id="ordersView" class="view orders hidden"><div class="orders-top"><header class="page-head"><h1>Mijn bestellingen</h1><p>Volg eerdere en lopende bestellingen.</p></header><button class="small-btn" onclick="loadOrders(true)"><span>Vernieuwen</span></button></div><div id="ordList" class="orders-list"><div class="empty">Laden…</div></div></section>
+    <section id="helpView" class="view help hidden"><header class="page-head"><h1>Hulp</h1><p>Alles wat u nodig hebt om vlot te bestellen.</p></header><div class="help-grid"><article class="help-card"><span data-icon="bag"></span><h3>Een bestelling plaatsen</h3><p>Kies een hoeveelheid, voeg eventueel een opmerking toe en controleer uw bestelling rechts of onderaan op mobiel.</p></article><article class="help-card"><span data-icon="calendar"></span><h3>Leverdatum</h3><p>Kies de gewenste leverdatum vóór u verstuurt. Voor dringende wijzigingen neemt u rechtstreeks contact met ons op.</p></article><article class="help-card"><span data-icon="phone"></span><h3>Contact</h3><p>Hebt u hulp nodig? Neem contact op met Famo Trading via uw gebruikelijke telefoonnummer.</p></article><article class="help-card"><span data-icon="alert"></span><h3>Klachten</h3><p>Klachten over verse vis binnen 12 uur, over diepvries binnen 24 uur na levering.</p></article></div></section>
+  </main>
+  <div id="mobileCartBar" class="mobile-cartbar hidden"><div><strong id="mobileTotal">€ 0,00</strong><small id="mobileCount">0 artikelen</small></div><button class="primary" onclick="openSheet()">Bekijk bestelling</button></div>
+  <div id="sheetScrim" class="scrim hidden" onclick="closeSheet()"></div><section id="cartSheet" class="sheet hidden"><div class="sheet-handle"></div><div id="mobileComposer" class="composer"></div></section>
 </div>
-
 <script>
-let CLIENT=null, PRODUCTS=[], panier={}, comments={}, favs={}, favOnly=false, USER="", PW="";
-const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
-const NLSTATUS={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
-const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
-const favKey=()=>"famo_favs_"+(CLIENT?CLIENT.id:"x");
-const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
-
-async function login(){
-  const u=document.getElementById("user").value.trim();
-  const p=document.getElementById("pw").value;
-  const err=document.getElementById("loginErr"), btn=document.getElementById("loginBtn");
-  if(!u||!p){ err.textContent="Vul gebruikersnaam en wachtwoord in."; return; }
-  btn.disabled=true; btn.textContent="Aanmelden…"; err.textContent="Verbinding controleren…";
-  try{
-    const r=await fetch("/api/catalogue?user="+encodeURIComponent(u)+"&pw="+encodeURIComponent(p));
-    const d=await r.json();
-    if(!r.ok){ err.textContent=d.error||"Fout bij aanmelden"; btn.disabled=false; btn.textContent="Aanmelden"; return; }
-    USER=u; PW=p;
-    CLIENT=d.client; PRODUCTS=d.products; panier={}; comments={};
-    try{ favs=JSON.parse(localStorage.getItem(favKey())||"{}"); }catch(e){ favs={}; }
-    document.getElementById("loginView").classList.add("hidden");
-    document.getElementById("appView").classList.remove("hidden");
-    document.getElementById("clientInfo").innerHTML="<b>"+esc(CLIENT.nom)+"</b><br>"+esc((CLIENT.adresse||"").split("\n")[0]);
-    document.getElementById("dateLiv").value=new Date(Date.now()+86400000).toISOString().slice(0,10);
-    renderCatalogue(); renderCart();
-  }catch(e){ err.textContent="Netwerkfout — probeer opnieuw"; btn.disabled=false; btn.textContent="Aanmelden"; }
-}
-
-function toggleFavFilter(){ favOnly=!favOnly; document.getElementById("favBtn").classList.toggle("on",favOnly); renderCatalogue(); }
-function toggleFav(id){ favs[id]=!favs[id]; if(!favs[id]) delete favs[id]; localStorage.setItem(favKey(),JSON.stringify(favs)); renderCatalogue(); }
-
-function renderCatalogue(){
-  const q=(document.getElementById("search").value||"").toLowerCase();
-  let list=PRODUCTS.map((p,i)=>({p,i})).filter(x=>x.p.nom.toLowerCase().includes(q)).filter(x=>!favOnly||favs[x.p.id]);
-  const cats={};
-  list.forEach(x=>{ const c=x.p.cat||"Overige"; (cats[c]=cats[c]||[]).push(x); });
-  let h="";
-  Object.keys(cats).sort().forEach(cat=>{
-    h+='<div class="cat-h">'+esc(cat)+'</div>';
-    h+=cats[cat].map(({p,i})=>{
-      const neg=p.prix<p.base;
-      return '<div class="prow">'+
-        '<span class="star '+(favs[p.id]?"on":"")+'" onclick="toggleFav(\''+p.id+'\')">'+(favs[p.id]?"★":"☆")+'</span>'+
-        '<div class="pinfo"><div class="pname">'+esc(p.nom)+'</div>'+
-        '<div class="pmeta"><span class="pprice">'+eur(p.prix)+'</span>'+(neg?'<span class="pbase">'+eur(p.base)+'</span><span class="tag">uw prijs</span>':'')+'<span>/ '+esc(p.unite)+'</span></div>'+
-        (panier[i]?'<input class="cmt-in" placeholder="Opmerking bij dit product…" value="'+esc(comments[i]||"")+'" oninput="setCmt('+i+',this.value)">':'')+
-        '</div>'+
-        '<div class="qty"><button onclick="chg('+i+',-1)">−</button><input id="q'+i+'" type="number" min="0" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)"><button onclick="chg('+i+',1)">+</button></div>'+
-        '</div>';
-    }).join("");
-  });
-  document.getElementById("catalogue").innerHTML=h||'<div class="empty">Geen producten gevonden.</div>';
-}
-function chg(i,d){ setQ(i,(panier[i]||0)+d); }
-function setQ(i,v){ v=Math.max(0,parseInt(v)||0); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
-function setCmt(i,v){ comments[i]=v; renderCart(); }
-
-function renderCart(){
-  const cart=document.getElementById("cart"), keys=Object.keys(panier);
-  const pill=document.getElementById("cartPill");
-  const n=keys.reduce((s,k)=>s+panier[k],0);
-  pill.textContent=n; pill.classList.toggle("hidden",!n);
-  if(!keys.length){ cart.innerHTML='<div class="empty">Nog geen artikelen geselecteerd.</div>'; document.getElementById("totalBox").classList.add("hidden"); document.getElementById("sendBtn").disabled=true; return; }
-  let total=0;
-  cart.innerHTML=keys.map(i=>{ const p=PRODUCTS[i],qn=panier[i],st=p.prix*qn; total+=st;
-    return '<div class="cline"><div class="r1"><span class="nm">'+esc(p.nom)+' × '+qn+'</span><span>'+eur(st)+'</span></div>'+(comments[i]?'<div class="cm">↳ '+esc(comments[i])+'</div>':'')+'</div>'; }).join("");
-  document.getElementById("totalVal").textContent=eur(total);
-  document.getElementById("totalBox").classList.remove("hidden");
-  document.getElementById("sendBtn").disabled=false;
-}
-
-async function send(){
-  const keys=Object.keys(panier); if(!keys.length) return;
-  const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Versturen…";
-  const shownTotal=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
-  const items=keys.map(i=>({productId:PRODUCTS[i].id,quantity:panier[i],comment:comments[i]||""}));
-  const dateLiv=document.getElementById("dateLiv").value;
-  try{
-    const r=await fetch("/api/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:USER,pw:PW,items,notes:document.getElementById("notes").value,dateLivraison:dateLiv})});
-    const d=await r.json();
-    const box=document.getElementById("confirm");
-    if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"versturen mislukt"); btn.disabled=false; btn.textContent="Bestelling versturen"; return; }
-    const total=typeof d.total==="number"?d.total:shownTotal;
-    const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
-    window._lastOrder={ref:d.ref,lignes,total,dateLiv,client:CLIENT.nom};
-    box.style.display="block";
-    box.innerHTML='✅ <b>Bestelling '+d.ref+' verstuurd!</b><br>Leverdatum: '+(dateLiv||"—")+'<br>Totaal: <b>'+eur(total)+'</b><br><button class="print-b" onclick="printOrder()">🖨 Bevestiging afdrukken</button>';
-    panier={}; comments={}; document.getElementById("notes").value="";
-    renderCatalogue(); renderCart();
-    btn.textContent="Bestelling versturen";
-    box.scrollIntoView({behavior:"smooth"});
-  }catch(e){ btn.disabled=false; btn.textContent="Bestelling versturen"; alert("Netwerkfout"); }
-}
-
-function printOrder(){
-  const o=window._lastOrder; if(!o) return;
-  const w=window.open("","_blank");
-  w.document.write('<html><head><meta charset="utf-8"><title>'+o.ref+'</title><style>body{font-family:Arial;padding:32px;color:#1c2a3a}h1{color:#0b2e4f;font-size:20px}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{border:1px solid #cbd5e1;padding:8px;text-align:left;font-size:13px}th{background:#f1f5f9}.tot{font-size:17px;font-weight:bold;margin-top:14px;color:#0b2e4f}.ft{margin-top:24px;font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:8px}</style></head><body>'+
-    '<h1>🐟 Famo Trading BV</h1><div style="font-size:12px;color:#64748b">Jezusstraat 34, 2000 Antwerpen · BTW BE 0788.705.713</div>'+
-    '<h2 style="margin-top:18px;font-size:16px">Bevestiging bestelling</h2>'+
-    '<p style="font-size:13px;margin-top:6px"><b>Ref:</b> '+o.ref+'<br><b>Klant:</b> '+o.client+'<br><b>Leverdatum:</b> '+(o.dateLiv||"—")+'</p>'+
-    '<table><tr><th>Artikel</th></tr>'+o.lignes.split("\n").map(l=>'<tr><td>'+l+'</td></tr>').join("")+'</table>'+
-    '<p class="tot">Totaal: '+eur(o.total)+'</p>'+
-    '<div class="ft">Dit is een bevestiging van uw bestelling, geen factuur.</div></body></html>');
-  w.document.close(); w.print();
-}
-
-// Recharge le panier à partir d'une commande passée.
-function reorder(i){
-  const o=(window._ORDERS||[])[i]; if(!o) return;
-  const norm=s=>String(s||"").toLowerCase().trim();
-  panier={}; comments={};
-  const notFound=[];
-  String(o.lignes||"").split("\n").map(l=>l.trim()).filter(Boolean).forEach(l=>{
-    const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)/);
-    if(!m){ notFound.push(l); return; }
-    const nom=m[1].trim(), qty=Math.round(parseFloat(m[2].replace(",","."))||0);
-    const idx=PRODUCTS.findIndex(p=>norm(p.nom)===norm(nom));
-    if(idx<0){ notFound.push(nom); return; }
-    if(qty>0) panier[idx]=qty;
-  });
-  showTab("cat");
-  renderCatalogue(); renderCart();
-  if(notFound.length) alert("Deze artikelen staan niet meer in de catalogus en zijn niet toegevoegd:\n- "+notFound.join("\n- "));
-  window.scrollTo({top:0,behavior:"smooth"});
-}
-
-function showTab(t){
-  document.getElementById("tabCat").classList.toggle("on",t==="cat");
-  document.getElementById("tabOrd").classList.toggle("on",t==="ord");
-  document.getElementById("catView").classList.toggle("hidden",t!=="cat");
-  document.getElementById("ordView").classList.toggle("hidden",t!=="ord");
-  if(t==="ord") loadOrders();
-}
-
-async function loadOrders(){
-  const box=document.getElementById("ordList"); box.innerHTML='<div class="empty">Laden…</div>';
-  try{
-    const r=await fetch("/api/orders?user="+encodeURIComponent(USER)+"&pw="+encodeURIComponent(PW));
-    const d=await r.json();
-    if(!r.ok||!d.orders||!d.orders.length){ box.innerHTML='<div class="empty">Nog geen bestellingen.</div>'; return; }
-    box.innerHTML=d.orders.map((o,i)=>{
-      const si=STATUS.indexOf(o.statut);
-      return '<div class="ord"><div class="h"><span class="ref">'+esc(o.ref)+'</span><span class="chip s'+(si<0?0:si)+'">'+esc(NLSTATUS[o.statut]||o.statut)+'</span></div>'+
-      '<div class="meta">'+esc(o.date||"")+' · Betaling: '+esc(o.paiement==="Payé"?"Betaald":"Open")+' · <b>'+eur(o.total)+'</b></div>'+
-      '<pre>'+esc(o.lignes)+'</pre>'+
-      '<button class="rebtn" onclick="reorder('+i+')">🔁 Opnieuw bestellen</button></div>'; }).join("");
-    window._ORDERS=d.orders;
-  }catch(e){ box.innerHTML='<div class="empty">Netwerkfout.</div>'; }
-}
-
-document.getElementById("user").addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("pw").focus(); });
-document.getElementById("pw").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
+let CLIENT=null,PRODUCTS=[],panier={},comments={},favs={},favOnly=false,USER="",PW="",lastConfirmation=null,ORDER_DATE="",ORDER_NOTE="";
+const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"],NLSTATUS={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
+const icons={grid:'<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',list:'<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',help:'<circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 3.2 2.3c-.7.3-.9.8-.9 1.7M12 17h.01"/>',logout:'<path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/>',chevron:'<path d="m8 10 4 4 4-4"/>',menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',bag:'<path d="M6 8h12l1 12H5L6 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/>',search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2Z"/>',alert:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/>',x:'<path d="m6 6 12 12M18 6 6 18"/>',check:'<path d="m5 12 4 4L19 6"/>',printer:'<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z"/>',refresh:'<path d="M20 6v5h-5M4 18v-5h5"/><path d="M18 9a7 7 0 0 0-12-2M6 15a7 7 0 0 0 12 2"/>',spinner:'<path d="M12 3a9 9 0 1 0 9 9"/>'};
+const icon=n=>'<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">'+(icons[n]||'')+'</svg>';
+document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
+const eur=n=>"€ "+Number(n||0).toFixed(2).replace(".",","),favKey=()=>"famo_favs_"+(CLIENT?CLIENT.id:"x");
+const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const initials=s=>String(s||"").split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+async function login(){const u=user.value.trim(),p=pw.value,err=loginErr,btn=loginBtn;if(!u||!p){err.textContent="Vul gebruikersnaam en wachtwoord in.";return}btn.disabled=true;btn.innerHTML=icon('spinner')+' Aanmelden…';err.textContent="";try{const r=await fetch('/api/catalogue?user='+encodeURIComponent(u)+'&pw='+encodeURIComponent(p)),d=await r.json();if(!r.ok)throw new Error(d.error||'Aanmelden mislukt');USER=u;PW=p;CLIENT=d.client;PRODUCTS=d.products;panier={};comments={};ORDER_DATE=new Date(Date.now()+86400000).toISOString().slice(0,10);ORDER_NOTE="";try{favs=JSON.parse(localStorage.getItem(favKey())||'{}')}catch(e){favs={}}loginView.classList.add('hidden');appView.classList.remove('hidden');clientName.textContent=CLIENT.nom;clientAddress.textContent=(CLIENT.adresse||'').split('\n')[0];avatar.textContent=initials(CLIENT.nom);accountMeta.innerHTML='<strong>'+esc(CLIENT.nom)+'</strong><br>'+esc(CLIENT.adresse||'');renderCatalogue();renderCart()}catch(e){err.textContent=e.message||'Netwerkfout — probeer opnieuw';btn.disabled=false;btn.textContent='Aanmelden'}}
+function logout(){USER='';PW='';CLIENT=null;PRODUCTS=[];panier={};comments={};closeDrawer();appView.classList.add('hidden');loginView.classList.remove('hidden');pw.value='';loginBtn.disabled=false;loginBtn.textContent='Aanmelden'}
+function toggleAccount(){accountMenu.classList.toggle('hidden')}function openDrawer(){sidebar.classList.add('open');drawerScrim.classList.remove('hidden')}function closeDrawer(){sidebar.classList.remove('open');drawerScrim.classList.add('hidden');accountMenu.classList.add('hidden')}
+function showView(v){document.querySelectorAll('.nav-btn[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===v));catView.classList.toggle('hidden',!['cat','favs'].includes(v));ordersView.classList.toggle('hidden',v!=='orders');helpView.classList.toggle('hidden',v!=='help');favOnly=v==='favs';allBtn.classList.toggle('active',!favOnly);favBtn.classList.toggle('active',favOnly);if(['cat','favs'].includes(v))renderCatalogue();if(v==='orders')loadOrders();closeDrawer();window.scrollTo({top:0,behavior:'smooth'})}
+function setFilter(v){favOnly=v;allBtn.classList.toggle('active',!v);favBtn.classList.toggle('active',v);document.querySelectorAll('.nav-btn[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===(v?'favs':'cat')));renderCatalogue()}
+function toggleFav(id){favs[id]=!favs[id];if(!favs[id])delete favs[id];localStorage.setItem(favKey(),JSON.stringify(favs));renderCatalogue()}
+function renderCatalogue(){const q=(search.value||'').trim().toLowerCase();let list=PRODUCTS.map((p,i)=>({p,i})).filter(x=>x.p.nom.toLowerCase().includes(q)).filter(x=>!favOnly||favs[x.p.id]);productCount.textContent=list.length+(list.length===1?' product':' producten');const cats={};list.forEach(x=>(cats[x.p.cat||'Overige']=cats[x.p.cat||'Overige']||[]).push(x));let h='';Object.keys(cats).forEach(cat=>{h+='<section class="category"><div class="category-title">'+esc(cat)+'</div>'+cats[cat].map(({p,i})=>{const qn=panier[i]||0,neg=p.prix<p.base;return '<article class="product '+(qn?'selected':'')+'"><div class="product-row"><button class="icon-btn fav '+(favs[p.id]?'on':'')+'" aria-label="Favoriet wijzigen" onclick="toggleFav(\''+p.id+'\')">'+icon('star')+'</button><div class="product-info"><div class="product-name">'+esc(p.nom)+'</div><div class="product-meta"><span class="price tnum">'+eur(p.prix)+'</span>'+(neg?'<span class="base tnum">'+eur(p.base)+'</span><span class="deal">Uw prijs</span>':'')+'<span>/ '+esc(p.unite)+'</span></div></div><div class="qty"><button aria-label="Verminderen" onclick="chg('+i+',-1)">−</button><input aria-label="Hoeveelheid" type="number" min="0" value="'+qn+'" onchange="setQ('+i+',this.value)"><button aria-label="Verhogen" onclick="chg('+i+',1)">+</button></div></div>'+(qn?'<input class="comment" placeholder="Opmerking bij dit product…" value="'+esc(comments[i]||'')+'" oninput="setCmt('+i+',this.value)">':'')+'</article>'}).join('')+'</section>'});if(!h)h='<div class="empty"><div class="empty-icon">'+icon(favOnly?'star':'search')+'</div><strong>'+(favOnly?'Nog geen favorieten':'Geen producten gevonden')+'</strong><br>'+(favOnly?'Markeer producten met de ster om ze hier terug te vinden.':'Probeer een andere zoekterm.')+'</div>';catalogue.innerHTML=h}
+function chg(i,d){setQ(i,(panier[i]||0)+d)}function setQ(i,v){v=Math.max(0,parseInt(v)||0);if(v===0){delete panier[i];delete comments[i]}else panier[i]=v;lastConfirmation=null;renderCatalogue();renderCart()}function setCmt(i,v){comments[i]=v;renderCart()}
+function cartData(){const keys=Object.keys(panier);let total=0;const lines=keys.map(i=>{const p=PRODUCTS[i],qty=panier[i],sub=p.prix*qty;total+=sub;return{i,p,qty,sub}});return{keys,lines,total,count:keys.reduce((n,i)=>n+panier[i],0)}}
+function composerHTML(mobile=false){if(lastConfirmation)return '<div class="composer-head"><div><h2>Uw bestelling</h2></div>'+(mobile?'<button class="icon-btn" onclick="closeSheet()">'+icon('x')+'</button>':'')+'</div><div class="composer-body"><div class="confirmation"><span class="success-icon">'+icon('check')+'</span><h3>Bestelling ontvangen</h3><p>We hebben uw bestelling goed ontvangen.</p><div class="conf-row"><span>Referentie</span><strong class="tnum">'+esc(lastConfirmation.ref)+'</strong></div><div class="conf-row"><span>Leverdatum</span><strong class="tnum">'+esc(lastConfirmation.dateLiv||'—')+'</strong></div><div class="conf-row"><span>Totaal</span><strong class="tnum">'+eur(lastConfirmation.total)+'</strong></div><button class="primary full" style="margin-top:20px" onclick="newOrder()">Nieuwe bestelling</button><button class="secondary" onclick="printOrder()">Bevestiging afdrukken</button></div></div>';
+const c=cartData(),empty=!c.keys.length;return '<div class="composer-head"><div><h2>Uw bestelling</h2><small>'+(empty?'Nog geen artikelen':c.keys.length+(c.keys.length===1?' artikel':' artikelen'))+'</small></div>'+(mobile?'<button class="icon-btn" aria-label="Sluiten" onclick="closeSheet()">'+icon('x')+'</button>':(!empty?'<button class="text-btn" onclick="clearCart()">Wissen</button>':''))+'</div><div class="composer-body">'+(empty?'<div class="empty">Voeg artikelen toe om uw bestelling te starten.</div>':c.lines.map(x=>'<div class="cart-line"><div class="cart-r1"><span class="cart-name">'+esc(x.p.nom)+'</span><span class="cart-sub tnum">'+eur(x.sub)+'</span></div><div class="cart-r2"><span>× '+x.qty+' '+esc(x.p.unite)+'</span><button class="icon-btn remove" aria-label="Verwijderen" onclick="setQ('+x.i+',0)">'+icon('x')+'</button></div>'+(comments[x.i]?'<div class="cart-comment">'+esc(comments[x.i])+'</div>':'')+'</div>').join('')+'<label class="order-field">Gewenste leverdatum</label><input class="date tnum" type="date" value="'+esc(ORDER_DATE)+'"><label class="order-field">Opmerking bij de bestelling</label><textarea class="notes" placeholder="Bv. leveren vóór 8u…">'+esc(ORDER_NOTE)+'</textarea><div class="total"><span>Totaal</span><strong class="tnum">'+eur(c.total)+'</strong></div><div class="send-error hidden" role="alert"></div><button class="primary full send-button" style="margin-top:16px" onclick="send(this)">Bestelling versturen</button>')+'</div>'}
+function syncFields(){const dates=[...document.querySelectorAll('.date')],notes=[...document.querySelectorAll('.notes')];dates.forEach(x=>{x.value=ORDER_DATE;x.onchange=()=>{ORDER_DATE=x.value;dates.forEach(y=>{if(y!==x)y.value=ORDER_DATE})}});notes.forEach(x=>{x.value=ORDER_NOTE;x.oninput=()=>{ORDER_NOTE=x.value;notes.forEach(y=>{if(y!==x)y.value=ORDER_NOTE})}})}
+function renderCart(){const c=cartData();desktopComposer.innerHTML=composerHTML();mobileComposer.innerHTML=composerHTML(true);navCart.textContent=c.count;navCart.classList.toggle('hidden',!c.count);mobileCartBar.classList.toggle('hidden',!c.count||!!lastConfirmation);mobileTotal.textContent=eur(c.total);mobileCount.textContent=c.keys.length+(c.keys.length===1?' artikel':' artikelen');syncFields()}
+function clearCart(){if(!Object.keys(panier).length||confirm('Uw huidige bestelling wissen?')){panier={};comments={};renderCatalogue();renderCart();closeSheet()}}function openSheet(){mobileComposer.innerHTML=composerHTML(true);syncFields();cartSheet.classList.remove('hidden');sheetScrim.classList.remove('hidden')}function closeSheet(){cartSheet.classList.add('hidden');sheetScrim.classList.add('hidden')}
+async function send(source){const c=cartData();if(!c.keys.length)return;const dateLiv=ORDER_DATE,note=ORDER_NOTE;document.querySelectorAll('.send-button').forEach(b=>{b.disabled=true;b.innerHTML=icon('spinner')+' Versturen…'});document.querySelectorAll('.send-error').forEach(x=>x.classList.add('hidden'));try{const items=c.keys.map(i=>({productId:PRODUCTS[i].id,quantity:panier[i],comment:comments[i]||''})),r=await fetch('/api/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:USER,pw:PW,items,notes:note,dateLivraison:dateLiv})}),d=await r.json();if(!r.ok)throw new Error(d.error||'Versturen mislukt');const lignes=c.keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join('\n'),total=typeof d.total==='number'?d.total:c.total;lastConfirmation={ref:d.ref,lignes,total,dateLiv,client:CLIENT.nom};panier={};comments={};ORDER_NOTE="";renderCatalogue();renderCart();openSheet()}catch(e){document.querySelectorAll('.send-error').forEach(x=>{x.textContent=e.message||'Netwerkfout — probeer opnieuw.';x.classList.remove('hidden')});document.querySelectorAll('.send-button').forEach(b=>{b.disabled=false;b.textContent='Opnieuw versturen'})}}
+function newOrder(){lastConfirmation=null;closeSheet();renderCart();showView('cat')}function printOrder(){const o=lastConfirmation;if(!o)return;const w=window.open('','_blank');if(!w)return;w.document.write('<html><head><meta charset="utf-8"><title>'+esc(o.ref)+'</title><style>body{font-family:Arial;padding:38px;color:#111;max-width:760px;margin:auto}h1{font-size:19px}p,td{font-size:13px;line-height:1.5}table{width:100%;border-collapse:collapse;margin-top:20px}td{border-bottom:1px solid #ddd;padding:8px 0}.total{font-size:18px;font-weight:bold;text-align:right;margin-top:18px}.foot{border-top:1px solid #222;margin-top:35px;padding-top:10px;color:#666;font-size:11px}</style></head><body><h1>Famo Trading BV</h1><p>Jezusstraat 34, 2000 Antwerpen · BTW BE 0788.705.713</p><h2>Bestelbevestiging</h2><p><b>Referentie:</b> '+esc(o.ref)+'<br><b>Klant:</b> '+esc(o.client)+'<br><b>Leverdatum:</b> '+esc(o.dateLiv||'—')+'</p><table>'+o.lignes.split('\n').map(l=>'<tr><td>'+esc(l)+'</td></tr>').join('')+'</table><div class="total">Totaal: '+eur(o.total)+'</div><div class="foot">Dit is een bevestiging van uw bestelling, geen factuur.</div></body></html>');w.document.close();w.print()}
+function reorder(i){const o=(window._ORDERS||[])[i];if(!o)return;const norm=s=>String(s||'').toLowerCase().trim(),missing=[];panier={};comments={};String(o.lignes||'').split('\n').map(l=>l.trim()).filter(Boolean).forEach(l=>{const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)/);if(!m){missing.push(l);return}const idx=PRODUCTS.findIndex(p=>norm(p.nom)===norm(m[1]));if(idx<0){missing.push(m[1]);return}const qty=Math.round(parseFloat(m[2].replace(',','.'))||0);if(qty>0)panier[idx]=qty});showView('cat');renderCatalogue();renderCart();if(missing.length)alert('Niet meer beschikbaar:\n- '+missing.join('\n- '))}
+async function loadOrders(force=false){const box=ordList;box.innerHTML='<div class="empty">Laden…</div>';try{const r=await fetch('/api/orders?user='+encodeURIComponent(USER)+'&pw='+encodeURIComponent(PW)),d=await r.json();if(!r.ok)throw new Error(d.error||'Laden mislukt');window._ORDERS=d.orders||[];if(!window._ORDERS.length){box.innerHTML='<div class="empty"><div class="empty-icon">'+icon('list')+'</div><strong>Nog geen bestellingen</strong><br>Uw verstuurde bestellingen verschijnen hier.</div>';return}box.innerHTML=window._ORDERS.map((o,i)=>{const si=Math.max(0,STATUS.indexOf(o.statut));return '<article class="order"><div class="order-top"><span class="order-ref tnum">'+esc(o.ref)+'</span><span class="status s'+si+'">'+esc(NLSTATUS[o.statut]||o.statut)+'</span><span class="order-total tnum">'+eur(o.total)+'</span></div><div class="order-meta">'+esc(o.date||'')+' · '+(o.paiement==='Payé'?'Betaald':'Betaling open')+'</div><div class="order-lines">'+esc(o.lignes)+'</div><div class="order-actions"><button class="small-btn" onclick="reorder('+i+')">Opnieuw bestellen</button></div></article>'}).join('')}catch(e){box.innerHTML='<div class="empty">'+esc(e.message||'Netwerkfout')+'<br><button class="small-btn" style="margin-top:12px" onclick="loadOrders(true)">Opnieuw proberen</button></div>'}}
+user.addEventListener('keydown',e=>{if(e.key==='Enter')pw.focus()});pw.addEventListener('keydown',e=>{if(e.key==='Enter')login()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDrawer()}});
 </script>
 </body>
 </html>
