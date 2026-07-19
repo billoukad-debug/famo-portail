@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const childProcess = require("child_process");
 
 const root = path.join(__dirname, "..");
 let errors = 0;
@@ -65,6 +66,12 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
 console.log("");
 if (errors) {
   console.error(`\x1b[31m${errors} probleme(s) detecte(s). Le deploiement est bloque.\x1b[0m`);
+  process.exit(1);
+}
+try {
+  childProcess.execFileSync(process.execPath, [path.join(__dirname, "workflow-check.js")], { stdio: "inherit" });
+} catch (error) {
+  console.error("\x1b[31m✗ Règles métier\x1b[0m\n  Les scénarios critiques ont échoué.\n");
   process.exit(1);
 }
 console.log("\x1b[32mTout est bon.\x1b[0m");
