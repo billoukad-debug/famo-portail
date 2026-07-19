@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Famo Trading — Bestelling invoeren</title>
+<style>
+  :root { --navy:#0b2e4f; --ocean:#1273b8; --ocean-l:#e8f3fb; --text:#1c2a3a; --mut:#64748b;
+    --line:#e2e8f0; --bg:#eef2f6; --ok:#16a34a; --gold:#f59e0b;
+    --sh:0 1px 3px rgba(15,23,42,.08),0 4px 14px rgba(15,23,42,.05); }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); font-size:15px; }
+  button { font-family:inherit; cursor:pointer; }
+  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:linear-gradient(160deg,#0d1f33,#0b2e4f 60%,#155a8a); }
+  .login-card { background:#fff; border-radius:20px; padding:36px 30px; width:100%; max-width:370px; box-shadow:0 20px 60px rgba(2,12,27,.4); text-align:center; }
+  .login-card h1 { font-size:19px; color:var(--navy); margin-top:6px; }
+  .login-card .sub { color:var(--mut); font-size:13px; margin:6px 0 18px; }
+  .login-card input { width:100%; padding:13px; border:1.5px solid var(--line); border-radius:12px; font-size:16px; margin-bottom:12px; text-align:center; letter-spacing:2px; }
+  .btn-p { width:100%; background:var(--navy); color:#fff; border:none; padding:14px; border-radius:12px; font-size:15px; font-weight:600; }
+  .btn-p:disabled { background:#94a3b8; }
+  .err { color:#dc2626; font-size:13px; min-height:18px; margin-top:6px; }
+
+  .topbar { background:var(--navy); color:#fff; position:sticky; top:0; z-index:50; }
+  .topbar-in { max-width:1000px; margin:0 auto; padding:0 16px; height:56px; display:flex; align-items:center; justify-content:space-between; }
+  .brand { font-weight:700; font-size:16px; }
+  .topbar a { color:#b7cbdd; font-size:13px; text-decoration:none; }
+  .page { max-width:1000px; margin:18px auto 60px; padding:0 16px; display:grid; grid-template-columns:1fr 340px; gap:16px; align-items:start; }
+  @media (max-width:880px){ .page { grid-template-columns:1fr; } }
+  .card { background:#fff; border-radius:14px; box-shadow:var(--sh); padding:16px; }
+  .card h2 { font-size:15px; color:var(--navy); margin-bottom:12px; }
+  .fld-l { display:block; font-size:12px; font-weight:700; color:var(--mut); margin:12px 0 5px; text-transform:uppercase; letter-spacing:.4px; }
+  select, input[type=date], input[type=text], textarea { width:100%; padding:11px; border:1.5px solid var(--line); border-radius:11px; font-size:14px; font-family:inherit; background:#fff; }
+  textarea { min-height:52px; resize:vertical; }
+  .src { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .src button { flex:1; min-width:80px; border:1.5px solid var(--line); background:#fff; border-radius:10px; padding:9px; font-size:13px; font-weight:600; color:var(--mut); }
+  .src button.on { background:var(--ocean-l); border-color:var(--ocean); color:var(--ocean); }
+  .cat-h { font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:var(--mut); margin:16px 2px 6px; }
+  .prow { display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid #f0f4f8; }
+  .pinfo { flex:1; min-width:0; }
+  .pname { font-weight:650; font-size:14.5px; }
+  .pmeta { font-size:12.5px; color:var(--mut); margin-top:2px; }
+  .pprice { font-weight:750; color:var(--navy); }
+  .pbase { text-decoration:line-through; color:#a8b6c4; font-size:11.5px; margin-left:5px; }
+  .tag { background:var(--ocean-l); color:var(--ocean); font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:20px; margin-left:5px; }
+  .qty { display:flex; align-items:center; gap:6px; }
+  .qty button { width:38px; height:38px; border:1.5px solid var(--line); background:#fff; border-radius:10px; font-size:19px; color:var(--navy); font-weight:600; }
+  .qty input { width:56px; height:38px; text-align:center; border:1.5px solid var(--line); border-radius:10px; font-size:15px; font-weight:600; }
+  .cmt-in { width:100%; margin-top:6px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; font-size:12.5px; background:#fbfdfe; }
+  .cline { padding:8px 0; border-bottom:1px solid #f2f5f7; font-size:13.5px; }
+  .cline .r1 { display:flex; justify-content:space-between; gap:10px; }
+  .cline .cm { font-size:12px; color:var(--mut); font-style:italic; }
+  .total-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:12px; padding-top:12px; border-top:2px solid var(--line); }
+  .total-row .val { font-size:22px; font-weight:800; color:var(--navy); }
+  .empty { color:#94a3b8; font-size:13px; padding:12px 0; text-align:center; }
+  .ok-box { background:#ecfdf5; border:1.5px solid #a7f3d0; color:#065f46; padding:13px; border-radius:12px; margin-top:12px; font-size:13.5px; display:none; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login-wrap">
+  <div class="login-card">
+    <div style="font-size:36px">📝</div>
+    <h1>Bestelling invoeren</h1>
+    <p class="sub">Voor telefoon- en WhatsApp-bestellingen</p>
+    <input id="code" type="password" placeholder="Toegangscode">
+    <button class="btn-p" onclick="enter()">Aanmelden</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="topbar"><div class="topbar-in">
+    <div class="brand">📝 Bestelling invoeren</div>
+    <a href="/entrepot.html">→ Magazijn</a>
+  </div></div>
+
+  <div class="page">
+    <div class="card">
+      <label class="fld-l">Klant</label>
+      <select id="clientSel" onchange="loadClient()"><option value="">— Kies een klant —</option></select>
+      <div id="catBox" class="hidden">
+        <h2 style="margin-top:18px">Artikelen</h2>
+        <div id="catalogue"></div>
+      </div>
+      <div id="noClient" class="empty">Kies eerst een klant om de artikelen en zijn prijzen te zien.</div>
+    </div>
+
+    <div class="card">
+      <h2>Bestelling</h2>
+      <div id="cart"><div class="empty">Nog niets gekozen.</div></div>
+      <div id="totalBox" class="hidden"><div class="total-row"><span style="font-size:13px;color:var(--mut);font-weight:600">TOTAAL</span><span class="val" id="totalVal">€ 0,00</span></div></div>
+
+      <label class="fld-l">Bron van de bestelling</label>
+      <div class="src">
+        <button id="s1" class="on" onclick="setSrc('WhatsApp',this)">WhatsApp</button>
+        <button id="s2" onclick="setSrc('Telefoon',this)">Telefoon</button>
+        <button id="s3" onclick="setSrc('E-mail',this)">E-mail</button>
+        <button id="s4" onclick="setSrc('Ter plaatse',this)">Ter plaatse</button>
+      </div>
+
+      <label class="fld-l">Leverdatum</label>
+      <input type="date" id="dateLiv">
+      <label class="fld-l">Opmerking</label>
+      <textarea id="notes" placeholder="Bv. leveren vóór 8u…"></textarea>
+
+      <button class="btn-p" id="sendBtn" style="margin-top:14px" disabled onclick="send()">Bestelling opslaan</button>
+      <div class="ok-box" id="okBox"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let CODE="", CLIENTS=[], PRODUCTS=[], panier={}, comments={}, SRC="WhatsApp", CID="";
+const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
+const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+
+async function enter(){
+  CODE=document.getElementById("code").value.trim();
+  const err=document.getElementById("err"); err.textContent="Controleren…";
+  const r=await fetch("/api/staff?code="+encodeURIComponent(CODE));
+  if(!r.ok){ err.textContent="Ongeldige code"; return; }
+  const d=await r.json(); CLIENTS=d.clients||[];
+  document.getElementById("loginView").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("clientSel").innerHTML='<option value="">— Kies een klant —</option>'+
+    CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(c.nom)+'</option>').join("");
+  document.getElementById("dateLiv").value=new Date(Date.now()+86400000).toISOString().slice(0,10);
+}
+
+async function loadClient(){
+  CID=document.getElementById("clientSel").value;
+  panier={}; comments={}; renderCart();
+  if(!CID){ document.getElementById("catBox").classList.add("hidden"); document.getElementById("noClient").classList.remove("hidden"); return; }
+  const r=await fetch("/api/staff?code="+encodeURIComponent(CODE)+"&client="+encodeURIComponent(CID));
+  const d=await r.json();
+  PRODUCTS=d.products||[];
+  document.getElementById("noClient").classList.add("hidden");
+  document.getElementById("catBox").classList.remove("hidden");
+  renderCatalogue();
+}
+
+function renderCatalogue(){
+  const cats={};
+  PRODUCTS.forEach((p,i)=>{ const c=p.cat||"Overige"; (cats[c]=cats[c]||[]).push({p,i}); });
+  let h="";
+  Object.keys(cats).sort().forEach(cat=>{
+    h+='<div class="cat-h">'+esc(cat)+'</div>';
+    h+=cats[cat].map(({p,i})=>{
+      const neg=p.prix<p.base;
+      return '<div class="prow"><div class="pinfo"><div class="pname">'+esc(p.nom)+'</div>'+
+        '<div class="pmeta"><span class="pprice">'+eur(p.prix)+'</span>'+(neg?'<span class="pbase">'+eur(p.base)+'</span><span class="tag">klantprijs</span>':'')+' / '+esc(p.unite)+'</div>'+
+        (panier[i]?'<input class="cmt-in" placeholder="Opmerking…" value="'+esc(comments[i]||"")+'" oninput="setCmt('+i+',this.value)">':'')+
+        '</div><div class="qty"><button onclick="chg('+i+',-1)">−</button>'+
+        '<input id="q'+i+'" type="number" min="0" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)">'+
+        '<button onclick="chg('+i+',1)">+</button></div></div>';
+    }).join("");
+  });
+  document.getElementById("catalogue").innerHTML=h||'<div class="empty">Geen artikelen.</div>';
+}
+function chg(i,d){ setQ(i,(panier[i]||0)+d); }
+function setQ(i,v){ v=Math.max(0,parseInt(v)||0); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
+function setCmt(i,v){ comments[i]=v; renderCart(); }
+function setSrc(s,el){ SRC=s; ["s1","s2","s3","s4"].forEach(id=>document.getElementById(id).classList.remove("on")); el.classList.add("on"); }
+
+function renderCart(){
+  const cart=document.getElementById("cart"), keys=Object.keys(panier);
+  if(!keys.length){ cart.innerHTML='<div class="empty">Nog niets gekozen.</div>'; document.getElementById("totalBox").classList.add("hidden"); document.getElementById("sendBtn").disabled=true; return; }
+  let total=0;
+  cart.innerHTML=keys.map(i=>{ const p=PRODUCTS[i],qn=panier[i],st=p.prix*qn; total+=st;
+    return '<div class="cline"><div class="r1"><span>'+esc(p.nom)+' × '+qn+'</span><span>'+eur(st)+'</span></div>'+(comments[i]?'<div class="cm">↳ '+esc(comments[i])+'</div>':'')+'</div>'; }).join("");
+  document.getElementById("totalVal").textContent=eur(total);
+  document.getElementById("totalBox").classList.remove("hidden");
+  document.getElementById("sendBtn").disabled=false;
+}
+
+async function send(){
+  const keys=Object.keys(panier); if(!keys.length||!CID) return;
+  const btn=document.getElementById("sendBtn"); btn.disabled=true; btn.textContent="Opslaan…";
+  const total=keys.reduce((s,i)=>s+PRODUCTS[i].prix*panier[i],0);
+  const lignes=keys.map(i=>PRODUCTS[i].nom+' × '+panier[i]+' '+PRODUCTS[i].unite+(comments[i]?' ('+comments[i]+')':'')).join("\n");
+  try{
+    const r=await fetch("/api/staff",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({code:CODE,clientId:CID,lignes,total,notes:document.getElementById("notes").value,dateLivraison:document.getElementById("dateLiv").value,bron:SRC})});
+    const d=await r.json();
+    const box=document.getElementById("okBox");
+    if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+(d.error||"opslaan mislukt"); btn.disabled=false; btn.textContent="Bestelling opslaan"; return; }
+    box.style.display="block";
+    box.innerHTML='✅ <b>Bestelling '+d.ref+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+SRC+'<br>Ze staat nu in het magazijn onder « Ontvangen ».';
+    panier={}; comments={}; document.getElementById("notes").value="";
+    renderCatalogue(); renderCart();
+    btn.textContent="Bestelling opslaan";
+  }catch(e){ btn.disabled=false; btn.textContent="Bestelling opslaan"; alert("Netwerkfout"); }
+}
+document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
+</script>
+</body>
+</html>

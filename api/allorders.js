@@ -10,8 +10,16 @@ module.exports = async (req, res) => {
     const code = String((req.query && req.query.code) || "");
     if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
     const cl = await at("Clients");
-    const nameById = {};
-    (cl.records || []).forEach(r => { nameById[r.id] = r.fields["Nom"] || ""; });
+    const nameById = {}, infoById = {};
+    (cl.records || []).forEach(r => {
+      nameById[r.id] = r.fields["Nom"] || "";
+      infoById[r.id] = {
+        nom: r.fields["Nom"] || "",
+        adresse: r.fields["Lieu de livraison"] || "",
+        btw: r.fields["BTW-nummer"] || "",
+        klantnr: r.fields["Klantnummer"] || ""
+      };
+    });
     const cmd = await at("Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc");
     const orders = (cmd.records || []).map(r => ({
       id: r.id,
@@ -19,6 +27,7 @@ module.exports = async (req, res) => {
       date: r.fields["Date"] || "",
       dateLiv: r.fields["Date livraison souhaitée"] || "",
       client: (r.fields["Client"] || []).map(id => nameById[id] || id).join(", "),
+      klant: infoById[(r.fields["Client"] || [])[0]] || null,
       lignes: r.fields["Lignes (produits / quantités)"] || "",
       total: r.fields["Total"] || 0,
       statut: r.fields["Statut"] || "Reçue",

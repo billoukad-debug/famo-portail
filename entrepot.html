@@ -78,7 +78,10 @@
 <div id="app" class="hidden">
   <div class="topbar"><div class="topbar-in">
     <div class="brand">🏭 Famo Trading — Magazijn</div>
-    <button class="refresh-b" onclick="load()">↻ Vernieuwen</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="/invoer.html" style="color:#b7cbdd;font-size:13px;text-decoration:none">📝 Invoeren</a>
+      <button class="refresh-b" onclick="load()">↻ Vernieuwen</button>
+    </div>
   </div></div>
   <div class="stamp" id="stamp"></div>
   <div class="warn">⚠️ De documenten (leveringsbon / factuur) zijn interne afdrukken. Voor B2B is een elektronische Peppol-factuur wettelijk verplicht — dit loopt via de boekhouding (Billtobox).</div>
@@ -99,7 +102,8 @@ const FAMO = {
   tva: "BE 0788.705.713",
   tel: "",                      // nog aan te maken
   iban: "IBAN nog in te vullen",
-  tauxTVA: 6                    // bevestigd
+  bic: "",                      // bv. GEBABEBB
+  tauxTVA: 6                    // bevestigd door de klant
 };
 /* =========================================== */
 
@@ -166,30 +170,74 @@ async function saveLines(idx){
 
 function doc(idx,type){
   const o=ORDERS[idx], isFA=type==="FA";
+  const k=o.klant||{nom:o.client,adresse:"",btw:"",klantnr:""};
   const htva=o.total/(1+FAMO.tauxTVA/100), tva=o.total-htva;
   const titre=isFA?"FACTUUR":"LEVERINGSBON";
-  const num=(isFA?"FA-":"LB-")+o.ref.replace("CMD-","");
+  const seq=o.ref.replace("CMD-","");
+  const num=(isFA?"FA-":"LB-")+seq;
+  const d=new Date();
+  const verval=new Date(d.getTime()+30*86400000);
+  const fdate=x=>x.toLocaleDateString("nl-BE");
+
+  // Chaque ligne "Naam × 3 doos (opmerking)" est décomposée pour le tableau
+  const rows=String(o.lignes||"").split("\n").filter(x=>x.trim()).map(l=>{
+    const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*(\S*)\s*(\(.*\))?$/);
+    if(m) return {nom:m[1].trim(), aantal:m[2], eenheid:m[3]||"", opm:(m[4]||"").replace(/[()]/g,"")};
+    return {nom:l, aantal:"", eenheid:"", opm:""};
+  });
+
   const w=window.open("","_blank");
   w.document.write('<html><head><meta charset="utf-8"><title>'+num+'</title><style>'+
-    'body{font-family:Arial,sans-serif;padding:34px;color:#1c2a3a;font-size:13px}'+
-    '.hd{display:flex;justify-content:space-between;border-bottom:3px solid #0b2e4f;padding-bottom:12px}'+
-    'h1{color:#0b2e4f;font-size:21px}h2{font-size:16px;margin-top:0}'+
-    '.box{margin-top:16px;padding:11px 14px;border:1px solid #dbe3ea;border-radius:8px;display:inline-block;min-width:240px;background:#f8fafc}'+
-    'table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border:1px solid #cbd5e1;padding:8px;text-align:left}'+
-    'th{background:#f1f5f9}.tot{margin-top:16px;text-align:right;font-size:14px}'+
-    '.tot .g{font-size:19px;font-weight:bold;color:#0b2e4f}'+
-    '.ft{margin-top:28px;font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:9px;line-height:1.5}'+
+    'body{font-family:Arial,sans-serif;padding:32px;color:#1c2a3a;font-size:12.5px}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0b2e4f;padding-bottom:12px}'+
+    'h1{color:#0b2e4f;font-size:22px;margin-bottom:6px}h2{font-size:17px;margin:0 0 6px}'+
+    '.parties{display:flex;gap:40px;margin-top:20px}.parties>div{flex:1}'+
+    '.lbl{font-weight:bold;color:#0b2e4f;margin-bottom:5px;font-size:13px}'+
+    'table.it{width:100%;border-collapse:collapse;margin-top:22px}'+
+    'table.it th{background:#eef4f8;border-bottom:2px solid #bcd0e0;padding:8px;text-align:left;font-size:11.5px;color:#0b2e4f}'+
+    'table.it td{border-bottom:1px solid #e2e8f0;padding:8px}'+
+    '.num{text-align:right}'+
+    '.tot{margin-top:18px;margin-left:auto;width:290px}'+
+    '.tot div{display:flex;justify-content:space-between;padding:5px 0}'+
+    '.tot .g{border-top:2px solid #0b2e4f;margin-top:5px;padding-top:8px;font-size:16px;font-weight:bold;color:#0b2e4f}'+
+    '.bank{margin-top:26px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;font-size:11.5px}'+
+    '.ft{margin-top:20px;font-size:10.5px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:8px;line-height:1.55}'+
+    '.sig{margin-top:34px;font-size:12px}'+
     '</style></head><body>'+
-    '<div class="hd"><div><h1>🐟 '+esc(FAMO.nom)+'</h1><div>'+esc(FAMO.adresse)+'<br>'+esc(FAMO.cp)+'<br>BTW: '+esc(FAMO.tva)+(FAMO.tel?'<br>'+esc(FAMO.tel):'')+'</div></div>'+
-    '<div style="text-align:right"><h2>'+titre+'</h2><div>Nr. '+esc(num)+'<br>Datum: '+new Date().toLocaleDateString("nl-BE")+
-    (o.dateLiv?'<br>Levering: '+esc(o.dateLiv):'')+'<br>Ref. bestelling: '+esc(o.ref)+'</div></div></div>'+
-    '<div class="box"><b>Klant</b><br>'+esc(o.client)+'</div>'+
-    '<table><tr><th>Omschrijving</th></tr>'+String(o.lignes||"").split("\n").filter(x=>x.trim()).map(l=>'<tr><td>'+esc(l)+'</td></tr>').join("")+'</table>'+
+
+    '<div class="hd"><div><h1>'+esc(FAMO.nom)+'</h1><div>'+esc(FAMO.adresse)+'<br>'+esc(FAMO.cp)+
+      '<br>BTW: '+esc(FAMO.tva)+(FAMO.tel?'<br>'+esc(FAMO.tel):'')+'</div></div>'+
+    '<div style="text-align:right"><h2>'+titre+'</h2>'+
+      '<div><b>'+(isFA?'Factuur':'Leverbon')+':</b> '+esc(num)+
+      '<br><b>Bestelbonnummer:</b> '+esc(o.ref)+
+      '<br><b>Documentdatum:</b> '+fdate(d)+
+      (isFA?'<br><b>Vervaldatum:</b> '+fdate(verval):'')+
+      (o.dateLiv?'<br><b>Leverdatum:</b> '+esc(o.dateLiv):'')+'</div></div></div>'+
+
+    '<div class="parties"><div><div class="lbl">Leverancier</div>'+esc(FAMO.nom)+'<br>'+esc(FAMO.adresse)+'<br>'+esc(FAMO.cp)+'<br>BTW: '+esc(FAMO.tva)+'</div>'+
+    '<div><div class="lbl">Klant</div>'+esc(k.nom)+
+      (k.adresse?'<br>'+esc(k.adresse).replace(/\n/g,"<br>"):'')+
+      (k.klantnr?'<br>Klantnummer: '+esc(k.klantnr):'')+
+      (k.btw?'<br>BTW: '+esc(k.btw):'')+'</div></div>'+
+
+    '<table class="it"><tr><th>Beschrijving</th><th class="num">Aantal</th><th>Eenheid</th>'+
+      (isFA?'<th class="num">Tarief</th><th class="num">BTW</th><th class="num">Subtotaal</th>':'')+'</tr>'+
+    rows.map(r=>'<tr><td>'+esc(r.nom)+(r.opm?'<br><i style="color:#64748b;font-size:11px">'+esc(r.opm)+'</i>':'')+'</td>'+
+      '<td class="num">'+esc(r.aantal)+'</td><td>'+esc(r.eenheid)+'</td>'+
+      (isFA?'<td class="num"></td><td class="num">'+FAMO.tauxTVA+',0%</td><td class="num"></td>':'')+'</tr>').join("")+
+    '</table>'+
+
     (isFA
-      ? '<div class="tot">Totaal excl. BTW: '+eur(htva)+'<br>BTW '+FAMO.tauxTVA+'%: '+eur(tva)+'<br><span class="g">TOTAAL incl. BTW: '+eur(o.total)+'</span></div>'+
-        '<div class="ft">Betaling: '+esc(o.paiement==="Payé"?"Betaald":"Open")+' · IBAN: '+esc(FAMO.iban)+'<br>Intern document. De wettelijke e-factuur (Peppol) verloopt via de boekhouding.</div>'
-      : '<div class="tot"><span class="g">Totaal: '+eur(o.total)+'</span></div>'+
-        '<div class="ft">Handtekening klant: ______________________<br><br>Goederen ontvangen in goede staat.</div>')+
+      ? '<div class="tot"><div><span>Totaal exclusief btw</span><span>'+eur(htva)+'</span></div>'+
+        '<div><span>BTW '+FAMO.tauxTVA+',0%</span><span>'+eur(tva)+'</span></div>'+
+        '<div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
+        '<div class="bank"><b>Bankgegevens</b><br>'+esc(FAMO.nom)+'<br>IBAN: '+esc(FAMO.iban)+
+        (FAMO.bic?'<br>BIC: '+esc(FAMO.bic):'')+'<br>Betalingskenmerk: '+esc(seq)+'</div>'+
+        '<div class="ft">Betaalstatus: '+esc(o.paiement==="Payé"?"Betaald":"Open")+
+        '<br>Intern document. De wettelijke e-factuur (Peppol) verloopt via de boekhouding.</div>'
+      : '<div class="tot"><div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
+        '<div class="sig">Handtekening klant: ______________________<br><br>Goederen ontvangen in goede staat en conform.</div>'+
+        '<div class="ft">Klachten over verse vis binnen de 12u, over diepvries binnen de 24u.</div>')+
     '</body></html>');
   w.document.close(); w.print();
 }
