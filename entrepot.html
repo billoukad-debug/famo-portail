@@ -182,6 +182,7 @@
 <div id="docPreview" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="docPreviewTitle">
   <div class="doc-preview-pane"><div class="doc-preview-actions"><div><strong id="docPreviewTitle">Documentvoorbeeld</strong><span id="docPreviewMeta"></span></div><div><button type="button" onclick="closeDocPreview()">Sluiten</button><button type="button" class="doc-print" onclick="printDocPreview()">Afdrukken</button></div></div><iframe id="docFrame" title="Documentvoorbeeld"></iframe></div>
 </div>
+<div id="notice" class="notice hidden" role="alert"></div>
 
 <script>
 /* ====== Bedrijfsgegevens Famo Trading ====== */
@@ -310,7 +311,7 @@ function renderDayView(){
 }
 function toggleDayView(){ const panel=document.getElementById("dayPanel"); panel.classList.toggle("hidden"); if(!panel.classList.contains("hidden")){ renderDayView(); panel.scrollIntoView({behavior:"smooth",block:"start"}); } }
 function printConsolidatedPicklist(){
-  const orders=preparationOrders(),items=consolidatedItems(); if(!items.length){ alert("Er zijn geen producten om voor te bereiden."); return; }
+  const orders=preparationOrders(),items=consolidatedItems(); if(!items.length){ showNotice("Er zijn geen producten om voor te bereiden.","error"); return; }
   const w=window.open("","_blank"); if(!w) return;
   w.document.write('<html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}p{font-size:12px;color:#51646e}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #071d2b;padding:8px}td{font-size:15px;border-bottom:1px solid #bdcbd2;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#51646e}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+new Date().toLocaleString("nl-BE")+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>');
   w.document.close(); w.print();
@@ -364,9 +365,9 @@ function editLines(idx){
 async function saveLines(idx){
   const o=ORDERS[idx];
   const lines=(window._editingLines||{})[idx]||[];
-  if(!lines.length){ alert("Geen artikels gevonden."); return; }
+  if(!lines.length){ showNotice("Geen artikels gevonden.","error"); return; }
   const unchecked=lines.findIndex((_,i)=>!document.getElementById("ok"+idx+"_"+i).checked);
-  if(unchecked>=0){ alert("Valideer elk artikel afzonderlijk voordat u opslaat."); return; }
+  if(unchecked>=0){ showNotice("Valideer elk artikel afzonderlijk voordat u opslaat.","error"); return; }
   const actualLines=lines.map((line,i)=>formatOrderLine(line,document.getElementById("aq"+idx+"_"+i).value));
   const patch={id:o.id, lignes:actualLines.join("\n"), total:parseFloat(document.getElementById("tt"+idx).value)||0, preparationValidee:true};
   if(o.statut==="Reçue") patch.statut="Prête";
@@ -375,7 +376,7 @@ async function saveLines(idx){
 
 function printPicklist(){
   const todo=ORDERS.filter(o=>o.statut==="Reçue"||o.statut==="Prête");
-  if(!todo.length){ alert("Er zijn geen bestellingen om voor te bereiden."); return; }
+  if(!todo.length){ showNotice("Er zijn geen bestellingen om voor te bereiden.","error"); return; }
   const w=window.open("","_blank"); if(!w) return;
   const blocks=todo.map(o=>'<section><header><b>'+esc(o.ref)+' — '+esc(o.client)+'</b><span>Levering: '+esc(o.dateLiv||"—")+'</span></header><table>'+String(o.lignes||"").split("\n").filter(Boolean).map(l=>'<tr><td class="box">☐</td><td>'+esc(l.replace(/\s*\[€[^\]]+\]/g,""))+'</td></tr>').join("")+'</table></section>').join("");
   w.document.write('<html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}section{border:2px solid #071d2b;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #bdcbd2;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>');
@@ -384,8 +385,8 @@ function printPicklist(){
 
 function doc(idx,type){
   const o=ORDERS[idx], isFA=type==="FA";
-  if(isFA && !o.factuurnummer){ alert("Factureer de bestelling eerst. Dan krijgt ze een officieel factuurnummer."); return; }
-  if(!isFA && o.statut==="Reçue"){ alert("Zet de bestelling eerst op ‘Klaar’ vóór u de leverbon afdrukt."); return; }
+  if(isFA && !o.factuurnummer){ showNotice("Factureer de bestelling eerst. Dan krijgt ze een officieel factuurnummer.","error"); return; }
+  if(!isFA && o.statut==="Reçue"){ showNotice("Zet de bestelling eerst op ‘Klaar’ vóór u de leverbon afdrukt.","error"); return; }
   const k=o.klant||{nom:o.client,adresse:"",btw:"",klantnr:""};
   const htva=o.total/(1+FAMO.tauxTVA/100), tva=o.total-htva;
   const titre=isFA?"FACTUUR":"LEVERINGSBON";
@@ -462,6 +463,7 @@ function doc(idx,type){
 function showDocPreview(html,num){const modal=document.getElementById("docPreview"),frame=document.getElementById("docFrame");document.getElementById("docPreviewMeta").textContent=num;frame.srcdoc=html;modal.classList.remove("hidden");document.body.style.overflow="hidden";modal.querySelector("button").focus()}
 function closeDocPreview(){const modal=document.getElementById("docPreview");modal.classList.add("hidden");document.getElementById("docFrame").srcdoc="";document.body.style.overflow=""}
 function printDocPreview(){const frame=document.getElementById("docFrame");if(frame.contentWindow)frame.contentWindow.print()}
+function showNotice(message,kind="info"){const box=document.getElementById("notice");box.textContent=message;box.className="notice "+kind;clearTimeout(window._noticeTimer);window._noticeTimer=setTimeout(()=>box.classList.add("hidden"),7000)}
 
 async function adv(id,statut){ await upd({id,statut}); }
 function confirmDelivery(idx){
@@ -476,8 +478,8 @@ function confirmDelivery(idx){
 }
 async function saveDelivery(idx){
   const o=ORDERS[idx], recipient=document.getElementById("receiver"+idx).value.trim(), proofUrl=document.getElementById("proof"+idx).value.trim();
-  if(!recipient){ alert("Vul in wie de levering heeft ontvangen."); return; }
-  if(proofUrl && !/^https:\/\//i.test(proofUrl)){ alert("Gebruik een beveiligde https://-link voor het bewijs."); return; }
+  if(!recipient){ showNotice("Vul in wie de levering heeft ontvangen.","error"); return; }
+  if(proofUrl && !/^https:\/\//i.test(proofUrl)){ showNotice("Gebruik een beveiligde https://-link voor het bewijs.","error"); return; }
   await upd({id:o.id,statut:"Facturée",deliveryConfirmed:true,recipient,proofUrl});
 }
 async function confirmAdvance(id,statut,index){
@@ -494,7 +496,7 @@ async function upd(patch){
   if(!r.ok){
     const missing=d.stock&&d.stock.missing&&d.stock.missing.length?"\n\nNiet gevonden in voorraad:\n- "+d.stock.missing.join("\n- "):"";
     const insufficient=d.stock&&d.stock.insufficient&&d.stock.insufficient.length?"\n\nOnvoldoende voorraad:\n"+d.stock.insufficient.map(x=>"- "+x.nom+": "+x.available+" beschikbaar, "+x.requested+" gevraagd").join("\n"):"";
-    alert((d.error||"Fout bij bijwerken")+missing+insufficient); return;
+    showNotice((d.error||"Fout bij bijwerken")+missing+insufficient,"error"); return;
   }
   if(d.stock){
     const done=(d.stock.done||[]).map(x=>x.nom+": "+x.van+" → "+x.naar).join("\n");
@@ -502,9 +504,9 @@ async function upd(patch){
     let msg="";
     if(done) msg+="Voorraad afgeboekt:\n"+done;
     if(miss.length) msg+=(msg?"\n\n":"")+"⚠️ Niet gevonden in voorraad (niets afgeboekt):\n- "+miss.join("\n- ")+"\n\nControleer de productnamen in Airtable.";
-    if(msg) alert(msg);
+    if(msg) showNotice(msg,"info");
   }
-  if(d.factuurnummer) alert("Factuurnummer toegekend: "+d.factuurnummer);
+  if(d.factuurnummer) showNotice("Factuurnummer toegekend: "+d.factuurnummer,"info");
   load();
 }
 document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
