@@ -51,17 +51,21 @@ async function buildOrderLines(clientId, items){
     const quantity = numberOf(item && item.quantity);
     if (!productId || quantity <= 0 || quantity > 100000) throw new Error("Ongeldige hoeveelheid");
     if (!products.has(productId)) throw new Error("Artikel is niet beschikbaar");
-    merged.set(productId, (merged.get(productId) || 0) + quantity);
+    const prev = merged.get(productId) || { quantity: 0, comment: "" };
+    prev.quantity += quantity;
+    prev.comment = cleanComment(item && item.comment) || prev.comment;
+    merged.set(productId, prev);
   }
 
   const lines = [];
   let total = 0;
-  for (const [productId, quantity] of merged) {
+  for (const [productId, entry] of merged) {
+    const quantity = entry.quantity;
     const fields = products.get(productId).fields;
     const price = priceByProduct.has(productId) ? priceByProduct.get(productId) : numberOf(fields["Prix de base"]);
     const unit = fields["Unité"] || "";
     const name = fields["Produit"] || "Artikel";
-    const comment = cleanComment(item.comment);
+    const comment = entry.comment;
     // Keep the agreed unit price with the order. It makes a later invoice
     // reproducible even if the catalogue price changes in the meantime.
     lines.push(`${name} × ${quantity}${unit ? " " + unit : ""} [€${price.toFixed(2)}]${comment ? " (" + comment + ")" : ""}`);
