@@ -1,0 +1,23 @@
+name: Check before deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Syntax and API lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript embedded in the app
+        run: node scripts/check.js
+      - name: Lint API functions
+        run: npx --yes eslint@9 api/
