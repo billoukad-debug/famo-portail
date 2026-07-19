@@ -172,6 +172,8 @@ async function saveLines(idx){
 
 function doc(idx,type){
   const o=ORDERS[idx], isFA=type==="FA";
+  if(isFA && !o.factuurnummer){ alert("Factureer de bestelling eerst. Dan krijgt ze een officieel factuurnummer."); return; }
+  if(!isFA && o.statut==="Reçue"){ alert("Zet de bestelling eerst op ‘Klaar’ vóór u de leverbon afdrukt."); return; }
   const k=o.klant||{nom:o.client,adresse:"",btw:"",klantnr:""};
   const htva=o.total/(1+FAMO.tauxTVA/100), tva=o.total-htva;
   const titre=isFA?"FACTUUR":"LEVERINGSBON";
@@ -253,7 +255,8 @@ async function upd(patch){
   const d=await r.json().catch(()=>({}));
   if(!r.ok){
     const missing=d.stock&&d.stock.missing&&d.stock.missing.length?"\n\nNiet gevonden in voorraad:\n- "+d.stock.missing.join("\n- "):"";
-    alert((d.error||"Fout bij bijwerken")+missing); return;
+    const insufficient=d.stock&&d.stock.insufficient&&d.stock.insufficient.length?"\n\nOnvoldoende voorraad:\n"+d.stock.insufficient.map(x=>"- "+x.nom+": "+x.available+" beschikbaar, "+x.requested+" gevraagd").join("\n"):"";
+    alert((d.error||"Fout bij bijwerken")+missing+insufficient); return;
   }
   if(d.stock){
     const done=(d.stock.done||[]).map(x=>x.nom+": "+x.van+" → "+x.naar).join("\n");
