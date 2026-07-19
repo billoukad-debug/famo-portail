@@ -54,6 +54,22 @@ function parseLines(txt){
   }).filter(Boolean);
 }
 
+async function validatePreparedLines(txt){
+  const lines = parseLines(txt);
+  if (!lines.length || lines.some(line => line.qty <= 0)) throw new Error("Ongeldige hoeveelheid in de voorbereiding");
+  const catalogue = await atAll("Catalogue");
+  if (catalogue.error) throw new Error(catalogue.error.message || "Catalogus kon niet worden gelezen");
+  const normalize = value => String(value || "").toLowerCase().trim();
+  const byName = new Map((catalogue.records || []).map(record => [normalize(record.fields["Produit"]), record]));
+  for (const line of lines) {
+    const product = byName.get(normalize(line.nom));
+    if (!product) throw new Error(`Artikel niet gevonden in de catalogus: ${line.nom}`);
+    if (!/kg/i.test(String(product.fields["Unité"] || "")) && !Number.isInteger(line.qty)) {
+      throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
+    }
+  }
+}
+
 // Déduit toutes les quantités en une seule mise à jour Airtable. Aucune ligne ne
 // part si un produit est inconnu : le magasin peut corriger le BL sans dérive de stock.
 async function deductStock(lignes){
@@ -130,7 +146,14 @@ module.exports = async (req, res) => {
     const fields = {};
     if (paiement && !["Payé", "En attente"].includes(paiement)) return res.status(400).json({ error: "Ongeldige betaalstatus" });
     if (paiement) fields["Statut paiement"] = paiement;
-    if (typeof lignes === "string") fields["Lignes (produits / quantités)"] = lignes;
+    if (typeof lignes === "string") {
+      try {
+        await validatePreparedLines(lignes);
+      } catch (error) {
+        return res.status(400).json({ error: String(error.message || error) });
+      }
+      fields["Lignes (produits / quantités)"] = lignes;
+    }
     if (typeof total === "number") fields["Total"] = total;
     const statuses = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
     if (statut && !statuses.includes(statut)) return res.status(400).json({ error: "Ongeldige bestelstatus" });

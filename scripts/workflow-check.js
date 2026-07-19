@@ -53,6 +53,15 @@ async function main() {
   const preparationPatch = JSON.parse(result.calls[1].options.body);
   assert.equal(preparationPatch.fields["Préparation validée"], true);
 
+  result = await call(updateOrder, {
+    code: "famo2026", id: "rec1", lignes: "Mosselen × 0.5 caisse", total: 6
+  }, [
+    { fields: { Statut: "Reçue" } },
+    { records: [{ fields: { "Produit": "Mosselen", "Unité": "caisse" } }] }
+  ]);
+  assert.equal(result.res.statusCode, 400);
+  assert.match(result.res.payload.error, /decimale hoeveelheid/);
+
   result = await call(createOrder, {
     user: "test", pw: "pass", total: 0,
     items: [{ productId: "prod1", quantity: 2, price: 0 }]
