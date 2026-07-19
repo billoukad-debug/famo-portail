@@ -179,6 +179,10 @@
 </div>
 </div>
 
+<div id="docPreview" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="docPreviewTitle">
+  <div class="doc-preview-pane"><div class="doc-preview-actions"><div><strong id="docPreviewTitle">Documentvoorbeeld</strong><span id="docPreviewMeta"></span></div><div><button type="button" onclick="closeDocPreview()">Sluiten</button><button type="button" class="doc-print" onclick="printDocPreview()">Afdrukken</button></div></div><iframe id="docFrame" title="Documentvoorbeeld"></iframe></div>
+</div>
+
 <script>
 /* ====== Bedrijfsgegevens Famo Trading ====== */
 const FAMO = {
@@ -399,8 +403,7 @@ function doc(idx,type){
     return {nom:m[1].trim(), aantal:m[2], eenheid:m[3].trim(), prijs:price?parseFloat(price[1].replace(",",".")):null, opm:comment?comment[1]:""};
   });
 
-  const w=window.open("","_blank");
-  w.document.write('<html><head><meta charset="utf-8"><title>'+num+'</title><style>'+
+  const docHtml='<html><head><meta charset="utf-8"><title>'+num+'</title><style>'+
     'body{font-family:Arial,sans-serif;padding:32px;color:#1c2a3a;font-size:12.5px}'+
     '.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0b2e4f;padding-bottom:12px}'+
     'h1{color:#0b2e4f;font-size:22px;margin-bottom:6px}h2{font-size:17px;margin:0 0 6px}'+
@@ -451,9 +454,13 @@ function doc(idx,type){
       : '<div class="tot"><div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
         '<div class="sig">Handtekening klant: ______________________<br><br>Goederen ontvangen in goede staat en conform.</div>'+
         '<div class="ft">Klachten over verse vis binnen de 12u, over diepvries binnen de 24u.</div>')+
-    '</body></html>');
-  w.document.close(); w.print();
+    '</body></html>';
+  showDocPreview(docHtml,num);
 }
+
+function showDocPreview(html,num){const modal=document.getElementById("docPreview"),frame=document.getElementById("docFrame");document.getElementById("docPreviewMeta").textContent=num;frame.srcdoc=html;modal.classList.remove("hidden");document.body.style.overflow="hidden";modal.querySelector("button").focus()}
+function closeDocPreview(){const modal=document.getElementById("docPreview");modal.classList.add("hidden");document.getElementById("docFrame").srcdoc="";document.body.style.overflow=""}
+function printDocPreview(){const frame=document.getElementById("docFrame");if(frame.contentWindow)frame.contentWindow.print()}
 
 async function adv(id,statut){ await upd({id,statut}); }
 function confirmDelivery(idx){
