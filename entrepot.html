@@ -58,6 +58,12 @@
   .oc textarea { width:100%; font-family:inherit; font-size:13px; border:1.5px solid var(--line); border-radius:9px; padding:8px; min-height:76px; margin-top:8px; }
   .tin { width:100px; padding:8px; border:1.5px solid var(--line); border-radius:9px; font-size:13px; }
   .ehint { font-size:11px; color:var(--mut); margin-top:5px; }
+  .pick-editor{margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+  .pick-row{display:grid;grid-template-columns:28px minmax(0,1fr) 130px;gap:9px;align-items:center;padding:10px;border-bottom:1px solid var(--line)}
+  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--ok)}
+  .pick-row .pn{font-size:13px;font-weight:700}.pick-row .pm{font-size:11px;color:var(--mut);margin-top:2px}.pick-row.done{background:#f0fdf4}
+  .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:32px;min-height:32px;padding:0;background:#eef2f6;color:var(--navy);font-size:18px}.actual input{width:48px;min-height:32px;text-align:center;border:1px solid var(--line);border-radius:5px;font:700 14px ui-monospace,monospace}
+  .edit-head{font-size:12px;font-weight:750;color:var(--navy);margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
   .empty { color:#94a3b8; font-size:12.5px; padding:8px; text-align:center; }
   .hidden { display:none !important; }
 
@@ -225,17 +231,58 @@ function render(){
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
 }
 
+function parseOrderLine(line){
+  const raw=String(line||"").trim();
+  const m=raw.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)(.*)$/);
+  if(!m) return {raw,name:raw,quantity:0,unit:"",price:null,comment:""};
+  const tail=m[4]||"", price=tail.match(/\[€\s*([\d.,]+)\]/), comment=tail.match(/\((.*?)\)/);
+  return {raw,name:m[1].trim(),quantity:parseFloat(m[2].replace(",","."))||0,unit:m[3].trim(),price:price?parseFloat(price[1].replace(",",".")):null,comment:comment?comment[1]:""};
+}
+function formatOrderLine(line, quantity){
+  const q=Math.max(0,Math.round((Number(quantity)||0)*1000)/1000);
+  return line.name+" × "+q+(line.unit?" "+line.unit:"")+(line.price==null?"":" [€"+line.price.toFixed(2)+"]")+(line.comment?" ("+line.comment+")":"");
+}
+function changeActual(orderIndex,lineIndex,delta){
+  const input=document.getElementById("aq"+orderIndex+"_"+lineIndex); if(!input) return;
+  input.value=Math.max(0,(parseFloat(input.value)||0)+delta); refreshActualTotal(orderIndex);
+}
+function refreshActualTotal(orderIndex){
+  const lines=(window._editingLines||{})[orderIndex]||[];
+  const totalInput=document.getElementById("tt"+orderIndex); if(!totalInput) return;
+  if(lines.every(line=>line.price!=null)){
+    const total=lines.reduce((sum,line,i)=>sum+(parseFloat(document.getElementById("aq"+orderIndex+"_"+i).value)||0)*line.price,0);
+    totalInput.value=(Math.round(total*100)/100).toFixed(2); totalInput.readOnly=true;
+  }
+}
+function markPicked(orderIndex,lineIndex){
+  const check=document.getElementById("ok"+orderIndex+"_"+lineIndex), row=document.getElementById("pr"+orderIndex+"_"+lineIndex);
+  if(row) row.classList.toggle("done",!!check.checked);
+}
 function editLines(idx){
   const o=ORDERS[idx], box=document.getElementById("e"+idx);
   if(box.innerHTML){ box.innerHTML=""; return; }
-  box.innerHTML='<textarea id="ta'+idx+'">'+esc(o.lignes)+'</textarea>'+
-    '<div class="row" style="align-items:center">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'">'+
-    '<button class="save" onclick="saveLines('+idx+')">💾 Opslaan</button></div>'+
-    '<div class="ehint">Pas de werkelijk geleverde aantallen aan en sla op vóór het afdrukken van de leverbon.</div>';
+  const lines=String(o.lignes||"").split("\n").filter(Boolean).map(parseOrderLine);
+  window._editingLines=window._editingLines||{}; window._editingLines[idx]=lines;
+  const allPriced=lines.every(line=>line.price!=null);
+  box.innerHTML='<div class="edit-head">Controleer en valideer elk artikel voordat de bestelling vertrekt.</div>'+
+    '<div class="pick-editor">'+lines.map((line,i)=>
+      '<label class="pick-row" id="pr'+idx+'_'+i+'">'+
+      '<input id="ok'+idx+'_'+i+'" type="checkbox" onchange="markPicked('+idx+','+i+')" aria-label="Artikel gecontroleerd">'+
+      '<span><span class="pn">'+esc(line.name)+'</span><span class="pm">Besteld: '+line.quantity+(line.unit?' '+esc(line.unit):'')+(line.comment?' · '+esc(line.comment):'')+'</span></span>'+
+      '<span class="actual"><button type="button" onclick="changeActual('+idx+','+i+',-1)">−</button><input id="aq'+idx+'_'+i+'" type="number" min="0" step="0.001" value="'+line.quantity+'" oninput="refreshActualTotal('+idx+')"><button type="button" onclick="changeActual('+idx+','+i+',1)">+</button></span>'+
+      '</label>').join('')+'</div>'+
+    '<div class="edit-total">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">✓ Voorbereiding opslaan</button></div>'+
+    '<div class="ehint">De aantallen en het totaal worden vastgezet zodra de goederen vertrekken.</div>';
+  refreshActualTotal(idx);
 }
 async function saveLines(idx){
   const o=ORDERS[idx];
-  await upd({id:o.id, lignes:document.getElementById("ta"+idx).value, total:parseFloat(document.getElementById("tt"+idx).value)||0});
+  const lines=(window._editingLines||{})[idx]||[];
+  if(!lines.length){ alert("Geen artikels gevonden."); return; }
+  const unchecked=lines.findIndex((_,i)=>!document.getElementById("ok"+idx+"_"+i).checked);
+  if(unchecked>=0){ alert("Valideer elk artikel afzonderlijk voordat u opslaat."); return; }
+  const actualLines=lines.map((line,i)=>formatOrderLine(line,document.getElementById("aq"+idx+"_"+i).value));
+  await upd({id:o.id, lignes:actualLines.join("\n"), total:parseFloat(document.getElementById("tt"+idx).value)||0});
 }
 
 function printPicklist(){
