@@ -1,0 +1,54 @@
+# FAMO Portail
+
+Portail B2B FAMO pour la prise de commande, la préparation magasin, le stock et le suivi jusqu’à la facture.
+
+## Parcours opérationnel
+
+1. Le client ou un membre de l’équipe encode une commande. Le serveur relit le catalogue Airtable et recalcule les prix : le navigateur ne décide jamais du prix final.
+2. Au magasin, chaque article est validé séparément et la quantité réellement préparée est saisie. Cette validation est nécessaire avant le départ.
+3. Au départ en livraison, le stock est contrôlé et déduit. Une ligne de journal est créée par produit avec quantité avant/après.
+4. À la réception, le magasin enregistre la personne qui a réceptionné la commande et peut joindre un lien HTTPS vers la photo ou signature de preuve. La facture est ensuite numérotée.
+5. Les corrections de stock demandent un type de mouvement et une raison/référence, et sont journalisées.
+
+Les produits vendus au kilo acceptent des quantités décimales (par exemple `0,5 kg`). Les caisses restent en quantités entières dans l’interface.
+
+## Pages
+
+- `/` : portail client et réassort.
+- `/invoer.html` : saisie interne pour commandes téléphone/WhatsApp.
+- `/entrepot.html` : préparation, livraison et facturation.
+- `/stock.html` : inventaire, entrées, retours et seuils bas.
+- `/cadrage.html` : questionnaire de cadrage client.
+
+## Données Airtable utilisées
+
+- `Clients`, `Catalogue`, `Prix négociés`, `Commandes`, `Stock`;
+- `Mouvements de stock` pour les entrées, retours, corrections et sorties;
+- dans `Commandes` : préparation validée, dates de préparation/livraison/facture, confirmation de réception, réceptionnaire et preuve de livraison.
+
+## Développement et contrôles
+
+Les fonctions Vercel lisent les variables d’environnement suivantes :
+
+```text
+AIRTABLE_TOKEN=...
+STAFF_CODE=...
+```
+
+Le code personnel a une valeur de compatibilité si `STAFF_CODE` est absent, mais une vraie valeur doit être configurée dans Vercel avant la mise en exploitation.
+
+Exécuter les contrôles avant publication :
+
+```bash
+node scripts/check.js
+```
+
+Ils vérifient la syntaxe des API et des scripts HTML, les fonctions appelées depuis le HTML, et les règles métier critiques : prix serveur, validation de préparation et confirmation de réception. GitHub Actions exécute le même contrôle à chaque push sur `main`.
+
+## Limites à raccorder avant exploitation comptable complète
+
+- La facture générée par le portail est un document interne. L’envoi légal B2B via Peppol doit être relié au prestataire comptable choisi (par exemple Billtobox).
+- La preuve de livraison accepte aujourd’hui un lien HTTPS vers une photo ou une signature. Un dépôt direct de fichiers nécessite de choisir et connecter un stockage (Vercel Blob, Drive ou équivalent).
+- La numérotation actuelle est séquentielle pour un usage normal. La garantie atomique multi-utilisateur doit être fournie par le système comptable/Peppol avant d’émettre des factures légales en parallèle.
+
+Les factures historiques ne sont pas automatiquement complétées avec une preuve de livraison fictive : elles restent traçables comme données antérieures au nouveau processus.

@@ -168,7 +168,7 @@ function renderCatalogue(){
 }
 function stepFor(i){ return /kg/i.test(String((PRODUCTS[i]||{}).unite||""))?.1:1; }
 function chg(i,d){ setQ(i,(panier[i]||0)+d*stepFor(i)); }
-function setQ(i,v){ v=Math.max(0,Math.round((parseFloat(String(v).replace(",","."))||0)*1000)/1000); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
+function setQ(i,v){ v=Math.max(0,Math.round((parseFloat(String(v).replace(",","."))||0)*1000)/1000); if(stepFor(i)===1)v=Math.round(v); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
 function setCmt(i,v){ comments[i]=v; renderCart(); }
 function setSrc(s,el){ SRC=s; ["s1","s2","s3","s4"].forEach(id=>document.getElementById(id).classList.remove("on")); el.classList.add("on"); }
 

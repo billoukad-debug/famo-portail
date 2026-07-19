@@ -68,6 +68,17 @@ async function main() {
   assert.equal(created.Total, 25);
   assert.match(created["Lignes (produits / quantités)"], /\[€12\.50\]/);
 
+  result = await call(createOrder, {
+    user: "test", pw: "pass",
+    items: [{ productId: "prod1", quantity: 0.5 }]
+  }, [
+    { records: [{ id: "client1", fields: { "Wachtwoord": "pass" } }] },
+    { records: [{ id: "prod1", fields: { "Produit": "Mosselen", "Prix de base": 12.5, "Unité": "caisse" } }] },
+    { records: [] }
+  ]);
+  assert.equal(result.res.statusCode, 400);
+  assert.match(result.res.payload.error, /decimale hoeveelheid/);
+
   console.log("✓ Règles métier commande, préparation et livraison");
 }
 

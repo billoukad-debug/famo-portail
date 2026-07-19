@@ -46,6 +46,9 @@ async function buildOrderLines(clientId, items){
     const productId = String(item && item.productId || "");
     const quantity = numberOf(item && item.quantity);
     if (!productId || quantity <= 0 || quantity > 100000 || !products.has(productId)) throw new Error("Ongeldig artikel of aantal");
+    if (!/kg/i.test(String(products.get(productId).fields["Unité"] || "")) && !Number.isInteger(quantity)) {
+      throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
+    }
     const old = merged.get(productId) || { quantity: 0, comment: "" };
     old.quantity += quantity;
     old.comment = cleanComment(item.comment) || old.comment;
