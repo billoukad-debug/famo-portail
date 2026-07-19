@@ -46,8 +46,17 @@ async function deductStock(lignes){
   const recs = st.records || [];
   const norm = s => String(s || "").toLowerCase().trim();
 
+  const requested = new Map();
+  for (const item of items) {
+    if (item.qty <= 0) return { ...report, error: "Ongeldige hoeveelheid in de bestelling" };
+    const key = norm(item.nom);
+    const previous = requested.get(key) || { nom: item.nom, qty: 0 };
+    previous.qty += item.qty;
+    requested.set(key, previous);
+  }
+
   const updates = [];
-  for (const it of items){
+  for (const it of requested.values()){
     const rec = recs.find(r => norm(r.fields["Produit"]) === norm(it.nom));
     if (!rec){ report.missing.push(it.nom); continue; }
     const cur = numberOf(rec.fields["Quantité disponible"]);
