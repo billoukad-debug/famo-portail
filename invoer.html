@@ -160,14 +160,15 @@ function renderCatalogue(){
         '<div class="pmeta"><span class="pprice">'+eur(p.prix)+'</span>'+(neg?'<span class="pbase">'+eur(p.base)+'</span><span class="tag">klantprijs</span>':'')+' / '+esc(p.unite)+'</div>'+
         (panier[i]?'<input class="cmt-in" placeholder="Opmerking…" value="'+esc(comments[i]||"")+'" oninput="setCmt('+i+',this.value)">':'')+
         '</div><div class="qty"><button onclick="chg('+i+',-1)">−</button>'+
-        '<input id="q'+i+'" type="number" min="0" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)">'+
+        '<input id="q'+i+'" type="number" min="0" step="'+(/kg/i.test(String(p.unite||''))?.1:1)+'" value="'+(panier[i]||0)+'" onchange="setQ('+i+',this.value)">'+
         '<button onclick="chg('+i+',1)">+</button></div></div>';
     }).join("");
   });
   document.getElementById("catalogue").innerHTML=h||'<div class="empty">Geen artikelen.</div>';
 }
-function chg(i,d){ setQ(i,(panier[i]||0)+d); }
-function setQ(i,v){ v=Math.max(0,parseInt(v)||0); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
+function stepFor(i){ return /kg/i.test(String((PRODUCTS[i]||{}).unite||""))?.1:1; }
+function chg(i,d){ setQ(i,(panier[i]||0)+d*stepFor(i)); }
+function setQ(i,v){ v=Math.max(0,Math.round((parseFloat(String(v).replace(",","."))||0)*1000)/1000); if(v===0){ delete panier[i]; delete comments[i]; } else panier[i]=v; renderCatalogue(); renderCart(); }
 function setCmt(i,v){ comments[i]=v; renderCart(); }
 function setSrc(s,el){ SRC=s; ["s1","s2","s3","s4"].forEach(id=>document.getElementById(id).classList.remove("on")); el.classList.add("on"); }
 
