@@ -225,10 +225,11 @@ function render(){
       '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
       (o.factuurnummer?'<div class="meta">🧾 '+esc(o.factuurnummer)+'</div>':'')+
       (o.stockAf?'<div class="meta" style="color:#16a34a">✓ Voorraad afgeboekt</div>':'')+
+      (o.statut==="Prête"&&!o.preparationValidee?'<div class="meta" style="color:#b45309">⚠️ Artikels nog niet afzonderlijk gevalideerd</div>':'')+
       (o.livraisonConfirmee?'<div class="meta" style="color:#16a34a">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
       (o.notes?'<div class="meta">📝 '+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
-        (o.statut==="Reçue"?'<button class="adv" onclick="editLines('+idx+')">Artikels controleren</button>':(next?'<button class="adv" onclick="'+(next==="Facturée"?'confirmDelivery('+idx+')':'confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')')+'">'+NEXTLBL[next]+'</button>':''))+
+        ((o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee))?'<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>':(next?'<button class="adv" onclick="'+(next==="Facturée"?'confirmDelivery('+idx+')':'confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')')+'">'+NEXTLBL[next]+'</button>':''))+
         (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
         '<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>'+
         '<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>'+
