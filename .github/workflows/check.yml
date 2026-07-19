@@ -1,4 +1,4 @@
-name: Check before deploy
+name: Controle du code
 
 on:
   push:
@@ -7,17 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  check:
-    name: Syntax and API lint
+  controle:
+    name: Syntaxe et lint API
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Recuperer le depot
         uses: actions/checkout@v4
-      - name: Set up Node.js
+      - name: Installer Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Check JavaScript embedded in the app
+      - name: Verifier les API et scripts HTML
         run: node scripts/check.js
-      - name: Lint API functions
+      - name: Verifier les variables API
         run: npx --yes eslint@9 api/
