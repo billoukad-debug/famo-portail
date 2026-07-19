@@ -117,11 +117,14 @@ const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"
 async function enter(){
   CODE=document.getElementById("code").value.trim();
   const err=document.getElementById("err"); err.textContent="Controleren…";
-  const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
-  if(!r.ok){ err.textContent="Ongeldige code"; return; }
-  document.getElementById("loginView").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  const d=await r.json(); ORDERS=d.orders; render();
+  try{
+    const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
+    if(!r.ok){ err.textContent="Code ongeldig of server niet beschikbaar"; return; }
+    const d=await r.json();
+    document.getElementById("loginView").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    ORDERS=d.orders||[]; render();
+  }catch(e){ err.textContent="Verbinding mislukt. Vernieuw de pagina en probeer opnieuw."; }
 }
 async function load(){
   const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
@@ -230,7 +233,7 @@ function doc(idx,type){
       (isFA?'<th class="num">Tarief</th><th class="num">BTW</th><th class="num">Subtotaal</th>':'')+'</tr>'+
     rows.map(r=>'<tr><td>'+esc(r.nom)+(r.opm?'<br><i style="color:#64748b;font-size:11px">'+esc(r.opm)+'</i>':'')+'</td>'+
       '<td class="num">'+esc(r.aantal)+'</td><td>'+esc(r.eenheid)+'</td>'+
-      (isFA?'<td class="num">'+(r.prijs==null?"":eur(r.prijs))+'</td><td class="num">'+FAMO.tauxTVA+',0%</td><td class="num">'+(r.prijs==null?"":eur(r.prijs*(parseFloat(String(r.aantal).replace(",","."))||0))+'</td>':'')+'</tr>').join("")+
+      (isFA?'<td class="num">'+(r.prijs==null?"":eur(r.prijs))+'</td><td class="num">'+FAMO.tauxTVA+',0%</td><td class="num">'+(r.prijs==null?"":eur(r.prijs*(parseFloat(String(r.aantal).replace(",","."))||0)))+'</td>':'')+'</tr>').join("")+
     '</table>'+
 
     (isFA
