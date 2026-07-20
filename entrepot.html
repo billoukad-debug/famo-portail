@@ -145,13 +145,8 @@
 </div>
 
 <div id="app" class="hidden warehouse-app">
-  <header class="warehouse-topbar"><div class="warehouse-topbar-inner">
-    <div class="warehouse-title"><span class="warehouse-mark">F</span><span>Famo Trading — Magazijn</span></div>
-    <div class="warehouse-actions"><a href="/invoer.html">Bestelling invoeren</a><a href="/stock.html">Voorraad</a><button class="warehouse-secondary" onclick="toggleDayView()">Dagvoorbereiding</button><button class="warehouse-primary" onclick="printPicklist()">Voorbereidingslijst afdrukken</button><button class="warehouse-refresh" onclick="load()">Vernieuwen</button></div>
-  </div></header>
-  <main class="warehouse-workspace">
-  <div class="warehouse-stamp" id="stamp"></div>
-  <div class="warehouse-notice">Documenten zijn interne afdrukken. De wettelijke Peppol-factuur verloopt via de boekhouding.</div>
+  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="/entrepot.html"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="/invoer.html">Invoeren</a><a class="active" href="/entrepot.html">Magazijn</a><a href="/stock.html">Voorraad</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Magazijn Antwerpen</small></div></div></aside>
+  <div class="warehouse-main"><header class="warehouse-mobilebar"><button onclick="toggleWarehouseMenu()">Menu</button><b>Magazijn</b></header><main class="warehouse-workspace"><div class="warehouse-content"><header class="warehouse-page-head"><div><h1>Magazijn</h1><p>Bereiding en levering · <span id="stamp"></span></p></div><div class="warehouse-actions"><button class="warehouse-primary" onclick="toggleDayView()">Dagvoorbereiding</button><button onclick="printPicklist()">Voorbereidingslijst</button><button onclick="load()">Vernieuw</button></div></header>
   <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div class="day-filter"><label for="dayFilter">Leverdatum</label><select id="dayFilter" onchange="setDayFilter(this.value)"><option value="today">Vandaag</option><option value="tomorrow">Morgen</option><option value="overdue">Te laat</option><option value="nodate">Zonder datum</option><option value="all">Alle open bestellingen</option><option value="custom">Kies datum…</option></select><input id="dayCustom" class="hidden" type="date" onchange="renderDayView()"></div><div id="pickSummary" class="pick-summary"></div></section>
   <section class="warehouse-toolbar" aria-label="Bestellingen zoeken en sorteren"><label for="orderSearch">Zoeken</label><input id="orderSearch" type="search" placeholder="Referentie, klant of artikel…" oninput="setOrderQuery(this.value)"><label for="orderSort">Sorteren</label><select id="orderSort" onchange="setOrderSort(this.value)"><option value="delivery">Leverdatum: eerst</option><option value="recent">Recent toegevoegd</option><option value="client">Klant: A–Z</option><option value="total">Totaal: hoog naar laag</option></select><button type="button" onclick="clearOrderFilters()">Wissen</button><span id="boardSummary" role="status"></span></section>
   <div class="board">
@@ -160,8 +155,9 @@
     <div class="col c2"><h3>Onderweg <span class="n" id="n2">0</span></h3><div id="c2"></div></div>
     <div class="col c3"><h3>Gefactureerd <span class="n" id="n3">0</span></h3><div id="c3"></div></div>
   </div>
-</div>
-  </main>
+      </div>
+    </main>
+  </div>
 </div>
 
 <div id="docPreview" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="docPreviewTitle">
@@ -189,6 +185,7 @@ const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Factur
 let CODE="", ORDERS=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery";
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+function toggleWarehouseMenu(){ document.querySelector(".warehouse-sidebar").classList.toggle("open"); }
 function renderLines(txt){
   return '<div class="order-lines">'+String(txt||"").split("\n").filter(Boolean).map(line=>{
     const clean=line.replace(/\s*\[€[^\]]+\]/g,"");
@@ -244,6 +241,7 @@ function render(){
     document.getElementById("c"+si).appendChild(el);
   });
   for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML='<div class="empty">—</div>'; }
+  document.getElementById("statTodo").textContent=counts[0]+counts[1]; document.getElementById("statOnway").textContent=counts[2]; document.getElementById("statOpen").textContent=counts[0]+counts[1]+counts[2];
   const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
   if(!document.getElementById("dayPanel").classList.contains("hidden")) renderDayView();
