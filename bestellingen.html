@@ -64,7 +64,7 @@ function render(){const summary=document.getElementById("summary"),state=documen
 function openOrder(id){window.location.href="/order.html?id="+encodeURIComponent(id)}
 function logout(){sessionStorage.removeItem("famoStaffCode");CODE="";ORDERS=[];document.getElementById("app").classList.add("hidden");document.getElementById("loginView").classList.remove("hidden");document.getElementById("code").focus()}
 document.getElementById("code").addEventListener("keydown",event=>{if(event.key==="Enter")enter()});
-window.addEventListener("DOMContentLoaded",()=>{const saved=sessionStorage.getItem("famoStaffCode");if(saved){document.getElementById("code").value=saved;enter()}});
+window.addEventListener("DOMContentLoaded",()=>{const params=new URLSearchParams(location.search);["status","payment","source","sort"].forEach(name=>{const field=document.getElementById(name),value=params.get(name);if(field&&value&&[...field.options].some(option=>option.value===value))field.value=value});const saved=sessionStorage.getItem("famoStaffCode");if(saved){document.getElementById("code").value=saved;enter()}});
 </script>
 </body>
 </html>
