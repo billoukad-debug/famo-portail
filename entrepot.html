@@ -145,7 +145,7 @@
 </div>
 
 <div id="app" class="hidden warehouse-app">
-  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="/entrepot.html"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="/invoer.html">Invoeren</a><a class="active" href="/entrepot.html">Magazijn</a><a href="/stock.html">Voorraad</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Magazijn Antwerpen</small></div></div></aside>
+  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="/overzicht.html"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="/overzicht.html">Overzicht</a><a href="/bestellingen.html">Bestellingen</a><a class="active" href="/entrepot.html">Magazijn</a><a href="/dagprep.html">Dagvoorbereiding</a><a href="/invoer.html">Invoeren</a><a href="/stock.html">Voorraad</a><a href="/documenten.html">Documenten</a><a href="/leveringen.html">Leveringen</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Famo Trading</small></div><a href="#" onclick="logoutWarehouse();return false">Uitloggen</a></div></aside>
   <div class="warehouse-main"><header class="warehouse-mobilebar"><button onclick="toggleWarehouseMenu()">Menu</button><b>Magazijn</b></header><main class="warehouse-workspace"><div class="warehouse-content"><header class="warehouse-page-head"><div><h1>Magazijn</h1><p>Bereiding en levering · <span id="stamp"></span></p></div><div class="warehouse-actions"><button class="warehouse-primary" onclick="toggleDayView()">Dagvoorbereiding</button><button onclick="printPicklist()">Voorbereidingslijst</button><button onclick="load()">Vernieuw</button></div></header>
   <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div class="day-filter"><label for="dayFilter">Leverdatum</label><select id="dayFilter" onchange="setDayFilter(this.value)"><option value="today">Vandaag</option><option value="tomorrow">Morgen</option><option value="overdue">Te laat</option><option value="nodate">Zonder datum</option><option value="all">Alle open bestellingen</option><option value="custom">Kies datum…</option></select><input id="dayCustom" class="hidden" type="date" onchange="renderDayView()"></div><div id="pickSummary" class="pick-summary"></div></section>
   <section class="warehouse-toolbar" aria-label="Bestellingen zoeken en sorteren"><label for="orderSearch">Zoeken</label><input id="orderSearch" type="search" placeholder="Referentie, klant of artikel…" oninput="setOrderQuery(this.value)"><label for="orderSort">Sorteren</label><select id="orderSort" onchange="setOrderSort(this.value)"><option value="delivery">Leverdatum: eerst</option><option value="recent">Recent toegevoegd</option><option value="client">Klant: A–Z</option><option value="total">Totaal: hoog naar laag</option></select><button type="button" onclick="clearOrderFilters()">Wissen</button><span id="boardSummary" role="status"></span></section>
@@ -164,6 +164,7 @@
   <div class="doc-preview-pane"><div class="doc-preview-actions"><div><strong id="docPreviewTitle">Documentvoorbeeld</strong><span id="docPreviewMeta"></span></div><div><button type="button" onclick="closeDocPreview()">Sluiten</button><button type="button" class="doc-print" onclick="printDocPreview()">Afdrukken</button></div></div><iframe id="docFrame" title="Documentvoorbeeld"></iframe></div>
 </div>
 <div id="notice" class="notice hidden" role="alert"></div>
+<div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="advanceTitle"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong id="advanceTitle">Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:#555;line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 
 <script>
 /* ====== Bedrijfsgegevens Famo Trading ====== */
@@ -173,8 +174,8 @@ const FAMO = {
   cp: "2000 Antwerpen, België",
   tva: "BE 0788.705.713",
   tel: "",                      // nog aan te maken
-  iban: "IBAN nog in te vullen",
-  bic: "",                      // bv. GEBABEBB
+  iban: "",
+  bic: "",
   tauxTVA: 6                    // bevestigd door de klant
 };
 /* =========================================== */
@@ -182,7 +183,7 @@ const FAMO = {
 const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
 const NL={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
 const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Facturée":"→ Gefactureerd"};
-let CODE="", ORDERS=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery";
+let CODE="", ORDERS=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery", UPDATING=false;
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 function toggleWarehouseMenu(){ document.querySelector(".warehouse-sidebar").classList.toggle("open"); }
@@ -202,6 +203,7 @@ async function enter(){
     const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
     if(!r.ok){ err.textContent="Code ongeldig of server niet beschikbaar"; return; }
     const d=await r.json();
+    sessionStorage.setItem("famoStaffCode",CODE);
     document.getElementById("loginView").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     ORDERS=d.orders||[]; render();
@@ -432,8 +434,7 @@ function doc(idx,type){
       ? '<div class="tot"><div><span>Totaal exclusief btw</span><span>'+eur(htva)+'</span></div>'+
         '<div><span>BTW '+FAMO.tauxTVA+',0%</span><span>'+eur(tva)+'</span></div>'+
         '<div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
-        '<div class="bank"><b>Bankgegevens</b><br>'+esc(FAMO.nom)+'<br>IBAN: '+esc(FAMO.iban)+
-        (FAMO.bic?'<br>BIC: '+esc(FAMO.bic):'')+'<br>Betalingskenmerk: '+esc(seq)+'</div>'+
+        (FAMO.iban?'<div class="bank"><b>Bankgegevens</b><br>'+esc(FAMO.nom)+'<br>IBAN: '+esc(FAMO.iban)+(FAMO.bic?'<br>BIC: '+esc(FAMO.bic):'')+'<br>Betalingskenmerk: '+esc(seq)+'</div>':'<div class="bank"><b>Betaling</b><br>Bankgegevens worden afzonderlijk door de boekhouding verstrekt.<br>Betalingskenmerk: '+esc(seq)+'</div>')+
         '<div class="ft">Betaalstatus: '+esc(o.paiement==="Payé"?"Betaald":"Open")+
         '<br>Intern document. De wettelijke e-factuur (Peppol) verloopt via de boekhouding.</div>'
       : '<div class="tot"><div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
@@ -447,6 +448,7 @@ function showDocPreview(html,num){const modal=document.getElementById("docPrevie
 function closeDocPreview(){const modal=document.getElementById("docPreview");modal.classList.add("hidden");document.getElementById("docFrame").srcdoc="";document.body.style.overflow=""}
 function printDocPreview(){const frame=document.getElementById("docFrame");if(frame.contentWindow)frame.contentWindow.print()}
 function showNotice(message,kind="info"){const box=document.getElementById("notice");box.textContent=message;box.className="notice "+kind;clearTimeout(window._noticeTimer);window._noticeTimer=setTimeout(()=>box.classList.add("hidden"),7000)}
+function logoutWarehouse(){sessionStorage.removeItem("famoStaffCode");CODE="";ORDERS=[];document.getElementById("app").classList.add("hidden");document.getElementById("loginView").classList.remove("hidden");document.getElementById("code").focus()}
 
 async function adv(id,statut){ await upd({id,statut}); }
 function confirmDelivery(idx){
@@ -468,31 +470,38 @@ async function saveDelivery(idx){
 async function confirmAdvance(id,statut,index){
   const ref=ORDERS[index]?ORDERS[index].ref:"";
   let message="Bestelling "+ref+" naar ‘"+(NL[statut]||statut)+"’ verplaatsen?";
-  if(statut==="Sortie en livraison") message+="\n\nDe definitieve hoeveelheden worden vastgezet en de voorraad wordt afgeboekt. Controleer de voorbereiding en leverbon eerst.";
-  if(statut==="Facturée") message+="\n\nEr wordt een definitief factuurnummer toegekend.";
-  if(confirm(message)) await adv(id,statut);
+  if(statut==="Sortie en livraison") message+=" De definitieve hoeveelheden worden vastgezet en de voorraad wordt één keer afgeboekt. Controleer voorbereiding en leverbon eerst.";
+  if(statut==="Facturée") message+=" Er wordt een definitief factuurnummer toegekend.";
+  document.getElementById("advanceText").textContent=message;
+  document.getElementById("advanceConfirm").onclick=async()=>{closeAdvanceModal();await adv(id,statut)};
+  document.getElementById("advanceModal").classList.remove("hidden");
 }
+function closeAdvanceModal(){document.getElementById("advanceModal").classList.add("hidden")}
 async function togglePay(id,paiement){ await upd({id,paiement}); }
 async function upd(patch){
-  const r=await fetch("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:CODE},patch))});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok){
-    const missing=d.stock&&d.stock.missing&&d.stock.missing.length?"\n\nNiet gevonden in voorraad:\n- "+d.stock.missing.join("\n- "):"";
-    const insufficient=d.stock&&d.stock.insufficient&&d.stock.insufficient.length?"\n\nOnvoldoende voorraad:\n"+d.stock.insufficient.map(x=>"- "+x.nom+": "+x.available+" beschikbaar, "+x.requested+" gevraagd").join("\n"):"";
-    showNotice((d.error||"Fout bij bijwerken")+missing+insufficient,"error"); return;
-  }
-  if(d.stock){
-    const done=(d.stock.done||[]).map(x=>x.nom+": "+x.van+" → "+x.naar).join("\n");
-    const miss=(d.stock.missing||[]);
-    let msg="";
-    if(done) msg+="Voorraad afgeboekt:\n"+done;
-    if(miss.length) msg+=(msg?"\n\n":"")+"⚠️ Niet gevonden in voorraad (niets afgeboekt):\n- "+miss.join("\n- ")+"\n\nControleer de productnamen in Airtable.";
-    if(msg) showNotice(msg,"info");
-  }
-  if(d.factuurnummer) showNotice("Factuurnummer toegekend: "+d.factuurnummer,"info");
-  load();
+  if(UPDATING)return;
+  UPDATING=true;document.querySelectorAll("button").forEach(b=>b.disabled=true);
+  try{
+    const r=await fetch("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:CODE},patch))});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){
+      const missing=d.stock&&d.stock.missing&&d.stock.missing.length?"\n\nNiet gevonden in voorraad:\n- "+d.stock.missing.join("\n- "):"";
+      const insufficient=d.stock&&d.stock.insufficient&&d.stock.insufficient.length?"\n\nOnvoldoende voorraad:\n"+d.stock.insufficient.map(x=>"- "+x.nom+": "+x.available+" beschikbaar, "+x.requested+" gevraagd").join("\n"):"";
+      showNotice((d.error||"Fout bij bijwerken")+missing+insufficient,"error");return;
+    }
+    if(d.stock){
+      const done=(d.stock.done||[]).map(x=>x.nom+": "+x.van+" → "+x.naar).join("\n"),miss=(d.stock.missing||[]);let msg="";
+      if(done) msg+="Voorraad afgeboekt:\n"+done;
+      if(miss.length) msg+=(msg?"\n\n":"")+"⚠️ Niet gevonden in voorraad (niets afgeboekt):\n- "+miss.join("\n- ")+"\n\nControleer de productnamen in Airtable.";
+      if(msg) showNotice(msg,"info");
+    }
+    if(d.factuurnummer) showNotice("Factuurnummer toegekend: "+d.factuurnummer,"info");
+    await load();
+  }catch(error){showNotice(error.message||"Verbinding mislukt. Probeer opnieuw.","error");}
+  finally{UPDATING=false;document.querySelectorAll("button").forEach(b=>b.disabled=false)}
 }
 document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
+window.addEventListener("DOMContentLoaded",()=>{const saved=sessionStorage.getItem("famoStaffCode");if(saved){document.getElementById("code").value=saved;enter()}});
 </script>
 </body>
 </html>
