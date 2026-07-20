@@ -7,6 +7,7 @@
 *{box-sizing:border-box}
 body{font-family:Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:var(--f-canvas)!important;color:var(--f-ink)!important}
 button,input,select,textarea{font:inherit}.hidden{display:none!important}
+.login,.login-wrap{background:#f4f4f4!important}.login .card,.login-card{border:1px solid #e8e8e8!important;border-radius:14px!important;background:#fff!important;box-shadow:none!important}.login .card h1,.login-card h1{color:#111!important}.login .card p,.login-card .sub{color:#6b6b6b!important}.login .card button,.login-card .btn-p{border-color:#111!important;background:#111!important;color:#fff!important}.login .staff-logo-mark,.login-card .staff-mark{background:#111!important}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid color-mix(in srgb,var(--f-brand) 30%,transparent)!important;outline-offset:2px}
 .staff-app{min-height:100vh;display:flex;background:var(--f-canvas)}
 .staff-sidebar{width:236px;flex:0 0 236px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:15px 12px;border-right:1px solid var(--f-line);background:#fbfbfa;z-index:60}
