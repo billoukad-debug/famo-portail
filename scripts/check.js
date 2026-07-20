@@ -58,7 +58,7 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   for (const m of src.matchAll(/on(?:click|change|input|submit)\s*=\s*"([^"]*)"/gi)) {
     for (const c of m[1].matchAll(/([A-Za-z_$][\w$]*)\s*\(/g)) called.add(c[1]);
   }
-  const builtins = new Set(["alert","confirm","print","fetch","parseInt","parseFloat","String","Number","JSON","console","window","document","setTimeout"]);
+  const builtins = new Set(["alert","confirm","print","fetch","parseInt","parseFloat","String","Number","JSON","console","window","document","setTimeout","esc"]);
   const missing = [...called].filter(n => !declared.has(n) && !builtins.has(n));
   if (missing.length) fail(f, `Fonctions appelees dans le HTML mais jamais definies : ${missing.join(", ")}`);
 }
