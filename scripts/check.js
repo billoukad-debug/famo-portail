@@ -86,6 +86,20 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   }
 }
 
+
+// --- Interdits : dialogues natifs et secret staff dans le stockage navigateur ---
+for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
+  const src = fs.readFileSync(path.join(root, f), "utf8");
+  for (const bad of ["alert(", "confirm(", "prompt("]) {
+    // autorise nlConfirm( / showConfirm( etc. : on ne matche que l'appel natif
+    const re = new RegExp("(?<![\\w$])" + bad.replace("(", "\\("), "g");
+    if (re.test(src)) fail(f, "utilise le dialogue natif " + bad + ") — utiliser modale/toast");
+  }
+  if (/localStorage\.setItem\((["'])famoStaffCode\1/.test(src)) {
+    fail(f, "stocke le code staff dans localStorage — interdit");
+  }
+}
+
 console.log("");
 if (errors) {
   console.error(`\x1b[31m${errors} probleme(s) detecte(s). Le deploiement est bloque.\x1b[0m`);
