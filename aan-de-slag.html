@@ -12,36 +12,47 @@
 </style></head><body>
 <section id="login" class="s-login"><div><h1>Aan de slag</h1><p style="color:#666;font-size:13.5px">Stapsgewijze ingebruikname van Famo Trading.</p><input id="code" type="password" placeholder="Personeelscode"><button onclick="enter()">Aanmelden</button><div id="err" class="s-error"></div></div></section>
 <div id="app" class="hidden staff-shell">
-<aside class="staff-sidebar"><a class="staff-logo" href="/entrepot.html"><span class="staff-logo-mark">F</span>Famo Trading</a>
-<div class="staff-nav-label">Werkruimte</div>
-<a class="staff-nav-link" href="/entrepot.html"><span class="staff-nav-icon warehouse"></span>Magazijn</a>
-<a class="staff-nav-link" href="/invoer.html"><span class="staff-nav-icon entry"></span>Invoeren</a>
-<a class="staff-nav-link" href="/stock.html"><span class="staff-nav-icon stock"></span>Voorraad</a>
-<a class="staff-nav-link active" href="/aan-de-slag.html"><span class="staff-nav-icon docs"></span>Aan de slag</a>
-<div class="staff-nav-spacer"></div></aside>
+<aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
+<nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
 <main class="staff-main"><div class="staff-page">
 <header class="staff-page-head"><div><h1>Aan de slag met Famo Trading</h1><p>Volg deze zes stappen in volgorde. Groen = klaar.</p></div>
 <div class="no-print"><button class="staff-action-secondary" onclick="window.print()">Afdrukken (A4)</button> <button class="staff-action-secondary" onclick="load()">Vernieuwen</button></div></header>
 <div id="ibanWarn" class="warn-iban hidden">⚠️ IBAN en/of BIC ontbreken. Facturen kunnen pas worden afgedrukt zodra deze zijn ingevuld (stap 1).</div>
 <div id="steps"><div class="staff-skeleton" style="max-width:260px;margin:30px auto"></div></div>
 </div></main></div>
+<script src="/staff-session.js"></script>
+<script src="/staff-i18n.js"></script>
+<script src="/staff-nav.js"></script>
 <script>
-let CODE="";
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 const AIRTABLE="https://airtable.com";
-function enter(){CODE=document.getElementById("code").value.trim();if(!CODE){document.getElementById("err").textContent="Vul de personeelscode in.";return}sessionStorage.setItem("famoStaffCode",CODE);document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");load()}
+async function enter(){
+  const input=document.getElementById("code"),err=document.getElementById("err");
+  const code=(input.value||"").trim();
+  if(!code){err.textContent="Vul de personeelscode in.";return}
+  if(enter._busy)return;enter._busy=true;
+  err.textContent="Controleren…";
+  try{
+    await famoStaff.login(code);
+    input.value="";
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    await load();
+  }catch(e){err.textContent=famoStaff.translateError(e.message||e)}
+  finally{enter._busy=false}
+}
 async function load(){
   const box=document.getElementById("steps");
   box.innerHTML='<div class="staff-skeleton" style="max-width:260px;margin:30px auto"></div>';
   try{
-    const r=await fetch("/api/config?code="+encodeURIComponent(CODE)+"&status=1");
+    const r=await famoStaff.api("/api/config?status=1");
     const d=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(d.error||"Kon status niet laden.");
     const st=d.status||{}, c=d.config||{};
     document.getElementById("ibanWarn").classList.toggle("hidden", !st.ibanOntbreekt);
     const steps=[
       {done:st.identiteit, t:"1. Bedrijfsgegevens", p:"Officiële naam, adres, BTW, telefoon, e-mail, IBAN en BIC. In te vullen in Airtable → tabel <b>Configuratie</b> (één rij). Zonder IBAN/BIC kan er geen factuur worden afgedrukt.", link:AIRTABLE, label:"Open Airtable"},
-      {done:st.catalogue>0, t:"2. Catalogus ("+(st.catalogue||0)+" artikelen)", p:"Producten met eenheid (doos/stuk/kg), categorie, basisprijs en vinkje Actief. In Airtable → tabel <b>Catalogue</b>.", link:AIRTABLE, label:"Open Airtable"},
+      {done:st.catalogue>0, t:"2. Catalogus ("+(st.catalogue||0)+" artikelen)", p:"Producten met eenheid (kassa/stuk/kg), categorie, basisprijs en vinkje Actief. In Airtable → tabel <b>Catalogue</b>.", link:AIRTABLE, label:"Open Airtable"},
       {done:st.clients>0, t:"3. Klanten ("+(st.clients||0)+")", p:"Per klant: officiële naam, adres, BTW-nummer, klantnummer, gebruikersnaam en wachtwoord. Gebruik nooit een persoonlijk wachtwoord opnieuw. In Airtable → tabel <b>Clients</b>.", link:AIRTABLE, label:"Open Airtable"},
       {done:st.prijzen>0, t:"4. Afgesproken prijzen ("+(st.prijzen||0)+")", p:"Koppel klant + product + prijs in Airtable → tabel <b>Prix négociés</b>. Controle: meld u aan op het klantportaal met de login van de klant en controleer de getoonde prijzen.", link:"/", label:"Open klantportaal"},
       {done:st.stock>0, t:"5. Beginvoorraad ("+(st.stock||0)+" producten)", p:"Tel de voorraad en voer de aantallen in via de pagina Voorraad. Elke wijziging wordt gejournaliseerd.", link:"/stock.html", label:"Open Voorraad"},
@@ -50,9 +61,19 @@ async function load(){
     box.innerHTML=steps.map(s=>'<div class="step"><span class="dot '+(s.done?'done':'todo')+'">'+(s.done?'✓':'')+'</span><div><h3>'+s.t+(s.done?'<span class="badge ok">klaar</span>':'<span class="badge wait">te doen</span>')+'</h3><p>'+s.p+'</p><a class="go no-print" href="'+esc(s.link)+'" target="'+(s.link.startsWith("http")?"_blank":"_self")+'">'+esc(s.label)+' →</a></div></div>').join("")
       +'<p style="margin-top:18px;font-size:12px;color:#888">Interne documenten (leverbon/factuur) zijn geen wettelijke e-factuur. De Peppol-verzending verloopt via de boekhouding (Billtobox).</p>';
   }catch(e){
-    box.innerHTML='<div class="staff-error">'+esc(e.message)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
+    box.innerHTML='<div class="staff-error">'+esc(famoStaff.translateError(e.message))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
   }
 }
+async function logout(){await famoStaff.logout();location.reload()}
 document.getElementById("code").addEventListener("keydown",e=>{if(e.key==="Enter")enter()});
-window.addEventListener("DOMContentLoaded",()=>{const c=sessionStorage.getItem("famoStaffCode");if(c){document.getElementById("code").value=c;enter()}});
+window.addEventListener("DOMContentLoaded",async()=>{
+  try{
+    if(await famoStaff.check()){
+      document.getElementById("login").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      await load();
+      return;
+    }
+  }catch(e){}
+});
 </script></body></html>
