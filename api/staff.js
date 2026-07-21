@@ -1,5 +1,10 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
-const STAFF_CODE = process.env.STAFF_CODE || "famo2026";
+const STAFF_CODE = process.env.STAFF_CODE;
+function staffCodeReady(res){
+  if (STAFF_CODE) return true;
+  res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
+  return false;
+}
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path, opts){
@@ -66,6 +71,7 @@ async function buildOrderLines(clientId, items){
 }
 
 module.exports = async (req, res) => {
+  if (!staffCodeReady(res)) return;
   try {
     // ---------- POST : créer une commande au nom d'un client ----------
     if (req.method === "POST") {

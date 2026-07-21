@@ -63,6 +63,15 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   if (missing.length) fail(f, `Fonctions appelees dans le HTML mais jamais definies : ${missing.join(", ")}`);
 }
 
+
+// --- Regle XSS : toute page qui manipule innerHTML doit definir une fonction esc() ---
+for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
+  const src = fs.readFileSync(path.join(root, f), "utf8");
+  if (src.includes("innerHTML") && !/(?:const|function)\s+esc\s*[=(]/.test(src)) {
+    fail(f, "utilise innerHTML sans définir esc() — les valeurs Airtable doivent être échappées");
+  }
+}
+
 console.log("");
 if (errors) {
   console.error(`\x1b[31m${errors} probleme(s) detecte(s). Le deploiement est bloque.\x1b[0m`);

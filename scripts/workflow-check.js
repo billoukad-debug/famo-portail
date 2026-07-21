@@ -1,5 +1,6 @@
 // Règles métier critiques, sans accès Airtable réel.
 // Les appels réseau sont simulés pour vérifier les gardes du backend.
+process.env.STAFF_CODE = process.env.STAFF_CODE || "testcode-ci";
 const assert = require("assert");
 const path = require("path");
 
@@ -33,19 +34,19 @@ async function main() {
   const updateOrder = require(path.join(__dirname, "..", "api", "updateorder.js"));
   const createOrder = require(path.join(__dirname, "..", "api", "order.js"));
 
-  let result = await call(updateOrder, { code: "famo2026", id: "rec1", statut: "Sortie en livraison" }, [
+  let result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", statut: "Sortie en livraison" }, [
     { fields: { Statut: "Prête", "Préparation validée": false } }
   ]);
   assert.equal(result.res.statusCode, 409);
   assert.match(result.res.payload.error, /Valideer eerst/);
 
-  result = await call(updateOrder, { code: "famo2026", id: "rec1", statut: "Facturée" }, [
+  result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", statut: "Facturée" }, [
     { fields: { Statut: "Sortie en livraison" } }
   ]);
   assert.equal(result.res.statusCode, 409);
   assert.match(result.res.payload.error, /Bevestig eerst/);
 
-  result = await call(updateOrder, { code: "famo2026", id: "rec1", preparationValidee: true }, [
+  result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", preparationValidee: true }, [
     { fields: { Statut: "Reçue" } },
     { fields: { "Préparation validée": true } }
   ]);
@@ -54,7 +55,7 @@ async function main() {
   assert.equal(preparationPatch.fields["Préparation validée"], true);
 
   result = await call(updateOrder, {
-    code: "famo2026", id: "rec1", lignes: "Mosselen × 0.5 caisse", total: 6
+    code: process.env.STAFF_CODE, id: "rec1", lignes: "Mosselen × 0.5 caisse", total: 6
   }, [
     { fields: { Statut: "Reçue" } },
     { records: [{ fields: { "Produit": "Mosselen", "Unité": "caisse" } }] }
@@ -87,6 +88,32 @@ async function main() {
   ]);
   assert.equal(result.res.statusCode, 400);
   assert.match(result.res.payload.error, /decimale hoeveelheid/);
+
+  
+  // --- Nouvelles regles de la release candidate ---
+  // 1. Passage a Klaar SANS validation explicite -> 409
+  result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", statut: "Prête" }, [
+    { id: "rec1", fields: { "Statut": "Reçue" } }
+  ]);
+  assert.equal(result.res.statusCode, 409, "Klaar sans validation doit etre refuse");
+
+  // 2. Mot de passe en GET -> 405
+  const catalogue = require(path.join(__dirname, "..", "api", "catalogue.js"));
+  {
+    const res = { statusCode: 200, payload: null, status(c){this.statusCode=c;return this}, json(p){this.payload=p;return p} };
+    await catalogue({ method: "GET", query: { user: "x", pw: "y" } }, res);
+    assert.equal(res.statusCode, 405, "GET avec mot de passe doit etre refuse");
+  }
+
+  // 3. cadrage definitivement ferme -> 410
+  const cadrage = require(path.join(__dirname, "..", "api", "cadrage.js"));
+  {
+    const res = { statusCode: 200, payload: null, status(c){this.statusCode=c;return this}, json(p){this.payload=p;return p} };
+    await cadrage({ method: "POST", body: {} }, res);
+    assert.equal(res.statusCode, 410, "cadrage doit renvoyer 410");
+  }
+
+  console.log("✓ Regles release candidate (validation explicite, 405 GET, 410 cadrage)");
 
   console.log("✓ Règles métier commande, préparation et livraison");
 }

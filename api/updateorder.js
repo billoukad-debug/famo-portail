@@ -1,5 +1,10 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
-const STAFF_CODE = process.env.STAFF_CODE || "famo2026";
+const STAFF_CODE = process.env.STAFF_CODE;
+function staffCodeReady(res){
+  if (STAFF_CODE) return true;
+  res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
+  return false;
+}
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path, opts){
@@ -166,7 +171,12 @@ module.exports = async (req, res) => {
       fields["Statut"] = statut;
     }
 
-    if (preparationValidee || statut === "Prête") {
+    // La validation article par article doit etre EXPLICITE (envoyee par le
+    // panneau de validation). Le simple passage de statut ne valide jamais.
+    if (statut === "Prête" && preparationValidee !== true && !f["Préparation validée"]) {
+      return res.status(409).json({ error: "Valideer eerst elk artikel afzonderlijk vóór u de bestelling op Klaar zet" });
+    }
+    if (preparationValidee === true) {
       fields["Préparation validée"] = true;
       fields["Préparée le"] = new Date().toISOString();
     }
