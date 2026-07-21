@@ -145,7 +145,7 @@
 </div>
 
 <div id="app" class="hidden warehouse-app">
-  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="/overzicht.html"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="/overzicht.html">Overzicht</a><a href="/bestellingen.html">Bestellingen</a><a class="active" href="/entrepot.html">Magazijn</a><a href="/dagprep.html">Dagvoorbereiding</a><a href="/invoer.html">Invoeren</a><a href="/stock.html">Voorraad</a><a href="/documenten.html">Documenten</a><a href="/leveringen.html">Leveringen</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Famo Trading</small></div><a href="#" onclick="logoutWarehouse();return false">Uitloggen</a></div></aside>
+  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="#" title="Binnenkort beschikbaar" onclick="return false" style="opacity:.45;cursor:default"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="#" title="Binnenkort beschikbaar" onclick="return false" style="opacity:.45;cursor:default">Overzicht</a><a href="#" title="Binnenkort beschikbaar" onclick="return false" style="opacity:.45;cursor:default">Bestellingen</a><a class="active" href="/entrepot.html">Magazijn</a><a href="#" title="Binnenkort beschikbaar" onclick="return false" style="opacity:.45;cursor:default">Dagvoorbereiding</a><a href="/invoer.html">Invoeren</a><a href="/stock.html">Voorraad</a><a class="staff-nav-link" href="/aan-de-slag.html">Aan de slag</a><a href="#" title="Binnenkort beschikbaar" onclick="return false" style="opacity:.45;cursor:default">Documenten</a><a href="#" title="Binnenkort beschikbaar" onclick="return false" style="opacity:.45;cursor:default">Leveringen</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Famo Trading</small></div><a href="#" onclick="logoutWarehouse();return false">Uitloggen</a></div></aside>
   <div class="warehouse-main"><header class="warehouse-mobilebar"><button onclick="toggleWarehouseMenu()">Menu</button><b>Magazijn</b></header><main class="warehouse-workspace"><div class="warehouse-content"><header class="warehouse-page-head"><div><h1>Magazijn</h1><p>Bereiding en levering · <span id="stamp"></span></p></div><div class="warehouse-actions"><button class="warehouse-primary" onclick="toggleDayView()">Dagvoorbereiding</button><button onclick="printPicklist()">Voorbereidingslijst</button><button onclick="load()">Vernieuw</button></div></header>
   <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div class="day-filter"><label for="dayFilter">Leverdatum</label><select id="dayFilter" onchange="setDayFilter(this.value)"><option value="today">Vandaag</option><option value="tomorrow">Morgen</option><option value="overdue">Te laat</option><option value="nodate">Zonder datum</option><option value="all">Alle open bestellingen</option><option value="custom">Kies datum…</option></select><input id="dayCustom" class="hidden" type="date" onchange="renderDayView()"></div><div id="pickSummary" class="pick-summary"></div></section>
   <section class="warehouse-toolbar" aria-label="Bestellingen zoeken en sorteren"><label for="orderSearch">Zoeken</label><input id="orderSearch" type="search" placeholder="Referentie, klant of artikel…" oninput="setOrderQuery(this.value)"><label for="orderSort">Sorteren</label><select id="orderSort" onchange="setOrderSort(this.value)"><option value="delivery">Leverdatum: eerst</option><option value="recent">Recent toegevoegd</option><option value="client">Klant: A–Z</option><option value="total">Totaal: hoog naar laag</option></select><button type="button" onclick="clearOrderFilters()">Wissen</button><span id="boardSummary" role="status"></span></section>
@@ -206,7 +206,15 @@ async function enter(){
     sessionStorage.setItem("famoStaffCode",CODE);
     document.getElementById("loginView").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    ORDERS=d.orders||[]; render();
+    ORDERS=d.orders||[]; 
+    try{
+      const rc=await fetch("/api/config?code="+encodeURIComponent(CODE));
+      if(rc.ok){ const cj=await rc.json(); const c=cj.config||{};
+        FAMO.nom=c.bedrijfsnaam||FAMO.nom; FAMO.adresse=c.adres||FAMO.adresse;
+        FAMO.cp=c.plaats||FAMO.cp; FAMO.tva=c.btw||FAMO.tva;
+        FAMO.tel=c.telefoon||FAMO.tel; FAMO.iban=c.iban||""; FAMO.bic=c.bic||""; }
+    }catch(e){}
+    render();
   }catch(e){ err.textContent="Verbinding mislukt. Vernieuw de pagina en probeer opnieuw."; }
 }
 async function load(){
@@ -370,6 +378,7 @@ function printPicklist(){
 
 function doc(idx,type){
   const o=ORDERS[idx], isFA=type==="FA";
+  if(isFA && (!FAMO.iban || !FAMO.bic)){ showNotice("Factuur kan niet worden afgedrukt: IBAN/BIC ontbreken. Vul ze in via Airtable → tabel Configuratie (zie Aan de slag).","error"); return; }
   if(isFA && !o.factuurnummer){ showNotice("Factureer de bestelling eerst. Dan krijgt ze een officieel factuurnummer.","error"); return; }
   if(!isFA && o.statut==="Reçue"){ showNotice("Zet de bestelling eerst op ‘Klaar’ vóór u de leverbon afdrukt.","error"); return; }
   const k=o.klant||{nom:o.client,adresse:"",btw:"",klantnr:""};
