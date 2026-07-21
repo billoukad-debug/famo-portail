@@ -72,6 +72,20 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   }
 }
 
+
+// --- Regle navigation : interdiction de neutraliser un lien vers une page existante ---
+for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
+  const src = fs.readFileSync(path.join(root, f), "utf8");
+  if (src.includes("Binnenkort beschikbaar")) {
+    fail(f, "contient un lien neutralise 'Binnenkort beschikbaar' — restaurer le vrai lien");
+  }
+  for (const m of src.matchAll(/href="\/([\w-]+\.html)"/g)) {
+    if (!fs.existsSync(path.join(root, m[1]))) {
+      fail(f, `lien vers /${m[1]} mais le fichier n'existe pas dans le depot`);
+    }
+  }
+}
+
 console.log("");
 if (errors) {
   console.error(`\x1b[31m${errors} probleme(s) detecte(s). Le deploiement est bloque.\x1b[0m`);
