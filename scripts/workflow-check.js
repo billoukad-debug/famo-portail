@@ -113,6 +113,47 @@ async function main() {
     assert.equal(res.statusCode, 410, "cadrage doit renvoyer 410");
   }
 
+
+  // --- Session staff commune ---
+  const session = require(path.join(__dirname, "..", "api", "session.js"));
+  const authlib = require(path.join(__dirname, "..", "lib", "staffauth.js"));
+  function mkRes(){ const r={statusCode:200,payload:null,headers:{},status(c){this.statusCode=c;return this},json(p){this.payload=p;return p},setHeader(k,v){this.headers[k]=v}}; return r; }
+
+  // login correct -> cookie HttpOnly Secure SameSite
+  let sres = mkRes();
+  await session({ method:"POST", body:{ code: process.env.STAFF_CODE }, headers:{} }, sres);
+  assert.equal(sres.statusCode, 200, "login session doit reussir");
+  const setC = sres.headers["Set-Cookie"] || "";
+  assert(/famo_sess=/.test(setC) && /HttpOnly/.test(setC) && /Secure/.test(setC) && /SameSite=Lax/.test(setC), "cookie session incomplet");
+  const tok = decodeURIComponent(/famo_sess=([^;]+)/.exec(setC)[1]);
+
+  // mauvais code -> 401 ; ancien code public -> 401
+  sres = mkRes(); await session({ method:"POST", body:{ code:"famo2026" }, headers:{} }, sres);
+  assert.equal(sres.statusCode, 401, "ancien code public doit etre refuse");
+
+  // GET avec cookie -> 200 ; sans -> 401
+  sres = mkRes(); await session({ method:"GET", headers:{ cookie:"famo_sess="+encodeURIComponent(tok) } }, sres);
+  assert.equal(sres.statusCode, 200, "session valide doit etre reconnue (nouvel onglet)");
+  sres = mkRes(); await session({ method:"GET", headers:{} }, sres);
+  assert.equal(sres.statusCode, 401, "sans session -> 401");
+
+  // token expire -> 401
+  const expired = authlib.sign(Date.now() - 1000);
+  sres = mkRes(); await session({ method:"GET", headers:{ cookie:"famo_sess="+encodeURIComponent(expired) } }, sres);
+  assert.equal(sres.statusCode, 401, "session expiree doit etre refusee");
+
+  // token falsifie -> 401
+  sres = mkRes(); await session({ method:"GET", headers:{ cookie:"famo_sess="+encodeURIComponent(tok.split(".")[0]+".AAAA") } }, sres);
+  assert.equal(sres.statusCode, 401, "signature falsifiee refusee");
+
+  // une API staff accepte le cookie SANS code dans l'URL
+  {
+    const res2 = mkRes();
+    await updateOrder({ method:"POST", body:{ id:"rec1" }, headers:{ cookie:"famo_sess="+encodeURIComponent(tok) } }, res2, );
+    assert.notEqual(res2.statusCode, 401, "cookie doit suffire pour les API staff");
+  }
+  console.log("✓ Session staff commune (cookie HttpOnly, expiration, logout, compat code)");
+
   console.log("✓ Regles release candidate (validation explicite, 405 GET, 410 cadrage)");
 
   console.log("✓ Règles métier commande, préparation et livraison");

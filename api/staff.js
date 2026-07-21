@@ -1,5 +1,6 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const STAFF_CODE = process.env.STAFF_CODE;
+const __auth = require("../lib/staffauth");
 function staffCodeReady(res){
   if (STAFF_CODE) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -78,7 +79,7 @@ module.exports = async (req, res) => {
       let body = req.body;
       if (typeof body === "string") body = JSON.parse(body || "{}");
       if (!body) body = {};
-      if (body.code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
+      if (!__auth.staffOk(req, body.code)) return res.status(401).json({ error: "Code invalide" });
       const { clientId, notes, dateLivraison, bron } = body;
       if (!clientId) return res.status(400).json({ error: "Klant en artikelen vereist" });
       let order;
@@ -105,7 +106,7 @@ module.exports = async (req, res) => {
 
     // ---------- GET ----------
     const q = req.query || {};
-    if (q.code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
+    if (!__auth.staffOk(req, q.code)) return res.status(401).json({ error: "Code invalide" });
 
     // Liste des clients
     if (!q.client) {

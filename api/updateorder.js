@@ -1,5 +1,6 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const STAFF_CODE = process.env.STAFF_CODE;
+const __auth = require("../lib/staffauth");
 function staffCodeReady(res){
   if (STAFF_CODE) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -135,7 +136,7 @@ module.exports = async (req, res) => {
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
     const { code, id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl } = body;
-    if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
+    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Code invalide" });
     if (!id) return res.status(400).json({ error: "id requis" });
 
     const cur = await at(`Commandes/${id}`);

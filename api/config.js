@@ -1,5 +1,6 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const STAFF_CODE = process.env.STAFF_CODE;
+const __auth = require("../lib/staffauth");
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path){
@@ -18,7 +19,7 @@ module.exports = async (req, res) => {
   if (!STAFF_CODE) return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt." });
   try {
     const q = req.query || {};
-    if (q.code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
+    if (!__auth.staffOk(req, q.code)) return res.status(401).json({ error: "Code invalide" });
 
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};
