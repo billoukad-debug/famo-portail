@@ -35,7 +35,7 @@ AIRTABLE_TOKEN=...
 STAFF_CODE=...
 ```
 
-Le code personnel a une valeur de compatibilité si `STAFF_CODE` est absent, mais une vraie valeur doit être configurée dans Vercel avant la mise en exploitation.
+Si `STAFF_CODE` est absent, l’authentification staff échoue de façon sûre (HTTP 500 avec message explicite). Il n’existe plus de valeur de compatibilité en dur. Un humain doit définir `STAFF_CODE` dans Vercel (jamais `famo2026`, code compromis).
 
 Exécuter les contrôles avant publication :
 

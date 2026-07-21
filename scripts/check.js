@@ -17,6 +17,23 @@ function pass(file, note) {
   console.log(`\x1b[32m✓\x1b[0m ${file}${note ? "  " + note : ""}`);
 }
 
+const STAFF_PAGES = [
+  "overzicht.html",
+  "bestellingen.html",
+  "order.html",
+  "entrepot.html",
+  "dagprep.html",
+  "invoer.html",
+  "stock.html",
+  "documenten.html",
+  "leveringen.html",
+  "aan-de-slag.html"
+];
+
+function stripHtmlComments(src) {
+  return String(src || "").replace(/<!--[\s\S]*?-->/g, "");
+}
+
 // --- 1. Les fichiers API (Node) ---
 const apiDir = path.join(root, "api");
 if (fs.existsSync(apiDir)) {
@@ -28,6 +45,23 @@ if (fs.existsSync(apiDir)) {
       pass(file);
     } catch (e) {
       fail(file, e.message);
+    }
+
+    // Pas de code staff en dur ni de fallback secret
+    if (/\|\|\s*["']famo2026["']/.test(src)) {
+      fail(file, 'contient un fallback || "famo2026" / || \'famo2026\' — interdit');
+    }
+    if (/STAFF_CODE\s*=\s*process\.env\.STAFF_CODE\s*\|\|/.test(src)) {
+      fail(file, "STAFF_CODE = process.env.STAFF_CODE || … avec fallback — interdit (doit échouer si absent)");
+    }
+    if (/(?:const|let|var)\s+STAFF_CODE\s*=\s*["'][^"']+["']/.test(src)) {
+      fail(file, "STAFF_CODE assigné en dur — interdit");
+    }
+    if (/["']famo2026["']/.test(src) && !/reject|refuse|401|compromis|interdit|ancien/i.test(src)) {
+      // mention pure du secret comme valeur par défaut / assignation
+      if (/(?:=\s*|\|\|\s*)["']famo2026["']/.test(src)) {
+        fail(file, "famo2026 utilisé comme valeur par défaut — interdit");
+      }
     }
   }
 }
@@ -97,6 +131,69 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   }
   if (/localStorage\.setItem\((["'])famoStaffCode\1/.test(src)) {
     fail(f, "stocke le code staff dans localStorage — interdit");
+  }
+  if (/sessionStorage\.setItem\((["'])famoStaffCode\1/.test(src)) {
+    fail(f, 'sessionStorage.setItem("famoStaffCode"…) — interdit');
+  }
+  if (/sessionStorage\.getItem\((["'])famoStaffCode\1/.test(src)) {
+    fail(f, 'sessionStorage.getItem("famoStaffCode"…) — interdit');
+  }
+}
+
+// --- Interdit : code staff dans les query strings (?code= / &code= / code="+…) ---
+for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
+  const src = stripHtmlComments(fs.readFileSync(path.join(root, f), "utf8"));
+  if (/\?code=/.test(src) || /&code=/.test(src)) {
+    fail(f, "URL API avec ?code= ou &code= — utiliser la session cookie, pas le code en query");
+  }
+  // motifs type /api/...?code= + encodeURIComponent(code) ou code="+…
+  if (/code=["']\s*\+|code=\s*"\s*\+|code=\s*'\s*\+|code="\s*\+\s*encodeURIComponent|code='\s*\+\s*encodeURIComponent/.test(src)) {
+    fail(f, 'pattern code="+ / code="+encodeURIComponent — interdit');
+  }
+  if (/\/api\/[^\s"'`]*\bcode=/.test(src)) {
+    fail(f, "appel /api/… avec code= en query — interdit");
+  }
+}
+
+// --- Pages staff listées doivent exister ---
+for (const page of STAFF_PAGES) {
+  if (!fs.existsSync(path.join(root, page))) {
+    fail(page, "page staff manquante dans le dépôt");
+  } else {
+    pass(page, "(présent)");
+  }
+}
+
+// --- Scripts staff communs + aria-current / data-famo-nav ---
+for (const page of STAFF_PAGES) {
+  const full = path.join(root, page);
+  if (!fs.existsSync(full)) continue;
+  const src = fs.readFileSync(full, "utf8");
+  for (const script of ["/staff-i18n.js", "/staff-session.js", "/staff-nav.js"]) {
+    if (!src.includes(script)) {
+      fail(page, `doit inclure <script src="${script}">`);
+    }
+  }
+  if (!src.includes("aria-current") && !src.includes("data-famo-nav")) {
+    fail(page, "doit contenir aria-current ou data-famo-nav (staff-nav.js)");
+  }
+}
+
+// --- Affichage FR "caisse" sans famoNL ---
+for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
+  const src = stripHtmlComments(fs.readFileSync(path.join(root, f), "utf8"));
+  if (/>caisse</i.test(src)) {
+    fail(f, "texte visible >caisse< — passer par famoNL.unit / famoNL.lines (afficher « kassa »)");
+  }
+}
+{
+  const guide = path.join(root, "aan-de-slag.html");
+  if (fs.existsSync(guide)) {
+    const src = stripHtmlComments(fs.readFileSync(guide, "utf8"));
+    // chaîne UI littérale "caisse" (unité d'affichage) — autoriser uniquement via famoNL
+    if (/["']caisse["']/.test(src) && !/famoNL\.unit\s*\(\s*["']caisse["']\s*\)/.test(src)) {
+      fail("aan-de-slag.html", 'unité d\'affichage "caisse" — utiliser famoNL (kassa), pas le français brut');
+    }
   }
 }
 
