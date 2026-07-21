@@ -1,6 +1,7 @@
 // Client staff session: cookie HttpOnly via /api/session. Never store STAFF_CODE.
 (function (global) {
   const RETURN_KEY = "famoReturnTo";
+  const PROOF_MAX_BYTES = Math.floor(1.5 * 1024 * 1024);
   const ERR_MAP = {
     "Code invalide": "Ongeldige personeelscode",
     "id requis": "Bestelling-id ontbreekt",
@@ -65,6 +66,23 @@
     } catch (e) { /* ignore */ }
   }
 
+  function showLoginAfterExpiry() {
+    const loginView = document.getElementById("login") || document.getElementById("loginView");
+    const appView = document.getElementById("app");
+    if (loginView) {
+      loginView.classList.remove("hidden");
+      if (appView) appView.classList.add("hidden");
+      const codeEl = document.getElementById("code");
+      if (codeEl) {
+        try { codeEl.focus(); } catch (e) { /* ignore */ }
+      }
+      const errEl = document.getElementById("err");
+      if (errEl) errEl.textContent = "Sessie verlopen. Meld u opnieuw aan.";
+      return true;
+    }
+    return false;
+  }
+
   async function api(url, opts) {
     const options = Object.assign({ credentials: "include" }, opts || {});
     if (options.headers && typeof options.headers === "object") {
@@ -74,6 +92,10 @@
     const r = await fetch(clean, options);
     if (r.status === 401) {
       saveReturn();
+      try {
+        document.dispatchEvent(new CustomEvent("famo:session-expired", { detail: { url: clean } }));
+      } catch (e) { /* ignore */ }
+      showLoginAfterExpiry();
       const err = new Error("Sessie verlopen. Meld u opnieuw aan.");
       err.status = 401;
       err.sessionExpired = true;
@@ -92,6 +114,64 @@
       throw err;
     }
     return d;
+  }
+
+  /** HTML block for proof-of-delivery: HTTPS URL + local image preview only (no fake Blob upload). */
+  function proofFieldsHtml(opts) {
+    const o = opts || {};
+    const id = o.id || "proof";
+    const fileId = o.fileId || (id + "File");
+    const previewId = o.previewId || (id + "Preview");
+    const noteId = o.noteId || (id + "Note");
+    return '<label>Bewijslink (https, optioneel)<input id="' + id + '" type="url" placeholder="https://…" autocomplete="off"></label>' +
+      '<label style="margin-top:10px">Voorbeeld foto (lokaal)<input id="' + fileId + '" type="file" accept="image/*"></label>' +
+      '<div id="' + previewId + '" style="display:none;margin-top:8px"><img alt="Voorbeeld bewijs" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid #e0e0e0"></div>' +
+      '<p id="' + noteId + '" class="proof-upload-note" data-proof-blocked="PROOF_UPLOAD_BLOCKED" style="margin:8px 0 0;color:#9a6700;font-size:12px;line-height:1.45">' +
+      'PROOF_UPLOAD_BLOCKED — Bestandsupload vereist Vercel Blob of externe opslag. Peppol/Blob zijn externe diensten. Plak voorlopig een https-link; de lokale foto is alleen een voorbeeld en wordt niet naar Airtable gestuurd.' +
+      '</p>';
+  }
+
+  function bindProofFile(fileInput, previewWrap, noteEl) {
+    const fileEl = typeof fileInput === "string" ? document.getElementById(fileInput) : fileInput;
+    const preview = typeof previewWrap === "string" ? document.getElementById(previewWrap) : previewWrap;
+    const note = typeof noteEl === "string" ? document.getElementById(noteEl) : noteEl;
+    if (!fileEl) return;
+    fileEl.addEventListener("change", () => {
+      const f = fileEl.files && fileEl.files[0];
+      const img = preview && preview.querySelector("img");
+      if (!f) {
+        if (preview) preview.style.display = "none";
+        if (img) img.removeAttribute("src");
+        return;
+      }
+      if (!/^image\//i.test(f.type || "")) {
+        fileEl.value = "";
+        if (note) note.textContent = "Kies een afbeeldingsbestand (image/*).";
+        return;
+      }
+      if (f.size > PROOF_MAX_BYTES) {
+        fileEl.value = "";
+        if (preview) preview.style.display = "none";
+        if (note) {
+          note.textContent = "Bestand te groot (max. 1,5 MB). Verklein de foto of plak een https-link.";
+        }
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (img) {
+          img.src = String(reader.result || "");
+          if (preview) preview.style.display = "block";
+        }
+        if (note) {
+          note.textContent = "PROOF_UPLOAD_BLOCKED — Lokale preview OK. Plak een https-link hierboven om het bewijs op te slaan (geen Blob-token geconfigureerd; data-URL’s worden niet naar Airtable gestuurd).";
+        }
+      };
+      reader.onerror = () => {
+        if (note) note.textContent = "Bestand kon niet worden gelezen.";
+      };
+      reader.readAsDataURL(f);
+    });
   }
 
   /** Bind login form: #code input, errorEl, onReady after session ok. */
@@ -137,6 +217,17 @@
       codeEl.addEventListener("keydown", e => { if (e.key === "Enter") enter(); });
     }
 
+    window.addEventListener("famo:session-expired", () => {
+      if (loginView) {
+        loginView.classList.remove("hidden");
+        if (appView) appView.classList.add("hidden");
+        if (errEl) errEl.textContent = "Sessie verlopen. Meld u opnieuw aan.";
+        if (codeEl) {
+          try { codeEl.focus(); } catch (e) { /* ignore */ }
+        }
+      }
+    });
+
     window.addEventListener("DOMContentLoaded", async () => {
       if (typeof cfg.onDom === "function") cfg.onDom();
       try {
@@ -155,6 +246,7 @@
 
   global.famoStaff = {
     login, check, logout, api, apiJson, bindLogin,
-    translateError, saveReturn, takeReturn, stripCodeParam
+    translateError, saveReturn, takeReturn, stripCodeParam,
+    proofFieldsHtml, bindProofFile, PROOF_MAX_BYTES
   };
 })(typeof window !== "undefined" ? window : global);

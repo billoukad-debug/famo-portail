@@ -359,6 +359,7 @@ function editLines(idx){
       '<span class="actual"><button type="button" onclick="changeActual('+idx+','+i+',-1)">−</button><input id="aq'+idx+'_'+i+'" type="number" min="0" step="'+(/kg/i.test(String(line.unit||""))?"0.1":"1")+'" value="'+line.quantity+'" oninput="refreshActualTotal('+idx+')"><button type="button" onclick="changeActual('+idx+','+i+',1)">+</button></span>'+
       '</label>').join('')+'</div>'+
     '<div class="edit-total">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+
+    '<div class="ehint">Deeltijdige levering: pas de aantallen hieronder aan vóór vertrek (Sortie). Statussen en Airtable-kolommen blijven ongewijzigd — alleen de voorbereide hoeveelheden tellen.</div>'+
     '<div class="ehint">De aantallen en het totaal worden vastgezet zodra de goederen vertrekken.</div>';
   refreshActualTotal(idx);
 }
@@ -470,12 +471,14 @@ async function adv(id,statut){ await upd({id,statut}); }
 function confirmDelivery(idx){
   const o=ORDERS[idx], box=document.getElementById("e"+idx);
   if(box.innerHTML){ box.innerHTML=""; return; }
+  const pid="proof"+idx;
   box.innerHTML='<div class="edit-head">Bevestig de ontvangst voordat u factureert.</div>'+
     '<div class="pick-editor" style="padding:12px">'+
       '<label class="ehint" style="display:block;font-weight:700">Ontvangen door<input class="tin" id="receiver'+idx+'" type="text" value="'+esc(o.receptionnePar||"")+'" placeholder="Naam ontvanger" style="display:block;width:100%;margin-top:5px"></label>'+
-      '<label class="ehint" style="display:block;margin-top:10px">Link naar leveringsbewijs <span style="font-weight:400">(optioneel: foto/signatuur)</span><input class="tin" id="proof'+idx+'" type="url" placeholder="https://…" style="display:block;width:100%;margin-top:5px"></label>'+
+      '<div style="margin-top:10px">'+famoStaff.proofFieldsHtml({id:pid,fileId:pid+"File",previewId:pid+"Preview",noteId:pid+"Note"})+'</div>'+
       '<button class="save" style="margin-top:12px" onclick="saveDelivery('+idx+')">✓ Ontvangst bevestigen & factureren</button>'+
     '</div>';
+  famoStaff.bindProofFile(pid+"File", pid+"Preview", pid+"Note");
 }
 async function saveDelivery(idx){
   const o=ORDERS[idx], recipient=document.getElementById("receiver"+idx).value.trim(), proofUrl=document.getElementById("proof"+idx).value.trim();

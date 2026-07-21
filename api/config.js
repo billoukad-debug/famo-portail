@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
   if (!STAFF_CODE) return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt." });
   try {
     const q = req.query || {};
-    if (!__auth.staffOk(req, q.code)) return res.status(401).json({ error: "Code invalide" });
+    if (!__auth.staffOk(req, q.code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};

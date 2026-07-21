@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
   if (!staffCodeReady(res)) return;
   try {
     const code = String((req.query && req.query.code) || "");
-    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Code invalide" });
+    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
     const cl = await atAll("Clients");
     const nameById = {}, infoById = {};
     (cl.records || []).forEach(r => {

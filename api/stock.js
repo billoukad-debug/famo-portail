@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const code = req.method === "GET" ? String((req.query || {}).code || "") : String(body.code || "");
-    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Code invalide" });
+    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     if (req.method === "GET") {
       const stock = await atAll("Stock?sort%5B0%5D%5Bfield%5D=Produit&sort%5B0%5D%5Bdirection%5D=asc");
