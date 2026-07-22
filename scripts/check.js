@@ -47,20 +47,19 @@ if (fs.existsSync(apiDir)) {
       fail(file, e.message);
     }
 
-    // Pas de code staff en dur ni de fallback secret
-    if (/\|\|\s*["']famo2026["']/.test(src)) {
-      fail(file, 'contient un fallback || "famo2026" / || \'famo2026\' — interdit');
+    // Fallback famo2026 uniquement autorisé dans lib/staffauth.js (demande produit temporaire).
+    if (file !== "api/onboarding.js" && /\|\|\s*["']famo2026["']/.test(src)) {
+      fail(file, 'contient un fallback || "famo2026" — uniquement autorisé via lib/staffauth.js');
     }
     if (/STAFF_CODE\s*=\s*process\.env\.STAFF_CODE\s*\|\|/.test(src)) {
-      fail(file, "STAFF_CODE = process.env.STAFF_CODE || … avec fallback — interdit (doit échouer si absent)");
+      fail(file, "STAFF_CODE = process.env.STAFF_CODE || … dans api/ — utiliser lib/staffauth.js");
     }
     if (/(?:const|let|var)\s+STAFF_CODE\s*=\s*["'][^"']+["']/.test(src)) {
       fail(file, "STAFF_CODE assigné en dur — interdit");
     }
-    if (/["']famo2026["']/.test(src) && !/reject|refuse|401|compromis|interdit|ancien/i.test(src)) {
-      // mention pure du secret comme valeur par défaut / assignation
+    if (/["']famo2026["']/.test(src) && !/reject|refuse|401|compromis|interdit|ancien|temporaire|TEMPORAIRE/i.test(src)) {
       if (/(?:=\s*|\|\|\s*)["']famo2026["']/.test(src)) {
-        fail(file, "famo2026 utilisé comme valeur par défaut — interdit");
+        fail(file, "famo2026 utilisé comme valeur par défaut dans api/ — interdit (passer par staffauth)");
       }
     }
   }

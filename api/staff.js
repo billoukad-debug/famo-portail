@@ -1,8 +1,7 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
-const STAFF_CODE = process.env.STAFF_CODE;
 const __auth = require("../lib/staffauth");
 function staffCodeReady(res){
-  if (STAFF_CODE) return true;
+  if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
   return false;
 }

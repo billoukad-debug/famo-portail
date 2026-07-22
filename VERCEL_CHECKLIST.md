@@ -1,28 +1,27 @@
-# Checklist Vercel — avant mise en production
+# Checklist Vercel — mise en service Mohsen
 
-## Variables d'environnement (Settings → Environment Variables)
+## Variables d'environnement
 | Variable | Valeur | Note |
 |---|---|---|
-| `AIRTABLE_TOKEN` | (déjà en place) | régénérer si transmis hors coffre |
-| `STAFF_CODE` | **à créer / à faire tourner immédiatement** | jamais `famo2026` (compromis). Sans variable, les API staff répondent 500. |
+| `AIRTABLE_TOKEN` | (déjà en place) | garder secret |
+| `STAFF_CODE` | optionnel pour l’instant | **fallback temporaire `famo2026`** si absent (demande produit). À renforcer plus tard. |
 
-**Urgent :** faire tourner `STAFF_CODE` dès maintenant si l’ancien code public `famo2026` a jamais été utilisé. Auth staff = cookie de session HttpOnly (`/api/session`) ; les pages ne mettent plus le code dans `?code=`.
+Auth staff = cookie de session HttpOnly (`/api/session`). Les pages n’utilisent plus `?code=`.
 
-Après création/modification : **Redeploy** (une variable ne s'applique qu'au déploiement suivant).
+Après modification d’une variable : **Redeploy**.
 
-## Vérifications après déploiement
+## Onboarding Mohsen
+1. Ouvrir `/aan-de-slag.html`
+2. Code staff : `famo2026` (ou votre `STAFF_CODE` Vercel)
+3. Remplir les 6 étapes **dans le portail** (plus besoin d’ouvrir Airtable pour le flux de base)
+4. Noter / copier les credentials clients générés
+5. Une commande test via `/` puis Magazijn
+
+## Vérifications rapides
 ```bash
-# ancien code compromis refusé
-curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://famo-portail.vercel.app/api/session" \
-  -H "Content-Type: application/json" -d '{"code":"famo2026"}'   # attendu: 401
-
-# login session (cookie HttpOnly) puis accès sans ?code=
+# login temporaire
 curl -s -c /tmp/famo.ck -o /dev/null -w "%{http_code}\n" -X POST "https://famo-portail.vercel.app/api/session" \
-  -H "Content-Type: application/json" -d '{"code":"<STAFF_CODE>"}'   # attendu: 200
-curl -s -b /tmp/famo.ck -o /dev/null -w "%{http_code}\n" "https://famo-portail.vercel.app/api/allorders"  # attendu: 200 (cookie seul)
+  -H "Content-Type: application/json" -d '{"code":"famo2026"}'   # attendu: 200
 
-# mot de passe en GET refusé
-curl -s -o /dev/null -w "%{http_code}\n" "https://famo-portail.vercel.app/api/catalogue?user=x&pw=y"      # attendu: 405
-# cadrage fermé
-curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://famo-portail.vercel.app/api/cadrage"            # attendu: 410
+curl -s -b /tmp/famo.ck -o /dev/null -w "%{http_code}\n" "https://famo-portail.vercel.app/api/onboarding"  # attendu: 200
 ```

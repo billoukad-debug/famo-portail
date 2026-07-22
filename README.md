@@ -42,7 +42,7 @@ AIRTABLE_TOKEN=...
 STAFF_CODE=...
 ```
 
-Si `STAFF_CODE` est absent, l’authentification staff échoue de façon sûre (HTTP 500 avec message explicite). Il n’existe plus de valeur de compatibilité en dur. Un humain doit définir `STAFF_CODE` dans Vercel (jamais `famo2026`, code compromis).
+Si `STAFF_CODE` est absent, un **fallback temporaire** `famo2026` est utilisé (demande produit). Préférez quand même définir `STAFF_CODE` dans Vercel dès que possible.
 
 Exécuter les contrôles avant publication :
 

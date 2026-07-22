@@ -175,33 +175,30 @@ async function main() {
   }
   console.log("✓ Session staff commune (cookie HttpOnly, expiration, logout, compat code)");
 
-  // --- A. STAFF_CODE manquant -> 500 NL ---
+  // --- A. Fallback temporaire famo2026 si STAFF_CODE env absente ---
   {
     const saved = process.env.STAFF_CODE;
     delete process.env.STAFF_CODE;
     clearModule("lib/staffauth.js");
     clearModule("api/session.js");
-    clearModule("api/updateorder.js");
-    const sessionNoCode = require(path.join(ROOT, "api", "session.js"));
-    const updateNoCode = require(path.join(ROOT, "api", "updateorder.js"));
-    const r1 = mkRes();
-    await sessionNoCode({ method: "POST", body: { code: "x" }, headers: {} }, r1);
-    assert.equal(r1.statusCode, 500, "session sans STAFF_CODE -> 500");
-    assert.match(r1.payload.error, /STAFF_CODE ontbreekt/);
-    const r2 = mkRes();
-    await updateNoCode({ method: "POST", body: { id: "rec1" }, headers: {} }, r2);
-    assert.equal(r2.statusCode, 500, "updateorder sans STAFF_CODE -> 500");
-    assert.match(r2.payload.error, /STAFF_CODE ontbreekt/);
+    const sessionFb = require(path.join(ROOT, "api", "session.js"));
+    const authFb = require(path.join(ROOT, "lib", "staffauth.js"));
+    assert.ok(authFb.hasCode(), "fallback temporaire doit fournir un code");
+    const rOk = mkRes();
+    await sessionFb({ method: "POST", body: { code: "famo2026" }, headers: {} }, rOk);
+    assert.equal(rOk.statusCode, 200, "login famo2026 doit marcher sans env (temporaire)");
+    const rBad = mkRes();
+    await sessionFb({ method: "POST", body: { code: "wrong" }, headers: {} }, rBad);
+    assert.equal(rBad.statusCode, 401, "mauvais code refuse meme avec fallback");
     process.env.STAFF_CODE = saved;
     clearModule("lib/staffauth.js");
     clearModule("api/session.js");
     clearModule("api/updateorder.js");
-    // recharger pour la suite
     require(path.join(ROOT, "lib", "staffauth.js"));
     require(path.join(ROOT, "api", "session.js"));
     require(path.join(ROOT, "api", "updateorder.js"));
   }
-  console.log("✓ A. STAFF_CODE manquant → 500 (NL)");
+  console.log("✓ A. Fallback temporaire famo2026 (env absente)");
 
   // Rebind handlers after cache clear
   const updateOrder2 = require(path.join(ROOT, "api", "updateorder.js"));
@@ -420,6 +417,35 @@ async function main() {
     }
   }
   console.log("✓ K. allorders cookie-only (sans ?code=)");
+
+  // --- L. Onboarding API : preview credentials + validation saveConfig ---
+  {
+    const onboarding = require(path.join(ROOT, "api", "onboarding.js"));
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({ json: async () => ({ records: [] }) });
+    try {
+      const r = mkRes();
+      await onboarding({
+        method: "POST",
+        body: { action: "previewCredentials", nom: "Test Klant" },
+        headers: cookieHdr
+      }, r);
+      assert.equal(r.statusCode, 200, "previewCredentials");
+      assert.ok(r.payload.user && r.payload.password, "user+password generes");
+      assert.ok(r.payload.password.length >= 6);
+
+      const rBad = mkRes();
+      await onboarding({
+        method: "POST",
+        body: { action: "saveConfig", bedrijfsnaam: "", btw: "" },
+        headers: cookieHdr
+      }, rBad);
+      assert.equal(rBad.statusCode, 400, "saveConfig incomplet refuse");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  }
+  console.log("✓ L. Onboarding credentials + validation config");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());

@@ -1,79 +1,388 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Famo Trading — Aan de slag</title><link rel="stylesheet" href="/staff.css"><style>
-.s-login{min-height:100vh;display:grid;place-items:center;padding:20px}.s-login>div{width:min(100%,390px);padding:28px;border:1px solid #e8e8e8;border-radius:14px;background:#fff}.s-login input{width:100%;height:42px;padding:0 12px;margin:5px 0 9px}.s-login button{width:100%;height:42px;border:0;border-radius:9px;background:#111;color:#fff;cursor:pointer}.s-error{min-height:18px;margin-top:8px;color:#b23b2e;font-size:12px}
-.step{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid #eee}.step:last-child{border-bottom:0}
-.dot{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:600;background:#f0f0f0;color:#666}
-.dot.done{background:#28734d;color:#fff}.dot.todo{background:#fff;border:2px solid #d0d0d0}
-.step h3{margin:2px 0 4px;font-size:15px}.step p{margin:0;color:#666;font-size:13px;line-height:1.55}
-.step a.go{display:inline-block;margin-top:8px;font-size:13px;color:#235e86;text-decoration:none;font-weight:600}
-.badge{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0f0f0;color:#666;margin-left:8px}
-.badge.ok{background:#e6f4ec;color:#28734d}.badge.wait{background:#fff6e0;color:#9a6700}
-.warn-iban{margin:14px 0;padding:12px 14px;background:#fff6e0;border:1px solid #f0d890;border-radius:10px;font-size:13px;color:#7a5600}
-@media print{.staff-sidebar,.staff-mobile-nav,.no-print{display:none!important}.staff-main{margin:0!important}body{background:#fff}.step{page-break-inside:avoid}}
-</style></head><body>
-<section id="login" class="s-login"><div><h1>Aan de slag</h1><p style="color:#666;font-size:13.5px">Stapsgewijze ingebruikname van Famo Trading.</p><input id="code" type="password" placeholder="Personeelscode"><button onclick="enter()">Aanmelden</button><div id="err" class="s-error"></div></div></section>
-<div id="app" class="hidden staff-shell">
-<aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
-<nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
-<main class="staff-main"><div class="staff-page">
-<header class="staff-page-head"><div><h1>Aan de slag met Famo Trading</h1><p>Volg deze zes stappen in volgorde. Groen = klaar.</p></div>
-<div class="no-print"><button class="staff-action-secondary" onclick="window.print()">Afdrukken (A4)</button> <button class="staff-action-secondary" onclick="load()">Vernieuwen</button></div></header>
-<div id="ibanWarn" class="warn-iban hidden">⚠️ IBAN en/of BIC ontbreken. Facturen kunnen pas worden afgedrukt zodra deze zijn ingevuld (stap 1).</div>
-<div id="steps"><div class="staff-skeleton" style="max-width:260px;margin:30px auto"></div></div>
-</div></main></div>
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Famo Trading — Onboarding Mohsen</title>
+<link rel="stylesheet" href="/staff.css">
+<style>
+:root{--ink:#111;--muted:#666;--line:#e6e6e6;--soft:#f6f6f4;--ok:#28734d;--warn:#9a6700;--brand:#235e86}
+body{margin:0;background:#f0f0ee;color:var(--ink)}
+.ob-login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.ob-login>div{width:min(100%,420px);padding:32px 28px;border:1px solid var(--line);border-radius:18px;background:#fff}
+.ob-login h1{margin:0 0 6px;font-size:24px;letter-spacing:-.03em}
+.ob-login p{margin:0 0 20px;color:var(--muted);line-height:1.5;font-size:14px}
+.ob-login input{width:100%;height:46px;padding:0 14px;margin:0 0 10px;border:1px solid #ddd;border-radius:10px}
+.ob-login button{width:100%;height:46px;border:0;border-radius:10px;background:#111;color:#fff;font-weight:600;cursor:pointer}
+.ob-err{min-height:18px;margin-top:8px;color:#b23b2e;font-size:13px}
+.ob-shell{min-height:100vh;display:grid;grid-template-columns:280px 1fr}
+.ob-side{background:#111;color:#fff;padding:28px 22px;display:flex;flex-direction:column;gap:8px}
+.ob-side .brand{display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:18px}
+.ob-side .brand span{width:32px;height:32px;border-radius:9px;background:#235e86;display:grid;place-items:center}
+.ob-stepbtn{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;border:0;background:transparent;color:#cfcfcf;text-align:left;cursor:pointer;width:100%}
+.ob-stepbtn:hover{background:#1c1c1c;color:#fff}
+.ob-stepbtn.on{background:#1f2f3a;color:#fff}
+.ob-stepbtn .n{flex:0 0 28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:#333}
+.ob-stepbtn.on .n{background:var(--brand)}
+.ob-stepbtn.done .n{background:var(--ok)}
+.ob-stepbtn small{display:block;color:#8d8d8d;margin-top:2px;font-size:11px}
+.ob-main{padding:28px clamp(18px,4vw,48px) 64px;max-width:920px}
+.ob-hero{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:center;margin-bottom:22px;padding:22px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,#fff 0%,#f3f7fa 100%)}
+.ob-hero h1{margin:0 0 8px;font-size:28px;letter-spacing:-.035em}
+.ob-hero p{margin:0;color:var(--muted);line-height:1.55}
+.ob-art{aspect-ratio:4/3;border-radius:16px;background:
+  radial-gradient(circle at 30% 30%,#d7e8f3,transparent 45%),
+  radial-gradient(circle at 70% 60%,#e8f3ea,transparent 40%),
+  linear-gradient(160deg,#1a1a1a,#235e86);display:grid;place-items:center;color:#fff;position:relative;overflow:hidden}
+.ob-art b{font-size:42px;letter-spacing:-.05em;position:relative;z-index:1}
+.ob-art::after{content:"";position:absolute;inset:18% 12%;border:1px solid rgba(255,255,255,.22);border-radius:18px}
+.ob-card{border:1px solid var(--line);border-radius:16px;background:#fff;padding:22px}
+.ob-card h2{margin:0 0 6px;font-size:18px}
+.ob-card .lead{margin:0 0 18px;color:var(--muted);font-size:13.5px;line-height:1.5}
+.ob-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ob-grid .full{grid-column:1/-1}
+label.fld{display:block;font-size:12px;color:#777;margin:0 0 5px}
+input.fld,select.fld,textarea.fld{width:100%;min-height:44px;padding:10px 12px;border:1px solid #ddd;border-radius:10px;background:#fff;font:inherit}
+textarea.fld{min-height:84px;resize:vertical}
+.ob-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.ob-btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #111;background:#111;color:#fff;font-weight:600;cursor:pointer}
+.ob-btn.sec{background:#fff;color:#111;border-color:#ddd}
+.ob-btn:disabled{opacity:.5;cursor:default}
+.ob-list{margin-top:18px;border-top:1px solid #eee}
+.ob-row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.ob-row b{font-size:14px}.ob-row span{color:#777;font-size:12.5px}
+.ob-row .grow{flex:1;min-width:0}
+.cred{margin-top:14px;padding:14px;border-radius:12px;background:#111;color:#fff}
+.cred code{display:block;font:600 15px Geist Mono,ui-monospace,monospace;margin-top:4px}
+.cred small{color:#aaa}
+.toast{position:fixed;right:18px;bottom:18px;max-width:min(420px,calc(100vw - 24px));padding:12px 14px;border-radius:12px;background:#111;color:#fff;font-size:13px;z-index:50;display:none;white-space:pre-line}
+.toast.err{background:#8f2e22}
+.progress{height:8px;border-radius:99px;background:#e8e8e8;overflow:hidden;margin:10px 0 0}
+.progress>i{display:block;height:100%;background:var(--ok);width:0;transition:width .25s}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 8px;border-radius:99px;background:#f0f0f0;color:#555}
+.badge.ok{background:#e6f4ec;color:var(--ok)}
+.hint{font-size:12px;color:#888;margin-top:8px;line-height:1.45}
+@media(max-width:860px){
+  .ob-shell{grid-template-columns:1fr}
+  .ob-side{position:sticky;top:0;z-index:20;padding:14px;flex-direction:row;overflow:auto;gap:6px}
+  .ob-side .brand{display:none}
+  .ob-stepbtn{min-width:150px;padding:10px}
+  .ob-hero{grid-template-columns:1fr}
+  .ob-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<section id="login" class="ob-login"><div>
+  <h1>Welkom Mohsen</h1>
+  <p>Vul in 6 korte stappen alles in wat Famo nodig heeft. Geen Airtable — alles hier op het platform.</p>
+  <input id="code" type="password" placeholder="Personeelscode" autocomplete="current-password">
+  <button type="button" onclick="enter()">Start onboarding</button>
+  <div id="err" class="ob-err"></div>
+</div></section>
+
+<div id="app" class="ob-shell hidden">
+  <aside class="ob-side" aria-label="Onboarding stappen">
+    <div class="brand"><span>F</span> Famo onboarding</div>
+    <a href="/aan-de-slag.html" aria-current="page" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Aan de slag</a>
+    <button type="button" class="ob-stepbtn" data-step="0" onclick="go(0)"><span class="n">1</span><div><b>Bedrijf</b><small>Naam, BTW, IBAN</small></div></button>
+    <button type="button" class="ob-stepbtn" data-step="1" onclick="go(1)"><span class="n">2</span><div><b>Producten</b><small>Catalogus + voorraad</small></div></button>
+    <button type="button" class="ob-stepbtn" data-step="2" onclick="go(2)"><span class="n">3</span><div><b>Klanten</b><small>Login automatisch</small></div></button>
+    <button type="button" class="ob-stepbtn" data-step="3" onclick="go(3)"><span class="n">4</span><div><b>Prijzen</b><small>Afgesproken tarieven</small></div></button>
+    <button type="button" class="ob-stepbtn" data-step="4" onclick="go(4)"><span class="n">5</span><div><b>Wachtwoorden</b><small>Wijzigen / opnieuw</small></div></button>
+    <button type="button" class="ob-stepbtn" data-step="5" onclick="go(5)"><span class="n">6</span><div><b>Klaar</b><small>Testbestelling</small></div></button>
+    <div style="margin-top:auto;padding-top:18px">
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+      <div style="margin-top:8px;font-size:12px;color:#9a9a9a" id="barLabel">0/5 basisstappen</div>
+      <button type="button" class="ob-btn sec" style="width:100%;margin-top:12px;border-color:#333;background:#1a1a1a;color:#ddd" onclick="logout()">Uitloggen</button>
+    </div>
+  </aside>
+
+  <main class="ob-main">
+    <header class="ob-hero">
+      <div>
+        <h1 id="heroTitle">Bedrijfsgegevens</h1>
+        <p id="heroLead">Eén scherm per stap. Bewaar, ga verder. Groen = klaar.</p>
+        <div style="margin-top:12px"><span class="badge" id="heroBadge">stap 1/6</span></div>
+      </div>
+      <div class="ob-art" id="heroArt" aria-hidden="true"><b>01</b></div>
+    </header>
+    <div id="panel" class="ob-card"><div class="staff-skeleton" style="max-width:240px;margin:20px auto"></div></div>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script src="/staff-session.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
-function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
-const AIRTABLE="https://airtable.com";
+let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null;
+const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const unitOut=u=>window.famoNL?famoNL.unit(u):u;
+
+const STEPS=[
+  {t:"Bedrijfsgegevens", lead:"Officiële gegevens voor documenten en facturen. IBAN + BIC zijn verplicht om te kunnen afdrukken."},
+  {t:"Producten & voorraad", lead:"Voeg producten toe met eenheid en basisprijs. Voorraad start hier meteen mee."},
+  {t:"Klanten & logins", lead:"Maak een klant aan. Het platform genereert automatisch gebruikersnaam en wachtwoord."},
+  {t:"Afgesproken prijzen", lead:"Koppel een speciale prijs aan een klant + product. Anders geldt de basisprijs."},
+  {t:"Wachtwoorden beheren", lead:"Bekijk logins en genereer een nieuw wachtwoord wanneer nodig."},
+  {t:"U bent klaar", lead:"Controleer de status en plaats één testbestelling van A tot Z."}
+];
+
+function toast(msg,err){
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.className="toast"+(err?" err":""); el.style.display="block";
+  clearTimeout(toast._t); toast._t=setTimeout(()=>{el.style.display="none"},4200);
+}
+
 async function enter(){
-  const input=document.getElementById("code"),err=document.getElementById("err");
+  const input=document.getElementById("code"), err=document.getElementById("err");
   const code=(input.value||"").trim();
   if(!code){err.textContent="Vul de personeelscode in.";return}
-  if(enter._busy)return;enter._busy=true;
-  err.textContent="Controleren…";
+  if(BUSY)return; BUSY=true; err.textContent="Controleren…";
   try{
     await famoStaff.login(code);
     input.value="";
     document.getElementById("login").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    await load();
+    await refresh();
+    go(firstOpenStep());
   }catch(e){err.textContent=famoStaff.translateError(e.message||e)}
-  finally{enter._busy=false}
+  finally{BUSY=false}
 }
-async function load(){
-  const box=document.getElementById("steps");
-  box.innerHTML='<div class="staff-skeleton" style="max-width:260px;margin:30px auto"></div>';
-  try{
-    const r=await famoStaff.api("/api/config?status=1");
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(d.error||"Kon status niet laden.");
-    const st=d.status||{}, c=d.config||{};
-    document.getElementById("ibanWarn").classList.toggle("hidden", !st.ibanOntbreekt);
-    const steps=[
-      {done:st.identiteit, t:"1. Bedrijfsgegevens", p:"Officiële naam, adres, BTW, telefoon, e-mail, IBAN en BIC. In te vullen in Airtable → tabel <b>Configuratie</b> (één rij). Zonder IBAN/BIC kan er geen factuur worden afgedrukt.", link:AIRTABLE, label:"Open Airtable"},
-      {done:st.catalogue>0, t:"2. Catalogus ("+(st.catalogue||0)+" artikelen)", p:"Producten met eenheid (kassa/stuk/kg), categorie, basisprijs en vinkje Actief. In Airtable → tabel <b>Catalogue</b>.", link:AIRTABLE, label:"Open Airtable"},
-      {done:st.clients>0, t:"3. Klanten ("+(st.clients||0)+")", p:"Per klant: officiële naam, adres, BTW-nummer, klantnummer, gebruikersnaam en wachtwoord. Gebruik nooit een persoonlijk wachtwoord opnieuw. In Airtable → tabel <b>Clients</b>.", link:AIRTABLE, label:"Open Airtable"},
-      {done:st.prijzen>0, t:"4. Afgesproken prijzen ("+(st.prijzen||0)+")", p:"Koppel klant + product + prijs in Airtable → tabel <b>Prix négociés</b>. Controle: meld u aan op het klantportaal met de login van de klant en controleer de getoonde prijzen.", link:"/", label:"Open klantportaal"},
-      {done:st.stock>0, t:"5. Beginvoorraad ("+(st.stock||0)+" producten)", p:"Tel de voorraad en voer de aantallen in via de pagina Voorraad. Elke wijziging wordt gejournaliseerd.", link:"/stock.html", label:"Open Voorraad"},
-      {done:st.orders>0, t:"6. Testbestelling van A tot Z", p:"Plaats één bestelling via het klantportaal → valideer elk artikel in het Magazijn → vertrek (voorraad −1) → bevestig ontvangst met naam → druk de factuur af → markeer betaald. Controleer nummer en totaal.", link:"/entrepot.html", label:"Open Magazijn"}
-    ];
-    box.innerHTML=steps.map(s=>'<div class="step"><span class="dot '+(s.done?'done':'todo')+'">'+(s.done?'✓':'')+'</span><div><h3>'+s.t+(s.done?'<span class="badge ok">klaar</span>':'<span class="badge wait">te doen</span>')+'</h3><p>'+s.p+'</p><a class="go no-print" href="'+esc(s.link)+'" target="'+(s.link.startsWith("http")?"_blank":"_self")+'">'+esc(s.label)+' →</a></div></div>').join("")
-      +'<p style="margin-top:18px;font-size:12px;color:#888">Interne documenten (leverbon/factuur) zijn geen wettelijke e-factuur. De Peppol-verzending verloopt via de boekhouding (Billtobox).</p>';
-  }catch(e){
-    box.innerHTML='<div class="staff-error">'+esc(famoStaff.translateError(e.message))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
-  }
-}
+
 async function logout(){await famoStaff.logout();location.reload()}
+
+async function refresh(){
+  DATA=await famoStaff.apiJson("/api/onboarding");
+  paintSide();
+}
+
+function firstOpenStep(){
+  const s=DATA.status||{};
+  if(!s.identiteit)return 0;
+  if(!s.catalogue)return 1;
+  if(!s.clients)return 2;
+  if(!s.prijzen)return 3;
+  return 4;
+}
+
+function paintSide(){
+  const s=DATA.status||{};
+  const done=[!!s.identiteit, s.catalogue>0, s.clients>0, s.prijzen>0, s.credentials>0];
+  const n=done.filter(Boolean).length;
+  document.getElementById("bar").style.width=(n/5*100)+"%";
+  document.getElementById("barLabel").textContent=n+"/5 basisstappen klaar";
+  document.querySelectorAll(".ob-stepbtn").forEach(btn=>{
+    const i=+btn.dataset.step;
+    btn.classList.toggle("on", i===STEP);
+    btn.classList.toggle("done", i<5 && done[i]);
+  });
+}
+
+function go(i){
+  STEP=i;
+  const meta=STEPS[i];
+  document.getElementById("heroTitle").textContent=meta.t;
+  document.getElementById("heroLead").textContent=meta.lead;
+  document.getElementById("heroBadge").textContent="stap "+(i+1)+"/6";
+  document.getElementById("heroArt").innerHTML="<b>0"+(i+1)+"</b>";
+  paintSide();
+  render();
+}
+
+function render(){
+  const box=document.getElementById("panel");
+  if(!DATA){box.innerHTML="Laden…";return}
+  if(STEP===0) return renderCompany(box);
+  if(STEP===1) return renderProducts(box);
+  if(STEP===2) return renderClients(box);
+  if(STEP===3) return renderPrices(box);
+  if(STEP===4) return renderPasswords(box);
+  return renderDone(box);
+}
+
+function renderCompany(box){
+  const c=DATA.config||{};
+  box.innerHTML='<h2>1. Bedrijf</h2><p class="lead">Alles wat op leverbon en factuur moet staan.</p>'+
+    '<div class="ob-grid">'+
+    fld("bedrijfsnaam","Bedrijfsnaam *",c.bedrijfsnaam)+
+    fld("btw","BTW-nummer *",c.btw)+
+    fld("adres","Adres",c.adres,"full")+
+    fld("plaats","Postcode en plaats",c.plaats,"full")+
+    fld("telefoon","Telefoon",c.telefoon)+
+    fld("email","E-mail",c.email)+
+    fld("iban","IBAN *",c.iban)+
+    fld("bic","BIC *",c.bic)+
+    '</div><div class="ob-actions"><button class="ob-btn" onclick="saveCompany()">Opslaan en verder</button></div>'+
+    '<p class="hint">'+(DATA.status.identiteit?'<span class="badge ok">klaar</span> Bedrijfsgegevens compleet.':'IBAN/BIC ontbreken nog of zijn onvolledig.')+'</p>';
+}
+
+function fld(id,lab,val,extra){
+  return '<div class="'+(extra||'')+'"><label class="fld" for="'+id+'">'+lab+'</label><input class="fld" id="'+id+'" value="'+esc(val||'')+'"></div>';
+}
+
+async function saveCompany(){
+  if(BUSY)return; BUSY=true;
+  try{
+    DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"saveConfig",
+      bedrijfsnaam:val("bedrijfsnaam"), btw:val("btw"), adres:val("adres"), plaats:val("plaats"),
+      telefoon:val("telefoon"), email:val("email"), iban:val("iban"), bic:val("bic")
+    })});
+    toast("Bedrijf opgeslagen");
+    go(1);
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false}
+}
+
+function renderProducts(box){
+  const rows=(DATA.products||[]).map(p=>'<div class="ob-row"><div class="grow"><b>'+esc(p.nom)+'</b><br><span>'+esc(unitOut(p.unite))+' · basis € '+Number(p.base||0).toFixed(2).replace(".",",")+(p.cat?' · '+esc(p.cat):'')+'</span></div></div>').join("")||'<div class="ob-row"><span>Nog geen producten.</span></div>';
+  box.innerHTML='<h2>2. Product toevoegen</h2><p class="lead">Eenheid <b>kassa</b> (doos). Voor kg mag later decimaal besteld worden.</p>'+
+    '<div class="ob-grid">'+
+    fld("pnom","Productnaam *","")+
+    '<div><label class="fld" for="punite">Eenheid</label><select class="fld" id="punite"><option value="kassa">kassa</option><option value="stuk">stuk</option><option value="kg">kg</option><option value="doos">doos</option></select></div>'+
+    fld("pbase","Basisprijs € *","")+
+    fld("pcat","Categorie","Algemeen")+
+    fld("pstock","Beginvoorraad","0")+
+    fld("plow","Drempel laag","0")+
+    '</div><div class="ob-actions"><button class="ob-btn" onclick="saveProduct()">Product opslaan</button><button class="ob-btn sec" onclick="go(2)">Volgende stap</button></div>'+
+    '<div class="ob-list">'+rows+'</div>';
+}
+
+async function saveProduct(){
+  if(BUSY)return; BUSY=true;
+  try{
+    DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"saveProduct",
+      nom:val("pnom"), unite:val("punite"), base:Number(String(val("pbase")).replace(",",".")),
+      cat:val("pcat"), stock:Number(String(val("pstock")).replace(",",".")), lowThreshold:Number(val("plow")||0)
+    })});
+    toast("Product opgeslagen");
+    render();
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false}
+}
+
+function renderClients(box){
+  const cred=LAST_CREDS?'<div class="cred"><small>Nieuwe login — noteer of stuur door</small><div>Gebruiker</div><code>'+esc(LAST_CREDS.user)+'</code><div style="margin-top:8px">Wachtwoord</div><code>'+esc(LAST_CREDS.password)+'</code><div style="margin-top:10px"><button class="ob-btn sec" type="button" onclick="copyCreds()">Kopiëren</button></div></div>':'';
+  const rows=(DATA.clients||[]).map(c=>'<div class="ob-row"><div class="grow"><b>'+esc(c.nom)+'</b><br><span>login: '+esc(c.user||"—")+(c.hasPassword?' · wachtwoord gezet':' · nog geen wachtwoord')+'</span></div></div>').join("")||'<div class="ob-row"><span>Nog geen klanten.</span></div>';
+  box.innerHTML='<h2>3. Klant + login</h2><p class="lead">Laat “Automatisch genereren” aan staan. U krijgt meteen de credentials te zien.</p>'+
+    '<div class="ob-grid">'+
+    fld("cnom","Klantnaam *","","full")+
+    fld("cadresse","Leveradres","","full")+
+    fld("ctel","Telefoon","")+
+    fld("cbtw","BTW-nummer","")+
+    fld("cklantnr","Klantnummer","")+
+    '<div class="full"><label style="display:flex;gap:8px;align-items:center;font-size:13px"><input id="cgen" type="checkbox" checked> Automatisch gebruikersnaam + wachtwoord genereren</label></div>'+
+    fld("cuser","Gebruikersnaam (optioneel)","")+
+    fld("cpw","Wachtwoord (optioneel)","")+
+    '</div><div class="ob-actions"><button class="ob-btn" onclick="saveClient()">Klant opslaan</button><button class="ob-btn sec" onclick="go(3)">Volgende stap</button></div>'+
+    cred+'<div class="ob-list">'+rows+'</div>';
+}
+
+async function saveClient(){
+  if(BUSY)return; BUSY=true;
+  try{
+    const d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"saveClient",
+      nom:val("cnom"), adresse:val("cadresse"), tel:val("ctel"), btw:val("cbtw"), klantnr:val("cklantnr"),
+      generate:document.getElementById("cgen").checked,
+      user:val("cuser"), password:val("cpw")
+    })});
+    DATA=d; LAST_CREDS=d.credentials||null;
+    toast("Klant opgeslagen — login klaar");
+    render();
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false}
+}
+
+function copyCreds(){
+  if(!LAST_CREDS)return;
+  const t="Klant: "+LAST_CREDS.nom+"\nGebruiker: "+LAST_CREDS.user+"\nWachtwoord: "+LAST_CREDS.password+"\nPortaal: "+location.origin+"/";
+  navigator.clipboard.writeText(t).then(()=>toast("Credentials gekopieerd")).catch(()=>toast(t));
+}
+
+function renderPrices(box){
+  const clients=(DATA.clients||[]).map(c=>'<option value="'+esc(c.id)+'">'+esc(c.nom)+'</option>').join("");
+  const products=(DATA.products||[]).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nom)+' (€ '+Number(p.base).toFixed(2).replace(".",",")+")"+'</option>').join("");
+  const byC=Object.fromEntries((DATA.clients||[]).map(c=>[c.id,c.nom]));
+  const byP=Object.fromEntries((DATA.products||[]).map(p=>[p.id,p.nom]));
+  const rows=(DATA.prices||[]).map(p=>'<div class="ob-row"><div class="grow"><b>'+esc(byC[p.clientId]||p.clientId)+' → '+esc(byP[p.productId]||p.productId)+'</b><br><span>€ '+Number(p.prix).toFixed(2).replace(".",",")+'</span></div></div>').join("")||'<div class="ob-row"><span>Nog geen afgesproken prijzen.</span></div>';
+  box.innerHTML='<h2>4. Afgesproken prijs</h2><p class="lead">Optioneel maar aangeraden voor vaste klanten.</p>'+
+    '<div class="ob-grid">'+
+    '<div><label class="fld">Klant</label><select class="fld" id="prClient">'+clients+'</select></div>'+
+    '<div><label class="fld">Product</label><select class="fld" id="prProduct">'+products+'</select></div>'+
+    fld("prPrix","Prijs € *","")+
+    '</div><div class="ob-actions"><button class="ob-btn" onclick="savePrice()" '+(clients&&products?'':'disabled')+'>Prijs opslaan</button><button class="ob-btn sec" onclick="go(4)">Volgende stap</button></div>'+
+    '<div class="ob-list">'+rows+'</div>';
+}
+
+async function savePrice(){
+  if(BUSY)return; BUSY=true;
+  try{
+    DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"savePrice",
+      clientId:val("prClient"), productId:val("prProduct"), prix:Number(String(val("prPrix")).replace(",","."))
+    })});
+    toast("Prijs opgeslagen");
+    render();
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false}
+}
+
+function renderPasswords(box){
+  const rows=(DATA.clients||[]).map(c=>'<div class="ob-row"><div class="grow"><b>'+esc(c.nom)+'</b><br><span>'+esc(c.user||"geen login")+'</span></div>'+
+    '<button class="ob-btn sec" type="button" onclick="resetPw(\''+esc(c.id)+'\')">Nieuw wachtwoord</button></div>').join("")||'<div class="ob-row"><span>Eerst een klant aanmaken (stap 3).</span></div>';
+  const cred=LAST_CREDS?'<div class="cred"><small>Laatst gegenereerd</small><div>Gebruiker</div><code>'+esc(LAST_CREDS.user)+'</code><div style="margin-top:8px">Wachtwoord</div><code>'+esc(LAST_CREDS.password)+'</code><div style="margin-top:10px"><button class="ob-btn sec" type="button" onclick="copyCreds()">Kopiëren</button></div></div>':'';
+  box.innerHTML='<h2>5. Wachtwoorden</h2><p class="lead">Genereer een nieuw wachtwoord per klant. Het oude werkt dan niet meer.</p>'+
+    cred+'<div class="ob-list">'+rows+'</div>'+
+    '<div class="ob-actions"><button class="ob-btn sec" onclick="go(5)">Naar afronding</button></div>';
+}
+
+async function resetPw(id){
+  if(BUSY)return; BUSY=true;
+  try{
+    const d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"resetPassword",id})});
+    DATA=d; LAST_CREDS=d.credentials||null;
+    toast("Nieuw wachtwoord gegenereerd");
+    render();
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false}
+}
+
+function renderDone(box){
+  const s=DATA.status||{};
+  const items=[
+    ["Bedrijf", !!s.identiteit],
+    ["Producten", s.catalogue>0, s.catalogue+" stuks"],
+    ["Klanten", s.clients>0, s.clients+" stuks"],
+    ["Prijzen", s.prijzen>0, s.prijzen+" stuks"],
+    ["Logins", s.credentials>0, s.credentials+" klaar"]
+  ];
+  box.innerHTML='<h2>6. Klaar voor gebruik</h2><p class="lead">Als alles groen is: plaats één testbestelling via het klantportaal, bereid voor in Magazijn, bevestig levering, druk factuur.</p>'+
+    '<div class="ob-list">'+items.map(x=>'<div class="ob-row"><div class="grow"><b>'+x[0]+'</b>'+(x[2]?'<br><span>'+esc(x[2])+'</span>':'')+'</div><span class="badge '+(x[1]?'ok':'')+'">'+(x[1]?'klaar':'te doen')+'</span></div>').join("")+'</div>'+
+    '<div class="ob-actions">'+
+    '<a class="ob-btn" href="/" target="_blank">Open klantportaal</a>'+
+    '<a class="ob-btn sec" href="/entrepot.html">Open Magazijn</a>'+
+    '<a class="ob-btn sec" href="/stock.html">Open Voorraad</a>'+
+    '<a class="ob-btn sec" href="/overzicht.html">Open Overzicht</a>'+
+    '</div><p class="hint">Personeelscode tijdelijk: famo2026 (tot u die later versterkt in Vercel). Facturen hier zijn intern — Peppol volgt via boekhouding.</p>';
+}
+
+function val(id){const el=document.getElementById(id);return el?el.value.trim():""}
+
 document.getElementById("code").addEventListener("keydown",e=>{if(e.key==="Enter")enter()});
 window.addEventListener("DOMContentLoaded",async()=>{
   try{
     if(await famoStaff.check()){
       document.getElementById("login").classList.add("hidden");
       document.getElementById("app").classList.remove("hidden");
-      await load();
-      return;
+      await refresh();
+      go(firstOpenStep());
     }
   }catch(e){}
 });
-</script></body></html>
+</script>
+</body>
+</html>
