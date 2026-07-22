@@ -16,20 +16,8 @@
 </section>
 
 <div id="app" class="hidden staff-shell">
-  <aside class="staff-sidebar" aria-label="Personeelsnavigatie">
-    <a class="staff-logo" href="/overzicht.html"><span class="staff-logo-mark">F</span>Famo Trading</a>
-    <div class="staff-nav-label">Werkruimte</div>
-    <a class="staff-nav-link" href="/overzicht.html"><span class="staff-nav-icon overview"></span>Overzicht</a>
-    <a class="staff-nav-link active" href="/bestellingen.html"><span class="staff-nav-icon orders"></span>Bestellingen</a>
-    <a class="staff-nav-link" href="/entrepot.html"><span class="staff-nav-icon warehouse"></span>Magazijn</a>
-    <a class="staff-nav-link" href="/dagprep.html"><span class="staff-nav-icon pick"></span>Dagvoorbereiding</a>
-    <a class="staff-nav-link" href="/invoer.html"><span class="staff-nav-icon entry"></span>Invoeren</a>
-    <a class="staff-nav-link" href="/stock.html"><span class="staff-nav-icon stock"></span>Voorraad</a>
-    <a class="staff-nav-link" href="/documenten.html"><span class="staff-nav-icon docs"></span>Documenten</a>
-    <a class="staff-nav-link" href="/leveringen.html"><span class="staff-nav-icon delivery"></span>Leveringen</a>
-    <div class="staff-nav-spacer"></div><div class="staff-session"><span class="staff-session-avatar">PM</span><div><b>Personeel</b><small>Famo Trading</small></div><a href="#" onclick="logout();return false">Uitloggen</a></div>
-  </aside>
-  <nav class="staff-mobile-nav" aria-label="Mobiele navigatie"><a href="/overzicht.html">Famo</a><a href="/bestellingen.html">Bestellingen</a><a href="/entrepot.html">Magazijn</a><a href="/stock.html">Voorraad</a></nav>
+  <aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
+  <nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
   <main class="staff-main"><div class="staff-page">
     <header class="staff-page-head"><div><h1>Bestellingen</h1><p>Alle bestellingen, met actuele status en operationele aandachtspunten.</p></div><div><button class="staff-action-secondary" onclick="load()">Vernieuwen</button></div></header>
     <section class="orders-tools" aria-label="Bestellingen filteren">
@@ -48,27 +36,61 @@
     <p class="orders-note">Prijzen worden server-side berekend en bij het aanmaken bevroren. Open een bestelling voor voorbereiding, levering en documenten.</p>
   </div></main>
 </div>
+<script src="/staff-session.js"></script>
+<script src="/staff-i18n.js"></script>
+<script src="/staff-nav.js"></script>
 <script>
-let CODE="", ORDERS=[], LAST_ERROR="";
+let ORDERS=[], LAST_ERROR="";
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 const eur=n=>"€ "+Number(n||0).toFixed(2).replace(".",",");
-const statusNl={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
 const statusColor={"Reçue":"#235e86","Prête":"#b4790f","Sortie en livraison":"#3a8a9c","Facturée":"#2e7d53"};
 function sourceOf(order){const m=String(order.notes||"").match(/^\[([^\]]+)\]/);return m?m[1]:"Klantportaal"}
-function shortLines(lines){return String(lines||"").split("\n").map(x=>x.replace(/\s*\[€[^\]]+\]/g,"")).filter(Boolean).join(" · ")}
+function shortLines(lines){return famoNL.lines(String(lines||"").split("\n").map(x=>x.replace(/\s*\[€[^\]]+\]/g,"")).filter(Boolean).join(" · "))}
 function dateLabel(value){if(!value)return"—";const d=new Date(value+"T00:00:00");return Number.isNaN(d)?value:d.toLocaleDateString("nl-BE",{day:"2-digit",month:"2-digit",year:"numeric"})}
 function isAttention(o){return (o.statut==="Prête"&&!o.preparationValidee)||(o.statut==="Sortie en livraison"&&!o.livraisonConfirmee)}
-function localDay(offset=0){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+offset);return d.toISOString().slice(0,10)}
+function localDay(offset=0){
+  const base=new Date(new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(new Date())+"T12:00:00");
+  base.setDate(base.getDate()+offset);
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(base);
+}
 function matchesDate(o,filter){const day=String(o.dateLiv||"").slice(0,10);if(filter==="all")return true;if(filter==="undated")return !day;if(filter==="today")return day===localDay();if(filter==="tomorrow")return day===localDay(1);return Boolean(day&&day<localDay()&&o.statut!=="Facturée")}
-async function enter(){CODE=document.getElementById("code").value.trim();const error=document.getElementById("loginError");error.textContent="Controleren…";if(!CODE){error.textContent="Vul de personeelscode in.";return}sessionStorage.setItem("famoStaffCode",CODE);document.getElementById("loginView").classList.add("hidden");document.getElementById("app").classList.remove("hidden");await load()}
-async function load(){const state=document.getElementById("state");state.innerHTML='<div class="staff-loading"><div class="staff-skeleton" style="max-width:220px;margin:0 auto"></div><div class="staff-skeleton" style="max-width:380px;margin:12px auto 0"></div></div>';try{const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Bestellingen konden niet worden geladen.");ORDERS=d.orders||[];LAST_ERROR="";render()}catch(error){LAST_ERROR=error.message||"Netwerkfout.";render()}}
+async function enter(){
+  const input=document.getElementById("code"),error=document.getElementById("loginError");
+  const code=(input.value||"").trim();
+  if(!code){error.textContent="Vul de personeelscode in.";return}
+  if(enter._busy)return;enter._busy=true;
+  error.textContent="Controleren…";
+  try{
+    await famoStaff.login(code);
+    input.value="";
+    document.getElementById("loginView").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    await load();
+  }catch(e){error.textContent=famoStaff.translateError(e.message||e)}
+  finally{enter._busy=false}
+}
+async function load(){const state=document.getElementById("state");state.innerHTML='<div class="staff-loading"><div class="staff-skeleton" style="max-width:220px;margin:0 auto"></div><div class="staff-skeleton" style="max-width:380px;margin:12px auto 0"></div></div>';try{const r=await famoStaff.api("/api/allorders");const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Bestellingen konden niet worden geladen.");ORDERS=d.orders||[];LAST_ERROR="";render()}catch(error){LAST_ERROR=famoStaff.translateError(error.message||"Netwerkfout.");render()}}
 function filtered(){const term=document.getElementById("search").value.trim().toLowerCase(),status=document.getElementById("status").value,payment=document.getElementById("payment").value,source=document.getElementById("source").value,dateFilter=document.getElementById("dateFilter").value,attention=document.getElementById("attention").value,sort=document.getElementById("sort").value;const list=ORDERS.filter(o=>{const hay=[o.ref,o.client,o.lignes,o.factuurnummer].join(" ").toLowerCase();return(!term||hay.includes(term))&&(status==="all"||o.statut===status)&&(payment==="all"||o.paiement===payment)&&(source==="all"||sourceOf(o)===source)&&matchesDate(o,dateFilter)&&(attention==="all"||isAttention(o))});return list.sort((a,b)=>{if(sort==="delivery")return String(a.dateLiv||"9999").localeCompare(String(b.dateLiv||"9999"));if(sort==="client")return String(a.client).localeCompare(String(b.client));if(sort==="total")return Number(b.total)-Number(a.total);return String(b.date||"").localeCompare(String(a.date||""))})}
 function setStatusFilter(value){document.getElementById("status").value=value;render()}
-function render(){const summary=document.getElementById("summary"),state=document.getElementById("state"),table=document.getElementById("tableWrap"),rows=document.getElementById("rows"),cards=document.getElementById("cards");if(LAST_ERROR){summary.innerHTML="";table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';return}const stats=[{key:"all",label:"Alle",count:ORDERS.length},{key:"Reçue",label:"Ontvangen",count:ORDERS.filter(x=>x.statut==="Reçue").length},{key:"Prête",label:"Klaar",count:ORDERS.filter(x=>x.statut==="Prête").length},{key:"Sortie en livraison",label:"Onderweg",count:ORDERS.filter(x=>x.statut==="Sortie en livraison").length},{key:"Facturée",label:"Gefactureerd",count:ORDERS.filter(x=>x.statut==="Facturée").length}];const active=document.getElementById("status").value;summary.innerHTML=stats.map(x=>'<button class="'+((active===x.key||(active==="all"&&x.key==="all"))?"active":"")+'" onclick="setStatusFilter(\''+x.key+'\')"><b>'+x.count+'</b><span>'+x.label+'</span></button>').join("");const list=filtered();if(!list.length){table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-empty">Geen bestellingen gevonden met deze filters.</div>';return}state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen</div>';table.classList.remove("hidden");rows.innerHTML=list.map(o=>'<tr data-open onclick="openOrder(\''+esc(o.id)+'\')"><td><div class="order-ref">'+esc(o.ref)+'</div><div class="order-source">'+esc(sourceOf(o))+'</div></td><td><div class="order-client">'+esc(o.client)+'</div>'+((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")?'<div class="order-source">'+esc((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")).slice(0,55)+'</div>':'')+'</td><td><div class="order-lines">'+esc(shortLines(o.lignes))+'</div>'+(isAttention(o)?'<span class="order-alert">Aandacht vereist</span>':'')+'</td><td><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+statusNl[o.statut]+'</span></td><td>'+dateLabel(o.dateLiv)+'</td><td>'+esc(o.paiement||"En attente")+'</td><td class="order-money">'+eur(o.total)+'</td><td><button class="staff-ghost" onclick="openOrder(\''+esc(o.id)+'\')">Open</button></td></tr>').join("");cards.innerHTML=list.map(o=>'<article class="order-card"><div class="order-card-head"><span class="order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+statusNl[o.statut]+'</span><button onclick="openOrder(\''+esc(o.id)+'\')">Open</button></div><div class="order-card-client">'+esc(o.client)+'</div><div class="order-card-lines">'+esc(shortLines(o.lignes))+'</div><div class="order-card-foot"><span>'+dateLabel(o.dateLiv)+'</span><span>'+esc(sourceOf(o))+'</span><span class="order-money">'+eur(o.total)+'</span></div></article>').join("")}
+function render(){const summary=document.getElementById("summary"),state=document.getElementById("state"),table=document.getElementById("tableWrap"),rows=document.getElementById("rows"),cards=document.getElementById("cards");if(LAST_ERROR){summary.innerHTML="";table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';return}const stats=[{key:"all",label:"Alle",count:ORDERS.length},{key:"Reçue",label:"Ontvangen",count:ORDERS.filter(x=>x.statut==="Reçue").length},{key:"Prête",label:"Klaar",count:ORDERS.filter(x=>x.statut==="Prête").length},{key:"Sortie en livraison",label:"Onderweg",count:ORDERS.filter(x=>x.statut==="Sortie en livraison").length},{key:"Facturée",label:"Gefactureerd",count:ORDERS.filter(x=>x.statut==="Facturée").length}];const active=document.getElementById("status").value;summary.innerHTML=stats.map(x=>'<button class="'+((active===x.key||(active==="all"&&x.key==="all"))?"active":"")+'" onclick="setStatusFilter(\''+x.key+'\')"><b>'+x.count+'</b><span>'+x.label+'</span></button>').join("");const list=filtered();if(!list.length){table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-empty">Geen bestellingen gevonden met deze filters.</div>';return}state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen</div>';table.classList.remove("hidden");rows.innerHTML=list.map(o=>'<tr data-open onclick="openOrder(\''+esc(o.id)+'\')"><td><div class="order-ref">'+esc(o.ref)+'</div><div class="order-source">'+esc(sourceOf(o))+'</div></td><td><div class="order-client">'+esc(o.client)+'</div>'+((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")?'<div class="order-source">'+esc((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")).slice(0,55)+'</div>':'')+'</td><td><div class="order-lines">'+esc(shortLines(o.lignes))+'</div>'+(isAttention(o)?'<span class="order-alert">Aandacht vereist</span>':'')+'</td><td><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span></td><td>'+dateLabel(o.dateLiv)+'</td><td>'+esc(famoNL.pay(o.paiement||"En attente"))+'</td><td class="order-money">'+eur(o.total)+'</td><td><button class="staff-ghost" onclick="openOrder(\''+esc(o.id)+'\')">Open</button></td></tr>').join("");cards.innerHTML=list.map(o=>'<article class="order-card"><div class="order-card-head"><span class="order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span><button onclick="openOrder(\''+esc(o.id)+'\')">Open</button></div><div class="order-card-client">'+esc(o.client)+'</div><div class="order-card-lines">'+esc(shortLines(o.lignes))+'</div><div class="order-card-foot"><span>'+dateLabel(o.dateLiv)+'</span><span>'+esc(sourceOf(o))+'</span><span class="order-money">'+eur(o.total)+'</span></div></article>').join("")}
 function openOrder(id){window.location.href="/order.html?id="+encodeURIComponent(id)}
-function logout(){sessionStorage.removeItem("famoStaffCode");CODE="";ORDERS=[];document.getElementById("app").classList.add("hidden");document.getElementById("loginView").classList.remove("hidden");document.getElementById("code").focus()}
+async function logout(){await famoStaff.logout();location.reload()}
 document.getElementById("code").addEventListener("keydown",event=>{if(event.key==="Enter")enter()});
-window.addEventListener("DOMContentLoaded",()=>{const params=new URLSearchParams(location.search);["status","payment","source","dateFilter","attention","sort"].forEach(name=>{const field=document.getElementById(name),value=params.get(name);if(field&&value&&[...field.options].some(option=>option.value===value))field.value=value});const saved=sessionStorage.getItem("famoStaffCode");if(saved){document.getElementById("code").value=saved;enter()}});
+window.addEventListener("DOMContentLoaded",async()=>{
+  const params=new URLSearchParams(location.search);
+  ["status","payment","source","dateFilter","attention","sort"].forEach(name=>{
+    const field=document.getElementById(name),value=params.get(name);
+    if(field&&value&&[...field.options].some(option=>option.value===value))field.value=value;
+  });
+  try{
+    if(await famoStaff.check()){
+      document.getElementById("loginView").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      await load();
+      return;
+    }
+  }catch(e){}
+});
 </script>
 </body>
 </html>

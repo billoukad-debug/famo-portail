@@ -1,4 +1,14 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
+// Anti-abus minimal (memoire d'instance, best-effort sur serverless).
+const _rl = new Map();
+function rateLimited(key, max, windowMs){
+  const now = Date.now();
+  const e = _rl.get(key) || { n: 0, t: now };
+  if (now - e.t > windowMs) { e.n = 0; e.t = now; }
+  e.n++; _rl.set(key, e);
+  return e.n > max;
+}
+
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path){
@@ -100,6 +110,9 @@ module.exports = async (req, res) => {
     const client = await authClient(body.user, body.pw);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
+    if (rateLimited("order:" + clientId, 10, 3600000)) {
+      return res.status(429).json({ error: "Te veel bestellingen in korte tijd. Wacht even en probeer opnieuw, of bel ons." });
+    }
 
     const { notes, dateLivraison } = body;
     let order;

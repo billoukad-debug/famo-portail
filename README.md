@@ -10,15 +10,22 @@ Portail B2B FAMO pour la prise de commande, la préparation magasin, le stock et
 4. À la réception, le magasin enregistre la personne qui a réceptionné la commande et peut joindre un lien HTTPS vers la photo ou signature de preuve. La facture est ensuite numérotée.
 5. Les corrections de stock demandent un type de mouvement et une raison/référence, et sont journalisées.
 
-Les produits vendus au kilo acceptent des quantités décimales (par exemple `0,5 kg`). Les caisses restent en quantités entières dans l’interface.
+Les produits vendus au kilo acceptent des quantités décimales (par exemple `0,5 kg`). Les unités Airtable `caisse` restent en quantités entières et s’affichent **kassa** dans l’interface (jamais le mot français « caisse » à l’écran).
 
 ## Pages
 
 - `/` : portail client et réassort.
+- `/overzicht.html` : cockpit opérationnel staff.
+- `/bestellingen.html` / `/order.html` : liste et détail des commandes.
+- `/entrepot.html` : préparation, livraison et facturation (Magazijn).
+- `/dagprep.html` : préparation journalière consolidée.
 - `/invoer.html` : saisie interne pour commandes téléphone/WhatsApp.
-- `/entrepot.html` : préparation, livraison et facturation.
 - `/stock.html` : inventaire, entrées, retours et seuils bas.
-- `/cadrage.html` : questionnaire de cadrage client.
+- `/documenten.html` : bons de livraison, factures internes, creditnota interne.
+- `/leveringen.html` : confirmation de réception.
+- `/aan-de-slag.html` : guide de mise en service.
+
+Auth staff : cookie de session HttpOnly (`POST /api/session`), durée 8 h. Le code personnel ne doit plus apparaître dans les URL ni dans le stockage navigateur.
 
 ## Données Airtable utilisées
 
@@ -35,7 +42,7 @@ AIRTABLE_TOKEN=...
 STAFF_CODE=...
 ```
 
-Le code personnel a une valeur de compatibilité si `STAFF_CODE` est absent, mais une vraie valeur doit être configurée dans Vercel avant la mise en exploitation.
+Si `STAFF_CODE` est absent, un **fallback temporaire** `famo2026` est utilisé (demande produit). Préférez quand même définir `STAFF_CODE` dans Vercel dès que possible.
 
 Exécuter les contrôles avant publication :
 

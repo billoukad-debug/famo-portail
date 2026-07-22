@@ -30,8 +30,13 @@ async function authClient(user, pw){
 }
 
 module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Gebruik POST. Wachtwoorden horen niet in een URL." });
+  }
   try {
-    const q = req.query || {};
+    let q = req.body;
+    if (typeof q === "string") q = JSON.parse(q || "{}");
+    if (!q) q = {};
     const client = await authClient(q.user, q.pw);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;

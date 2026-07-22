@@ -1,4 +1,14 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
+// Anti-abus minimal (memoire d'instance, best-effort sur serverless).
+const _rl = new Map();
+function rateLimited(key, max, windowMs){
+  const now = Date.now();
+  const e = _rl.get(key) || { n: 0, t: now };
+  if (now - e.t > windowMs) { e.n = 0; e.t = now; }
+  e.n++; _rl.set(key, e);
+  return e.n > max;
+}
+
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path){
@@ -32,10 +42,20 @@ async function authClient(user, pw){
 module.exports.authClient = authClient;
 
 module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Gebruik POST. Wachtwoorden horen niet in een URL." });
+  }
   try {
-    const q = req.query || {};
+    let q = req.body;
+    if (typeof q === "string") q = JSON.parse(q || "{}");
+    if (!q) q = {};
+    const rlKey = "login:" + String(q.user || "").toLowerCase();
+    if (rateLimited(rlKey, 5, 30000)) {
+      return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
+    }
     const client = await authClient(q.user, q.pw);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
+    _rl.delete(rlKey);
     const clientId = client.id;
 
     const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);

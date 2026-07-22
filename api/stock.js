@@ -1,5 +1,10 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
-const STAFF_CODE = process.env.STAFF_CODE || "famo2026";
+const __auth = require("../lib/staffauth");
+function staffCodeReady(res){
+  if (__auth.hasCode()) return true;
+  res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
+  return false;
+}
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path, opts){
@@ -46,10 +51,11 @@ function amount(value){
 }
 
 module.exports = async (req, res) => {
+  if (!staffCodeReady(res)) return;
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const code = req.method === "GET" ? String((req.query || {}).code || "") : String(body.code || "");
-    if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
+    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     if (req.method === "GET") {
       const stock = await atAll("Stock?sort%5B0%5D%5Bfield%5D=Produit&sort%5B0%5D%5Bdirection%5D=asc");

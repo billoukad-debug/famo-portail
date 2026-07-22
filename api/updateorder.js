@@ -1,5 +1,10 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
-const STAFF_CODE = process.env.STAFF_CODE || "famo2026";
+const __auth = require("../lib/staffauth");
+function staffCodeReady(res){
+  if (__auth.hasCode()) return true;
+  res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
+  return false;
+}
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path, opts){
@@ -111,7 +116,7 @@ async function deductStock(lignes){
 
 // Numéro de facture séquentiel : FA-2026-0001
 async function nextInvoiceNumber(){
-  const year = new Date().getFullYear();
+  const year = __auth.brusselsYear();
   const j = await atAll(`Commandes?fields%5B%5D=${encodeURIComponent("Factuurnummer")}`);
   let max = 0;
   (j.records || []).forEach(r => {
@@ -124,14 +129,15 @@ async function nextInvoiceNumber(){
 }
 
 module.exports = async (req, res) => {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (req.method !== "POST") return res.status(405).json({ error: "Alleen POST toegestaan" });
+  if (!staffCodeReady(res)) return;
   try {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
     const { code, id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl } = body;
-    if (code !== STAFF_CODE) return res.status(401).json({ error: "Code invalide" });
-    if (!id) return res.status(400).json({ error: "id requis" });
+    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!id) return res.status(400).json({ error: "Bestelling-id ontbreekt" });
 
     const cur = await at(`Commandes/${id}`);
     if (cur.error) return res.status(500).json(cur);
@@ -166,7 +172,12 @@ module.exports = async (req, res) => {
       fields["Statut"] = statut;
     }
 
-    if (preparationValidee || statut === "Prête") {
+    // La validation article par article doit etre EXPLICITE (envoyee par le
+    // panneau de validation). Le simple passage de statut ne valide jamais.
+    if (statut === "Prête" && preparationValidee !== true && !f["Préparation validée"]) {
+      return res.status(409).json({ error: "Valideer eerst elk artikel afzonderlijk vóór u de bestelling op Klaar zet" });
+    }
+    if (preparationValidee === true) {
       fields["Préparation validée"] = true;
       fields["Préparée le"] = new Date().toISOString();
     }
@@ -216,7 +227,7 @@ module.exports = async (req, res) => {
       fields["Facturée le"] = new Date().toISOString();
     }
 
-    if (!Object.keys(fields).length) return res.status(400).json({ error: "rien à mettre à jour" });
+    if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets om bij te werken" });
 
     const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
     if (j.error) return res.status(500).json(j);

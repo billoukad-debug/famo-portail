@@ -145,7 +145,7 @@
 </div>
 
 <div id="app" class="hidden warehouse-app">
-  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="/overzicht.html"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="/overzicht.html">Overzicht</a><a href="/bestellingen.html">Bestellingen</a><a class="active" href="/entrepot.html">Magazijn</a><a href="/dagprep.html">Dagvoorbereiding</a><a href="/invoer.html">Invoeren</a><a href="/stock.html">Voorraad</a><a href="/documenten.html">Documenten</a><a href="/leveringen.html">Leveringen</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Famo Trading</small></div><a href="#" onclick="logoutWarehouse();return false">Uitloggen</a></div></aside>
+  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="/overzicht.html"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="/overzicht.html">Overzicht</a><a href="/bestellingen.html">Bestellingen</a><a class="active" href="/entrepot.html" aria-current="page">Magazijn</a><a href="/dagprep.html">Dagvoorbereiding</a><a href="/invoer.html">Invoeren</a><a href="/stock.html">Voorraad</a><a href="/documenten.html">Documenten</a><a href="/leveringen.html">Leveringen</a><a href="/aan-de-slag.html">Aan de slag</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Famo Trading</small></div><a href="#" onclick="logoutWarehouse();return false">Uitloggen</a></div></aside>
   <div class="warehouse-main"><header class="warehouse-mobilebar"><button onclick="toggleWarehouseMenu()">Menu</button><b>Magazijn</b></header><main class="warehouse-workspace"><div class="warehouse-content"><header class="warehouse-page-head"><div><h1>Magazijn</h1><p>Bereiding en levering · <span id="stamp"></span></p></div><div class="warehouse-actions"><button class="warehouse-primary" onclick="toggleDayView()">Dagvoorbereiding</button><button onclick="printPicklist()">Voorbereidingslijst</button><button onclick="load()">Vernieuw</button></div></header>
   <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div class="day-filter"><label for="dayFilter">Leverdatum</label><select id="dayFilter" onchange="setDayFilter(this.value)"><option value="today">Vandaag</option><option value="tomorrow">Morgen</option><option value="overdue">Te laat</option><option value="nodate">Zonder datum</option><option value="all">Alle open bestellingen</option><option value="custom">Kies datum…</option></select><input id="dayCustom" class="hidden" type="date" onchange="renderDayView()"></div><div id="pickSummary" class="pick-summary"></div></section>
   <section class="warehouse-toolbar" aria-label="Bestellingen zoeken en sorteren"><label for="orderSearch">Zoeken</label><input id="orderSearch" type="search" placeholder="Referentie, klant of artikel…" oninput="setOrderQuery(this.value)"><label for="orderSort">Sorteren</label><select id="orderSort" onchange="setOrderSort(this.value)"><option value="delivery">Leverdatum: eerst</option><option value="recent">Recent toegevoegd</option><option value="client">Klant: A–Z</option><option value="total">Totaal: hoog naar laag</option></select><button type="button" onclick="clearOrderFilters()">Wissen</button><span id="boardSummary" role="status"></span></section>
@@ -166,6 +166,9 @@
 <div id="notice" class="notice hidden" role="alert"></div>
 <div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="advanceTitle"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong id="advanceTitle">Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:#555;line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 
+<script src="/staff-session.js"></script>
+<script src="/staff-i18n.js"></script>
+<script src="/staff-nav.js"></script>
 <script>
 /* ====== Bedrijfsgegevens Famo Trading ====== */
 const FAMO = {
@@ -181,15 +184,14 @@ const FAMO = {
 /* =========================================== */
 
 const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
-const NL={"Reçue":"Ontvangen","Prête":"Klaar","Sortie en livraison":"Onderweg","Facturée":"Gefactureerd"};
 const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Facturée":"→ Gefactureerd"};
-let CODE="", ORDERS=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery", UPDATING=false;
+let ORDERS=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery", UPDATING=false;
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 function toggleWarehouseMenu(){ document.querySelector(".warehouse-sidebar").classList.toggle("open"); }
 function renderLines(txt){
   return '<div class="order-lines">'+String(txt||"").split("\n").filter(Boolean).map(line=>{
-    const clean=line.replace(/\s*\[€[^\]]+\]/g,"");
+    const clean=famoNL.lines(line.replace(/\s*\[€[^\]]+\]/g,""));
     const m=clean.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*(.*)$/);
     if(!m) return '<div class="order-line"><span class="d">'+esc(clean)+'</span></div>';
     return '<div class="order-line"><span class="q">'+esc(m[2])+'</span><span class="d">'+esc(m[3])+' · '+esc(m[1].trim())+'</span></div>';
@@ -197,20 +199,29 @@ function renderLines(txt){
 }
 
 async function enter(){
-  CODE=document.getElementById("code").value.trim();
-  const err=document.getElementById("err"); err.textContent="Controleren…";
+  const input=document.getElementById("code"), err=document.getElementById("err");
+  const code=(input.value||"").trim();
+  if(!code){err.textContent="Vul de personeelscode in.";return}
+  if(enter._busy)return; enter._busy=true;
+  err.textContent="Controleren…";
   try{
-    const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
-    if(!r.ok){ err.textContent="Code ongeldig of server niet beschikbaar"; return; }
-    const d=await r.json();
-    sessionStorage.setItem("famoStaffCode",CODE);
+    await famoStaff.login(code);
+    input.value="";
     document.getElementById("loginView").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
-    ORDERS=d.orders||[]; render();
-  }catch(e){ err.textContent="Verbinding mislukt. Vernieuw de pagina en probeer opnieuw."; }
+    await load();
+    try{
+      const rc=await famoStaff.api("/api/config");
+      if(rc.ok){ const cj=await rc.json(); const c=cj.config||{};
+        FAMO.nom=c.bedrijfsnaam||FAMO.nom; FAMO.adresse=c.adres||FAMO.adresse;
+        FAMO.cp=c.plaats||FAMO.cp; FAMO.tva=c.btw||FAMO.tva;
+        FAMO.tel=c.telefoon||FAMO.tel; FAMO.iban=c.iban||""; FAMO.bic=c.bic||""; }
+    }catch(e){}
+  }catch(e){ err.textContent=famoStaff.translateError(e.message||"Verbinding mislukt. Vernieuw de pagina en probeer opnieuw."); }
+  finally{enter._busy=false}
 }
 async function load(){
-  const r=await fetch("/api/allorders?code="+encodeURIComponent(CODE));
+  const r=await famoStaff.api("/api/allorders");
   if(!r.ok) return;
   const d=await r.json(); ORDERS=d.orders; render();
 }
@@ -234,7 +245,7 @@ function render(){
       (o.livraisonConfirmee?'<div class="meta" style="color:#16a34a">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
       (o.notes?'<div class="meta">📝 '+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
-        ((o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee))?'<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>':(next?'<button class="adv" onclick="'+(next==="Facturée"?'confirmDelivery('+idx+')':'confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')')+'">'+NEXTLBL[next]+'</button>':''))+
+        ((o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee))?'<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>':(next?'<button class="adv" onclick="'+(next==="Facturée"?'confirmDelivery('+idx+')':'confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')')+'">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''))+
         (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
         '<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>'+
         '<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>'+
@@ -264,7 +275,11 @@ function setOrderQuery(value){ORDER_QUERY=value;render()}
 function setOrderSort(value){ORDER_SORT=value;render()}
 function clearOrderFilters(){ORDER_QUERY="";ORDER_SORT="delivery";document.getElementById("orderSearch").value="";document.getElementById("orderSort").value="delivery";render()}
 
-function dayKey(offset=0){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+offset);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())}
+function dayKey(offset=0){
+  const base=new Date(new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(new Date())+"T12:00:00");
+  base.setDate(base.getDate()+offset);
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(base);
+}
 function setDayFilter(value){DAY_FILTER=value;document.getElementById("dayCustom").classList.toggle("hidden",value!=="custom");if(value==="custom"&&!document.getElementById("dayCustom").value)document.getElementById("dayCustom").value=dayKey();renderDayView()}
 function preparationOrders(){
   const today=dayKey(),custom=document.getElementById("dayCustom"),selected=custom?custom.value:"";
@@ -292,13 +307,13 @@ function consolidatedItems(){
 function renderDayView(){
   const orders=preparationOrders(),items=consolidatedItems();
   document.getElementById("dayMeta").textContent=orders.length+" bestellingen · "+items.length+" verschillende producten";
-  document.getElementById("pickSummary").innerHTML=items.length?items.map(x=>'<div class="pick-summary-row"><div><strong>'+esc(x.name)+'</strong><div class="pm">'+x.orders+' bestel'+(x.orders===1?'ling':'lingen')+'</div></div><span>'+x.quantity+(x.unit?' '+esc(x.unit):'')+'</span></div>').join(""):'<div class="day-empty">Er zijn momenteel geen bestellingen om voor te bereiden.</div>';
+  document.getElementById("pickSummary").innerHTML=items.length?items.map(x=>'<div class="pick-summary-row"><div><strong>'+esc(x.name)+'</strong><div class="pm">'+x.orders+' bestel'+(x.orders===1?'ling':'lingen')+'</div></div><span>'+x.quantity+(x.unit?' '+esc(famoNL.unit(x.unit)||x.unit):'')+'</span></div>').join(""):'<div class="day-empty">Er zijn momenteel geen bestellingen om voor te bereiden.</div>';
 }
 function toggleDayView(){ const panel=document.getElementById("dayPanel"); panel.classList.toggle("hidden"); if(!panel.classList.contains("hidden")){ renderDayView(); panel.scrollIntoView({behavior:"smooth",block:"start"}); } }
 function printConsolidatedPicklist(){
   const orders=preparationOrders(),items=consolidatedItems(); if(!items.length){ showNotice("Er zijn geen producten om voor te bereiden.","error"); return; }
   const w=window.open("","_blank"); if(!w) return;
-  w.document.write('<html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}p{font-size:12px;color:#51646e}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #071d2b;padding:8px}td{font-size:15px;border-bottom:1px solid #bdcbd2;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#51646e}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+new Date().toLocaleString("nl-BE")+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>');
+  w.document.write('<html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}p{font-size:12px;color:#51646e}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #071d2b;padding:8px}td{font-size:15px;border-bottom:1px solid #bdcbd2;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#51646e}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+new Date().toLocaleString("nl-BE")+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(famoNL.unit(x.unit)||x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>');
   w.document.close(); w.print();
 }
 
@@ -340,10 +355,11 @@ function editLines(idx){
     '<div class="pick-editor">'+lines.map((line,i)=>
       '<label class="pick-row" id="pr'+idx+'_'+i+'">'+
       '<input id="ok'+idx+'_'+i+'" type="checkbox" onchange="markPicked('+idx+','+i+')" aria-label="Artikel gecontroleerd">'+
-      '<span><span class="pn">'+esc(line.name)+'</span><span class="pm">Besteld: '+line.quantity+(line.unit?' '+esc(line.unit):'')+(line.comment?' · '+esc(line.comment):'')+'</span></span>'+
+      '<span><span class="pn">'+esc(line.name)+'</span><span class="pm">Besteld: '+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+(line.comment?' · '+esc(line.comment):'')+'</span></span>'+
       '<span class="actual"><button type="button" onclick="changeActual('+idx+','+i+',-1)">−</button><input id="aq'+idx+'_'+i+'" type="number" min="0" step="'+(/kg/i.test(String(line.unit||""))?"0.1":"1")+'" value="'+line.quantity+'" oninput="refreshActualTotal('+idx+')"><button type="button" onclick="changeActual('+idx+','+i+',1)">+</button></span>'+
       '</label>').join('')+'</div>'+
     '<div class="edit-total">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+
+    '<div class="ehint">Deeltijdige levering: pas de aantallen hieronder aan vóór vertrek (Sortie). Statussen en Airtable-kolommen blijven ongewijzigd — alleen de voorbereide hoeveelheden tellen.</div>'+
     '<div class="ehint">De aantallen en het totaal worden vastgezet zodra de goederen vertrekken.</div>';
   refreshActualTotal(idx);
 }
@@ -363,13 +379,14 @@ function printPicklist(){
   const todo=ORDERS.filter(o=>o.statut==="Reçue"||o.statut==="Prête");
   if(!todo.length){ showNotice("Er zijn geen bestellingen om voor te bereiden.","error"); return; }
   const w=window.open("","_blank"); if(!w) return;
-  const blocks=todo.map(o=>'<section><header><b>'+esc(o.ref)+' — '+esc(o.client)+'</b><span>Levering: '+esc(o.dateLiv||"—")+'</span></header><table>'+String(o.lignes||"").split("\n").filter(Boolean).map(l=>'<tr><td class="box">☐</td><td>'+esc(l.replace(/\s*\[€[^\]]+\]/g,""))+'</td></tr>').join("")+'</table></section>').join("");
+  const blocks=todo.map(o=>'<section><header><b>'+esc(o.ref)+' — '+esc(o.client)+'</b><span>Levering: '+esc(o.dateLiv||"—")+'</span></header><table>'+String(o.lignes||"").split("\n").filter(Boolean).map(l=>'<tr><td class="box">☐</td><td>'+esc(famoNL.lines(l.replace(/\s*\[€[^\]]+\]/g,"")))+'</td></tr>').join("")+'</table></section>').join("");
   w.document.write('<html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}section{border:2px solid #071d2b;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #bdcbd2;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>');
   w.document.close(); w.print();
 }
 
 function doc(idx,type){
   const o=ORDERS[idx], isFA=type==="FA";
+  if(isFA && (!FAMO.iban || !FAMO.bic)){ showNotice("Factuur kan niet worden afgedrukt: IBAN/BIC ontbreken. Vul ze in via Airtable → tabel Configuratie (zie Aan de slag).","error"); return; }
   if(isFA && !o.factuurnummer){ showNotice("Factureer de bestelling eerst. Dan krijgt ze een officieel factuurnummer.","error"); return; }
   if(!isFA && o.statut==="Reçue"){ showNotice("Zet de bestelling eerst op ‘Klaar’ vóór u de leverbon afdrukt.","error"); return; }
   const k=o.klant||{nom:o.client,adresse:"",btw:"",klantnr:""};
@@ -426,7 +443,7 @@ function doc(idx,type){
     '<table class="it"><tr><th>Beschrijving</th><th class="num">Aantal</th><th>Eenheid</th>'+
       (isFA?'<th class="num">Tarief</th><th class="num">BTW</th><th class="num">Subtotaal</th>':'')+'</tr>'+
     rows.map(r=>'<tr><td>'+esc(r.nom)+(r.opm?'<br><i style="color:#64748b;font-size:11px">'+esc(r.opm)+'</i>':'')+'</td>'+
-      '<td class="num">'+esc(r.aantal)+'</td><td>'+esc(r.eenheid)+'</td>'+
+      '<td class="num">'+esc(r.aantal)+'</td><td>'+esc(famoNL.unit(r.eenheid)||r.eenheid)+'</td>'+
       (isFA?'<td class="num">'+(r.prijs==null?"":eur(r.prijs))+'</td><td class="num">'+FAMO.tauxTVA+',0%</td><td class="num">'+(r.prijs==null?"":eur(r.prijs*(parseFloat(String(r.aantal).replace(",","."))||0)))+'</td>':'')+'</tr>').join("")+
     '</table>'+
 
@@ -435,7 +452,7 @@ function doc(idx,type){
         '<div><span>BTW '+FAMO.tauxTVA+',0%</span><span>'+eur(tva)+'</span></div>'+
         '<div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
         (FAMO.iban?'<div class="bank"><b>Bankgegevens</b><br>'+esc(FAMO.nom)+'<br>IBAN: '+esc(FAMO.iban)+(FAMO.bic?'<br>BIC: '+esc(FAMO.bic):'')+'<br>Betalingskenmerk: '+esc(seq)+'</div>':'<div class="bank"><b>Betaling</b><br>Bankgegevens worden afzonderlijk door de boekhouding verstrekt.<br>Betalingskenmerk: '+esc(seq)+'</div>')+
-        '<div class="ft">Betaalstatus: '+esc(o.paiement==="Payé"?"Betaald":"Open")+
+        '<div class="ft">Betaalstatus: '+esc(famoNL.pay(o.paiement||"En attente"))+
         '<br>Intern document. De wettelijke e-factuur (Peppol) verloopt via de boekhouding.</div>'
       : '<div class="tot"><div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
         '<div class="sig">Handtekening klant: ______________________<br><br>Goederen ontvangen in goede staat en conform.</div>'+
@@ -448,18 +465,20 @@ function showDocPreview(html,num){const modal=document.getElementById("docPrevie
 function closeDocPreview(){const modal=document.getElementById("docPreview");modal.classList.add("hidden");document.getElementById("docFrame").srcdoc="";document.body.style.overflow=""}
 function printDocPreview(){const frame=document.getElementById("docFrame");if(frame.contentWindow)frame.contentWindow.print()}
 function showNotice(message,kind="info"){const box=document.getElementById("notice");box.textContent=message;box.className="notice "+kind;clearTimeout(window._noticeTimer);window._noticeTimer=setTimeout(()=>box.classList.add("hidden"),7000)}
-function logoutWarehouse(){sessionStorage.removeItem("famoStaffCode");CODE="";ORDERS=[];document.getElementById("app").classList.add("hidden");document.getElementById("loginView").classList.remove("hidden");document.getElementById("code").focus()}
+async function logoutWarehouse(){await famoStaff.logout();location.reload()}
 
 async function adv(id,statut){ await upd({id,statut}); }
 function confirmDelivery(idx){
   const o=ORDERS[idx], box=document.getElementById("e"+idx);
   if(box.innerHTML){ box.innerHTML=""; return; }
+  const pid="proof"+idx;
   box.innerHTML='<div class="edit-head">Bevestig de ontvangst voordat u factureert.</div>'+
     '<div class="pick-editor" style="padding:12px">'+
       '<label class="ehint" style="display:block;font-weight:700">Ontvangen door<input class="tin" id="receiver'+idx+'" type="text" value="'+esc(o.receptionnePar||"")+'" placeholder="Naam ontvanger" style="display:block;width:100%;margin-top:5px"></label>'+
-      '<label class="ehint" style="display:block;margin-top:10px">Link naar leveringsbewijs <span style="font-weight:400">(optioneel: foto/signatuur)</span><input class="tin" id="proof'+idx+'" type="url" placeholder="https://…" style="display:block;width:100%;margin-top:5px"></label>'+
+      '<div style="margin-top:10px">'+famoStaff.proofFieldsHtml({id:pid,fileId:pid+"File",previewId:pid+"Preview",noteId:pid+"Note"})+'</div>'+
       '<button class="save" style="margin-top:12px" onclick="saveDelivery('+idx+')">✓ Ontvangst bevestigen & factureren</button>'+
     '</div>';
+  famoStaff.bindProofFile(pid+"File", pid+"Preview", pid+"Note");
 }
 async function saveDelivery(idx){
   const o=ORDERS[idx], recipient=document.getElementById("receiver"+idx).value.trim(), proofUrl=document.getElementById("proof"+idx).value.trim();
@@ -469,7 +488,7 @@ async function saveDelivery(idx){
 }
 async function confirmAdvance(id,statut,index){
   const ref=ORDERS[index]?ORDERS[index].ref:"";
-  let message="Bestelling "+ref+" naar ‘"+(NL[statut]||statut)+"’ verplaatsen?";
+  let message="Bestelling "+ref+" naar ‘"+famoNL.status(statut)+"’ verplaatsen?";
   if(statut==="Sortie en livraison") message+=" De definitieve hoeveelheden worden vastgezet en de voorraad wordt één keer afgeboekt. Controleer voorbereiding en leverbon eerst.";
   if(statut==="Facturée") message+=" Er wordt een definitief factuurnummer toegekend.";
   document.getElementById("advanceText").textContent=message;
@@ -482,12 +501,12 @@ async function upd(patch){
   if(UPDATING)return;
   UPDATING=true;document.querySelectorAll("button").forEach(b=>b.disabled=true);
   try{
-    const r=await fetch("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:CODE},patch))});
+    const r=await famoStaff.api("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(patch)});
     const d=await r.json().catch(()=>({}));
     if(!r.ok){
       const missing=d.stock&&d.stock.missing&&d.stock.missing.length?"\n\nNiet gevonden in voorraad:\n- "+d.stock.missing.join("\n- "):"";
       const insufficient=d.stock&&d.stock.insufficient&&d.stock.insufficient.length?"\n\nOnvoldoende voorraad:\n"+d.stock.insufficient.map(x=>"- "+x.nom+": "+x.available+" beschikbaar, "+x.requested+" gevraagd").join("\n"):"";
-      showNotice((d.error||"Fout bij bijwerken")+missing+insufficient,"error");return;
+      showNotice(famoStaff.translateError(d.error||"Fout bij bijwerken")+missing+insufficient,"error");return;
     }
     if(d.stock){
       const done=(d.stock.done||[]).map(x=>x.nom+": "+x.van+" → "+x.naar).join("\n"),miss=(d.stock.missing||[]);let msg="";
@@ -497,11 +516,27 @@ async function upd(patch){
     }
     if(d.factuurnummer) showNotice("Factuurnummer toegekend: "+d.factuurnummer,"info");
     await load();
-  }catch(error){showNotice(error.message||"Verbinding mislukt. Probeer opnieuw.","error");}
+  }catch(error){showNotice(famoStaff.translateError(error.message||"Verbinding mislukt. Probeer opnieuw."),"error");}
   finally{UPDATING=false;document.querySelectorAll("button").forEach(b=>b.disabled=false)}
 }
 document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
-window.addEventListener("DOMContentLoaded",()=>{const saved=sessionStorage.getItem("famoStaffCode");if(saved){document.getElementById("code").value=saved;enter()}});
+window.addEventListener("DOMContentLoaded",async()=>{
+  try{
+    if(await famoStaff.check()){
+      document.getElementById("loginView").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      await load();
+      try{
+        const rc=await famoStaff.api("/api/config");
+        if(rc.ok){ const cj=await rc.json(); const c=cj.config||{};
+          FAMO.nom=c.bedrijfsnaam||FAMO.nom; FAMO.adresse=c.adres||FAMO.adresse;
+          FAMO.cp=c.plaats||FAMO.cp; FAMO.tva=c.btw||FAMO.tva;
+          FAMO.tel=c.telefoon||FAMO.tel; FAMO.iban=c.iban||""; FAMO.bic=c.bic||""; }
+      }catch(e){}
+      return;
+    }
+  }catch(e){}
+});
 </script>
 </body>
 </html>
