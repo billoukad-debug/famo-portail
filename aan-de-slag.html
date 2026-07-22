@@ -62,6 +62,19 @@ textarea.fld{min-height:84px;resize:vertical}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 8px;border-radius:99px;background:#f0f0f0;color:#555}
 .badge.ok{background:#e6f4ec;color:var(--ok)}
 .hint{font-size:12px;color:#888;margin-top:8px;line-height:1.45}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.chip{min-height:40px;padding:0 14px;border:1px solid #ddd;border-radius:999px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:#444}
+.chip.on{background:#111;border-color:#111;color:#fff}
+.quick{display:grid;grid-template-columns:minmax(140px,1.4fr) auto minmax(90px,.7fr) minmax(80px,.55fr) auto;gap:8px;align-items:end;padding:14px;border:1px dashed #cfcfcf;border-radius:14px;background:#fafafa;margin-bottom:16px}
+.quick .q-lab{font-size:11px;color:#888;margin:0 0 4px}
+.prod-table{width:100%;border-collapse:collapse;margin-top:8px}
+.prod-table th{text-align:left;font-size:11px;color:#888;font-weight:600;padding:8px 6px;border-bottom:1px solid #eee}
+.prod-table td{padding:8px 6px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.prod-table input,.prod-table select{width:100%;min-height:40px;padding:0 10px;border:1px solid #e0e0e0;border-radius:8px;background:#fff;font:inherit}
+.prod-table .act{white-space:nowrap}
+.prod-table .act button{min-height:36px;padding:0 10px;margin-left:4px}
+.cat-suggest{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.cat-suggest button{min-height:32px;padding:0 10px;border:1px solid #e4e4e4;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;color:#555}
 @media(max-width:860px){
   .ob-shell{grid-template-columns:1fr}
   .ob-side{position:sticky;top:0;z-index:20;padding:14px;flex-direction:row;overflow:auto;gap:6px}
@@ -69,6 +82,14 @@ textarea.fld{min-height:84px;resize:vertical}
   .ob-stepbtn{min-width:150px;padding:10px}
   .ob-hero{grid-template-columns:1fr}
   .ob-grid{grid-template-columns:1fr}
+  .quick{grid-template-columns:1fr 1fr;align-items:stretch}
+  .quick .q-name{grid-column:1/-1}
+  .quick .q-go{grid-column:1/-1}
+  .prod-table thead{display:none}
+  .prod-table,.prod-table tbody,.prod-table tr,.prod-table td{display:block;width:100%}
+  .prod-table tr{padding:12px 0;border-bottom:1px solid #eee}
+  .prod-table td{border:0;padding:4px 0}
+  .prod-table td::before{content:attr(data-label);display:block;font-size:11px;color:#888;margin-bottom:3px}
 }
 </style>
 </head>
@@ -116,7 +137,7 @@ textarea.fld{min-height:84px;resize:vertical}
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
-let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null;
+let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null, UNIT="kassa", EDIT_ID=null, PROD_Q="";
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 const unitOut=u=>window.famoNL?famoNL.unit(u):u;
 
@@ -236,29 +257,124 @@ async function saveCompany(){
   finally{BUSY=false}
 }
 
+function stockFor(name){
+  const norm=s=>String(s||"").toLowerCase().trim();
+  return (DATA.stock||[]).find(s=>norm(s.product)===norm(name))||null;
+}
+
+function categories(){
+  const set=new Set((DATA.products||[]).map(p=>p.cat).filter(Boolean));
+  ["Poisson","Crustacés","Coquillages","Diepvries","Algemeen"].forEach(c=>set.add(c));
+  return [...set];
+}
+
+function setUnit(u){
+  UNIT=u;
+  document.querySelectorAll("[data-unit]").forEach(b=>b.classList.toggle("on", b.dataset.unit===u));
+  const hidden=document.getElementById("punite");
+  if(hidden) hidden.value=u;
+}
+
+function setCat(c){
+  const el=document.getElementById("pcat");
+  if(el) el.value=c;
+}
+
 function renderProducts(box){
-  const rows=(DATA.products||[]).map(p=>'<div class="ob-row"><div class="grow"><b>'+esc(p.nom)+'</b><br><span>'+esc(unitOut(p.unite))+' · basis € '+Number(p.base||0).toFixed(2).replace(".",",")+(p.cat?' · '+esc(p.cat):'')+'</span></div></div>').join("")||'<div class="ob-row"><span>Nog geen producten.</span></div>';
-  box.innerHTML='<h2>2. Product toevoegen</h2><p class="lead">Eenheid <b>kassa</b> (doos). Voor kg mag later decimaal besteld worden.</p>'+
-    '<div class="ob-grid">'+
-    fld("pnom","Productnaam *","")+
-    '<div><label class="fld" for="punite">Eenheid</label><select class="fld" id="punite"><option value="kassa">kassa</option><option value="stuk">stuk</option><option value="kg">kg</option><option value="doos">doos</option></select></div>'+
-    fld("pbase","Basisprijs € *","")+
-    fld("pcat","Categorie","Algemeen")+
-    fld("pstock","Beginvoorraad","0")+
-    fld("plow","Drempel laag","0")+
-    '</div><div class="ob-actions"><button class="ob-btn" onclick="saveProduct()">Product opslaan</button><button class="ob-btn sec" onclick="go(2)">Volgende stap</button></div>'+
-    '<div class="ob-list">'+rows+'</div>';
+  const q=PROD_Q.trim().toLowerCase();
+  const list=(DATA.products||[]).filter(p=>!q||(p.nom+" "+(p.cat||"")).toLowerCase().includes(q));
+  const stockMap=Object.fromEntries((DATA.stock||[]).map(s=>[String(s.product||"").toLowerCase(),s]));
+  const cats=categories();
+  const unitChips=["kassa","stuk","kg"].map(u=>'<button type="button" class="chip'+(UNIT===u?" on":"")+'" data-unit="'+u+'" onclick="setUnit(\''+u+'\')">'+u+'</button>').join("");
+  const catBtns=cats.map(c=>'<button type="button" data-cat="'+esc(c)+'" onclick="setCat(this.dataset.cat)">'+esc(c)+'</button>').join("");
+
+  const rows=list.map(p=>{
+    const st=stockMap[String(p.nom||"").toLowerCase()]||{quantity:0,lowThreshold:0};
+    const uDisp=unitOut(p.unite);
+    return '<tr data-id="'+esc(p.id)+'">'+
+      '<td data-label="Product"><input id="n_'+esc(p.id)+'" value="'+esc(p.nom)+'"></td>'+
+      '<td data-label="Eenheid"><select id="u_'+esc(p.id)+'">'+
+        ["kassa","stuk","kg","doos"].map(u=>{
+          const sel=(String(uDisp).toLowerCase()===u || (u==="kassa" && /caisse/i.test(p.unite)))?" selected":"";
+          return '<option value="'+u+'"'+sel+'>'+u+'</option>';
+        }).join("")+
+      '</select></td>'+
+      '<td data-label="Prijs €"><input id="b_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(p.base).replace(".",","))+'"></td>'+
+      '<td data-label="Voorraad"><input id="s_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(st.quantity).replace(".",","))+'"></td>'+
+      '<td data-label="Categorie"><input id="c_'+esc(p.id)+'" value="'+esc(p.cat||"")+'" list="catlist"></td>'+
+      '<td class="act" data-label=""><button type="button" class="ob-btn sec" onclick="saveProductRow(\''+esc(p.id)+'\')">Opslaan</button></td>'+
+      '</tr>';
+  }).join("")||'<tr><td colspan="6"><span>Nog geen producten — voeg er hierboven één toe.</span></td></tr>';
+
+  box.innerHTML='<h2>2. Artikelen</h2><p class="lead">Snel toevoegen onderaan of rechts: naam → eenheid → prijs → voorraad → Enter. Bestaande rijen kunt u meteen aanpassen.</p>'+
+    '<div class="quick">'+
+      '<div class="q-name"><div class="q-lab">Productnaam</div><input class="fld" id="pnom" placeholder="Bv. Zalmfilet" autocomplete="off"></div>'+
+      '<div><div class="q-lab">Eenheid</div><div class="chiprow" style="margin:0">'+unitChips+'</div><input type="hidden" id="punite" value="'+esc(UNIT)+'"></div>'+
+      '<div><div class="q-lab">Prijs €</div><input class="fld" id="pbase" inputmode="decimal" placeholder="0,00"></div>'+
+      '<div><div class="q-lab">Voorraad</div><input class="fld" id="pstock" inputmode="decimal" value="0"></div>'+
+      '<div class="q-go"><div class="q-lab">&nbsp;</div><button class="ob-btn" type="button" id="padd" onclick="saveProduct()">+ Toevoegen</button></div>'+
+    '</div>'+
+    '<div class="ob-grid" style="margin-bottom:8px">'+
+      '<div class="full"><label class="fld" for="pcat">Categorie</label><input class="fld" id="pcat" list="catlist" value="Algemeen"><div class="cat-suggest">'+catBtns+'</div></div>'+
+      '<div class="full"><label class="fld" for="plow">Drempel laag (optioneel)</label><input class="fld" id="plow" inputmode="decimal" value="0"></div>'+
+    '</div>'+
+    '<datalist id="catlist">'+cats.map(c=>'<option value="'+esc(c)+'">').join("")+'</datalist>'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 4px">'+
+      '<input class="fld" style="flex:1;min-width:180px" id="psearch" placeholder="Zoek artikel…" value="'+esc(PROD_Q)+'" oninput="PROD_Q=this.value;render()">'+
+      '<span class="badge">'+(DATA.products||[]).length+' artikelen</span>'+
+      '<button type="button" class="ob-btn sec" onclick="go(2)">Volgende stap</button>'+
+    '</div>'+
+    '<div style="overflow:auto"><table class="prod-table"><thead><tr><th>Product</th><th>Eenheid</th><th>Prijs</th><th>Voorraad</th><th>Categorie</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<p class="hint"><b>kassa</b> = hele doos · <b>kg</b> = decimale bestelling mogelijk · wijzigingen per rij met Opslaan.</p>';
+
+  const nameEl=document.getElementById("pnom");
+  if(nameEl){
+    nameEl.focus();
+    ["pnom","pbase","pstock","pcat","plow"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveProduct()}});
+    });
+  }
 }
 
 async function saveProduct(){
-  if(BUSY)return; BUSY=true;
+  if(BUSY)return;
+  const nom=val("pnom");
+  if(!nom){toast("Vul een productnaam in",true);return}
+  const base=Number(String(val("pbase")).replace(",","."));
+  if(!Number.isFinite(base)||base<0){toast("Vul een geldige prijs in",true);return}
+  BUSY=true;
+  const btn=document.getElementById("padd");
+  if(btn)btn.disabled=true;
   try{
     DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       action:"saveProduct",
-      nom:val("pnom"), unite:val("punite"), base:Number(String(val("pbase")).replace(",",".")),
-      cat:val("pcat"), stock:Number(String(val("pstock")).replace(",",".")), lowThreshold:Number(val("plow")||0)
+      nom, unite:val("punite")||UNIT, base,
+      cat:val("pcat")||"Algemeen",
+      stock:Number(String(val("pstock")||"0").replace(",",".")),
+      lowThreshold:Number(String(val("plow")||"0").replace(",","."))
     })});
-    toast("Product opgeslagen");
+    toast("Artikel toegevoegd: "+nom);
+    PROD_Q="";
+    render();
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false;if(btn)btn.disabled=false}
+}
+
+async function saveProductRow(id){
+  if(BUSY)return; BUSY=true;
+  try{
+    const nom=val("n_"+id);
+    const unite=val("u_"+id);
+    const base=Number(String(val("b_"+id)).replace(",","."));
+    const stock=Number(String(val("s_"+id)).replace(",","."));
+    const cat=val("c_"+id)||"Algemeen";
+    if(!nom) throw new Error("Productnaam is verplicht");
+    if(!Number.isFinite(base)||base<0) throw new Error("Ongeldige prijs");
+    DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"saveProduct", id, nom, unite, base, cat, stock, lowThreshold:0
+    })});
+    toast("Artikel bijgewerkt");
     render();
   }catch(e){toast(famoStaff.translateError(e.message),true)}
   finally{BUSY=false}

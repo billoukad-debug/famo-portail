@@ -241,20 +241,26 @@ module.exports = async (req, res) => {
       }
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Product opslaan mislukt" });
 
-      // Ensure a stock row exists for new products (match by name)
+      // Sync / create stock row by product name (existing Airtable Stock table).
       const stock = await atAll("Stock");
-      const norm = s => String(s || "").toLowerCase().trim();
-      const hasStock = (stock.records || []).some(r => norm(r.fields["Produit"]) === norm(nom));
-      if (!hasStock) {
-        const qty = Number(body.stock);
-        await at("Stock", {
-          method: "POST",
-          body: JSON.stringify({ records: [{ fields: {
-            "Produit": nom,
-            "Quantité disponible": Number.isFinite(qty) && qty >= 0 ? qty : 0,
-            "Seuil bas": Number(body.lowThreshold) > 0 ? Number(body.lowThreshold) : 0
-          }}] })
-        });
+      if (!stock.error) {
+        const norm = s => String(s || "").toLowerCase().trim();
+        const existingStock = (stock.records || []).find(r => norm(r.fields["Produit"]) === norm(nom));
+        const qtyRaw = body.stock;
+        const qty = Number(qtyRaw);
+        const low = Number(body.lowThreshold);
+        const stockFields = { "Produit": nom };
+        if (Number.isFinite(qty) && qty >= 0) stockFields["Quantité disponible"] = Math.round(qty * 1000) / 1000;
+        if (Number.isFinite(low) && low >= 0) stockFields["Seuil bas"] = low;
+        if (existingStock) {
+          if (Object.keys(stockFields).length > 1) {
+            await at(`Stock/${existingStock.id}`, { method: "PATCH", body: JSON.stringify({ fields: stockFields }) });
+          }
+        } else {
+          if (!Number.isFinite(stockFields["Quantité disponible"])) stockFields["Quantité disponible"] = 0;
+          if (!Number.isFinite(stockFields["Seuil bas"])) stockFields["Seuil bas"] = 0;
+          await at("Stock", { method: "POST", body: JSON.stringify({ records: [{ fields: stockFields }] }) });
+        }
       }
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
