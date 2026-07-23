@@ -312,7 +312,7 @@ for (const page of OPERATIONAL) {
       fail("staff-delivery.js", e.message);
     }
   }
-  for (const page of ["leveringen.html", "order.html"]) {
+  for (const page of ["leveringen.html", "order.html", "entrepot.html"]) {
     const src = fs.readFileSync(path.join(root, page), "utf8");
     if (!src.includes("/staff-delivery.js")) fail(page, "doit inclure staff-delivery.js");
     if (!/openDeliveryConfirm/.test(src)) fail(page, "doit appeler openDeliveryConfirm");
@@ -410,6 +410,34 @@ for (const page of OPERATIONAL) {
   } else {
     pass("staff-session.js", "return URL + POD honnête");
   }
+}
+
+// --- Cohérence Phase 2 : deep-links Magazijn ↔ Order ---
+{
+  const order = fs.readFileSync(path.join(root, "order.html"), "utf8");
+  if (!/entrepot\.html\?id=/.test(order) || !/magazijnHref/.test(order)) {
+    fail("order.html", "CTAs Magazijn doivent deep-linker ?id=");
+  } else {
+    pass("order.html", "deep-link Magazijn ?id=");
+  }
+  const ent = fs.readFileSync(path.join(root, "entrepot.html"), "utf8");
+  if (!/highlightFocusedOrder/.test(ent)) {
+    fail("entrepot.html", "doit ouvrir/focus la commande ?id=");
+  } else if (!/confirmDelivery/.test(ent) || !srcIncludes(ent, "/staff-delivery.js")) {
+    fail("entrepot.html", "Ontvangst doit utiliser openDeliveryConfirm in-place");
+  } else if (/href=\"\/order\.html\?id=/.test(ent) && /Ontvangst bevestigen/.test(ent)) {
+    fail("entrepot.html", "Ontvangst ne doit plus renvoyer vers order.html");
+  } else if (!/o\.factuurnummer\s*\?\s*'<button class="doc"/.test(ent) && !/factuurnummer\?'<button class="doc" onclick="doc\([^)]*'FA'\)/.test(ent)) {
+    fail("entrepot.html", "bouton Factuur doit être gated sur factuurnummer");
+  } else if (!/\/entrepot\.html\?id=/.test(ent) || /prep-order" href="\/order\.html/.test(ent)) {
+    fail("entrepot.html", "vue Dag doit lier vers Magazijn ?id= (pas order.html)");
+  } else {
+    pass("entrepot.html", "focus ?id= + Ontvangst in-place + Factuur gated");
+  }
+}
+
+function srcIncludes(src, needle) {
+  return String(src || "").includes(needle);
 }
 
 // --- Affichage FR "caisse" sans famoNL ---
