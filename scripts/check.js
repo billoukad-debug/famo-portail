@@ -376,6 +376,42 @@ for (const page of OPERATIONAL) {
   }
 }
 
+// --- Cohérence Phase 1 : bugs menteurs ---
+{
+  const docSrc = fs.readFileSync(path.join(root, "documenten.html"), "utf8");
+  if (/\.d-doc\s*\{\s*display\s*:\s*none/.test(docSrc) && !/\.d-list\s+\.d-doc\s*\{\s*display\s*:\s*block/.test(docSrc)) {
+    fail("documenten.html", "cartes mobile .d-doc restent invisibles — afficher .d-list .d-doc en ≤780px");
+  } else {
+    pass("documenten.html", "cartes mobile visibles");
+  }
+  const best = fs.readFileSync(path.join(root, "bestellingen.html"), "utf8");
+  if (!/status=open/.test(best) || !/statusMatch/.test(best)) {
+    fail("bestellingen.html", "chip Open doit filtrer status=open (non Facturée)");
+  } else if (!/syncUrlFromFilters|onFilterChange/.test(best)) {
+    fail("bestellingen.html", "filtres doivent synchroniser l’URL");
+  } else {
+    pass("bestellingen.html", "chip Open + sync URL");
+  }
+  const ent = fs.readFileSync(path.join(root, "entrepot.html"), "utf8");
+  if (!/showBoardError/.test(ent)) {
+    fail("entrepot.html", "load doit afficher une erreur visible (showBoardError)");
+  } else {
+    pass("entrepot.html", "erreur Magazijn visible");
+  }
+  const onb = fs.readFileSync(path.join(root, "aan-de-slag.html"), "utf8");
+  if (/saveProductRow[\s\S]{0,400}lowThreshold\s*:\s*0/.test(onb)) {
+    fail("aan-de-slag.html", "saveProductRow ne doit plus forcer lowThreshold:0");
+  } else {
+    pass("aan-de-slag.html", "drempel préservée à l’édition");
+  }
+  const sess = fs.readFileSync(path.join(root, "staff-session.js"), "utf8");
+  if (!/takeReturn\s*\(/.test(sess) || !/Lokale foto \(alleen voorbeeld/.test(sess)) {
+    fail("staff-session.js", "takeReturn après login + POD honnête requis");
+  } else {
+    pass("staff-session.js", "return URL + POD honnête");
+  }
+}
+
 // --- Affichage FR "caisse" sans famoNL ---
 for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   const src = stripHtmlComments(fs.readFileSync(path.join(root, f), "utf8"));

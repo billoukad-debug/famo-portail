@@ -216,15 +216,26 @@ const loginCtl=famoStaff.bindLogin({
   onReady:bootWarehouse
 });
 function enter(){loginCtl.enter()}
+function showBoardError(msg){
+  showNotice(msg,"error");
+  for(let i=0;i<4;i++){ const col=document.getElementById("c"+i); if(col) col.innerHTML=""; }
+  const c0=document.getElementById("c0");
+  if(c0) c0.innerHTML='<div class="staff-error" style="padding:12px">'+esc(msg)+'<br><button type="button" class="staff-action-secondary" style="margin-top:10px" onclick="load()">Opnieuw proberen</button></div>';
+  const dag=document.getElementById("dagContent");
+  if(dag) dag.innerHTML='<div class="staff-error">'+esc(msg)+'<br><button type="button" class="staff-action-secondary" style="margin-top:10px" onclick="load()">Opnieuw proberen</button></div>';
+  ["statTodo","statOnway","statOpen","n0","n1","n2","n3"].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent="0"; });
+}
 async function load(){
   try{
     const [a,b]=await Promise.all([famoStaff.api("/api/allorders"),famoStaff.api("/api/stock")]);
-    if(!a.ok) return;
-    const d=await a.json(), sd=await b.json().catch(()=>({}));
+    const d=await a.json().catch(()=>({})), sd=await b.json().catch(()=>({}));
+    if(!a.ok){ showBoardError(famoStaff.translateError(d.error||"Bestellingen konden niet worden geladen.")); return; }
     ORDERS=d.orders||[];
     STOCK=b.ok?(sd.items||[]):[];
     render();
-  }catch(e){}
+  }catch(err){
+    showBoardError(famoStaff.translateError(err.message||"Verbinding mislukt. Probeer opnieuw."));
+  }
 }
 
 function render(){

@@ -301,10 +301,11 @@ function renderProducts(box){
       '</select></td>'+
       '<td data-label="Prijs €"><input id="b_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(p.base).replace(".",","))+'"></td>'+
       '<td data-label="Voorraad"><input id="s_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(st.quantity).replace(".",","))+'"></td>'+
+      '<td data-label="Drempel"><input id="l_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(st.lowThreshold||0).replace(".",","))+'"></td>'+
       '<td data-label="Categorie"><input id="c_'+esc(p.id)+'" value="'+esc(p.cat||"")+'" list="catlist"></td>'+
       '<td class="act" data-label=""><button type="button" class="ob-btn sec" onclick="saveProductRow(\''+esc(p.id)+'\')">Opslaan</button></td>'+
       '</tr>';
-  }).join("")||'<tr><td colspan="6"><span>Nog geen producten — voeg er hierboven één toe.</span></td></tr>';
+  }).join("")||'<tr><td colspan="7"><span>Nog geen producten — voeg er hierboven één toe.</span></td></tr>';
 
   box.innerHTML='<h2>2. Artikelen</h2><p class="lead">Snel toevoegen onderaan of rechts: naam → eenheid → prijs → voorraad → Enter. Bestaande rijen kunt u meteen aanpassen.</p>'+
     '<div class="quick">'+
@@ -324,7 +325,7 @@ function renderProducts(box){
       '<span class="badge">'+(DATA.products||[]).length+' artikelen</span>'+
       '<button type="button" class="ob-btn sec" onclick="go(2)">Volgende stap</button>'+
     '</div>'+
-    '<div style="overflow:auto"><table class="prod-table"><thead><tr><th>Product</th><th>Eenheid</th><th>Prijs</th><th>Voorraad</th><th>Categorie</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div style="overflow:auto"><table class="prod-table"><thead><tr><th>Product</th><th>Eenheid</th><th>Prijs</th><th>Voorraad</th><th>Drempel</th><th>Categorie</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     '<p class="hint"><b>kassa</b> = hele doos · <b>kg</b> = decimale bestelling mogelijk · wijzigingen per rij met Opslaan.</p>';
 
   const nameEl=document.getElementById("pnom");
@@ -371,8 +372,10 @@ async function saveProductRow(id){
     const cat=val("c_"+id)||"Algemeen";
     if(!nom) throw new Error("Productnaam is verplicht");
     if(!Number.isFinite(base)||base<0) throw new Error("Ongeldige prijs");
+    const lowThreshold=Number(String(val("l_"+id)||"0").replace(",","."));
+    if(!Number.isFinite(lowThreshold)||lowThreshold<0) throw new Error("Ongeldige drempel");
     DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      action:"saveProduct", id, nom, unite, base, cat, stock, lowThreshold:0
+      action:"saveProduct", id, nom, unite, base, cat, stock, lowThreshold
     })});
     toast("Artikel bijgewerkt");
     render();
