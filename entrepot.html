@@ -148,13 +148,11 @@
   </div></main>
 </div>
 
-<div id="docPreview" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="docPreviewTitle">
-  <div class="doc-preview-pane"><div class="doc-preview-actions"><div><strong id="docPreviewTitle">Documentvoorbeeld</strong><span id="docPreviewMeta"></span></div><div><button type="button" onclick="closeDocPreview()">Sluiten</button><button type="button" class="doc-print" onclick="printDocPreview()">Afdrukken</button></div></div><iframe id="docFrame" title="Documentvoorbeeld"></iframe></div>
-</div>
 <div id="notice" class="notice hidden" role="alert"></div>
 <div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="advanceTitle"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong id="advanceTitle">Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:#555;line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 
 <script src="/staff-session.js"></script>
+<script src="/staff-doc-preview.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
@@ -333,10 +331,16 @@ function renderDayView(){
     '</section></div>';
 }
 function printConsolidatedPicklist(){
-  const orders=preparationOrders(),items=consolidatedItems(); if(!items.length){ showNotice("Er zijn geen producten om voor te bereiden.","error"); return; }
-  const w=window.open("","_blank"); if(!w) return;
-  w.document.write('<html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#111}h1{font-size:21px;border-bottom:3px solid #111;padding-bottom:8px}p{font-size:12px;color:#666}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #111;padding:8px}td{font-size:15px;border-bottom:1px solid #ddd;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#666}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+new Date().toLocaleString("nl-BE")+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(famoNL.unit(x.unit)||x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>');
-  w.document.close(); w.print();
+  const orders=preparationOrders(),items=consolidatedItems();
+  if(!items.length){ showNotice("Er zijn geen producten om voor te bereiden.","error"); return; }
+  const day=DAY_FILTER==="custom"?document.getElementById("dayCustom").value:DAY_FILTER==="today"?dayKey():DAY_FILTER==="tomorrow"?dayKey(1):dayKey();
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;color:#111;margin:0;padding:28px}h1{font-size:21px;border-bottom:3px solid #111;padding-bottom:8px;margin:0}p{font-size:12px;color:#666}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #111;padding:8px}td{font-size:15px;border-bottom:1px solid #ddd;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#666}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+esc(new Date().toLocaleString("nl-BE"))+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(famoNL.unit(x.unit)||x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>';
+  famoDocPreview.open({
+    title:"Geconsolideerde picking",
+    meta:orders.length+" bestellingen · "+(day||dayKey()),
+    filename:famoDocPreview.filenameFor("picking",{date:day||dayKey()}),
+    html
+  });
 }
 
 function parseOrderLine(line){
@@ -400,10 +404,15 @@ async function saveLines(idx){
 function printPicklist(){
   const todo=ORDERS.filter(o=>o.statut==="Reçue"||o.statut==="Prête");
   if(!todo.length){ showNotice("Er zijn geen bestellingen om voor te bereiden.","error"); return; }
-  const w=window.open("","_blank"); if(!w) return;
+  const day=dayKey();
   const blocks=todo.map(o=>'<section><header><b>'+esc(o.ref)+' — '+esc(o.client)+'</b><span>Levering: '+esc(o.dateLiv||"—")+'</span></header><table>'+String(o.lignes||"").split("\n").filter(Boolean).map(l=>'<tr><td class="box">☐</td><td>'+esc(famoNL.lines(l.replace(/\s*\[€[^\]]+\]/g,"")))+'</td></tr>').join("")+'</table></section>').join("");
-  w.document.write('<html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#111}h1{font-size:21px;border-bottom:3px solid #111;padding-bottom:8px}section{border:2px solid #111;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #ddd;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>');
-  w.document.close(); w.print();
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;color:#111;margin:0;padding:28px}h1{font-size:21px;border-bottom:3px solid #111;padding-bottom:8px;margin:0}section{border:2px solid #111;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #ddd;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>';
+  famoDocPreview.open({
+    title:"Voorbereidingslijst",
+    meta:todo.length+" bestellingen · "+day,
+    filename:famoDocPreview.filenameFor("picking",{date:day}),
+    html
+  });
 }
 
 function doc(idx,type){
@@ -478,12 +487,15 @@ function doc(idx,type){
         '<div class="sig">Handtekening klant: ______________________<br><br>Goederen ontvangen in goede staat en conform.</div>'+
         '<div class="ft">Klachten over verse vis binnen de 12u, over diepvries binnen de 24u.</div>')+
     '</body></html>';
-  showDocPreview(docHtml,num);
+  const kind=isFA?"invoice":"delivery";
+  famoDocPreview.open({
+    title:titre==="FACTUUR"?"Factuur":"Leveringsbon",
+    meta:num+" · "+(o.ref||""),
+    filename:famoDocPreview.filenameFor(kind,{number:num,ref:o.ref,invoice:o.factuurnummer}),
+    html:docHtml
+  });
 }
 
-function showDocPreview(html,num){const modal=document.getElementById("docPreview"),frame=document.getElementById("docFrame");document.getElementById("docPreviewMeta").textContent=num;frame.srcdoc=html;modal.classList.remove("hidden");document.body.style.overflow="hidden";modal.querySelector("button").focus()}
-function closeDocPreview(){const modal=document.getElementById("docPreview");modal.classList.add("hidden");document.getElementById("docFrame").srcdoc="";document.body.style.overflow=""}
-function printDocPreview(){const frame=document.getElementById("docFrame");if(frame.contentWindow)frame.contentWindow.print()}
 function showNotice(message,kind="info"){const box=document.getElementById("notice");box.textContent=message;box.className="notice "+kind;clearTimeout(window._noticeTimer);window._noticeTimer=setTimeout(()=>box.classList.add("hidden"),7000)}
 async function logoutWarehouse(){await loginCtl.logout()}
 
