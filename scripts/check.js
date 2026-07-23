@@ -224,21 +224,98 @@ for (const page of STAFF_PAGES) {
       new vm.Script(navSrc, { filename: "staff-nav.js" }).runInNewContext(sandbox);
       const famoNav = sandbox.window.famoNav || sandbox.global.famoNav;
       const labels = (famoNav.PRIMARY || []).map(i => i.label);
+      const meerLabels = (famoNav.MEER || []).map(i => i.label);
       if (labels.includes("Overzicht")) fail("staff-nav.js", "PRIMARY ne doit pas lister Overzicht");
       if (labels.includes("Dagvoorbereiding")) fail("staff-nav.js", "PRIMARY ne doit pas lister Dagvoorbereiding");
+      if (labels.includes("Aan de slag")) fail("staff-nav.js", "PRIMARY ne doit pas lister Aan de slag");
       if (labels.length !== 4) fail("staff-nav.js", "PRIMARY doit contenir exactement 4 items");
-      else pass("staff-nav.js", "PRIMARY sans Overzicht/Dagvoorbereiding");
+      const expected = ["Bestellingen", "Magazijn", "Invoeren", "Leveringen"];
+      if (expected.some((l, i) => labels[i] !== l)) {
+        fail("staff-nav.js", "PRIMARY attendu: " + expected.join(" | ") + " — reçu: " + labels.join(" | "));
+      } else if (!meerLabels.includes("Voorraad") || !meerLabels.includes("Documenten")) {
+        fail("staff-nav.js", "MEER doit contenir Voorraad et Documenten");
+      } else if (!famoNav.SETUP || famoNav.SETUP.label !== "Aan de slag") {
+        fail("staff-nav.js", "SETUP footer Aan de slag manquant");
+      } else {
+        pass("staff-nav.js", "PRIMARY 4+Meer + setup footer");
+      }
     } catch (e) {
       fail("staff-nav.js", e.message);
     }
   }
 }
 
-// --- Interdit : warehouse-sidebar dans le HTML (hors commentaires) ---
+// --- Interdit : warehouse-sidebar / warehouse-mobilebar / warehouse.css ---
 for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   const src = stripHtmlComments(fs.readFileSync(path.join(root, f), "utf8"));
   if (/\bwarehouse-sidebar\b/.test(src)) {
     fail(f, "contient warehouse-sidebar — utiliser staff-shell / data-famo-nav");
+  }
+  if (/\bwarehouse-mobilebar\b/.test(src)) {
+    fail(f, "contient warehouse-mobilebar — utiliser staff-mobile-nav");
+  }
+  if (/warehouse\.css/.test(src)) {
+    fail(f, "référence warehouse.css — utiliser staff.css uniquement");
+  }
+}
+if (fs.existsSync(path.join(root, "warehouse.css"))) {
+  fail("warehouse.css", "fichier legacy encore présent — absorber dans staff.css puis supprimer");
+} else {
+  pass("warehouse.css", "(absent)");
+}
+
+// --- Interdit : login CSS legacy par page ---
+const LEGACY_LOGIN = /\b(l-login|d-login|o-login|s-login|prep-login|dash-login)\b/;
+for (const page of STAFF_PAGES) {
+  const full = path.join(root, page);
+  if (!fs.existsSync(full)) continue;
+  const src = stripHtmlComments(fs.readFileSync(full, "utf8"));
+  if (REDIRECT_PAGES[page] && isRedirectPage(page, src)) continue;
+  if (LEGACY_LOGIN.test(src)) {
+    fail(page, "login legacy (l-/d-/o-/s-/prep-/dash-login) — utiliser .staff-login + bindLogin");
+  }
+}
+
+// --- Pages opérationnelles : staff-login + staff-shell ---
+const OPERATIONAL = [
+  "bestellingen.html",
+  "order.html",
+  "entrepot.html",
+  "invoer.html",
+  "stock.html",
+  "documenten.html",
+  "leveringen.html"
+];
+for (const page of OPERATIONAL) {
+  const full = path.join(root, page);
+  if (!fs.existsSync(full)) continue;
+  const src = stripHtmlComments(fs.readFileSync(full, "utf8"));
+  if (!/\bstaff-login\b/.test(src)) fail(page, "doit utiliser .staff-login");
+  if (!/\bstaff-shell\b/.test(src)) fail(page, "doit utiliser .staff-shell");
+  if (!/bindLogin\s*\(/.test(src)) {
+    fail(page, "doit appeler famoStaff.bindLogin(...)");
+  }
+}
+
+// --- Sheet livraison partagé ---
+{
+  const delPath = path.join(root, "staff-delivery.js");
+  if (!fs.existsSync(delPath)) {
+    fail("staff-delivery.js", "module partagé manquant");
+  } else {
+    const src = fs.readFileSync(delPath, "utf8");
+    try {
+      new vm.Script(src, { filename: "staff-delivery.js" });
+      if (!/openDeliveryConfirm/.test(src)) fail("staff-delivery.js", "doit exposer openDeliveryConfirm");
+      else pass("staff-delivery.js", "openDeliveryConfirm");
+    } catch (e) {
+      fail("staff-delivery.js", e.message);
+    }
+  }
+  for (const page of ["leveringen.html", "order.html"]) {
+    const src = fs.readFileSync(path.join(root, page), "utf8");
+    if (!src.includes("/staff-delivery.js")) fail(page, "doit inclure staff-delivery.js");
+    if (!/openDeliveryConfirm/.test(src)) fail(page, "doit appeler openDeliveryConfirm");
   }
 }
 

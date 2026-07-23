@@ -202,28 +202,22 @@ function setView(view){
   if(CURRENT_VIEW==="dag") renderDayView();
 }
 
-async function enter(){
-  const input=document.getElementById("code"), err=document.getElementById("loginError");
-  const code=(input.value||"").trim();
-  if(!code){err.textContent="Vul de personeelscode in.";return}
-  if(enter._busy)return; enter._busy=true;
-  err.textContent="Controleren…";
+async function bootWarehouse(){
+  await load();
   try{
-    await famoStaff.login(code);
-    input.value="";
-    document.getElementById("loginView").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    await load();
-    try{
-      const rc=await famoStaff.api("/api/config");
-      if(rc.ok){ const cj=await rc.json(); const c=cj.config||{};
-        FAMO.nom=c.bedrijfsnaam||FAMO.nom; FAMO.adresse=c.adres||FAMO.adresse;
-        FAMO.cp=c.plaats||FAMO.cp; FAMO.tva=c.btw||FAMO.tva;
-        FAMO.tel=c.telefoon||FAMO.tel; FAMO.iban=c.iban||""; FAMO.bic=c.bic||""; }
-    }catch(e){}
-  }catch(e){ err.textContent=famoStaff.translateError(e.message||"Verbinding mislukt. Vernieuw de pagina en probeer opnieuw."); }
-  finally{enter._busy=false}
+    const rc=await famoStaff.api("/api/config");
+    if(rc.ok){ const cj=await rc.json(); const c=cj.config||{};
+      FAMO.nom=c.bedrijfsnaam||FAMO.nom; FAMO.adresse=c.adres||FAMO.adresse;
+      FAMO.cp=c.plaats||FAMO.cp; FAMO.tva=c.btw||FAMO.tva;
+      FAMO.tel=c.telefoon||FAMO.tel; FAMO.iban=c.iban||""; FAMO.bic=c.bic||""; }
+  }catch(e){}
 }
+const loginCtl=famoStaff.bindLogin({
+  code:"code",error:"loginError",loginView:"loginView",appView:"app",
+  onDom(){ if(new URLSearchParams(location.search).get("view")==="dag") setView("dag"); },
+  onReady:bootWarehouse
+});
+function enter(){loginCtl.enter()}
 async function load(){
   try{
     const [a,b]=await Promise.all([famoStaff.api("/api/allorders"),famoStaff.api("/api/stock")]);
@@ -491,7 +485,7 @@ function showDocPreview(html,num){const modal=document.getElementById("docPrevie
 function closeDocPreview(){const modal=document.getElementById("docPreview");modal.classList.add("hidden");document.getElementById("docFrame").srcdoc="";document.body.style.overflow=""}
 function printDocPreview(){const frame=document.getElementById("docFrame");if(frame.contentWindow)frame.contentWindow.print()}
 function showNotice(message,kind="info"){const box=document.getElementById("notice");box.textContent=message;box.className="notice "+kind;clearTimeout(window._noticeTimer);window._noticeTimer=setTimeout(()=>box.classList.add("hidden"),7000)}
-async function logoutWarehouse(){await famoStaff.logout();location.reload()}
+async function logoutWarehouse(){await loginCtl.logout()}
 
 async function adv(id,statut){ await upd({id,statut}); }
 function confirmAdvance(id,statut,index){
@@ -527,26 +521,6 @@ async function upd(patch){
   }catch(error){showNotice(famoStaff.translateError(error.message||"Verbinding mislukt. Probeer opnieuw."),"error");}
   finally{UPDATING=false;document.querySelectorAll("button").forEach(b=>b.disabled=false)}
 }
-document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
-window.addEventListener("DOMContentLoaded",async()=>{
-  const params=new URLSearchParams(location.search);
-  if(params.get("view")==="dag") setView("dag");
-  try{
-    if(await famoStaff.check()){
-      document.getElementById("loginView").classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
-      await load();
-      try{
-        const rc=await famoStaff.api("/api/config");
-        if(rc.ok){ const cj=await rc.json(); const c=cj.config||{};
-          FAMO.nom=c.bedrijfsnaam||FAMO.nom; FAMO.adresse=c.adres||FAMO.adresse;
-          FAMO.cp=c.plaats||FAMO.cp; FAMO.tva=c.btw||FAMO.tva;
-          FAMO.tel=c.telefoon||FAMO.tel; FAMO.iban=c.iban||""; FAMO.bic=c.bic||""; }
-      }catch(e){}
-      return;
-    }
-  }catch(e){}
-});
 </script>
 </body>
 </html>
