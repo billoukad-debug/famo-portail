@@ -482,6 +482,63 @@ for (const page of OPERATIONAL) {
   }
 }
 
+// --- Cohérence Phase 4 : client portal + setup ---
+{
+  const idx = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  if (!/tryRestoreSession/.test(idx) || !/famo_client_sess/.test(idx)) {
+    fail("index.html", "session client doit survivre au refresh (sessionStorage)");
+  } else if (!/minOrderDate/.test(idx) || !/dateInvalid/.test(idx)) {
+    fail("index.html", "leverdatum doit bloquer passé / zondag");
+  } else if (!/!empty\?'<button class=\"text-btn\" onclick=\"clearCart\(\)\">Wissen/.test(idx)) {
+    fail("index.html", "Wissen doit être dispo aussi en mobile sheet");
+  } else if (!/config\?public=1/.test(idx) || !/applyCompany/.test(idx) || !/helpContact/.test(idx)) {
+    fail("index.html", "contact Hulp / login foot depuis config");
+  } else {
+    pass("index.html", "session + date + contact + wissen");
+  }
+
+  const cfg = fs.readFileSync(path.join(root, "api/config.js"), "utf8");
+  if (!/wantPublic/.test(cfg) || !/public/.test(cfg)) {
+    fail("api/config.js", "GET ?public=1 sans staff pour contact client");
+  } else {
+    pass("api/config.js", "public contact config");
+  }
+
+  const cat = fs.readFileSync(path.join(root, "api/catalogue.js"), "utf8");
+  if (!/loadCompany/.test(cat) || !/company:/.test(cat)) {
+    fail("api/catalogue.js", "login client doit renvoyer company");
+  } else {
+    pass("api/catalogue.js", "company dans login");
+  }
+
+  const onb = fs.readFileSync(path.join(root, "aan-de-slag.html"), "utf8");
+  if (!/editClient/.test(onb) || !/EDIT_CLIENT/.test(onb)) {
+    fail("aan-de-slag.html", "doit permettre d’éditer un client existant");
+  } else if (!/deletePrice/.test(onb)) {
+    fail("aan-de-slag.html", "doit pouvoir supprimer une prijs");
+  } else if (!/deactivateProduct/.test(onb) || !/actif:\s*false/.test(onb)) {
+    fail("aan-de-slag.html", "doit pouvoir uitschakelen un product");
+  } else if (!/"Vis"/.test(onb) || !/"Schaaldieren"/.test(onb)) {
+    fail("aan-de-slag.html", "catégories NL (Vis/Schaaldieren) requises");
+  } else {
+    pass("aan-de-slag.html", "edit client + delete price + deactivate + NL cats");
+  }
+
+  const onbApi = fs.readFileSync(path.join(root, "api/onboarding.js"), "utf8");
+  if (!/deletePrice/.test(onbApi)) {
+    fail("api/onboarding.js", "action deletePrice manquante");
+  } else {
+    pass("api/onboarding.js", "deletePrice");
+  }
+
+  const nav = fs.readFileSync(path.join(root, "staff-nav.js"), "utf8");
+  if (!/catalogus/.test(nav) || !/klanten/.test(nav)) {
+    fail("staff-nav.js", "banner setup doit couvrir catalogus/klanten");
+  } else {
+    pass("staff-nav.js", "banner setup enrichi");
+  }
+}
+
 function srcIncludes(src, needle) {
   return String(src || "").includes(needle);
 }

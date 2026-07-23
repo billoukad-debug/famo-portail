@@ -94,13 +94,19 @@
       if (!ok) return;
       return staff.api("/api/config?status=1").then(r => r.ok ? r.json() : null);
     }).then(data => {
-      if (!data || !data.status || data.status.identiteit) return;
+      if (!data || !data.status) return;
+      const s = data.status;
+      const gaps = [];
+      if (!s.identiteit) gaps.push("bedrijfsgegevens/IBAN");
+      if (!(Number(s.catalogue) > 0 || s.catalogueReady)) gaps.push("catalogus");
+      if (!(Number(s.clients) > 0 || s.clientsReady)) gaps.push("klanten");
+      if (!gaps.length) return;
       const main = document.querySelector(".staff-main .staff-page");
       if (!main || main.querySelector(".staff-setup-banner")) return;
       const banner = document.createElement("div");
       banner.className = "staff-setup-banner";
       banner.setAttribute("role", "status");
-      banner.innerHTML = "Setup nog niet afgerond — vul bedrijfsgegevens en IBAN in via <a href=\"/aan-de-slag.html\">Aan de slag</a>.";
+      banner.innerHTML = "Setup nog niet afgerond (" + gaps.join(", ") + ") — ga naar <a href=\"/aan-de-slag.html\">Aan de slag</a>.";
       main.insertBefore(banner, main.firstChild);
     }).catch(() => {});
   }

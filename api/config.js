@@ -18,7 +18,8 @@ module.exports = async (req, res) => {
   if (!__auth.hasCode()) return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt." });
   try {
     const q = req.query || {};
-    if (!__auth.staffOk(req, q.code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    const wantPublic = String(q.public || "") === "1";
+    const staffOk = __auth.staffOk(req, q.code);
 
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};
@@ -33,6 +34,22 @@ module.exports = async (req, res) => {
       bic: (c["BIC"] || "").trim()
     };
 
+    // Public contact block for the client portal (no IBAN/BIC).
+    if (wantPublic && !staffOk) {
+      return res.status(200).json({
+        config: {
+          bedrijfsnaam: config.bedrijfsnaam || "Famo Trading BV",
+          adres: config.adres,
+          plaats: config.plaats,
+          btw: config.btw,
+          telefoon: config.telefoon,
+          email: config.email
+        }
+      });
+    }
+
+    if (!staffOk) return res.status(401).json({ error: "Ongeldige personeelscode" });
+
     if (q.status === "1") {
       const [catalogue, clients, prijzen, stock, orders] = await Promise.all([
         count("Catalogue", "{Actif}=1"),
@@ -44,6 +61,10 @@ module.exports = async (req, res) => {
       return res.status(200).json({ config, status: {
         identiteit: !!(config.bedrijfsnaam && config.btw && config.iban && config.bic),
         ibanOntbreekt: !config.iban || !config.bic,
+        catalogueReady: catalogue > 0,
+        clientsReady: clients > 0,
+        prijzenReady: prijzen > 0,
+        stockReady: stock > 0,
         catalogue, clients, prijzen, stock, orders
       }});
     }
