@@ -555,7 +555,7 @@ function renderDone(box){
     '<a class="ob-btn sec" href="/entrepot.html">Open Magazijn</a>'+
     '<a class="ob-btn sec" href="/stock.html">Open Voorraad</a>'+
     '<a class="ob-btn sec" href="/bestellingen.html">Open Bestellingen</a>'+
-    '</div><p class="hint">Personeelscode tijdelijk: famo2026 (tot u die later versterkt in Vercel). Facturen hier zijn intern — Peppol volgt via boekhouding.</p>';
+    '</div><p class="hint">Zet <b>STAFF_CODE</b> in Vercel (Production + Preview). Zonder die variabele is staff-login gesloten. Facturen hier zijn intern — Peppol volgt via boekhouding.</p>';
 }
 
 function val(id){const el=document.getElementById(id);return el?el.value.trim():""}

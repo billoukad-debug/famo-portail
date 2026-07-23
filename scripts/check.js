@@ -60,20 +60,37 @@ if (fs.existsSync(apiDir)) {
       fail(file, e.message);
     }
 
-    // Fallback famo2026 uniquement autorisé dans lib/staffauth.js (demande produit temporaire).
-    if (file !== "api/onboarding.js" && /\|\|\s*["']famo2026["']/.test(src)) {
-      fail(file, 'contient un fallback || "famo2026" — uniquement autorisé via lib/staffauth.js');
-    }
-    if (/STAFF_CODE\s*=\s*process\.env\.STAFF_CODE\s*\|\|/.test(src)) {
-      fail(file, "STAFF_CODE = process.env.STAFF_CODE || … dans api/ — utiliser lib/staffauth.js");
+    // Fail-closed : aucun fallback famo2026 / secret hardcodé.
+    if (/\|\|\s*["']famo2026["']/.test(src) || /STAFF_CODE\s*=\s*process\.env\.STAFF_CODE\s*\|\|/.test(src)) {
+      fail(file, 'fallback STAFF_CODE / famo2026 interdit — fail-closed via lib/staffauth.js');
     }
     if (/(?:const|let|var)\s+STAFF_CODE\s*=\s*["'][^"']+["']/.test(src)) {
       fail(file, "STAFF_CODE assigné en dur — interdit");
     }
-    if (/["']famo2026["']/.test(src) && !/reject|refuse|401|compromis|interdit|ancien|temporaire|TEMPORAIRE/i.test(src)) {
-      if (/(?:=\s*|\|\|\s*)["']famo2026["']/.test(src)) {
-        fail(file, "famo2026 utilisé comme valeur par défaut dans api/ — interdit (passer par staffauth)");
-      }
+    if (/["']famo2026["']/.test(src) && !/refuse|401|interdit|ancien|reject/i.test(src)) {
+      fail(file, "famo2026 ne doit plus apparaître comme secret utilisable dans api/");
+    }
+    if (/staffOk\s*\(\s*req\s*,/.test(src)) {
+      fail(file, "staffOk(req, code) interdit — cookie only (code uniquement via POST /api/session + codeEquals)");
+    }
+  }
+}
+
+// --- 1b. lib/staffauth fail-closed ---
+{
+  const authPath = path.join(root, "lib", "staffauth.js");
+  if (!fs.existsSync(authPath)) {
+    fail("lib/staffauth.js", "module auth manquant");
+  } else {
+    const src = fs.readFileSync(authPath, "utf8");
+    if (/\|\|\s*["']famo2026["']/.test(src) || /\|\|\s*["'][^"']+["']/.test(src) && /STAFF_CODE[\s\S]{0,40}\|\|\s*["'][^"']+["']/.test(src)) {
+      fail("lib/staffauth.js", "fallback famo2026 / secret par défaut interdit");
+    } else if (/function staffOk\s*\(\s*req\s*,/.test(src)) {
+      fail("lib/staffauth.js", "staffOk ne doit plus accepter legacyCode");
+    } else if (!/function staffOk\s*\(\s*req\s*\)/.test(src)) {
+      fail("lib/staffauth.js", "staffOk(req) cookie-only manquant");
+    } else {
+      pass("lib/staffauth.js", "fail-closed cookie-only");
     }
   }
 }
@@ -466,10 +483,12 @@ for (const page of OPERATIONAL) {
     fail("documents.js", "doit exposer setCompany/getCompany");
   } else if (!/CREDITNOTA \(VOORBEELD\)/.test(docsLib) || !/niet geboekt/i.test(docsLib)) {
     fail("documents.js", "creditnota doit être clairement un voorbeeld / non booké");
-  } else if (!/IBAN:/.test(docsLib)) {
-    fail("documents.js", "factures doivent afficher le bloc IBAN depuis config");
+  } else if (!/canInvoice/.test(docsLib) || !/invoiceBlockReason/.test(docsLib)) {
+    fail("documents.js", "facture doit être gated sur IBAN+BIC (canInvoice)");
+  } else if (/Jezusstraat 34/.test(docsLib) && /let COMPANY=\{[\s\S]*Jezusstraat/.test(docsLib)) {
+    fail("documents.js", "pas d’identité hardcodée de secours — setCompany depuis config");
   } else {
-    pass("documents.js", "company live + creditnota voorbeeld + IBAN");
+    pass("documents.js", "company live + creditnota voorbeeld + IBAN gate");
   }
 
   const docsPage = fs.readFileSync(path.join(root, "documenten.html"), "utf8");
@@ -477,8 +496,10 @@ for (const page of OPERATIONAL) {
     fail("documenten.html", "doit charger /api/config et appeler setCompany");
   } else if (!/Creditnota \(voorbeeld\)/.test(docsPage)) {
     fail("documenten.html", "labels creditnota doivent dire voorbeeld");
+  } else if (!/canInvoice/.test(docsPage)) {
+    fail("documenten.html", "preview facture doit respecter canInvoice");
   } else {
-    pass("documenten.html", "config company + credit voorbeeld");
+    pass("documenten.html", "config company + credit voorbeeld + invoice gate");
   }
 }
 

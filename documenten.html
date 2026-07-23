@@ -23,7 +23,17 @@ function applyUrlFilters(){
     }
   }
 }
-function makeDocs(){DOCS=[];ORDERS.forEach(o=>{const lb={order:o,type:"delivery",label:"Leveringsbon",number:FamoDocuments.number(o,"delivery"),available:o.statut!=="Reçue",reason:"Beschikbaar na voorbereiding",date:o.prepareeLe||o.date||""};DOCS.push(lb);DOCS.push({order:o,type:"invoice",label:"Factuur",number:o.factuurnummer||"—",available:!!o.factuurnummer,reason:o.factuurnummer?"Beschikbaar":"Geblokkeerd — levering nog niet bevestigd",date:o.factureeLe||"",amount:o.factuurnummer?o.total:null});DOCS.push({order:o,type:"credit",label:"Creditnota (voorbeeld)",number:FamoDocuments.number(o,"credit"),available:!!o.factuurnummer,reason:o.factuurnummer?"Voorbeeld — niet geboekt in Airtable":"Beschikbaar na factuur",date:o.factureeLe||"",amount:o.factuurnummer?-Math.abs(Number(o.total||0)):null})})}
+function makeDocs(){
+  DOCS=[];
+  const invOk=FamoDocuments.canInvoice?FamoDocuments.canInvoice():false;
+  const invReason=FamoDocuments.invoiceBlockReason?FamoDocuments.invoiceBlockReason():"IBAN/BIC ontbreken";
+  ORDERS.forEach(o=>{
+    DOCS.push({order:o,type:"delivery",label:"Leveringsbon",number:FamoDocuments.number(o,"delivery"),available:o.statut!=="Reçue",reason:"Beschikbaar na voorbereiding",date:o.prepareeLe||o.date||""});
+    const hasFa=!!o.factuurnummer;
+    DOCS.push({order:o,type:"invoice",label:"Factuur",number:o.factuurnummer||"—",available:hasFa&&invOk,reason:!hasFa?"Geblokkeerd — levering nog niet bevestigd":(invOk?"Beschikbaar":invReason),date:o.factureeLe||"",amount:hasFa?o.total:null});
+    DOCS.push({order:o,type:"credit",label:"Creditnota (voorbeeld)",number:FamoDocuments.number(o,"credit"),available:hasFa,reason:hasFa?"Voorbeeld — niet geboekt in Airtable":"Beschikbaar na factuur",date:o.factureeLe||"",amount:hasFa?-Math.abs(Number(o.total||0)):null});
+  });
+}
 const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"login",appView:"app",onReady:load});
 function enter(){loginCtl.enter()}
 async function loadCompany(){
@@ -41,13 +51,34 @@ function render(){const list=filter(),table=document.getElementById("table"),car
 function preview(type,id){
   const order=ORDERS.find(o=>o.id===id);
   if(!order)return;
+  if(type==="invoice"&&FamoDocuments.canInvoice&&!FamoDocuments.canInvoice()){
+    const msg=FamoDocuments.invoiceBlockReason?FamoDocuments.invoiceBlockReason():"IBAN/BIC ontbreken";
+    famoDocPreview.open({
+      title:"Factuur geblokkeerd",
+      meta:order.ref||"",
+      filename:"geblokkeerd.txt",
+      html:"<!doctype html><html><body style='font-family:sans-serif;padding:32px'><h1>Factuur geblokkeerd</h1><p>"+FamoDocuments.esc(msg)+"</p><p><a href='/aan-de-slag.html'>Open Aan de slag</a></p></body></html>"
+    });
+    return;
+  }
   const labels={delivery:"Leveringsbon",invoice:"Factuur",credit:"Creditnota (voorbeeld)"};
   const num=FamoDocuments.number(order,type);
+  let html;
+  try{html=FamoDocuments.build(order,type)}
+  catch(e){
+    famoDocPreview.open({
+      title:"Document geblokkeerd",
+      meta:order.ref||"",
+      filename:"geblokkeerd.txt",
+      html:"<!doctype html><html><body style='font-family:sans-serif;padding:32px'><h1>Document geblokkeerd</h1><p>"+FamoDocuments.esc(e.message||e)+"</p></body></html>"
+    });
+    return;
+  }
   famoDocPreview.open({
     title:labels[type]||"Document",
     meta:num+" · "+(order.ref||""),
     filename:FamoDocuments.filename(order,type),
-    html:FamoDocuments.build(order,type)
+    html
   });
 }
 async function logout(){await loginCtl.logout()}

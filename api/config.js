@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
   try {
     const q = req.query || {};
     const wantPublic = String(q.public || "") === "1";
-    const staffOk = __auth.staffOk(req, q.code);
+    const staffOk = __auth.staffOk(req);
 
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};

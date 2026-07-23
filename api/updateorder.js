@@ -135,8 +135,8 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { code, id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl } = body;
-    if (!__auth.staffOk(req, code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    const { id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl } = body;
+    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
     if (!id) return res.status(400).json({ error: "Bestelling-id ontbreekt" });
 
     const cur = await at(`Commandes/${id}`);

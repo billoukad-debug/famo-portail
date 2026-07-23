@@ -167,7 +167,7 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === "GET") {
-      if (!__auth.staffOk(req, (req.query || {}).code)) {
+      if (!__auth.staffOk(req)) {
         return res.status(401).json({ error: "Ongeldige personeelscode" });
       }
       const data = await statusPayload();
@@ -179,7 +179,7 @@ module.exports = async (req, res) => {
     }
 
     const body = parseBody(req);
-    if (!__auth.staffOk(req, body.code)) {
+    if (!__auth.staffOk(req)) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });
     }
 

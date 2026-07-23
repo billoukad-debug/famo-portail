@@ -78,7 +78,7 @@ module.exports = async (req, res) => {
       let body = req.body;
       if (typeof body === "string") body = JSON.parse(body || "{}");
       if (!body) body = {};
-      if (!__auth.staffOk(req, body.code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+      if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
       const { clientId, notes, dateLivraison, bron } = body;
       if (!clientId) return res.status(400).json({ error: "Klant en artikelen vereist" });
       let order;
@@ -103,10 +103,10 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ref, id: j.records[0].id, total: order.total });
     }
 
+    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+
     // ---------- GET ----------
     const q = req.query || {};
-    if (!__auth.staffOk(req, q.code)) return res.status(401).json({ error: "Ongeldige personeelscode" });
-
     // Liste des clients
     if (!q.client) {
       const cl = await atAll("Clients");
