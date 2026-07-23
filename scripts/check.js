@@ -436,6 +436,52 @@ for (const page of OPERATIONAL) {
   }
 }
 
+// --- Cohérence Phase 3 : stock integrity + documents company ---
+{
+  const stockApi = fs.readFileSync(path.join(root, "api/stock.js"), "utf8");
+  if (!/history\s*===\s*["']1["']/.test(stockApi) && !/String\(q\.history/.test(stockApi)) {
+    fail("api/stock.js", "GET ?history=1 doit exposer les mouvements");
+  } else if (!/Seuil bas/.test(stockApi) || !/lowThreshold/.test(stockApi)) {
+    fail("api/stock.js", "POST doit pouvoir patcher Seuil bas (lowThreshold)");
+  } else if (!/rounded\s*!==\s*before/.test(stockApi) && !/rounded !== before/.test(stockApi)) {
+    fail("api/stock.js", "journal uniquement si la quantité change");
+  } else {
+    pass("api/stock.js", "history + seuil + journal conditionnel");
+  }
+
+  const stockPage = fs.readFileSync(path.join(root, "stock.html"), "utf8");
+  const hasGrensField = /lowThreshold/.test(stockPage) && (/['"]g_['"]\s*\+/.test(stockPage) || /id=["']g_/.test(stockPage));
+  if (!hasGrensField) {
+    fail("stock.html", "doit envoyer/éditer lowThreshold (Grens)");
+  } else if (!/history=1/.test(stockPage) || !/toggleHistory/.test(stockPage)) {
+    fail("stock.html", "doit afficher l’historique via /api/stock?history=1");
+  } else if (!/absolute|absoluut/i.test(stockPage)) {
+    fail("stock.html", "doit clarifier quantité absolue (pas delta)");
+  } else {
+    pass("stock.html", "grens éditable + historique");
+  }
+
+  const docsLib = fs.readFileSync(path.join(root, "documents.js"), "utf8");
+  if (!/setCompany/.test(docsLib) || !/getCompany/.test(docsLib)) {
+    fail("documents.js", "doit exposer setCompany/getCompany");
+  } else if (!/CREDITNOTA \(VOORBEELD\)/.test(docsLib) || !/niet geboekt/i.test(docsLib)) {
+    fail("documents.js", "creditnota doit être clairement un voorbeeld / non booké");
+  } else if (!/IBAN:/.test(docsLib)) {
+    fail("documents.js", "factures doivent afficher le bloc IBAN depuis config");
+  } else {
+    pass("documents.js", "company live + creditnota voorbeeld + IBAN");
+  }
+
+  const docsPage = fs.readFileSync(path.join(root, "documenten.html"), "utf8");
+  if (!/\/api\/config/.test(docsPage) || !/setCompany/.test(docsPage)) {
+    fail("documenten.html", "doit charger /api/config et appeler setCompany");
+  } else if (!/Creditnota \(voorbeeld\)/.test(docsPage)) {
+    fail("documenten.html", "labels creditnota doivent dire voorbeeld");
+  } else {
+    pass("documenten.html", "config company + credit voorbeeld");
+  }
+}
+
 function srcIncludes(src, needle) {
   return String(src || "").includes(needle);
 }
