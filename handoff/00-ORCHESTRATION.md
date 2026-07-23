@@ -29,7 +29,7 @@ Vérifier ce qui a été livré en phases 1–4, passer une checklist deploy, pu
 | Agent | Job | Prompt à coller | Sortie attendue |
 |---|---|---|---|
 | **1. Codex** | Vérifier les claims phases 1–4 vs code (sceptique) | [`01-CODEX-VERIFY.md`](./01-CODEX-VERIFY.md) | `handoff/OUT-codex-verify.md` |
-| **2. Claude Code** | Deploy checklist + skills repo | [`02-CLAUDE-DEPLOY.md`](./02-CLAUDE-DEPLOY.md) + skills `.claude/skills/*` | `handoff/OUT-claude-deploy.md` |
+| **2. Claude Code** | Deploy checklist + skills repo | [`02-CLAUDE-DEPLOY.md`](./02-CLAUDE-DEPLOY.md) — si mauvaise copie locale : [`02b-CLAUDE-RECOVERY.md`](./02b-CLAUDE-RECOVERY.md) | `handoff/OUT-claude-deploy.md` |
 | **3. Cursor** | Orchestrer, trancher, fixer P0, update PR | [`03-CURSOR-FINALIZE.md`](./03-CURSOR-FINALIZE.md) | fixes + PR body + go/no-go |
 
 ## Ordre d’exécution
