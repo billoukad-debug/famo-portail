@@ -4,92 +4,65 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Famo Trading — Bestelling invoeren</title>
-<style>
-  :root { --navy:#0b2e4f; --ocean:#1273b8; --ocean-l:#e8f3fb; --text:#1c2a3a; --mut:#64748b;
-    --line:#e2e8f0; --bg:#eef2f6; --ok:#16a34a; --gold:#f59e0b;
-    --sh:0 1px 3px rgba(15,23,42,.08),0 4px 14px rgba(15,23,42,.05); }
-  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); font-size:15px; }
-  button { font-family:inherit; cursor:pointer; }
-  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
-    background:linear-gradient(160deg,#0d1f33,#0b2e4f 60%,#155a8a); }
-  .login-card { background:#fff; border-radius:20px; padding:36px 30px; width:100%; max-width:370px; box-shadow:0 20px 60px rgba(2,12,27,.4); text-align:center; }
-  .login-card h1 { font-size:19px; color:var(--navy); margin-top:6px; }
-  .login-card .sub { color:var(--mut); font-size:13px; margin:6px 0 18px; }
-  .login-card input { width:100%; padding:13px; border:1.5px solid var(--line); border-radius:12px; font-size:16px; margin-bottom:12px; text-align:center; letter-spacing:2px; }
-  .btn-p { width:100%; background:var(--navy); color:#fff; border:none; padding:14px; border-radius:12px; font-size:15px; font-weight:600; }
-  .btn-p:disabled { background:#94a3b8; }
-  .err { color:#dc2626; font-size:13px; min-height:18px; margin-top:6px; }
-
-  .topbar { background:var(--navy); color:#fff; position:sticky; top:0; z-index:50; }
-  .topbar-in { max-width:1000px; margin:0 auto; padding:0 16px; height:56px; display:flex; align-items:center; justify-content:space-between; }
-  .brand { font-weight:700; font-size:16px; }
-  .topbar a { color:#b7cbdd; font-size:13px; text-decoration:none; }
-  .page { max-width:1000px; margin:18px auto 60px; padding:0 16px; display:grid; grid-template-columns:1fr 340px; gap:16px; align-items:start; }
-  @media (max-width:880px){ .page { grid-template-columns:1fr; } }
-  .card { background:#fff; border-radius:14px; box-shadow:var(--sh); padding:16px; }
-  .card h2 { font-size:15px; color:var(--navy); margin-bottom:12px; }
-  .fld-l { display:block; font-size:12px; font-weight:700; color:var(--mut); margin:12px 0 5px; text-transform:uppercase; letter-spacing:.4px; }
-  select, input[type=date], input[type=text], textarea { width:100%; padding:11px; border:1.5px solid var(--line); border-radius:11px; font-size:14px; font-family:inherit; background:#fff; }
-  textarea { min-height:52px; resize:vertical; }
-  .src { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
-  .src button { flex:1; min-width:80px; border:1.5px solid var(--line); background:#fff; border-radius:10px; padding:9px; font-size:13px; font-weight:600; color:var(--mut); }
-  .src button.on { background:var(--ocean-l); border-color:var(--ocean); color:var(--ocean); }
-  .cat-h { font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; color:var(--mut); margin:16px 2px 6px; }
-  .prow { display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid #f0f4f8; }
-  .pinfo { flex:1; min-width:0; }
-  .pname { font-weight:650; font-size:14.5px; }
-  .pmeta { font-size:12.5px; color:var(--mut); margin-top:2px; }
-  .pprice { font-weight:750; color:var(--navy); }
-  .pbase { text-decoration:line-through; color:#a8b6c4; font-size:11.5px; margin-left:5px; }
-  .tag { background:var(--ocean-l); color:var(--ocean); font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:20px; margin-left:5px; }
-  .qty { display:flex; align-items:center; gap:6px; }
-  .qty button { width:38px; height:38px; border:1.5px solid var(--line); background:#fff; border-radius:10px; font-size:19px; color:var(--navy); font-weight:600; }
-  .qty input { width:56px; height:38px; text-align:center; border:1.5px solid var(--line); border-radius:10px; font-size:15px; font-weight:600; }
-  .cmt-in { width:100%; margin-top:6px; padding:7px 9px; border:1px solid var(--line); border-radius:8px; font-size:12.5px; background:#fbfdfe; }
-  .cline { padding:8px 0; border-bottom:1px solid #f2f5f7; font-size:13.5px; }
-  .cline .r1 { display:flex; justify-content:space-between; gap:10px; }
-  .cline .cm { font-size:12px; color:var(--mut); font-style:italic; }
-  .total-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:12px; padding-top:12px; border-top:2px solid var(--line); }
-  .total-row .val { font-size:22px; font-weight:800; color:var(--navy); }
-  .empty { color:#94a3b8; font-size:13px; padding:12px 0; text-align:center; }
-  .ok-box { background:#ecfdf5; border:1.5px solid #a7f3d0; color:#065f46; padding:13px; border-radius:12px; margin-top:12px; font-size:13.5px; display:none; }
-  .review-box{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:8px;background:#f8fafb}.review-box h3{font-size:13px;margin-bottom:8px}.review-line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #e7ecef;font-size:13px}.review-line:last-of-type{border-bottom:0}.review-meta{font-size:12px;color:var(--mut);line-height:1.6;margin-bottom:10px}.review-actions{display:flex;gap:8px;margin-top:12px}.review-actions button{flex:1;min-height:44px;border-radius:6px;border:1px solid var(--line);font-weight:700}.review-actions .confirm{background:var(--gold);border-color:var(--gold);color:#fff}
-  .hidden { display:none !important; }
-
-  /* ---------- FAMO STAFF V2 ---------- */
-  :root{--navy:#071d2b;--ocean:#0c668d;--ocean-l:#e5f2f7;--text:#172b35;--mut:#60717a;--line:#d2dde2;--bg:#edf2f4;--ok:#16724a;--gold:#ff642e;--sh:0 1px 2px rgba(7,29,43,.08),0 10px 30px rgba(7,29,43,.06)}
-  body{font-family:"IBM Plex Sans","Aptos","Segoe UI",sans-serif;background:linear-gradient(90deg,rgba(7,29,43,.035) 1px,transparent 1px),linear-gradient(rgba(7,29,43,.035) 1px,transparent 1px),var(--bg);background-size:32px 32px}
-  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(255,100,46,.35);outline-offset:2px}
-  .login-wrap{background:var(--navy)}.login-card{border-radius:10px;border-top:8px solid var(--gold);text-align:left;max-width:410px}.login-card .staff-mark{width:48px;height:48px;display:grid;place-items:center;background:var(--navy);color:#fff;border-radius:6px;font-size:25px;font-weight:800}.login-card h1{font-size:27px;letter-spacing:-.7px}.login-card input{height:52px;border-radius:6px;text-align:left}.btn-p{min-height:50px;border-radius:6px;background:var(--gold);font-weight:800}.topbar{background:var(--navy);border-bottom:5px solid var(--gold)}.topbar-in{height:66px}.brand{font-size:18px;letter-spacing:-.3px}.topbar a{background:rgba(255,255,255,.1);color:#fff;min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:6px;font-weight:700}.page{max-width:1120px;grid-template-columns:minmax(0,1fr) 370px;gap:22px;margin-top:24px}.card{border-radius:9px;border:1px solid #d2dde2;box-shadow:var(--sh)}.card:nth-child(2){position:sticky;top:90px;border-top:5px solid var(--gold)}.card h2,.fld-l{text-transform:uppercase;letter-spacing:.8px}.card h2{font-size:12px}.fld-l{font-size:11px}select,input[type=date],input[type=text],textarea{min-height:46px;border-radius:6px;background:#f9fbfc}.src button{min-height:46px;border-radius:6px}.src button.on{background:#fff0e9;border-color:var(--gold);color:#a7401a}.cat-h{color:var(--navy);letter-spacing:1.1px;margin-top:22px}.prow{background:#fff;border:1px solid #d6e0e5;border-left:4px solid transparent;border-radius:7px;padding:13px;margin-bottom:6px}.pname{font-size:15.5px;font-weight:700}.pprice,.total-row .val,.cline .r1 span:last-child{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}.tag{border-radius:4px;background:#fff0e9;color:#a7401a;text-transform:uppercase}.qty button,.qty input{height:44px;border-radius:6px}.qty button{width:44px}.qty input{font-family:"IBM Plex Mono",monospace}.cmt-in{border-left:3px solid var(--gold);border-radius:6px;padding:9px}.total-row{border-top-color:var(--navy)}.total-row .val{font-size:29px}.ok-box{border-radius:6px;border-left:5px solid var(--ok)}
-  @media(max-width:880px){.page{grid-template-columns:1fr}.card:nth-child(2){position:static;order:-1}}@media(max-width:560px){.page{padding:0 12px}.prow{align-items:flex-start;flex-wrap:wrap}.pinfo{min-width:100%}.qty{width:100%;justify-content:flex-end}}
-</style>
 <link rel="stylesheet" href="/staff.css">
+<style>
+.invoer-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;margin-top:22px;align-items:start}
+.invoer-card{border:1px solid #e8e8e8;border-radius:12px;background:#fff;padding:18px}
+.invoer-card h2{margin:0 0 12px;font-size:14px;font-weight:600}
+.invoer-card.sticky{position:sticky;top:24px}
+.fld-l{display:block;font-size:11px;font-weight:600;color:#777;margin:12px 0 5px;text-transform:uppercase;letter-spacing:.05em}
+.invoer-card select,.invoer-card input[type=date],.invoer-card input[type=text],.invoer-card textarea{width:100%;min-height:42px;padding:10px 11px;border:1px solid #dedede;border-radius:8px;background:#fff;font:inherit}
+.invoer-card textarea{min-height:52px;resize:vertical}
+.src{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.src button{flex:1;min-width:80px;min-height:40px;border:1px solid #e0e0e0;background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:#666;cursor:pointer}
+.src button.on{border-color:#111;background:#111;color:#fff}
+.cat-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#777;margin:18px 2px 6px}
+.prow{display:flex;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid #f0f0f0}
+.pinfo{flex:1;min-width:0}.pname{font-weight:550;font-size:14px}.pmeta{font-size:12.5px;color:#666;margin-top:2px}
+.pprice{font:600 13px Geist Mono,ui-monospace,monospace;color:#111}.pbase{text-decoration:line-through;color:#aaa;font-size:11.5px;margin-left:5px}
+.tag{background:#f1f1f1;color:#555;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;margin-left:5px}
+.qty{display:flex;align-items:center;gap:6px}
+.qty button{width:40px;height:40px;border:1px solid #dedede;background:#fff;border-radius:8px;font-size:18px;color:#111;font-weight:600;cursor:pointer}
+.qty input{width:56px;height:40px;text-align:center;border:1px solid #dedede;border-radius:8px;font:600 14px Geist Mono,ui-monospace,monospace}
+.cmt-in{width:100%;margin-top:6px;padding:8px 9px;border:1px solid #dedede;border-radius:8px;font-size:12.5px;background:#fafafa}
+.cline{padding:8px 0;border-bottom:1px solid #f2f5f7;font-size:13.5px}.cline .r1{display:flex;justify-content:space-between;gap:10px}.cline .cm{font-size:12px;color:#666;font-style:italic}
+.total-row{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:12px;border-top:1px solid #e0e0e0}
+.total-row .val{font:700 22px Geist Mono,ui-monospace,monospace;color:#111}
+.empty{color:#989898;font-size:13px;padding:12px 0;text-align:center}
+.ok-box{background:#edf7ef;border:1px solid #b8ddc0;color:#1e5f3d;padding:13px;border-radius:9px;margin-top:12px;font-size:13.5px;display:none}
+.review-box{margin-top:14px;padding:14px;border:1px solid #e3e3e3;border-radius:9px;background:#fafafa}
+.review-box h3{font-size:13px;margin:0 0 8px}.review-line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #e7ecef;font-size:13px}
+.review-line:last-of-type{border-bottom:0}.review-meta{font-size:12px;color:#666;line-height:1.6;margin-bottom:10px}
+.review-actions{display:flex;gap:8px;margin-top:12px}.review-actions button{flex:1;min-height:44px;border-radius:8px;border:1px solid #e0e0e0;font-weight:600;cursor:pointer;background:#fff}
+.review-actions .confirm{border-color:#111;background:#111;color:#fff}
+.btn-p{width:100%;min-height:44px;margin-top:14px;border:1px solid #111;border-radius:9px;background:#111;color:#fff;font-weight:600;cursor:pointer}
+.btn-p:disabled{opacity:.55;cursor:default}
+@media(max-width:880px){.invoer-grid{grid-template-columns:1fr}.invoer-card.sticky{position:static;order:-1}}
+@media(max-width:560px){.prow{align-items:flex-start;flex-wrap:wrap}.pinfo{min-width:100%}.qty{width:100%;justify-content:flex-end}}
+</style>
 </head>
 <body>
 
-<div id="loginView" class="login-wrap">
-  <div class="login-card">
-    <div class="staff-mark" aria-hidden="true">F</div>
+<section id="loginView" class="staff-login">
+  <div>
     <h1>Bestelling invoeren</h1>
-    <p class="sub">Voor telefoon- en WhatsApp-bestellingen</p>
-    <input id="code" type="password" placeholder="Toegangscode">
-    <button class="btn-p" onclick="enter()">Aanmelden</button>
-    <div class="err" id="err"></div>
+    <p>Voor telefoon- en WhatsApp-bestellingen</p>
+    <input id="code" type="password" placeholder="Personeelscode" autocomplete="current-password">
+    <button type="button" onclick="enter()">Aanmelden</button>
+    <div id="err" class="staff-login-error" role="alert"></div>
   </div>
-</div>
+</section>
 
-<div id="app" class="hidden staff-app">
+<div id="app" class="hidden staff-shell">
   <aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
-  <div class="staff-main">
   <nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
-  <div class="topbar"><div class="topbar-in">
-    <div class="brand">Famo — Bestelling invoeren</div>
-    <a href="/entrepot.html">→ Magazijn</a>
-  </div></div>
-
-  <div class="page">
-    <div class="card">
+  <main class="staff-main"><div class="staff-page">
+    <header class="staff-page-head">
+      <div><h1>Bestelling invoeren</h1><p>Kies een klant, voeg artikelen toe en sla de bestelling op in het magazijn.</p></div>
+      <div><a class="staff-action-secondary" href="/entrepot.html" style="display:inline-flex;align-items:center;text-decoration:none">Magazijn</a></div>
+    </header>
+    <div class="invoer-grid">
+    <div class="invoer-card">
       <label class="fld-l">Klant</label>
       <select id="clientSel" onchange="loadClient()"><option value="">— Kies een klant —</option></select>
       <div id="catBox" class="hidden">
@@ -99,10 +72,10 @@
       <div id="noClient" class="empty">Kies eerst een klant om de artikelen en zijn prijzen te zien.</div>
     </div>
 
-    <div class="card">
+    <div class="invoer-card sticky">
       <h2>Bestelling</h2>
       <div id="cart"><div class="empty">Nog niets gekozen.</div></div>
-      <div id="totalBox" class="hidden"><div class="total-row"><span style="font-size:13px;color:var(--mut);font-weight:600">TOTAAL</span><span class="val" id="totalVal">€ 0,00</span></div></div>
+      <div id="totalBox" class="hidden"><div class="total-row"><span style="font-size:13px;color:#666;font-weight:600">TOTAAL</span><span class="val" id="totalVal">€ 0,00</span></div></div>
 
       <label class="fld-l">Bron van de bestelling</label>
       <div class="src">
@@ -121,8 +94,8 @@
       <button class="btn-p" id="sendBtn" style="margin-top:14px" disabled onclick="reviewOrder()">Bestelling controleren</button>
       <div class="ok-box" id="okBox"></div>
     </div>
-  </div>
-</div>
+    </div>
+  </div></main>
 </div>
 
 <script src="/staff-session.js"></script>
@@ -133,26 +106,18 @@ let CLIENTS=[], PRODUCTS=[], panier={}, comments={}, SRC="WhatsApp", CID="";
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 
-async function enter(){
-  const input=document.getElementById("code"), err=document.getElementById("err");
-  const code=(input.value||"").trim();
-  if(!code){err.textContent="Vul de personeelscode in.";return}
-  if(enter._busy)return; enter._busy=true;
-  err.textContent="Controleren…";
-  try{
-    await famoStaff.login(code);
-    input.value="";
-    const r=await famoStaff.api("/api/staff"),d=await r.json().catch(()=>({}));
-    if(!r.ok){ err.textContent=famoStaff.translateError(d.error||"Ongeldige code"); return; }
-    CLIENTS=d.clients||[];
-    document.getElementById("loginView").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    document.getElementById("clientSel").innerHTML='<option value="">— Kies een klant —</option>'+
-      CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(c.nom)+'</option>').join("");
-    const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); const p=n=>String(n).padStart(2,"0"); document.getElementById("dateLiv").value=tomorrow.getFullYear()+"-"+p(tomorrow.getMonth()+1)+"-"+p(tomorrow.getDate());
-  }catch(e){err.textContent=famoStaff.translateError(e.message||"Verbinding mislukt. Probeer opnieuw.")}
-  finally{enter._busy=false}
+async function showAppAfterSession(){
+  const r=await famoStaff.api("/api/staff"),d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error||"Sessie ongeldig");
+  CLIENTS=d.clients||[];
+  document.getElementById("clientSel").innerHTML='<option value="">— Kies een klant —</option>'+
+    CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(c.nom)+'</option>').join("");
+  const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); const p=n=>String(n).padStart(2,"0"); document.getElementById("dateLiv").value=tomorrow.getFullYear()+"-"+p(tomorrow.getMonth()+1)+"-"+p(tomorrow.getDate());
 }
+
+const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"loginView",appView:"app",onReady:showAppAfterSession});
+function enter(){loginCtl.enter()}
+async function logout(){await loginCtl.logout()}
 
 async function loadClient(){
   CID=document.getElementById("clientSel").value;
@@ -233,26 +198,6 @@ async function send(){
   }catch(e){ const box=document.getElementById("okBox"); box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent=famoStaff.translateError(e.message||"Netwerkfout. Probeer opnieuw."); btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); }
   finally{send._busy=false}
 }
-document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
-async function logout(){await famoStaff.logout();location.reload()}
-async function showAppAfterSession(){
-  const r=await famoStaff.api("/api/staff"),d=await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error||"Sessie ongeldig");
-  CLIENTS=d.clients||[];
-  document.getElementById("loginView").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  document.getElementById("clientSel").innerHTML='<option value="">— Kies een klant —</option>'+
-    CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(c.nom)+'</option>').join("");
-  const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); const p=n=>String(n).padStart(2,"0"); document.getElementById("dateLiv").value=tomorrow.getFullYear()+"-"+p(tomorrow.getMonth()+1)+"-"+p(tomorrow.getDate());
-}
-window.addEventListener("DOMContentLoaded",async()=>{
-  try{
-    if(await famoStaff.check()){
-      await showAppAfterSession();
-      return;
-    }
-  }catch(e){}
-});
 </script>
 </body>
 </html>

@@ -5,6 +5,23 @@
 <script>
 let ORDERS=[],DOCS=[];
 const esc=FamoDocuments.esc,eur=FamoDocuments.eur;
+const URL_ORDER=new URLSearchParams(location.search).get("order")||"";
+const URL_TYPE_RAW=(new URLSearchParams(location.search).get("type")||"").toLowerCase();
+const TYPE_MAP={lb:"delivery",facture:"invoice",credit:"credit"};
+const URL_TYPE=TYPE_MAP[URL_TYPE_RAW]||"";
+function applyUrlFilters(){
+  if(URL_TYPE){
+    const sel=document.getElementById("type");
+    if(sel)sel.value=URL_TYPE;
+  }
+  if(URL_ORDER){
+    const q=document.getElementById("q");
+    if(q&&!q.value){
+      const hit=ORDERS.find(o=>o.id===URL_ORDER||o.ref===URL_ORDER);
+      if(hit)q.value=hit.ref;
+    }
+  }
+}
 function makeDocs(){DOCS=[];ORDERS.forEach(o=>{const lb={order:o,type:"delivery",label:"Leveringsbon",number:FamoDocuments.number(o,"delivery"),available:o.statut!=="Reçue",reason:"Beschikbaar na voorbereiding",date:o.prepareeLe||o.date||""};DOCS.push(lb);DOCS.push({order:o,type:"invoice",label:"Factuur",number:o.factuurnummer||"—",available:!!o.factuurnummer,reason:o.factuurnummer?"Beschikbaar":"Geblokkeerd — levering nog niet bevestigd",date:o.factureeLe||"",amount:o.factuurnummer?o.total:null});DOCS.push({order:o,type:"credit",label:"Creditnota (intern)",number:FamoDocuments.number(o,"credit"),available:!!o.factuurnummer,reason:o.factuurnummer?"Intern document — geen Peppol":"Beschikbaar na factuur",date:o.factureeLe||"",amount:o.factuurnummer?-Math.abs(Number(o.total||0)):null})})}
 async function enter(){
   const input=document.getElementById("code"),err=document.getElementById("err");
@@ -21,7 +38,7 @@ async function enter(){
   }catch(e){err.textContent=famoStaff.translateError(e.message||e)}
   finally{enter._busy=false}
 }
-async function load(){const box=document.getElementById("table");box.className="staff-loading";box.innerHTML='<div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div>';try{const r=await famoStaff.api("/api/allorders"),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Documenten konden niet worden geladen.");ORDERS=d.orders||[];makeDocs();render()}catch(e){box.className="staff-error";box.innerHTML=esc(famoStaff.translateError(e.message||"Netwerkfout."))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button>'}}
+async function load(){const box=document.getElementById("table");box.className="staff-loading";box.innerHTML='<div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div>';try{const r=await famoStaff.api("/api/allorders"),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Documenten konden niet worden geladen.");ORDERS=d.orders||[];makeDocs();applyUrlFilters();render();if(URL_ORDER&&URL_TYPE){const hit=DOCS.find(x=>(x.order.id===URL_ORDER||x.order.ref===URL_ORDER)&&x.type===URL_TYPE&&x.available);if(hit)setTimeout(()=>preview(hit.type,hit.order.id),120)}}catch(e){box.className="staff-error";box.innerHTML=esc(famoStaff.translateError(e.message||"Netwerkfout."))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button>'}}
 function filter(){const q=document.getElementById("q").value.toLowerCase(),t=document.getElementById("type").value,s=document.getElementById("state").value;return DOCS.filter(d=>(!q||(d.number+" "+d.order.ref+" "+d.order.client).toLowerCase().includes(q))&&(t==="all"||d.type===t)&&(s==="all"||(s==="available"&&d.available)||(s==="blocked"&&!d.available)))}
 function row(d){return '<tr><td class="d-num">'+esc(d.number)+'</td><td>'+d.label+'</td><td><a href="/order.html?id='+encodeURIComponent(d.order.id)+'">'+esc(d.order.ref)+'</a></td><td>'+esc(d.order.client)+'</td><td>'+FamoDocuments.date(d.date)+'</td><td>'+(d.amount==null?'—':eur(d.amount))+'</td><td><span class="staff-status" style="--status:'+(d.available?'#2e7d53':'#b23b2e')+'">'+esc(d.available?'Beschikbaar':d.reason)+'</span></td><td>'+(d.available?'<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Voorbeeld</button>':'')+'</td></tr>'}
 function card(d){return '<article class="d-doc"><b>'+esc(d.number)+' · '+d.label+'</b><p>'+esc(d.order.ref)+' · '+esc(d.order.client)+' · '+FamoDocuments.date(d.date)+'</p><div class="d-doc-footer"><span class="staff-status" style="--status:'+(d.available?'#2e7d53':'#b23b2e')+'">'+esc(d.available?'Beschikbaar':d.reason)+'</span>'+(d.available?'<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Voorbeeld</button>':'')+'</div></article>'}

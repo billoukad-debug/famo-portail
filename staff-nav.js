@@ -82,6 +82,27 @@
       el.setAttribute("aria-label", "Mobiele navigatie");
       el.classList.add("staff-mobile-nav");
     });
+    maybeSetupBanner();
+  }
+
+  function maybeSetupBanner() {
+    const path = (location.pathname || "").split("/").pop() || "";
+    if (path === "aan-de-slag.html" || path === "index.html" || !path.endsWith(".html")) return;
+    const staff = global.famoStaff;
+    if (!staff || typeof staff.check !== "function" || typeof staff.api !== "function") return;
+    staff.check().then(ok => {
+      if (!ok) return;
+      return staff.api("/api/config?status=1").then(r => r.ok ? r.json() : null);
+    }).then(data => {
+      if (!data || !data.status || data.status.identiteit) return;
+      const main = document.querySelector(".staff-main .staff-page");
+      if (!main || main.querySelector(".staff-setup-banner")) return;
+      const banner = document.createElement("div");
+      banner.className = "staff-setup-banner";
+      banner.setAttribute("role", "status");
+      banner.innerHTML = "Setup nog niet afgerond — vul bedrijfsgegevens en IBAN in via <a href=\"/aan-de-slag.html\">Aan de slag</a>.";
+      main.insertBefore(banner, main.firstChild);
+    }).catch(() => {});
   }
 
   global.famoNav = { ITEMS, PRIMARY, MEER, SETUP, detectActive, sidebarHtml, mobileHtml, mount };

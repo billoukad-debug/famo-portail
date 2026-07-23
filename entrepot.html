@@ -254,7 +254,7 @@ function render(){
       (o.livraisonConfirmee?'<div class="meta" style="color:#28734d">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
       (o.notes?'<div class="meta">'+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
-        ((o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee))?'<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>':(next?'<button class="adv" onclick="'+(next==="Facturée"?'confirmDelivery('+idx+')':'confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')')+'">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''))+
+        ((o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee))?'<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>':(next?((next==="Facturée"?'<a class="adv" href="/order.html?id='+encodeURIComponent(o.id)+'" style="display:block;text-align:center;text-decoration:none">Ontvangst bevestigen</a>':'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>')):''))+
         (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
         '<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>'+
         '<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>'+
@@ -494,25 +494,7 @@ function showNotice(message,kind="info"){const box=document.getElementById("noti
 async function logoutWarehouse(){await famoStaff.logout();location.reload()}
 
 async function adv(id,statut){ await upd({id,statut}); }
-function confirmDelivery(idx){
-  const o=ORDERS[idx], box=document.getElementById("e"+idx);
-  if(box.innerHTML){ box.innerHTML=""; return; }
-  const pid="proof"+idx;
-  box.innerHTML='<div class="edit-head">Bevestig de ontvangst voordat u factureert.</div>'+
-    '<div class="pick-editor" style="padding:12px">'+
-      '<label class="ehint" style="display:block;font-weight:700">Ontvangen door<input class="tin" id="receiver'+idx+'" type="text" value="'+esc(o.receptionnePar||"")+'" placeholder="Naam ontvanger" style="display:block;width:100%;margin-top:5px"></label>'+
-      '<div style="margin-top:10px">'+famoStaff.proofFieldsHtml({id:pid,fileId:pid+"File",previewId:pid+"Preview",noteId:pid+"Note"})+'</div>'+
-      '<button class="save" style="margin-top:12px" onclick="saveDelivery('+idx+')">✓ Ontvangst bevestigen & factureren</button>'+
-    '</div>';
-  famoStaff.bindProofFile(pid+"File", pid+"Preview", pid+"Note");
-}
-async function saveDelivery(idx){
-  const o=ORDERS[idx], recipient=document.getElementById("receiver"+idx).value.trim(), proofUrl=document.getElementById("proof"+idx).value.trim();
-  if(!recipient){ showNotice("Vul in wie de levering heeft ontvangen.","error"); return; }
-  if(proofUrl && !/^https:\/\//i.test(proofUrl)){ showNotice("Gebruik een beveiligde https://-link voor het bewijs.","error"); return; }
-  await upd({id:o.id,statut:"Facturée",deliveryConfirmed:true,recipient,proofUrl});
-}
-async function confirmAdvance(id,statut,index){
+function confirmAdvance(id,statut,index){
   const ref=ORDERS[index]?ORDERS[index].ref:"";
   let message="Bestelling "+ref+" naar ‘"+famoNL.status(statut)+"’ verplaatsen?";
   if(statut==="Sortie en livraison") message+=" De definitieve hoeveelheden worden vastgezet en de voorraad wordt één keer afgeboekt. Controleer voorbereiding en leverbon eerst.";
