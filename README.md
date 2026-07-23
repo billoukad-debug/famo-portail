@@ -15,10 +15,8 @@ Les produits vendus au kilo acceptent des quantités décimales (par exemple `0,
 ## Pages
 
 - `/` : portail client et réassort.
-- `/overzicht.html` : cockpit opérationnel staff.
-- `/bestellingen.html` / `/order.html` : liste et détail des commandes.
-- `/entrepot.html` : préparation, livraison et facturation (Magazijn).
-- `/dagprep.html` : préparation journalière consolidée.
+- `/bestellingen.html` / `/order.html` : liste et détail des commandes (accueil staff ; `/overzicht.html` redirige ici).
+- `/entrepot.html` : préparation, livraison et facturation (Magazijn — vues Bord et Dag ; `/dagprep.html` redirige vers `?view=dag`).
 - `/invoer.html` : saisie interne pour commandes téléphone/WhatsApp.
 - `/stock.html` : inventaire, entrées, retours et seuils bas.
 - `/documenten.html` : bons de livraison, factures internes, creditnota interne.

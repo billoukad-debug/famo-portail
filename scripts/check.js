@@ -30,8 +30,21 @@ const STAFF_PAGES = [
   "aan-de-slag.html"
 ];
 
+const REDIRECT_PAGES = {
+  "overzicht.html": "/bestellingen.html",
+  "dagprep.html": "/entrepot.html"
+};
+
 function stripHtmlComments(src) {
   return String(src || "").replace(/<!--[\s\S]*?-->/g, "");
+}
+
+function isRedirectPage(page, src) {
+  const target = REDIRECT_PAGES[page];
+  if (!target) return false;
+  const hasReplace = src.includes("location.replace") && src.includes(target);
+  const hasRefresh = /http-equiv=["']refresh["']/i.test(src) && src.includes(target);
+  return hasReplace || hasRefresh;
 }
 
 // --- 1. Les fichiers API (Node) ---
@@ -163,11 +176,27 @@ for (const page of STAFF_PAGES) {
   }
 }
 
+// --- Redirect pages (overzicht → bestellingen, dagprep → entrepot) ---
+for (const [page, target] of Object.entries(REDIRECT_PAGES)) {
+  const full = path.join(root, page);
+  if (!fs.existsSync(full)) continue;
+  const src = fs.readFileSync(full, "utf8");
+  if (!isRedirectPage(page, src)) {
+    fail(page, `doit être une page de redirection vers ${target} (location.replace ou meta refresh)`);
+  } else {
+    pass(page, `(redirect → ${target})`);
+  }
+}
+
 // --- Scripts staff communs + aria-current / data-famo-nav ---
 for (const page of STAFF_PAGES) {
   const full = path.join(root, page);
   if (!fs.existsSync(full)) continue;
   const src = fs.readFileSync(full, "utf8");
+  if (REDIRECT_PAGES[page] && isRedirectPage(page, src)) {
+    pass(page, "(redirect — scripts staff non requis)");
+    continue;
+  }
   for (const script of ["/staff-i18n.js", "/staff-session.js", "/staff-nav.js"]) {
     if (!src.includes(script)) {
       fail(page, `doit inclure <script src="${script}">`);
@@ -175,6 +204,41 @@ for (const page of STAFF_PAGES) {
   }
   if (!src.includes("aria-current") && !src.includes("data-famo-nav")) {
     fail(page, "doit contenir aria-current ou data-famo-nav (staff-nav.js)");
+  }
+}
+
+// --- Staff nav PRIMARY : pas Overzicht / Dagvoorbereiding ---
+{
+  const navPath = path.join(root, "staff-nav.js");
+  if (fs.existsSync(navPath)) {
+    const navSrc = fs.readFileSync(navPath, "utf8");
+    const sandbox = {
+      window: {},
+      global: {},
+      document: { readyState: "complete", querySelectorAll: () => [], addEventListener: () => {} },
+      location: { pathname: "/bestellingen.html" },
+      console
+    };
+    sandbox.global = sandbox;
+    try {
+      new vm.Script(navSrc, { filename: "staff-nav.js" }).runInNewContext(sandbox);
+      const famoNav = sandbox.window.famoNav || sandbox.global.famoNav;
+      const labels = (famoNav.PRIMARY || []).map(i => i.label);
+      if (labels.includes("Overzicht")) fail("staff-nav.js", "PRIMARY ne doit pas lister Overzicht");
+      if (labels.includes("Dagvoorbereiding")) fail("staff-nav.js", "PRIMARY ne doit pas lister Dagvoorbereiding");
+      if (labels.length !== 4) fail("staff-nav.js", "PRIMARY doit contenir exactement 4 items");
+      else pass("staff-nav.js", "PRIMARY sans Overzicht/Dagvoorbereiding");
+    } catch (e) {
+      fail("staff-nav.js", e.message);
+    }
+  }
+}
+
+// --- Interdit : warehouse-sidebar dans le HTML (hors commentaires) ---
+for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
+  const src = stripHtmlComments(fs.readFileSync(path.join(root, f), "utf8"));
+  if (/\bwarehouse-sidebar\b/.test(src)) {
+    fail(f, "contient warehouse-sidebar — utiliser staff-shell / data-famo-nav");
   }
 }
 

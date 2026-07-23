@@ -4,160 +4,148 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Famo Trading — Magazijn</title>
-<style>
-  :root {
-    --navy:#0b2e4f; --ocean:#1273b8; --ocean-l:#e8f3fb;
-    --text:#1c2a3a; --mut:#64748b; --line:#e2e8f0; --bg:#eef2f6;
-    --ok:#16a34a; --gold:#f59e0b; --purple:#7c3aed;
-    --sh:0 1px 3px rgba(15,23,42,.08),0 4px 14px rgba(15,23,42,.05);
-  }
-  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); font-size:15px; }
-  button { font-family:inherit; cursor:pointer; }
-
-  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
-    background:linear-gradient(160deg,#0d1f33 0%,#0b2e4f 60%,#155a8a 130%); }
-  .login-card { background:#fff; border-radius:20px; padding:38px 32px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(2,12,27,.4); text-align:center; }
-  .login-card .logo { font-size:38px; margin-bottom:8px; }
-  .login-card h1 { font-size:20px; color:var(--navy); }
-  .login-card .sub { color:var(--mut); font-size:13px; margin:6px 0 20px; }
-  .login-card input { width:100%; padding:14px; border:1.5px solid var(--line); border-radius:12px; font-size:16px; margin-bottom:12px; text-align:center; letter-spacing:2px; }
-  .login-card input:focus { outline:none; border-color:var(--ocean); }
-  .btn-p { width:100%; background:var(--navy); color:#fff; border:none; padding:14px; border-radius:12px; font-size:15px; font-weight:600; }
-  .err-msg { color:#dc2626; font-size:13px; margin-top:10px; min-height:18px; }
-
-  .topbar { background:var(--navy); color:#fff; position:sticky; top:0; z-index:50; }
-  .topbar-in { padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:56px; }
-  .brand { font-weight:700; font-size:16px; display:flex; align-items:center; gap:8px; }
-  .refresh-b { background:rgba(255,255,255,.14); color:#fff; border:none; padding:9px 14px; border-radius:10px; font-size:13.5px; font-weight:600; }
-  .stamp { padding:8px 16px 0; font-size:11.5px; color:var(--mut); }
-  .warn { margin:10px 16px; padding:10px 13px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; font-size:12px; color:#92400e; line-height:1.5; }
-
-  .board { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:12px 16px 40px; }
-  @media (max-width:1000px){ .board { grid-template-columns:1fr 1fr; } }
-  @media (max-width:560px){ .board { grid-template-columns:1fr; } }
-  .col { background:#e4eaf1; border-radius:14px; padding:10px; min-height:140px; }
-  .col > h3 { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:#3c556e; margin:2px 4px 10px; display:flex; justify-content:space-between; align-items:center; }
-  .col > h3 .n { background:var(--navy); color:#fff; border-radius:20px; padding:1px 9px; font-size:11.5px; }
-  .col.c0 { border-top:4px solid #3b82f6; } .col.c1 { border-top:4px solid var(--gold); }
-  .col.c2 { border-top:4px solid #0ea5e9; } .col.c3 { border-top:4px solid var(--ok); }
-
-  .oc { background:#fff; border-radius:12px; padding:12px; margin-bottom:10px; box-shadow:var(--sh); }
-  .oc .ref { font-weight:750; color:var(--navy); font-size:14px; }
-  .oc .cl { font-size:13px; color:var(--ocean); font-weight:600; margin:2px 0 4px; }
-  .oc pre { font-family:inherit; font-size:12.5px; color:#475569; white-space:pre-wrap; background:#f8fafc; border-radius:8px; padding:8px 10px; margin:6px 0; }
-  .oc .meta { font-size:11.5px; color:var(--mut); }
-  .oc .row { display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
-  .oc button { border:none; border-radius:9px; padding:9px 11px; font-size:12.5px; font-weight:600; min-height:38px; }
-  .adv { background:var(--ocean); color:#fff; }
-  .edit { background:#eef2f6; color:#334155; }
-  .doc { background:#f5f3ff; color:var(--purple); }
-  .pay { background:#ecfdf5; color:#047857; border:1px solid #a7f3d0 !important; }
-  .paid { background:var(--ok); color:#fff; }
-  .save { background:var(--ok); color:#fff; }
-  .oc textarea { width:100%; font-family:inherit; font-size:13px; border:1.5px solid var(--line); border-radius:9px; padding:8px; min-height:76px; margin-top:8px; }
-  .tin { width:100px; padding:8px; border:1.5px solid var(--line); border-radius:9px; font-size:13px; }
-  .ehint { font-size:11px; color:var(--mut); margin-top:5px; }
-  .pick-editor{margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
-  .pick-row{display:grid;grid-template-columns:28px minmax(0,1fr) 130px;gap:9px;align-items:center;padding:10px;border-bottom:1px solid var(--line)}
-  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--ok)}
-  .pick-row .pn{font-size:13px;font-weight:700}.pick-row .pm{font-size:11px;color:var(--mut);margin-top:2px}.pick-row.done{background:#f0fdf4}
-  .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:32px;min-height:32px;padding:0;background:#eef2f6;color:var(--navy);font-size:18px}.actual input{width:48px;min-height:32px;text-align:center;border:1px solid var(--line);border-radius:5px;font:700 14px ui-monospace,monospace}
-  .edit-head{font-size:12px;font-weight:750;color:var(--navy);margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
-  .empty { color:#94a3b8; font-size:12.5px; padding:8px; text-align:center; }
-  .hidden { display:none !important; }
-  .day-panel{margin:14px 16px 0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:18px}
-  .day-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.day-head h2{font-size:20px;color:var(--navy)}.day-head p{font-size:13px;color:var(--mut);margin-top:4px}
-  .day-actions{display:flex;gap:8px}.day-actions button{min-height:44px;border-radius:6px;padding:0 14px;font-weight:750;border:1px solid var(--line);background:#fff;color:var(--navy)}
-  .day-actions .print-all{background:var(--navy);color:#fff;border-color:var(--navy)}
-  .pick-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}.pick-summary-row{border:1px solid #d8e1e5;border-radius:7px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px}.pick-summary-row strong{font-size:15px}.pick-summary-row span{font:800 20px "IBM Plex Mono",monospace;color:var(--navy);white-space:nowrap}.day-empty{padding:24px;color:var(--mut);text-align:center;background:#f7f9fa;border-radius:7px}
-
-  /* ---------- FAMO WAREHOUSE V2 ---------- */
-  :root { --navy:#071d2b; --ocean:#0c668d; --ocean-l:#e5f2f7; --text:#10242f; --mut:#51646e; --line:#bdcbd2; --bg:#dfe7ea; --gold:#ff642e; --ok:#16724a; --purple:#5d4597; }
-  body { font-family:"IBM Plex Sans","Aptos","Segoe UI",sans-serif; background:var(--bg); }
-  button:focus-visible,input:focus-visible,textarea:focus-visible { outline:4px solid rgba(255,100,46,.35); outline-offset:2px; }
-  .login-wrap { background:var(--navy); }
-  .login-card { border-radius:10px; border-top:8px solid var(--gold); text-align:left; }
-  .login-card .logo { width:48px; height:48px; display:grid; place-items:center; background:var(--navy); color:#fff; border-radius:6px; font-size:0; }
-  .login-card .logo::after { content:"F"; font-size:25px; font-weight:800; }
-  .login-card h1 { font-size:26px; letter-spacing:-.7px; }
-  .login-card input { height:54px; border-radius:6px; text-align:left; letter-spacing:3px; }
-  .btn-p { min-height:54px; border-radius:6px; background:var(--gold); font-weight:800; }
-  .topbar { background:var(--navy); border-bottom:5px solid var(--gold); }
-  .topbar-in { min-height:68px; height:auto; gap:16px; }
-  .brand { font-size:19px; letter-spacing:-.4px; }
-  .top-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-  .top-actions a,.refresh-b,.pick-b { min-height:46px; display:inline-flex; align-items:center; border-radius:6px; padding:0 14px; font-size:13px; font-weight:750; text-decoration:none; }
-  .top-actions a,.refresh-b { color:#fff; background:rgba(255,255,255,.1); }
-  .pick-b { border:0; background:var(--gold); color:#fff; }
-  .stamp { color:#334b57; font-family:"IBM Plex Mono",monospace; font-weight:600; padding-top:10px; }
-  .warn { margin-top:8px; border-radius:6px; border-left:5px solid #d28a18; }
-  .board { gap:14px; padding-top:14px; align-items:start; }
-  .col { border-radius:9px; padding:10px; border:1px solid rgba(7,29,43,.13); min-height:180px; }
-  .col > h3 { font-size:13px; color:var(--navy); padding:4px 2px 6px; }
-  .col > h3 .n { border-radius:4px; font-family:"IBM Plex Mono",monospace; font-size:13px; padding:3px 10px; }
-  .col.c0 { background:#dce8f4; border-top:7px solid #1d5fbf; }
-  .col.c1 { background:#f5e6cc; border-top:7px solid #c46e09; }
-  .col.c2 { background:#d5edf2; border-top:7px solid #087f96; }
-  .col.c3 { background:#d9eddf; border-top:7px solid var(--ok); }
-  .oc { border-radius:7px; padding:14px; margin-bottom:12px; border:1px solid #b9c8cf; box-shadow:0 2px 8px rgba(7,29,43,.08); }
-  .oc .ref { font-family:"IBM Plex Mono",monospace; font-size:19px; letter-spacing:-.5px; }
-  .oc .cl { color:#a63f19; font-size:16px; margin:3px 0 9px; }
-  .order-lines { background:#f1f5f6; border:1px solid #dae3e7; border-radius:6px; padding:5px 10px; }
-  .order-line { display:flex; align-items:baseline; gap:10px; padding:6px 0; border-bottom:1px solid #d7e0e4; }
-  .order-line:last-child { border-bottom:0; }
-  .order-line .q { min-width:38px; text-align:right; font-family:"IBM Plex Mono",monospace; font-size:21px; font-weight:800; color:var(--navy); }
-  .order-line .d { font-size:14px; font-weight:600; line-height:1.25; }
-  .oc .meta { margin-top:8px; font-size:13px; color:#3d535e; }
-  .oc button { min-height:50px; border-radius:6px; font-size:14px; font-weight:750; }
-  .oc .adv { width:100%; min-height:58px; font-size:17px; margin-top:11px; background:var(--gold); }
-  .oc .row { gap:8px; }
-  .oc .row .edit,.oc .row .doc,.oc .row .pay,.oc .row .paid { flex:1 1 105px; }
-  .edit { background:#e7ecef; color:var(--navy); border:1px solid #c0cdd3!important; }
-  .doc { background:#fff; color:var(--navy); border:1px solid var(--navy)!important; }
-  .pay { background:#ecf8f0; color:#0c6039; border:1px solid #77c398!important; }
-  .oc textarea { min-height:110px; border-radius:6px; font-size:15px; }
-  .tin { height:50px; border-radius:6px; font-family:"IBM Plex Mono",monospace; }
-  @media (max-width:1150px){ .board { grid-template-columns:1fr 1fr; } }
-  @media (max-width:680px){
-    .topbar-in { align-items:flex-start; padding:12px; flex-direction:column; }
-    .top-actions { width:100%; justify-content:flex-start; }
-    .top-actions a,.refresh-b,.pick-b { flex:1; justify-content:center; }
-    .board { grid-template-columns:1fr; padding:10px; }
-    .warn,.stamp { margin-left:10px; margin-right:10px; }
-    .day-panel{margin:10px}.day-head{display:block}.day-actions{margin-top:12px}.day-actions button{flex:1}.pick-summary{grid-template-columns:1fr}
-  }
-</style>
 <link rel="stylesheet" href="/staff.css">
-<link rel="stylesheet" href="/warehouse.css">
+<style>
+  .wh-stats{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;color:#666;font-size:12.5px}
+  .wh-stats b{font:500 13px Geist Mono,ui-monospace,monospace;color:#111}
+  .wh-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
+  .wh-toolbar label{font-size:12px;font-weight:600;color:#777}
+  .wh-toolbar input{width:min(300px,100%);min-height:38px;padding:0 12px}
+  .wh-toolbar select{min-height:38px;padding:0 10px}
+  .wh-toolbar span{margin-left:auto;color:#6b6b6b;font:500 12px Geist Mono,ui-monospace,monospace}
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;padding-bottom:40px}
+  @media (max-width:1000px){ .board{grid-template-columns:1fr 1fr} }
+  @media (max-width:560px){ .board{grid-template-columns:1fr} }
+  .col{background:#f3f3f1;border:1px solid #e5e5e5;border-top:3px solid #235e86;border-radius:10px;padding:10px;min-height:140px}
+  .col.c1{border-top-color:#b77800}.col.c2{border-top-color:#287e8f}.col.c3{border-top-color:#28734d}
+  .col>h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#555;margin:2px 4px 10px;display:flex;justify-content:space-between;align-items:center}
+  .col>h3 .n{background:#272727;color:#fff;border-radius:999px;padding:1px 9px;font-size:11.5px}
+  .oc{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:14px;margin-bottom:10px}
+  .oc .ref{font:650 14px Geist Mono,ui-monospace,monospace;color:#111}
+  .oc .cl{font-size:14px;color:#235e86;font-weight:600;margin:2px 0 4px}
+  .order-lines{background:#fafafa;border:1px solid #ebebeb;border-radius:6px;padding:5px 10px;margin:6px 0}
+  .order-line{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid #eee}
+  .order-line:last-child{border-bottom:0}
+  .order-line .q{min-width:38px;text-align:right;font:650 18px Geist Mono,ui-monospace,monospace;color:#111}
+  .order-line .d{font-size:13.5px;font-weight:600;line-height:1.25;color:#404040}
+  .oc .meta{font-size:12px;color:#666;margin-top:6px}
+  .oc .row{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .oc button{border:none;border-radius:8px;padding:9px 11px;font-size:12.5px;font-weight:600;min-height:38px;cursor:pointer}
+  .adv{background:#111;color:#fff;width:100%;min-height:44px;margin-top:4px}
+  .edit{background:#f3f3f1;color:#111;border:1px solid #dedede!important}
+  .doc{background:#fff;color:#111;border:1px solid #dedede!important}
+  .pay{background:#edf7ef;color:#1e5f3d;border:1px solid #b8ddc0!important}
+  .paid{background:#28734d;color:#fff}
+  .save{background:#111;color:#fff}
+  .oc textarea{width:100%;font-family:inherit;font-size:13px;border:1.5px solid #dedede;border-radius:8px;padding:8px;min-height:76px;margin-top:8px}
+  .tin{width:100px;padding:8px;border:1.5px solid #dedede;border-radius:8px;font-size:13px}
+  .ehint{font-size:11px;color:#777;margin-top:5px}
+  .pick-editor{margin-top:10px;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden;background:#fff}
+  .pick-row{display:grid;grid-template-columns:28px minmax(0,1fr) 130px;gap:9px;align-items:center;padding:10px;border-bottom:1px solid #e5e5e5}
+  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{width:20px;height:20px;accent-color:#28734d}
+  .pick-row .pn{font-size:13px;font-weight:700}.pick-row .pm{font-size:11px;color:#777;margin-top:2px}.pick-row.done{background:#f0fdf4}
+  .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:32px;min-height:32px;padding:0;background:#eef2f6;color:#111;font-size:18px}.actual input{width:48px;min-height:32px;text-align:center;border:1px solid #dedede;border-radius:5px;font:700 14px ui-monospace,monospace}
+  .edit-head{font-size:12px;font-weight:700;color:#111;margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
+  .empty{color:#989898;font-size:12.5px;padding:8px;text-align:center}
+  .prep-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:18px}
+  .prep-tools label{font-size:12.5px;color:#666}
+  .prep-meta{margin:13px 0;color:#777;font-size:12.5px}
+  .prep-grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:20px}
+  .prep-panel{border:1px solid #e8e8e8;border-radius:12px;background:#fff}
+  .prep-panel h2{margin:0;padding:16px 18px 8px;font-size:14.5px}
+  .prep-panel p{margin:0;padding:0 18px 13px;color:#777;font-size:12.5px}
+  .prep-product{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid #f0f0f0}
+  .prep-product-qty{margin-left:auto;font:500 17px Geist Mono,ui-monospace,monospace;white-space:nowrap}
+  .prep-product b{display:block;font-size:13.5px;font-weight:500}
+  .prep-product small{display:block;margin-top:2px;color:#888;font-size:11.5px}
+  .prep-order{display:block;padding:12px 18px;border-top:1px solid #f0f0f0;color:#111;text-decoration:none}
+  .prep-order:hover{background:#fafafa}
+  .prep-order-head{display:flex;align-items:center;gap:9px}
+  .prep-order-ref{font:500 12px Geist Mono,ui-monospace,monospace}
+  .prep-order-client{font-size:13px;font-weight:500}
+  .prep-order-lines{margin-top:6px;color:#666;font-size:12px;line-height:1.55}
+  .prep-alert{margin:14px 0;padding:11px 12px;border:1px solid #f0d2ce;border-radius:9px;background:#fff7f6;color:#9c3024;font-size:12.5px}
+  .prep-empty{padding:24px 18px;color:#888;font-size:12.5px}
+  .page-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  @media(max-width:860px){.prep-grid{grid-template-columns:1fr}}
+  @media(max-width:620px){.wh-toolbar span{margin-left:0;width:100%}.page-actions{width:100%}.page-actions button{flex:1}}
+</style>
 </head>
-<body class="warehouse-page">
+<body>
 
-<div id="loginView" class="login-wrap">
-  <div class="login-card">
-    <div class="logo" aria-hidden="true">F</div>
-    <h1>Famo Trading — Magazijn</h1>
-    <p class="sub">Enkel voor personeel</p>
-    <input id="code" type="password" placeholder="••••••" autocomplete="off">
-    <button class="btn-p" onclick="enter()">Aanmelden</button>
-    <div class="err-msg" id="err"></div>
+<section id="loginView" class="staff-login">
+  <div>
+    <h1>Magazijn</h1>
+    <p>Meld u aan voor bereiding, levering en facturatie.</p>
+    <input id="code" type="password" placeholder="Personeelscode" autocomplete="current-password">
+    <button onclick="enter()">Aanmelden</button>
+    <div id="loginError" class="staff-login-error" role="alert"></div>
   </div>
-</div>
+</section>
 
-<div id="app" class="hidden warehouse-app">
-  <aside class="warehouse-sidebar" aria-label="Personeelsnavigatie"><a class="warehouse-logo" href="/overzicht.html"><span class="warehouse-logo-mark"><i></i></span>Famo Trading</a><nav class="warehouse-nav"><a href="/overzicht.html">Overzicht</a><a href="/bestellingen.html">Bestellingen</a><a class="active" href="/entrepot.html" aria-current="page">Magazijn</a><a href="/dagprep.html">Dagvoorbereiding</a><a href="/invoer.html">Invoeren</a><a href="/stock.html">Voorraad</a><a href="/documenten.html">Documenten</a><a href="/leveringen.html">Leveringen</a><a href="/aan-de-slag.html">Aan de slag</a></nav><div class="warehouse-side-label">Vandaag</div><div class="warehouse-side-stats"><span>Te bereiden <b id="statTodo">0</b></span><span>Onderweg <b id="statOnway">0</b></span><span>Openstaand <b id="statOpen">0</b></span></div><div class="warehouse-side-spacer"></div><div class="warehouse-staff"><span>PM</span><div><b>Personeel</b><small>Famo Trading</small></div><a href="#" onclick="logoutWarehouse();return false">Uitloggen</a></div></aside>
-  <div class="warehouse-main"><header class="warehouse-mobilebar"><button onclick="toggleWarehouseMenu()">Menu</button><b>Magazijn</b></header><main class="warehouse-workspace"><div class="warehouse-content"><header class="warehouse-page-head"><div><h1>Magazijn</h1><p>Bereiding en levering · <span id="stamp"></span></p></div><div class="warehouse-actions"><button class="warehouse-primary" onclick="toggleDayView()">Dagvoorbereiding</button><button onclick="printPicklist()">Voorbereidingslijst</button><button onclick="load()">Vernieuw</button></div></header>
-  <section id="dayPanel" class="day-panel hidden"><div class="day-head"><div><h2>Voorbereiding van de dag</h2><p id="dayMeta">Geconsolideerde hoeveelheden voor ontvangen en klaargezette bestellingen.</p></div><div class="day-actions"><button class="print-all" onclick="printConsolidatedPicklist()">Geconsolideerd afdrukken</button><button onclick="toggleDayView()">Sluiten</button></div></div><div class="day-filter"><label for="dayFilter">Leverdatum</label><select id="dayFilter" onchange="setDayFilter(this.value)"><option value="today">Vandaag</option><option value="tomorrow">Morgen</option><option value="overdue">Te laat</option><option value="nodate">Zonder datum</option><option value="all">Alle open bestellingen</option><option value="custom">Kies datum…</option></select><input id="dayCustom" class="hidden" type="date" onchange="renderDayView()"></div><div id="pickSummary" class="pick-summary"></div></section>
-  <section class="warehouse-toolbar" aria-label="Bestellingen zoeken en sorteren"><label for="orderSearch">Zoeken</label><input id="orderSearch" type="search" placeholder="Referentie, klant of artikel…" oninput="setOrderQuery(this.value)"><label for="orderSort">Sorteren</label><select id="orderSort" onchange="setOrderSort(this.value)"><option value="delivery">Leverdatum: eerst</option><option value="recent">Recent toegevoegd</option><option value="client">Klant: A–Z</option><option value="total">Totaal: hoog naar laag</option></select><button type="button" onclick="clearOrderFilters()">Wissen</button><span id="boardSummary" role="status"></span></section>
-  <div class="board">
-    <div class="col c0"><h3>Ontvangen <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
-    <div class="col c1"><h3>Klaar <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
-    <div class="col c2"><h3>Onderweg <span class="n" id="n2">0</span></h3><div id="c2"></div></div>
-    <div class="col c3"><h3>Gefactureerd <span class="n" id="n3">0</span></h3><div id="c3"></div></div>
-  </div>
+<div id="app" class="hidden staff-shell">
+  <aside data-famo-nav class="staff-sidebar"></aside>
+  <nav data-famo-mobile-nav class="staff-mobile-nav"></nav>
+  <main class="staff-main"><div class="staff-page">
+    <header class="staff-page-head">
+      <div>
+        <h1>Magazijn</h1>
+        <p>Bereiding en levering · <span id="stamp"></span></p>
       </div>
-    </main>
-  </div>
+      <div class="page-actions">
+        <div class="staff-viewtabs" role="tablist" aria-label="Magazijn weergave">
+          <button type="button" id="tabBord" class="active" onclick="setView('bord')">Bord</button>
+          <button type="button" id="tabDag" onclick="setView('dag')">Dag</button>
+        </div>
+        <button class="staff-action-secondary" id="btnPrintBord" onclick="printPicklist()">Voorbereidingslijst</button>
+        <button class="staff-action" id="btnPrintDag" onclick="printConsolidatedPicklist()" style="display:none">Geconsolideerd afdrukken</button>
+        <button class="staff-action-secondary" onclick="load()">Vernieuwen</button>
+      </div>
+    </header>
+    <div class="wh-stats" aria-label="Dagstatistieken">
+      <span>Te bereiden <b id="statTodo">0</b></span>
+      <span>Onderweg <b id="statOnway">0</b></span>
+      <span>Openstaand <b id="statOpen">0</b></span>
+    </div>
+
+    <div id="viewBord">
+      <section class="wh-toolbar" aria-label="Bestellingen zoeken en sorteren">
+        <label for="orderSearch">Zoeken</label>
+        <input id="orderSearch" class="staff-field" type="search" placeholder="Referentie, klant of artikel…" oninput="setOrderQuery(this.value)">
+        <label for="orderSort">Sorteren</label>
+        <select id="orderSort" class="staff-select" onchange="setOrderSort(this.value)">
+          <option value="delivery">Leverdatum: eerst</option>
+          <option value="recent">Recent toegevoegd</option>
+          <option value="client">Klant: A–Z</option>
+          <option value="total">Totaal: hoog naar laag</option>
+        </select>
+        <button type="button" class="staff-action-secondary" onclick="clearOrderFilters()">Wissen</button>
+        <span id="boardSummary" role="status"></span>
+      </section>
+      <div class="board">
+        <div class="col c0"><h3>Ontvangen <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
+        <div class="col c1"><h3>Klaar <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
+        <div class="col c2"><h3>Onderweg <span class="n" id="n2">0</span></h3><div id="c2"></div></div>
+        <div class="col c3"><h3>Gefactureerd <span class="n" id="n3">0</span></h3><div id="c3"></div></div>
+      </div>
+    </div>
+
+    <div id="viewDag" class="hidden">
+      <div class="prep-tools">
+        <label for="dayFilter">Leverdatum</label>
+        <select id="dayFilter" class="staff-select" onchange="setDayFilter(this.value)">
+          <option value="today">Vandaag</option>
+          <option value="tomorrow">Morgen</option>
+          <option value="overdue">Te laat</option>
+          <option value="nodate">Zonder datum</option>
+          <option value="all">Alle open bestellingen</option>
+          <option value="custom">Kies datum…</option>
+        </select>
+        <input id="dayCustom" class="staff-field hidden" type="date" onchange="renderDayView()">
+      </div>
+      <div id="dagContent" class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div>
+    </div>
+  </div></main>
 </div>
 
 <div id="docPreview" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="docPreviewTitle">
@@ -176,19 +164,20 @@ const FAMO = {
   adresse: "Jezusstraat 34",
   cp: "2000 Antwerpen, België",
   tva: "BE 0788.705.713",
-  tel: "",                      // nog aan te maken
+  tel: "",
   iban: "",
   bic: "",
-  tauxTVA: 6                    // bevestigd door de klant
+  tauxTVA: 6
 };
 /* =========================================== */
 
 const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
 const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Facturée":"→ Gefactureerd"};
-let ORDERS=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery", UPDATING=false;
+const statusColor={"Reçue":"#235e86","Prête":"#b4790f","Sortie en livraison":"#3a8a9c","Facturée":"#2e7d53"};
+let ORDERS=[], STOCK=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery", UPDATING=false, CURRENT_VIEW="bord";
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
-function toggleWarehouseMenu(){ document.querySelector(".warehouse-sidebar").classList.toggle("open"); }
+
 function renderLines(txt){
   return '<div class="order-lines">'+String(txt||"").split("\n").filter(Boolean).map(line=>{
     const clean=famoNL.lines(line.replace(/\s*\[€[^\]]+\]/g,""));
@@ -198,8 +187,23 @@ function renderLines(txt){
   }).join("")+'</div>';
 }
 
+function setView(view){
+  CURRENT_VIEW=view==="dag"?"dag":"bord";
+  document.getElementById("viewBord").classList.toggle("hidden", CURRENT_VIEW!=="bord");
+  document.getElementById("viewDag").classList.toggle("hidden", CURRENT_VIEW!=="dag");
+  document.getElementById("tabBord").classList.toggle("active", CURRENT_VIEW==="bord");
+  document.getElementById("tabDag").classList.toggle("active", CURRENT_VIEW==="dag");
+  document.getElementById("btnPrintBord").style.display=CURRENT_VIEW==="bord"?"":"none";
+  document.getElementById("btnPrintDag").style.display=CURRENT_VIEW==="dag"?"":"none";
+  const url=new URL(location.href);
+  if(CURRENT_VIEW==="dag") url.searchParams.set("view","dag");
+  else url.searchParams.delete("view");
+  history.replaceState(null,"",url.pathname+url.search+url.hash);
+  if(CURRENT_VIEW==="dag") renderDayView();
+}
+
 async function enter(){
-  const input=document.getElementById("code"), err=document.getElementById("err");
+  const input=document.getElementById("code"), err=document.getElementById("loginError");
   const code=(input.value||"").trim();
   if(!code){err.textContent="Vul de personeelscode in.";return}
   if(enter._busy)return; enter._busy=true;
@@ -221,9 +225,14 @@ async function enter(){
   finally{enter._busy=false}
 }
 async function load(){
-  const r=await famoStaff.api("/api/allorders");
-  if(!r.ok) return;
-  const d=await r.json(); ORDERS=d.orders; render();
+  try{
+    const [a,b]=await Promise.all([famoStaff.api("/api/allorders"),famoStaff.api("/api/stock")]);
+    if(!a.ok) return;
+    const d=await a.json(), sd=await b.json().catch(()=>({}));
+    ORDERS=d.orders||[];
+    STOCK=b.ok?(sd.items||[]):[];
+    render();
+  }catch(e){}
 }
 
 function render(){
@@ -239,11 +248,11 @@ function render(){
       '<div class="cl">'+esc(o.client)+'</div>'+
       renderLines(o.lignes)+
       '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
-      (o.factuurnummer?'<div class="meta">🧾 '+esc(o.factuurnummer)+'</div>':'')+
-      (o.stockAf?'<div class="meta" style="color:#16a34a">✓ Voorraad afgeboekt</div>':'')+
-      (o.statut==="Prête"&&!o.preparationValidee?'<div class="meta" style="color:#b45309">⚠️ Artikels nog niet afzonderlijk gevalideerd</div>':'')+
-      (o.livraisonConfirmee?'<div class="meta" style="color:#16a34a">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
-      (o.notes?'<div class="meta">📝 '+esc(o.notes)+'</div>':'')+
+      (o.factuurnummer?'<div class="meta">'+esc(o.factuurnummer)+'</div>':'')+
+      (o.stockAf?'<div class="meta" style="color:#28734d">✓ Voorraad afgeboekt</div>':'')+
+      (o.statut==="Prête"&&!o.preparationValidee?'<div class="meta" style="color:#9a6700">Artikels nog niet afzonderlijk gevalideerd</div>':'')+
+      (o.livraisonConfirmee?'<div class="meta" style="color:#28734d">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
+      (o.notes?'<div class="meta">'+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
         ((o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee))?'<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>':(next?'<button class="adv" onclick="'+(next==="Facturée"?'confirmDelivery('+idx+')':'confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')')+'">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''))+
         (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
@@ -257,7 +266,7 @@ function render(){
   document.getElementById("statTodo").textContent=counts[0]+counts[1]; document.getElementById("statOnway").textContent=counts[2]; document.getElementById("statOpen").textContent=counts[0]+counts[1]+counts[2];
   const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
-  if(!document.getElementById("dayPanel").classList.contains("hidden")) renderDayView();
+  if(CURRENT_VIEW==="dag") renderDayView();
 }
 
 function orderView(){
@@ -280,6 +289,7 @@ function dayKey(offset=0){
   base.setDate(base.getDate()+offset);
   return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(base);
 }
+function dateLabel(v){if(!v)return"Zonder datum";const d=new Date(v+"T00:00:00");return d.toLocaleDateString("nl-BE",{weekday:"long",day:"numeric",month:"long"})}
 function setDayFilter(value){DAY_FILTER=value;document.getElementById("dayCustom").classList.toggle("hidden",value!=="custom");if(value==="custom"&&!document.getElementById("dayCustom").value)document.getElementById("dayCustom").value=dayKey();renderDayView()}
 function preparationOrders(){
   const today=dayKey(),custom=document.getElementById("dayCustom"),selected=custom?custom.value:"";
@@ -295,25 +305,43 @@ function preparationOrders(){
     return false;
   });
 }
+function parsePrepLine(txt){
+  return String(txt||"").split("\n").filter(Boolean).map(line=>{
+    const m=line.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)/);
+    return m?{name:m[1].trim(),qty:Number(m[2].replace(",","."))||0,unit:m[3].trim()}:null;
+  }).filter(Boolean);
+}
 function consolidatedItems(){
   const totals={};
-  preparationOrders().forEach(o=>String(o.lignes||"").split("\n").filter(Boolean).map(parseOrderLine).forEach(line=>{
+  preparationOrders().forEach(o=>parsePrepLine(o.lignes).forEach(line=>{
     const key=(line.name+"|"+line.unit).toLowerCase();
     if(!totals[key]) totals[key]={name:line.name,unit:line.unit,quantity:0,orders:0};
-    totals[key].quantity+=line.quantity; totals[key].orders++;
+    totals[key].quantity+=line.qty; totals[key].orders++;
   }));
   return Object.values(totals).sort((a,b)=>a.name.localeCompare(b.name,"nl"));
 }
 function renderDayView(){
   const orders=preparationOrders(),items=consolidatedItems();
-  document.getElementById("dayMeta").textContent=orders.length+" bestellingen · "+items.length+" verschillende producten";
-  document.getElementById("pickSummary").innerHTML=items.length?items.map(x=>'<div class="pick-summary-row"><div><strong>'+esc(x.name)+'</strong><div class="pm">'+x.orders+' bestel'+(x.orders===1?'ling':'lingen')+'</div></div><span>'+x.quantity+(x.unit?' '+esc(famoNL.unit(x.unit)||x.unit):'')+'</span></div>').join(""):'<div class="day-empty">Er zijn momenteel geen bestellingen om voor te bereiden.</div>';
+  const stockBy=new Map(STOCK.map(x=>[String(x.product).toLowerCase(),x]));
+  const alerts=items.map(i=>{
+    const s=stockBy.get(i.name.toLowerCase());
+    return !s?"Onbekend artikel: "+i.name:s.quantity<i.quantity?i.name+": "+s.quantity+" beschikbaar, "+i.quantity+" nodig":null;
+  }).filter(Boolean);
+  const label=DAY_FILTER==="custom"?document.getElementById("dayCustom").value:DAY_FILTER==="today"?dayKey():DAY_FILTER==="tomorrow"?dayKey(1):"";
+  const c=document.getElementById("dagContent");
+  c.className="";
+  c.innerHTML='<p class="prep-meta">'+orders.length+' bestellingen · '+items.length+' verschillende producten'+(label?' · '+dateLabel(label):'')+'</p>'+
+    (alerts.length?'<div class="prep-alert"><b>Voorraadcontrole vereist</b><br>'+alerts.map(esc).join("<br>")+'</div>':'')+
+    '<div class="prep-grid"><section class="prep-panel"><h2>Geconsolideerde picking</h2><p>Tel per product over de geselecteerde bestellingen. Controleer individuele lijnen in Magazijn vóór vertrek.</p>'+
+    (items.length?items.map(i=>'<div class="prep-product"><div><b>'+esc(i.name)+'</b><small>'+i.orders+' bestelling'+(i.orders===1?'':'en')+' · '+esc(famoNL.unit(i.unit)||i.unit||"eenheid")+'</small></div><span class="prep-product-qty">'+i.quantity+' '+esc(famoNL.unit(i.unit)||i.unit)+'</span></div>').join(""):'<div class="prep-empty">Geen open bestellingen voor deze selectie.</div>')+
+    '</section><section class="prep-panel"><h2>Betrokken bestellingen</h2><p>Open een bestelling om de artikelen afzonderlijk te valideren.</p>'+
+    (orders.length?orders.map(o=>'<a class="prep-order" href="/order.html?id='+encodeURIComponent(o.id)+'"><div class="prep-order-head"><span class="prep-order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span></div><div class="prep-order-client">'+esc(o.client)+'</div><div class="prep-order-lines">'+esc(famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · ")))+'</div></a>').join(""):'<div class="prep-empty">Geen bestellingen gevonden.</div>')+
+    '</section></div>';
 }
-function toggleDayView(){ const panel=document.getElementById("dayPanel"); panel.classList.toggle("hidden"); if(!panel.classList.contains("hidden")){ renderDayView(); panel.scrollIntoView({behavior:"smooth",block:"start"}); } }
 function printConsolidatedPicklist(){
   const orders=preparationOrders(),items=consolidatedItems(); if(!items.length){ showNotice("Er zijn geen producten om voor te bereiden.","error"); return; }
   const w=window.open("","_blank"); if(!w) return;
-  w.document.write('<html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}p{font-size:12px;color:#51646e}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #071d2b;padding:8px}td{font-size:15px;border-bottom:1px solid #bdcbd2;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#51646e}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+new Date().toLocaleString("nl-BE")+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(famoNL.unit(x.unit)||x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>');
+  w.document.write('<html><head><meta charset="utf-8"><title>Geconsolideerde picking</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#111}h1{font-size:21px;border-bottom:3px solid #111;padding-bottom:8px}p{font-size:12px;color:#666}table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;font-size:11px;text-transform:uppercase;border-bottom:2px solid #111;padding:8px}td{font-size:15px;border-bottom:1px solid #ddd;padding:11px 8px}.box{width:28px;font-size:20px}.qty{text-align:right;font-weight:bold;font-size:18px}.foot{margin-top:18px;font-size:11px;color:#666}</style></head><body><h1>Famo Trading — Geconsolideerde picking</h1><p>'+new Date().toLocaleString("nl-BE")+' · '+orders.length+' bestellingen</p><table><thead><tr><th></th><th>Product</th><th>Bestellingen</th><th style="text-align:right">Totaal</th></tr></thead><tbody>'+items.map(x=>'<tr><td class="box">☐</td><td>'+esc(x.name)+'</td><td>'+x.orders+'</td><td class="qty">'+x.quantity+(x.unit?' '+esc(famoNL.unit(x.unit)||x.unit):'')+'</td></tr>').join("")+'</tbody></table><div class="foot">Controleer de geconsolideerde hoeveelheden tegen de individuele bestelbonnen vóór vertrek.</div></body></html>');
   w.document.close(); w.print();
 }
 
@@ -380,7 +408,7 @@ function printPicklist(){
   if(!todo.length){ showNotice("Er zijn geen bestellingen om voor te bereiden.","error"); return; }
   const w=window.open("","_blank"); if(!w) return;
   const blocks=todo.map(o=>'<section><header><b>'+esc(o.ref)+' — '+esc(o.client)+'</b><span>Levering: '+esc(o.dateLiv||"—")+'</span></header><table>'+String(o.lignes||"").split("\n").filter(Boolean).map(l=>'<tr><td class="box">☐</td><td>'+esc(famoNL.lines(l.replace(/\s*\[€[^\]]+\]/g,"")))+'</td></tr>').join("")+'</table></section>').join("");
-  w.document.write('<html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#071d2b}h1{font-size:21px;border-bottom:3px solid #071d2b;padding-bottom:8px}section{border:2px solid #071d2b;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #bdcbd2;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>');
+  w.document.write('<html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial;color:#111}h1{font-size:21px;border-bottom:3px solid #111;padding-bottom:8px}section{border:2px solid #111;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #ddd;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>');
   w.document.close(); w.print();
 }
 
@@ -398,8 +426,6 @@ function doc(idx,type){
   const verval=new Date(d.getTime()+30*86400000);
   const fdate=x=>x.toLocaleDateString("nl-BE");
 
-  // Prices are frozen on the order line: "Naam × 3 doos [€12.50] (opmerking)".
-  // Existing orders without this price marker remain printable.
   const rows=String(o.lignes||"").split("\n").filter(x=>x.trim()).map(l=>{
     const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)(.*)$/);
     if(!m) return {nom:l, aantal:"", eenheid:"", prijs:null, opm:""};
@@ -409,17 +435,17 @@ function doc(idx,type){
 
   const docHtml='<html><head><meta charset="utf-8"><title>'+num+'</title><style>'+
     'body{font-family:Arial,sans-serif;padding:32px;color:#1c2a3a;font-size:12.5px}'+
-    '.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0b2e4f;padding-bottom:12px}'+
-    'h1{color:#0b2e4f;font-size:22px;margin-bottom:6px}h2{font-size:17px;margin:0 0 6px}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #111;padding-bottom:12px}'+
+    'h1{color:#111;font-size:22px;margin-bottom:6px}h2{font-size:17px;margin:0 0 6px}'+
     '.parties{display:flex;gap:40px;margin-top:20px}.parties>div{flex:1}'+
-    '.lbl{font-weight:bold;color:#0b2e4f;margin-bottom:5px;font-size:13px}'+
+    '.lbl{font-weight:bold;color:#111;margin-bottom:5px;font-size:13px}'+
     'table.it{width:100%;border-collapse:collapse;margin-top:22px}'+
-    'table.it th{background:#eef4f8;border-bottom:2px solid #bcd0e0;padding:8px;text-align:left;font-size:11.5px;color:#0b2e4f}'+
+    'table.it th{background:#f5f5f5;border-bottom:2px solid #ddd;padding:8px;text-align:left;font-size:11.5px;color:#111}'+
     'table.it td{border-bottom:1px solid #e2e8f0;padding:8px}'+
     '.num{text-align:right}'+
     '.tot{margin-top:18px;margin-left:auto;width:290px}'+
     '.tot div{display:flex;justify-content:space-between;padding:5px 0}'+
-    '.tot .g{border-top:2px solid #0b2e4f;margin-top:5px;padding-top:8px;font-size:16px;font-weight:bold;color:#0b2e4f}'+
+    '.tot .g{border-top:2px solid #111;margin-top:5px;padding-top:8px;font-size:16px;font-weight:bold;color:#111}'+
     '.bank{margin-top:26px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;font-size:11.5px}'+
     '.ft{margin-top:20px;font-size:10.5px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:8px;line-height:1.55}'+
     '.sig{margin-top:34px;font-size:12px}'+
@@ -521,6 +547,8 @@ async function upd(patch){
 }
 document.getElementById("code").addEventListener("keydown",e=>{ if(e.key==="Enter") enter(); });
 window.addEventListener("DOMContentLoaded",async()=>{
+  const params=new URLSearchParams(location.search);
+  if(params.get("view")==="dag") setView("dag");
   try{
     if(await famoStaff.check()){
       document.getElementById("loginView").classList.add("hidden");

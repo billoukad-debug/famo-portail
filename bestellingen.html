@@ -6,13 +6,13 @@
 <title>Famo Trading — Bestellingen</title>
 <link rel="stylesheet" href="/staff.css">
 <style>
-.orders-login{min-height:100vh;display:grid;place-items:center;padding:20px}.orders-login-card{width:min(100%,390px);padding:28px;border:1px solid #e8e8e8;border-radius:14px;background:#fff}.orders-login-mark{width:24px;height:24px;border-radius:6px;background:#111;display:grid;place-items:center}.orders-login-mark i{width:7px;height:7px;border-radius:2px;background:#235e86}.orders-login-card h1{margin:17px 0 4px;font-size:20px;letter-spacing:-.025em}.orders-login-card p{margin:0 0 19px;color:#6b6b6b;font-size:13.5px}.orders-login-card input{display:block;width:100%;height:42px;padding:0 12px;margin-bottom:9px}.orders-login-card button{width:100%;height:42px;border-radius:9px;border:1px solid #111;background:#111;color:#fff;font-weight:500}.orders-login-error{min-height:18px;margin-top:9px;color:#b23b2e;font-size:12.5px}.orders-tools{display:grid;grid-template-columns:minmax(210px,1fr) repeat(6,max-content);gap:8px;align-items:center;margin-top:25px}.orders-tools input{width:100%}.orders-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:22px}.orders-summary button{padding:13px 14px;text-align:left;border:1px solid #e8e8e8;border-radius:10px;background:#fff;cursor:pointer}.orders-summary button:hover,.orders-summary button.active{border-color:#cfcfcf;background:#fafafa}.orders-summary b{display:block;font:500 19px Geist Mono,ui-monospace,monospace}.orders-summary span{display:block;margin-top:3px;color:#6b6b6b;font-size:12.5px}.orders-table{margin-top:20px;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden}.orders-table table{width:100%;border-collapse:collapse}.orders-table th{padding:10px 13px;border-bottom:1px solid #e8e8e8;background:#fafafa;color:#969696;font-size:11px;font-weight:500;text-align:left}.orders-table td{padding:12px 13px;border-bottom:1px solid #f0f0f0;font-size:13px;vertical-align:middle}.orders-table tr:last-child td{border-bottom:0}.orders-table tr[data-open]{cursor:pointer}.orders-table tr[data-open]:hover{background:#fafafa}.order-ref{font:500 12.5px Geist Mono,ui-monospace,monospace}.order-client{font-weight:500}.order-lines{max-width:280px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.order-money{font:500 12.5px Geist Mono,ui-monospace,monospace;white-space:nowrap}.order-source{color:#777;font-size:12px}.order-alert{display:inline-flex;align-items:center;gap:5px;color:#9a6700;font-size:11.5px}.order-alert:before{content:"!";display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#fff2d5;font-weight:600}.orders-cards{display:none;margin-top:16px}.order-card{padding:15px 2px;border-bottom:1px solid #ececec}.order-card:first-child{border-top:1px solid #ececec}.order-card-head,.order-card-foot{display:flex;align-items:center;gap:10px}.order-card-client{margin-top:4px;font-size:13.5px;font-weight:500}.order-card-lines{margin:8px 0;color:#666;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-card-foot{color:#8a8a8a;font-size:12px}.order-card-foot .order-money{margin-left:auto;color:#111}.order-card button{margin-left:auto;border:0;background:none;color:#235e86;font-size:12.5px;cursor:pointer}.orders-refresh{margin-left:auto}.orders-failed{margin-top:20px}.orders-note{margin-top:13px;color:#929292;font-size:12px}.orders-state{margin-top:20px}
-@media(max-width:980px){.orders-tools{grid-template-columns:1fr 1fr 1fr}.orders-tools input{grid-column:1/-1}.orders-tools .orders-refresh{margin-left:0}.orders-summary{grid-template-columns:repeat(3,1fr)}.orders-table{display:none}.orders-cards{display:block}}@media(max-width:620px){.orders-tools{grid-template-columns:1fr 1fr}.orders-tools select{min-width:0}.orders-summary{grid-template-columns:1fr 1fr;gap:7px}.orders-summary button{padding:11px}.orders-summary b{font-size:17px}.orders-tools .orders-refresh{grid-column:1/-1}.order-card-head{align-items:flex-start}}
+.orders-tools{display:grid;grid-template-columns:minmax(210px,1fr) repeat(6,max-content);gap:8px;align-items:center;margin-top:22px}.orders-tools input{width:100%}.orders-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:22px}.orders-summary button{padding:13px 14px;text-align:left;border:1px solid #e8e8e8;border-radius:10px;background:#fff;cursor:pointer}.orders-summary button:hover,.orders-summary button.active{border-color:#cfcfcf;background:#fafafa}.orders-summary b{display:block;font:500 19px Geist Mono,ui-monospace,monospace}.orders-summary span{display:block;margin-top:3px;color:#6b6b6b;font-size:12.5px}.orders-table{margin-top:20px;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden}.orders-table table{width:100%;border-collapse:collapse}.orders-table th{padding:10px 13px;border-bottom:1px solid #e8e8e8;background:#fafafa;color:#969696;font-size:11px;font-weight:500;text-align:left}.orders-table td{padding:12px 13px;border-bottom:1px solid #f0f0f0;font-size:13px;vertical-align:middle}.orders-table tr:last-child td{border-bottom:0}.orders-table tr[data-open]{cursor:pointer}.orders-table tr[data-open]:hover{background:#fafafa}.order-ref{font:500 12.5px Geist Mono,ui-monospace,monospace}.order-client{font-weight:500}.order-lines{max-width:280px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.order-money{font:500 12.5px Geist Mono,ui-monospace,monospace;white-space:nowrap}.order-source{color:#777;font-size:12px}.order-alert{display:inline-flex;align-items:center;gap:5px;color:#9a6700;font-size:11.5px}.order-alert:before{content:"!";display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#fff2d5;font-weight:600}.orders-cards{display:none;margin-top:16px}.order-card{padding:15px 2px;border-bottom:1px solid #ececec}.order-card:first-child{border-top:1px solid #ececec}.order-card-head,.order-card-foot{display:flex;align-items:center;gap:10px}.order-card-client{margin-top:4px;font-size:13.5px;font-weight:500}.order-card-lines{margin:8px 0;color:#666;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-card-foot{color:#8a8a8a;font-size:12px}.order-card-foot .order-money{margin-left:auto;color:#111}.order-card button{margin-left:auto;border:0;background:none;color:#235e86;font-size:12.5px;cursor:pointer}.orders-note{margin-top:13px;color:#929292;font-size:12px}.orders-state{margin-top:20px}.staff-attention{margin-top:18px;padding:14px 16px;border:1px solid #e8e8e8;border-radius:12px;background:#fff}.staff-attention h2{margin:0 0 10px;font-size:14px;font-weight:600}.staff-attention-list{display:flex;flex-direction:column;gap:0}.staff-attention-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f0f0f0;text-decoration:none;color:#111}.staff-attention-item:first-child{border-top:0;padding-top:0}.staff-attention-item .order-ref{flex:0 0 auto}.staff-attention-client{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.staff-attention-item .staff-status{margin-left:auto}
+@media(max-width:980px){.orders-tools{grid-template-columns:1fr 1fr 1fr}.orders-tools input{grid-column:1/-1}.orders-summary{grid-template-columns:repeat(3,1fr)}.orders-table{display:none}.orders-cards{display:block}}@media(max-width:620px){.orders-tools{grid-template-columns:1fr 1fr}.orders-tools select{min-width:0}.orders-summary{grid-template-columns:1fr 1fr;gap:7px}.orders-summary button{padding:11px}.orders-summary b{font-size:17px}.order-card-head{align-items:flex-start}}
 </style>
 </head>
 <body>
-<section id="loginView" class="orders-login">
-  <div class="orders-login-card"><div class="orders-login-mark" aria-hidden="true"><i></i></div><h1>Bestellingen</h1><p>Meld u aan om de operationele bestellijst te openen.</p><input id="code" type="password" autocomplete="current-password" placeholder="Personeelscode"><button onclick="enter()">Aanmelden</button><div id="loginError" class="orders-login-error" role="alert"></div></div>
+<section id="loginView" class="staff-login">
+  <div><h1>Bestellingen</h1><p>Meld u aan om de operationele bestellijst te openen.</p><input id="code" type="password" autocomplete="current-password" placeholder="Personeelscode"><button onclick="enter()">Aanmelden</button><div id="loginError" class="staff-login-error" role="alert"></div></div>
 </section>
 
 <div id="app" class="hidden staff-shell">
@@ -20,6 +20,13 @@
   <nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
   <main class="staff-main"><div class="staff-page">
     <header class="staff-page-head"><div><h1>Bestellingen</h1><p>Alle bestellingen, met actuele status en operationele aandachtspunten.</p></div><div><button class="staff-action-secondary" onclick="load()">Vernieuwen</button></div></header>
+    <section id="chips" class="staff-chips" aria-label="Snelle filters"></section>
+    <nav class="staff-quick" aria-label="Snelle acties">
+      <a href="/invoer.html">Invoeren</a>
+      <a href="/entrepot.html">Magazijn</a>
+      <a href="/leveringen.html">Leveringen</a>
+    </nav>
+    <section id="attentionBox" class="staff-attention hidden" aria-label="Aandacht vereist"></section>
     <section class="orders-tools" aria-label="Bestellingen filteren">
       <input id="search" class="staff-field" type="search" placeholder="Zoek referentie, klant, artikel of factuur…" oninput="render()">
       <select id="status" class="staff-select" onchange="render()"><option value="all">Alle statussen</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select>
@@ -40,7 +47,7 @@
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
-let ORDERS=[], LAST_ERROR="";
+let ORDERS=[],STOCK=[],LAST_ERROR="";
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 const eur=n=>"€ "+Number(n||0).toFixed(2).replace(".",",");
 const statusColor={"Reçue":"#235e86","Prête":"#b4790f","Sortie en livraison":"#3a8a9c","Facturée":"#2e7d53"};
@@ -54,6 +61,7 @@ function localDay(offset=0){
   return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(base);
 }
 function matchesDate(o,filter){const day=String(o.dateLiv||"").slice(0,10);if(filter==="all")return true;if(filter==="undated")return !day;if(filter==="today")return day===localDay();if(filter==="tomorrow")return day===localDay(1);return Boolean(day&&day<localDay()&&o.statut!=="Facturée")}
+function dayKey(v){return String(v||"").slice(0,10)}
 async function enter(){
   const input=document.getElementById("code"),error=document.getElementById("loginError");
   const code=(input.value||"").trim();
@@ -69,10 +77,89 @@ async function enter(){
   }catch(e){error.textContent=famoStaff.translateError(e.message||e)}
   finally{enter._busy=false}
 }
-async function load(){const state=document.getElementById("state");state.innerHTML='<div class="staff-loading"><div class="staff-skeleton" style="max-width:220px;margin:0 auto"></div><div class="staff-skeleton" style="max-width:380px;margin:12px auto 0"></div></div>';try{const r=await famoStaff.api("/api/allorders");const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Bestellingen konden niet worden geladen.");ORDERS=d.orders||[];LAST_ERROR="";render()}catch(error){LAST_ERROR=famoStaff.translateError(error.message||"Netwerkfout.");render()}}
+async function load(){
+  const state=document.getElementById("state");
+  state.innerHTML='<div class="staff-loading"><div class="staff-skeleton" style="max-width:220px;margin:0 auto"></div><div class="staff-skeleton" style="max-width:380px;margin:12px auto 0"></div></div>';
+  try{
+    const [a,b]=await Promise.all([famoStaff.api("/api/allorders"),famoStaff.api("/api/stock")]);
+    const ad=await a.json().catch(()=>({})),bd=await b.json().catch(()=>({}));
+    if(!a.ok)throw new Error(ad.error||"Bestellingen konden niet worden geladen.");
+    ORDERS=ad.orders||[];
+    STOCK=b.ok?(bd.items||[]):[];
+    LAST_ERROR="";
+    render();
+  }catch(error){LAST_ERROR=famoStaff.translateError(error.message||"Netwerkfout.");render()}
+}
 function filtered(){const term=document.getElementById("search").value.trim().toLowerCase(),status=document.getElementById("status").value,payment=document.getElementById("payment").value,source=document.getElementById("source").value,dateFilter=document.getElementById("dateFilter").value,attention=document.getElementById("attention").value,sort=document.getElementById("sort").value;const list=ORDERS.filter(o=>{const hay=[o.ref,o.client,o.lignes,o.factuurnummer].join(" ").toLowerCase();return(!term||hay.includes(term))&&(status==="all"||o.statut===status)&&(payment==="all"||o.paiement===payment)&&(source==="all"||sourceOf(o)===source)&&matchesDate(o,dateFilter)&&(attention==="all"||isAttention(o))});return list.sort((a,b)=>{if(sort==="delivery")return String(a.dateLiv||"9999").localeCompare(String(b.dateLiv||"9999"));if(sort==="client")return String(a.client).localeCompare(String(b.client));if(sort==="total")return Number(b.total)-Number(a.total);return String(b.date||"").localeCompare(String(a.date||""))})}
 function setStatusFilter(value){document.getElementById("status").value=value;render()}
-function render(){const summary=document.getElementById("summary"),state=document.getElementById("state"),table=document.getElementById("tableWrap"),rows=document.getElementById("rows"),cards=document.getElementById("cards");if(LAST_ERROR){summary.innerHTML="";table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';return}const stats=[{key:"all",label:"Alle",count:ORDERS.length},{key:"Reçue",label:"Ontvangen",count:ORDERS.filter(x=>x.statut==="Reçue").length},{key:"Prête",label:"Klaar",count:ORDERS.filter(x=>x.statut==="Prête").length},{key:"Sortie en livraison",label:"Onderweg",count:ORDERS.filter(x=>x.statut==="Sortie en livraison").length},{key:"Facturée",label:"Gefactureerd",count:ORDERS.filter(x=>x.statut==="Facturée").length}];const active=document.getElementById("status").value;summary.innerHTML=stats.map(x=>'<button class="'+((active===x.key||(active==="all"&&x.key==="all"))?"active":"")+'" onclick="setStatusFilter(\''+x.key+'\')"><b>'+x.count+'</b><span>'+x.label+'</span></button>').join("");const list=filtered();if(!list.length){table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-empty">Geen bestellingen gevonden met deze filters.</div>';return}state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen</div>';table.classList.remove("hidden");rows.innerHTML=list.map(o=>'<tr data-open onclick="openOrder(\''+esc(o.id)+'\')"><td><div class="order-ref">'+esc(o.ref)+'</div><div class="order-source">'+esc(sourceOf(o))+'</div></td><td><div class="order-client">'+esc(o.client)+'</div>'+((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")?'<div class="order-source">'+esc((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")).slice(0,55)+'</div>':'')+'</td><td><div class="order-lines">'+esc(shortLines(o.lignes))+'</div>'+(isAttention(o)?'<span class="order-alert">Aandacht vereist</span>':'')+'</td><td><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span></td><td>'+dateLabel(o.dateLiv)+'</td><td>'+esc(famoNL.pay(o.paiement||"En attente"))+'</td><td class="order-money">'+eur(o.total)+'</td><td><button class="staff-ghost" onclick="openOrder(\''+esc(o.id)+'\')">Open</button></td></tr>').join("");cards.innerHTML=list.map(o=>'<article class="order-card"><div class="order-card-head"><span class="order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span><button onclick="openOrder(\''+esc(o.id)+'\')">Open</button></div><div class="order-card-client">'+esc(o.client)+'</div><div class="order-card-lines">'+esc(shortLines(o.lignes))+'</div><div class="order-card-foot"><span>'+dateLabel(o.dateLiv)+'</span><span>'+esc(sourceOf(o))+'</span><span class="order-money">'+eur(o.total)+'</span></div></article>').join("")}
+function chipActive(href){
+  const u=new URL(href,location.origin),p=u.searchParams;
+  const cur=new URLSearchParams(location.search);
+  if(u.pathname.endsWith("/stock.html"))return false;
+  const keys=["status","payment","dateFilter","attention"];
+  const has=keys.some(k=>p.has(k));
+  if(!has)return !keys.some(k=>cur.get(k)&&cur.get(k)!=="all");
+  return keys.every(k=>{
+    const want=p.get(k),got=cur.get(k);
+    if(!want)return !got||got==="all";
+    return got===want;
+  });
+}
+function renderChips(){
+  const t=localDay();
+  const today=ORDERS.filter(o=>dayKey(o.dateLiv)===t&&o.statut!=="Facturée").length;
+  const open=ORDERS.filter(o=>o.statut!=="Facturée").length;
+  const confirm=ORDERS.filter(o=>o.statut==="Sortie en livraison").length;
+  const unpaid=ORDERS.filter(o=>o.paiement==="En attente").length;
+  const low=STOCK.filter(x=>x.lowThreshold>0&&x.quantity<=x.lowThreshold).length;
+  const late=ORDERS.filter(o=>dayKey(o.dateLiv)&&dayKey(o.dateLiv)<t&&o.statut!=="Facturée").length;
+  const attn=ORDERS.filter(isAttention).length;
+  const chips=[
+    {href:"/bestellingen.html?dateFilter=today",count:today,label:"Vandaag"},
+    {href:"/bestellingen.html",count:open,label:"Open"},
+    {href:"/bestellingen.html?status=Sortie%20en%20livraison",count:confirm,label:"Te bevestigen"},
+    {href:"/bestellingen.html?payment=En%20attente",count:unpaid,label:"Openstaand"},
+    {href:"/stock.html",count:low,label:"Voorraad laag"},
+    {href:"/bestellingen.html?dateFilter=overdue",count:late,label:"Te laat"},
+    {href:"/bestellingen.html?attention=required",count:attn,label:"Aandacht"}
+  ];
+  document.getElementById("chips").innerHTML=chips.map(c=>
+    '<a class="staff-chip'+(chipActive(c.href)?" active":"")+'" href="'+c.href+'"><b>'+c.count+'</b> '+esc(c.label)+'</a>'
+  ).join("");
+}
+function renderAttention(){
+  const box=document.getElementById("attentionBox");
+  const items=ORDERS.filter(isAttention).slice(0,6);
+  if(!items.length){box.classList.add("hidden");box.innerHTML="";return}
+  box.classList.remove("hidden");
+  box.innerHTML='<h2>Aandacht vereist</h2><div class="staff-attention-list">'+items.map(o=>
+    '<a class="staff-attention-item" href="/order.html?id='+encodeURIComponent(o.id)+'">'+
+    '<span class="order-ref">'+esc(o.ref)+'</span>'+
+    '<span class="staff-attention-client">'+esc(o.client)+'</span>'+
+    '<span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span>'+
+    '</a>'
+  ).join("")+'</div>';
+}
+function render(){
+  const summary=document.getElementById("summary"),state=document.getElementById("state"),table=document.getElementById("tableWrap"),rows=document.getElementById("rows"),cards=document.getElementById("cards");
+  renderChips();
+  if(LAST_ERROR){
+    summary.innerHTML="";table.classList.add("hidden");cards.innerHTML="";
+    document.getElementById("attentionBox").classList.add("hidden");
+    state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
+    return;
+  }
+  renderAttention();
+  const stats=[{key:"all",label:"Alle",count:ORDERS.length},{key:"Reçue",label:"Ontvangen",count:ORDERS.filter(x=>x.statut==="Reçue").length},{key:"Prête",label:"Klaar",count:ORDERS.filter(x=>x.statut==="Prête").length},{key:"Sortie en livraison",label:"Onderweg",count:ORDERS.filter(x=>x.statut==="Sortie en livraison").length},{key:"Facturée",label:"Gefactureerd",count:ORDERS.filter(x=>x.statut==="Facturée").length}];
+  const active=document.getElementById("status").value;
+  summary.innerHTML=stats.map(x=>'<button class="'+((active===x.key||(active==="all"&&x.key==="all"))?"active":"")+'" onclick="setStatusFilter(\''+x.key+'\')"><b>'+x.count+'</b><span>'+x.label+'</span></button>').join("");
+  const list=filtered();
+  if(!list.length){table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-empty">Geen bestellingen gevonden met deze filters.</div>';return}
+  state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen</div>';
+  table.classList.remove("hidden");
+  rows.innerHTML=list.map(o=>'<tr data-open onclick="openOrder(\''+esc(o.id)+'\')"><td><div class="order-ref">'+esc(o.ref)+'</div><div class="order-source">'+esc(sourceOf(o))+'</div></td><td><div class="order-client">'+esc(o.client)+'</div>'+((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")?'<div class="order-source">'+esc((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")).slice(0,55)+'</div>':'')+'</td><td><div class="order-lines">'+esc(shortLines(o.lignes))+'</div>'+(isAttention(o)?'<span class="order-alert">Aandacht vereist</span>':'')+'</td><td><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span></td><td>'+dateLabel(o.dateLiv)+'</td><td>'+esc(famoNL.pay(o.paiement||"En attente"))+'</td><td class="order-money">'+eur(o.total)+'</td><td><button class="staff-ghost" onclick="openOrder(\''+esc(o.id)+'\')">Open</button></td></tr>').join("");
+  cards.innerHTML=list.map(o=>'<article class="order-card"><div class="order-card-head"><span class="order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span><button onclick="openOrder(\''+esc(o.id)+'\')">Open</button></div><div class="order-card-client">'+esc(o.client)+'</div><div class="order-card-lines">'+esc(shortLines(o.lignes))+'</div><div class="order-card-foot"><span>'+dateLabel(o.dateLiv)+'</span><span>'+esc(sourceOf(o))+'</span><span class="order-money">'+eur(o.total)+'</span></div></article>').join("");
+}
 function openOrder(id){window.location.href="/order.html?id="+encodeURIComponent(id)}
 async function logout(){await famoStaff.logout();location.reload()}
 document.getElementById("code").addEventListener("keydown",event=>{if(event.key==="Enter")enter()});
