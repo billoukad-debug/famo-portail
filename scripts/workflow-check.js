@@ -365,7 +365,7 @@ async function main() {
   }
   console.log("✓ H. famoNL caisse→kassa, Reçue→Ontvangen");
 
-  // --- I. Navigation : 9 labels dont Aan de slag ---
+  // --- I. Navigation : 4 primary + Meer + Aan de slag ---
   {
     const navSrc = fs.readFileSync(path.join(ROOT, "staff-nav.js"), "utf8");
     const sandbox = {
@@ -376,22 +376,27 @@ async function main() {
         querySelectorAll: () => [],
         addEventListener: () => {}
       },
-      location: { pathname: "/overzicht.html" },
+      location: { pathname: "/bestellingen.html" },
       console
     };
     sandbox.global = sandbox;
     vm.runInNewContext(navSrc, sandbox);
-    const items = (sandbox.window.famoNav || sandbox.global.famoNav).ITEMS;
-    assert.equal(items.length, 9, "9 entrées de menu");
+    const famoNav = sandbox.window.famoNav || sandbox.global.famoNav;
+    const items = famoNav.ITEMS;
+    const primary = famoNav.PRIMARY.map(i => i.label);
+    assert.equal(items.length, 7, "7 entrées de menu (4 primary + 2 meer + setup)");
+    assert.equal(primary.length, 4, "4 destinations primary");
+    assert.ok(!primary.includes("Overzicht"), "Overzicht ne doit pas être primary");
+    assert.ok(!primary.includes("Dagvoorbereiding"), "Dagvoorbereiding ne doit pas être primary");
     const labels = items.map(i => i.label);
     for (const need of [
-      "Overzicht", "Bestellingen", "Magazijn", "Dagvoorbereiding",
-      "Invoeren", "Voorraad", "Documenten", "Leveringen", "Aan de slag"
+      "Bestellingen", "Magazijn", "Invoeren", "Leveringen",
+      "Voorraad", "Documenten", "Aan de slag"
     ]) {
       assert.ok(labels.includes(need), "label manquant: " + need);
     }
   }
-  console.log("✓ I. staff-nav 9 labels dont Aan de slag");
+  console.log("✓ I. staff-nav 4 primary + Meer + Aan de slag");
 
   // --- K. Cookie-only allorders (sans code query) ---
   {

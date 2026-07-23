@@ -12,18 +12,30 @@ Portail B2B FAMO pour la prise de commande, la préparation magasin, le stock et
 
 Les produits vendus au kilo acceptent des quantités décimales (par exemple `0,5 kg`). Les unités Airtable `caisse` restent en quantités entières et s’affichent **kassa** dans l’interface (jamais le mot français « caisse » à l’écran).
 
-## Pages
+## Parcours staff (UI)
 
-- `/` : portail client et réassort.
-- `/overzicht.html` : cockpit opérationnel staff.
-- `/bestellingen.html` / `/order.html` : liste et détail des commandes.
-- `/entrepot.html` : préparation, livraison et facturation (Magazijn).
-- `/dagprep.html` : préparation journalière consolidée.
-- `/invoer.html` : saisie interne pour commandes téléphone/WhatsApp.
-- `/stock.html` : inventaire, entrées, retours et seuils bas.
-- `/documenten.html` : bons de livraison, factures internes, creditnota interne.
-- `/leveringen.html` : confirmation de réception.
-- `/aan-de-slag.html` : guide de mise en service.
+Navigation quotidienne (≤ 4 destinations + Meer) :
+
+| Destination | Page | Rôle |
+|---|---|---|
+| **Bestellingen** | `/bestellingen.html` | Accueil opérationnel (liste, chips, attention) |
+| **Magazijn** | `/entrepot.html` | Board kanban (**Bord**) + vue journée (**Dag** via `?view=dag`) |
+| **Invoeren** | `/invoer.html` | Saisie manuelle téléphone / WhatsApp |
+| **Leveringen** | `/leveringen.html` | File livreur : Maps + confirmation réception |
+| Meer → Voorraad | `/stock.html` | Inventaire et seuils |
+| Meer → Documenten | `/documenten.html` | LB / facture / creditnota (`?order=` & `?type=lb\|facture\|credit`) |
+| Setup (hors nav) | `/aan-de-slag.html` | Onboarding — lien footer seulement |
+
+Deep-link (pas une entrée de menu) : `/order.html?id=…`.
+
+Redirects conservés :
+
+- `/overzicht.html` → `/bestellingen.html`
+- `/dagprep.html` → `/entrepot.html?view=dag`
+
+Shell unique : `staff-shell` + `data-famo-nav` (`staff-nav.js`) + design tokens `staff.css`. Login unique via `staff-session.js` (`bindLogin` / `.staff-login`). Confirmation de livraison partagée : `staff-delivery.js` (`famoStaff.openDeliveryConfirm`).
+
+Le portail client `/` est hors scope du redesign staff.
 
 Auth staff : cookie de session HttpOnly (`POST /api/session`), durée 8 h. Le code personnel ne doit plus apparaître dans les URL ni dans le stockage navigateur.
 
@@ -50,7 +62,7 @@ Exécuter les contrôles avant publication :
 node scripts/check.js
 ```
 
-Ils vérifient la syntaxe des API et des scripts HTML, les fonctions appelées depuis le HTML, et les règles métier critiques : prix serveur, validation de préparation et confirmation de réception. GitHub Actions exécute le même contrôle à chaque push sur `main`.
+Ils vérifient la syntaxe des API et des scripts HTML, les fonctions appelées depuis le HTML, la nav staff (4 + Meer, redirects, pas de warehouse-sidebar), et les règles métier critiques : prix serveur, validation de préparation et confirmation de réception. GitHub Actions exécute le même contrôle à chaque push sur `main`.
 
 ## Limites à raccorder avant exploitation comptable complète
 
