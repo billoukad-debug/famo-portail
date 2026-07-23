@@ -35,6 +35,8 @@ Redirects conservés :
 
 Shell unique : `staff-shell` + `data-famo-nav` (`staff-nav.js`) + design tokens `staff.css`. Login unique via `staff-session.js` (`bindLogin` / `.staff-login`). Confirmation de livraison partagée : `staff-delivery.js` (`famoStaff.openDeliveryConfirm`).
 
+Documents staff (LB, facture, creditnota, picking) : aperçu in-app via `staff-doc-preview.js` (fermer / imprimer / télécharger un vrai PDF). Aucun `window.open` pour l’export côté pages staff.
+
 Le portail client `/` est hors scope du redesign staff.
 
 Auth staff : cookie de session HttpOnly (`POST /api/session`), durée 8 h. Le code personnel ne doit plus apparaître dans les URL ni dans le stockage navigateur.

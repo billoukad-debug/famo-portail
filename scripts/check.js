@@ -319,6 +319,63 @@ for (const page of OPERATIONAL) {
   }
 }
 
+// --- Preview documentaire partagée (pas de window.open / print hors composant) ---
+{
+  const previewPath = path.join(root, "staff-doc-preview.js");
+  const vendorPath = path.join(root, "vendor", "html2pdf.bundle.min.js");
+  if (!fs.existsSync(previewPath)) {
+    fail("staff-doc-preview.js", "composant preview manquant");
+  } else {
+    const src = fs.readFileSync(previewPath, "utf8");
+    try {
+      new vm.Script(src, { filename: "staff-doc-preview.js" });
+      const sandbox = { window: {}, global: {}, document: { createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, querySelector() { return null; }, addEventListener() {} }), body: { appendChild() {} }, head: { appendChild() {} }, addEventListener() {}, removeEventListener() {} }, location: { pathname: "/documenten.html" }, console };
+      sandbox.global = sandbox;
+      sandbox.window = sandbox;
+      new vm.Script(src, { filename: "staff-doc-preview.js" }).runInNewContext(sandbox);
+      const api = sandbox.window.famoDocPreview || sandbox.global.famoDocPreview;
+      if (!api || typeof api.open !== "function" || typeof api.downloadPdf !== "function" || typeof api.print !== "function") {
+        fail("staff-doc-preview.js", "doit exposer open / print / downloadPdf");
+      } else {
+        const lb = api.filenameFor("delivery", { ref: "CMD-123" });
+        const fa = api.filenameFor("invoice", { number: "FA-9" });
+        const pk = api.filenameFor("picking", { date: "2026-07-23" });
+        if (lb !== "Famo-Leveringsbon-CMD-123.pdf") fail("staff-doc-preview.js", "filename leveringsbon incorrect: " + lb);
+        else if (fa !== "Famo-Factuur-FA-9.pdf") fail("staff-doc-preview.js", "filename factuur incorrect: " + fa);
+        else if (pk !== "Famo-Picking-2026-07-23.pdf") fail("staff-doc-preview.js", "filename picking incorrect: " + pk);
+        else if (!/blobLooksLikePdf|%PDF|0x25/.test(src)) fail("staff-doc-preview.js", "doit vérifier la magie %PDF (pas de HTML renommé)");
+        else pass("staff-doc-preview.js", "preview + PDF filenames");
+      }
+    } catch (e) {
+      fail("staff-doc-preview.js", e.message);
+    }
+  }
+  if (!fs.existsSync(vendorPath)) {
+    fail("vendor/html2pdf.bundle.min.js", "bibliothèque PDF manquante");
+  } else {
+    pass("vendor/html2pdf.bundle.min.js", "(présent)");
+  }
+  for (const page of ["documenten.html", "entrepot.html"]) {
+    const src = stripHtmlComments(fs.readFileSync(path.join(root, page), "utf8"));
+    if (!src.includes("/staff-doc-preview.js")) fail(page, "doit inclure staff-doc-preview.js");
+    if (!/famoDocPreview\.open\s*\(/.test(src)) fail(page, "doit ouvrir les documents via famoDocPreview.open");
+  }
+  for (const f of fs.readdirSync(root).filter(x => x.endsWith(".html"))) {
+    if (f === "index.html") continue; // portail client hors scope
+    const src = stripHtmlComments(fs.readFileSync(path.join(root, f), "utf8"));
+    if (REDIRECT_PAGES[f] && isRedirectPage(f, src)) continue;
+    if (/\bwindow\.open\s*\(/.test(src)) {
+      fail(f, "window.open interdit hors portail client — utiliser famoDocPreview");
+    }
+    if (/\bwindow\.print\s*\(/.test(src)) {
+      fail(f, "window.print interdit — utiliser famoDocPreview.print");
+    }
+    if (/\.contentWindow\.print\s*\(/.test(src)) {
+      fail(f, "contentWindow.print interdit hors staff-doc-preview.js");
+    }
+  }
+}
+
 // --- Affichage FR "caisse" sans famoNL ---
 for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   const src = stripHtmlComments(fs.readFileSync(path.join(root, f), "utf8"));
