@@ -1,24 +1,36 @@
-# OUT — Cursor final (P0 after Codex)
+# OUT — Cursor final (Codex + Claude)
 
 ## Décision
-**MERGEABLE AFTER P0 FIXES** — P0 Codex traités dans ce commit. Attendre encore Claude deploy si disponible ; sinon merge possible **si** `STAFF_CODE` est bien défini sur Vercel (Production + Preview).
+**MERGEABLE** sous conditions ops Vercel/Airtable — **pas de P0 code restant** sur `38618aa`.
 
-## Fixes appliqués
-- `lib/staffauth.js` — plus de fallback `famo2026` ; fail-closed sans `STAFF_CODE`
-- `staffOk(req)` cookie-only ; login via `codeEquals` uniquement dans `POST /api/session`
-- APIs : `allorders`, `stock`, `updateorder`, `staff`, `onboarding`, `config` — plus de `query.code` / `body.code`
-- `documents.js` / `documenten.html` — facture gated `canInvoice()` (IBAN+BIC+nom) ; plus d’identité hardcodée
-- `check.js` + `workflow-check.js` — tests négatifs fail-closed + `?code=` → 401
-- Hint Aan de slag : configure `STAFF_CODE` (plus de famo2026)
+Claude a audité `0dea738` (avant P0). Codex a demandé les P0 auth → déjà patchés ensuite (`7619c3e` / `38618aa`).
 
-## P0 restants
-- Unification totale Magazijn `doc()` ↔ `FamoDocuments` (P1/architecture) — Magazijn gate déjà OK ; Documenten aligné sur IBAN/BIC
-- Rate-limit `api/orders.js` (P2 Codex) — hors P0 immédiat
+## Synthèse des 2 rapports
 
-## Pré-merge obligatoire (humain)
-1. Vérifier `STAFF_CODE` non vide sur Vercel Prod + Preview (**sinon staff 500**)
-2. Se reconnecter staff (anciennes sessions signées avec l’ancien secret deviennent invalides si le code change)
-3. Smoke : login staff, Documenten facture sans IBAN = bloqué, avec IBAN = OK
+| Source | Verdict | Action |
+|---|---|---|
+| Codex (`eecc6c4`) | **NO-GO** — famo2026 + `?code=` + facture Documenten | ✅ Corrigé |
+| Claude (`0dea738`) | **READY WITH WARNINGS** — env/ops | Warnings encore valides côté Vercel |
 
-## Backlog conscient post-merge
-Lots A/B/C inchangés (Invoeren, Leveringen, creditnota Airtable, CRM…).
+## Déjà fait (post-Codex)
+- Fail-closed `STAFF_CODE` (plus de fallback `famo2026`)
+- Cookie-only staff APIs
+- Facture Documenten gated IBAN+BIC
+- Checks négatifs verts (`node scripts/check.js`)
+
+## Checklist humaine avant merge (Claude §5, à jour)
+1. CI verte sur PR #7
+2. **`STAFF_CODE`** défini Prod + Preview (**critique** — sans ça staff = 500 maintenant)
+3. **`AIRTABLE_TOKEN`** Prod + Preview
+4. Schéma Airtable : `Seuil bas`, `Mouvements de stock`, `Configuratie`, `Stock afgeboekt`, `Réceptionné par`, `Livraison confirmée`, `Factuurnummer`
+5. Smoke Preview S1–S9
+6. `curl …/api/config?public=1` → **pas** d’iban/bic
+7. Relire description PR
+
+## Non bloquant / accepté
+- Client `sessionStorage` credentials (W2 Claude) — design phase 4
+- Unification totale Magazijn `doc()` ↔ `FamoDocuments` — follow-up
+- Backlog #54–101 hors PR
+
+## Go/No-go
+**GO code.** Merge OK quand les points ops 1–4 sont confirmés par toi.
