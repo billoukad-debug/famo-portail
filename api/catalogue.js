@@ -77,10 +77,28 @@ module.exports = async (req, res) => {
 
     res.status(200).json({
       client: { id: clientId, nom: client.fields["Nom"], adresse: client.fields["Lieu de livraison"] || "" },
-      products
+      products,
+      company: await loadCompany()
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
 };
+
+async function loadCompany(){
+  try {
+    const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
+    const c = ((conf.records || [])[0] || {}).fields || {};
+    return {
+      bedrijfsnaam: c["Bedrijfsnaam"] || "Famo Trading BV",
+      adres: c["Adres"] || "",
+      plaats: c["Postcode en plaats"] || "",
+      btw: c["BTW-nummer"] || "",
+      telefoon: c["Telefoon"] || "",
+      email: c["E-mail"] || ""
+    };
+  } catch (_) {
+    return { bedrijfsnaam: "Famo Trading BV", adres: "", plaats: "", btw: "", telefoon: "", email: "" };
+  }
+}
 module.exports.authClient = authClient;

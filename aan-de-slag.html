@@ -132,12 +132,21 @@ textarea.fld{min-height:84px;resize:vertical}
   </main>
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="askWrap" style="display:none;position:fixed;inset:0;background:#0007;z-index:500;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:14px;padding:22px;max-width:360px;width:100%;box-shadow:0 16px 40px #0003">
+    <p id="askMsg" style="margin:0 0 16px;font-size:14.5px;line-height:1.45"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" class="ob-btn sec" id="askNo">Annuleren</button>
+      <button type="button" class="ob-btn" id="askYes">Bevestigen</button>
+    </div>
+  </div>
+</div>
 
 <script src="/staff-session.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
-let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null, UNIT="kassa", EDIT_ID=null, PROD_Q="";
+let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null, UNIT="kassa", EDIT_ID=null, PROD_Q="", EDIT_CLIENT=null;
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 const unitOut=u=>window.famoNL?famoNL.unit(u):u;
 
@@ -154,6 +163,16 @@ function toast(msg,err){
   const el=document.getElementById("toast");
   el.textContent=msg; el.className="toast"+(err?" err":""); el.style.display="block";
   clearTimeout(toast._t); toast._t=setTimeout(()=>{el.style.display="none"},4200);
+}
+function ask(msg){
+  return new Promise(resolve=>{
+    const w=document.getElementById("askWrap");
+    document.getElementById("askMsg").textContent=msg;
+    w.style.display="flex";
+    const done=v=>{w.style.display="none";resolve(v)};
+    document.getElementById("askYes").onclick=()=>done(true);
+    document.getElementById("askNo").onclick=()=>done(false);
+  });
 }
 
 async function enter(){
@@ -264,8 +283,10 @@ function stockFor(name){
 
 function categories(){
   const set=new Set((DATA.products||[]).map(p=>p.cat).filter(Boolean));
-  ["Poisson","Crustacés","Coquillages","Diepvries","Algemeen"].forEach(c=>set.add(c));
-  return [...set];
+  ["Vis","Schaaldieren","Schelpdieren","Diepvries","Algemeen","Poisson","Crustacés","Coquillages"].forEach(c=>set.add(c));
+  const preferred=["Vis","Schaaldieren","Schelpdieren","Diepvries","Algemeen"];
+  const rest=[...set].filter(c=>!preferred.includes(c)).sort((a,b)=>a.localeCompare(b,"nl"));
+  return preferred.concat(rest);
 }
 
 function setUnit(u){
@@ -301,10 +322,11 @@ function renderProducts(box){
       '</select></td>'+
       '<td data-label="Prijs €"><input id="b_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(p.base).replace(".",","))+'"></td>'+
       '<td data-label="Voorraad"><input id="s_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(st.quantity).replace(".",","))+'"></td>'+
+      '<td data-label="Drempel"><input id="l_'+esc(p.id)+'" inputmode="decimal" value="'+esc(String(st.lowThreshold||0).replace(".",","))+'"></td>'+
       '<td data-label="Categorie"><input id="c_'+esc(p.id)+'" value="'+esc(p.cat||"")+'" list="catlist"></td>'+
-      '<td class="act" data-label=""><button type="button" class="ob-btn sec" onclick="saveProductRow(\''+esc(p.id)+'\')">Opslaan</button></td>'+
+      '<td class="act" data-label=""><button type="button" class="ob-btn sec" onclick="saveProductRow(\''+esc(p.id)+'\')">Opslaan</button> <button type="button" class="ob-btn sec" onclick="deactivateProduct(\''+esc(p.id)+'\')">Uit</button></td>'+
       '</tr>';
-  }).join("")||'<tr><td colspan="6"><span>Nog geen producten — voeg er hierboven één toe.</span></td></tr>';
+  }).join("")||'<tr><td colspan="7"><span>Nog geen producten — voeg er hierboven één toe.</span></td></tr>';
 
   box.innerHTML='<h2>2. Artikelen</h2><p class="lead">Snel toevoegen onderaan of rechts: naam → eenheid → prijs → voorraad → Enter. Bestaande rijen kunt u meteen aanpassen.</p>'+
     '<div class="quick">'+
@@ -324,7 +346,7 @@ function renderProducts(box){
       '<span class="badge">'+(DATA.products||[]).length+' artikelen</span>'+
       '<button type="button" class="ob-btn sec" onclick="go(2)">Volgende stap</button>'+
     '</div>'+
-    '<div style="overflow:auto"><table class="prod-table"><thead><tr><th>Product</th><th>Eenheid</th><th>Prijs</th><th>Voorraad</th><th>Categorie</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div style="overflow:auto"><table class="prod-table"><thead><tr><th>Product</th><th>Eenheid</th><th>Prijs</th><th>Voorraad</th><th>Drempel</th><th>Categorie</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     '<p class="hint"><b>kassa</b> = hele doos · <b>kg</b> = decimale bestelling mogelijk · wijzigingen per rij met Opslaan.</p>';
 
   const nameEl=document.getElementById("pnom");
@@ -371,8 +393,10 @@ async function saveProductRow(id){
     const cat=val("c_"+id)||"Algemeen";
     if(!nom) throw new Error("Productnaam is verplicht");
     if(!Number.isFinite(base)||base<0) throw new Error("Ongeldige prijs");
+    const lowThreshold=Number(String(val("l_"+id)||"0").replace(",","."));
+    if(!Number.isFinite(lowThreshold)||lowThreshold<0) throw new Error("Ongeldige drempel");
     DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      action:"saveProduct", id, nom, unite, base, cat, stock, lowThreshold:0
+      action:"saveProduct", id, nom, unite, base, cat, stock, lowThreshold
     })});
     toast("Artikel bijgewerkt");
     render();
@@ -380,34 +404,70 @@ async function saveProductRow(id){
   finally{BUSY=false}
 }
 
+async function deactivateProduct(id){
+  if(BUSY)return;
+  const p=(DATA.products||[]).find(x=>x.id===id);
+  if(!p)return;
+  if(!(await ask('Product "'+p.nom+'" uitschakelen? Het verdwijnt uit de catalogus.'))) return;
+  BUSY=true;
+  try{
+    DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"saveProduct",
+      id,
+      nom:p.nom,
+      unite:p.unite,
+      base:p.base,
+      cat:p.cat||"Algemeen",
+      actif:false
+    })});
+    toast("Artikel uitgeschakeld");
+    render();
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false}
+}
+
 function renderClients(box){
+  const editing=EDIT_CLIENT;
   const cred=LAST_CREDS?'<div class="cred"><small>Nieuwe login — noteer of stuur door</small><div>Gebruiker</div><code>'+esc(LAST_CREDS.user)+'</code><div style="margin-top:8px">Wachtwoord</div><code>'+esc(LAST_CREDS.password)+'</code><div style="margin-top:10px"><button class="ob-btn sec" type="button" onclick="copyCreds()">Kopiëren</button></div></div>':'';
-  const rows=(DATA.clients||[]).map(c=>'<div class="ob-row"><div class="grow"><b>'+esc(c.nom)+'</b><br><span>login: '+esc(c.user||"—")+(c.hasPassword?' · wachtwoord gezet':' · nog geen wachtwoord')+'</span></div></div>').join("")||'<div class="ob-row"><span>Nog geen klanten.</span></div>';
-  box.innerHTML='<h2>3. Klant + login</h2><p class="lead">Laat “Automatisch genereren” aan staan. U krijgt meteen de credentials te zien.</p>'+
+  const rows=(DATA.clients||[]).map(c=>'<div class="ob-row"><div class="grow"><b>'+esc(c.nom)+'</b><br><span>login: '+esc(c.user||"—")+(c.hasPassword?' · wachtwoord gezet':' · nog geen wachtwoord')+'</span></div><button class="ob-btn sec" type="button" onclick="editClient(\''+esc(c.id)+'\')">Bewerken</button></div>').join("")||'<div class="ob-row"><span>Nog geen klanten.</span></div>';
+  box.innerHTML='<h2>3. Klant + login</h2><p class="lead">'+(editing?'Bewerk bestaande klant. Laat “Automatisch genereren” uit om het wachtwoord te behouden.':'Laat “Automatisch genereren” aan staan. U krijgt meteen de credentials te zien.')+'</p>'+
+    (editing?'<p class="hint">Bezig met bewerken: <b>'+esc(editing.nom)+'</b> · <button class="ob-btn sec" type="button" onclick="clearEditClient()">Nieuwe klant</button></p>':'')+
     '<div class="ob-grid">'+
-    fld("cnom","Klantnaam *","","full")+
-    fld("cadresse","Leveradres","","full")+
-    fld("ctel","Telefoon","")+
-    fld("cbtw","BTW-nummer","")+
-    fld("cklantnr","Klantnummer","")+
-    '<div class="full"><label style="display:flex;gap:8px;align-items:center;font-size:13px"><input id="cgen" type="checkbox" checked> Automatisch gebruikersnaam + wachtwoord genereren</label></div>'+
-    fld("cuser","Gebruikersnaam (optioneel)","")+
+    fld("cnom","Klantnaam *",editing?editing.nom:"","full")+
+    fld("cadresse","Leveradres",editing?editing.adresse:"","full")+
+    fld("ctel","Telefoon",editing?editing.tel:"")+
+    fld("cbtw","BTW-nummer",editing?editing.btw:"")+
+    fld("cklantnr","Klantnummer",editing?editing.klantnr:"")+
+    '<div class="full"><label style="display:flex;gap:8px;align-items:center;font-size:13px"><input id="cgen" type="checkbox"'+(editing?'':' checked')+'> Automatisch gebruikersnaam + wachtwoord genereren</label></div>'+
+    fld("cuser","Gebruikersnaam (optioneel)",editing?editing.user:"")+
     fld("cpw","Wachtwoord (optioneel)","")+
-    '</div><div class="ob-actions"><button class="ob-btn" onclick="saveClient()">Klant opslaan</button><button class="ob-btn sec" onclick="go(3)">Volgende stap</button></div>'+
+    '</div><div class="ob-actions"><button class="ob-btn" onclick="saveClient()">'+(editing?'Klant bijwerken':'Klant opslaan')+'</button><button class="ob-btn sec" onclick="go(3)">Volgende stap</button></div>'+
     cred+'<div class="ob-list">'+rows+'</div>';
+}
+
+function editClient(id){
+  EDIT_CLIENT=(DATA.clients||[]).find(c=>c.id===id)||null;
+  LAST_CREDS=null;
+  render();
+}
+function clearEditClient(){
+  EDIT_CLIENT=null;
+  render();
 }
 
 async function saveClient(){
   if(BUSY)return; BUSY=true;
   try{
-    const d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+    const payload={
       action:"saveClient",
       nom:val("cnom"), adresse:val("cadresse"), tel:val("ctel"), btw:val("cbtw"), klantnr:val("cklantnr"),
       generate:document.getElementById("cgen").checked,
       user:val("cuser"), password:val("cpw")
-    })});
-    DATA=d; LAST_CREDS=d.credentials||null;
-    toast("Klant opgeslagen — login klaar");
+    };
+    if(EDIT_CLIENT&&EDIT_CLIENT.id) payload.id=EDIT_CLIENT.id;
+    const d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    DATA=d; LAST_CREDS=(!payload.id||payload.generate||payload.password)?(d.credentials||null):null; EDIT_CLIENT=null;
+    toast(payload.id?"Klant bijgewerkt":"Klant opgeslagen — login klaar");
     render();
   }catch(e){toast(famoStaff.translateError(e.message),true)}
   finally{BUSY=false}
@@ -424,7 +484,7 @@ function renderPrices(box){
   const products=(DATA.products||[]).map(p=>'<option value="'+esc(p.id)+'">'+esc(p.nom)+' (€ '+Number(p.base).toFixed(2).replace(".",",")+")"+'</option>').join("");
   const byC=Object.fromEntries((DATA.clients||[]).map(c=>[c.id,c.nom]));
   const byP=Object.fromEntries((DATA.products||[]).map(p=>[p.id,p.nom]));
-  const rows=(DATA.prices||[]).map(p=>'<div class="ob-row"><div class="grow"><b>'+esc(byC[p.clientId]||p.clientId)+' → '+esc(byP[p.productId]||p.productId)+'</b><br><span>€ '+Number(p.prix).toFixed(2).replace(".",",")+'</span></div></div>').join("")||'<div class="ob-row"><span>Nog geen afgesproken prijzen.</span></div>';
+  const rows=(DATA.prices||[]).map(p=>'<div class="ob-row"><div class="grow"><b>'+esc(byC[p.clientId]||p.clientId)+' → '+esc(byP[p.productId]||p.productId)+'</b><br><span>€ '+Number(p.prix).toFixed(2).replace(".",",")+'</span></div><button class="ob-btn sec" type="button" onclick="deletePrice(\''+esc(p.id)+'\')">Verwijderen</button></div>').join("")||'<div class="ob-row"><span>Nog geen afgesproken prijzen.</span></div>';
   box.innerHTML='<h2>4. Afgesproken prijs</h2><p class="lead">Optioneel maar aangeraden voor vaste klanten.</p>'+
     '<div class="ob-grid">'+
     '<div><label class="fld">Klant</label><select class="fld" id="prClient">'+clients+'</select></div>'+
@@ -442,6 +502,18 @@ async function savePrice(){
       clientId:val("prClient"), productId:val("prProduct"), prix:Number(String(val("prPrix")).replace(",","."))
     })});
     toast("Prijs opgeslagen");
+    render();
+  }catch(e){toast(famoStaff.translateError(e.message),true)}
+  finally{BUSY=false}
+}
+
+async function deletePrice(id){
+  if(BUSY||!id)return;
+  if(!(await ask("Deze afgesproken prijs verwijderen?"))) return;
+  BUSY=true;
+  try{
+    DATA=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"deletePrice",id})});
+    toast("Prijs verwijderd");
     render();
   }catch(e){toast(famoStaff.translateError(e.message),true)}
   finally{BUSY=false}
@@ -483,7 +555,7 @@ function renderDone(box){
     '<a class="ob-btn sec" href="/entrepot.html">Open Magazijn</a>'+
     '<a class="ob-btn sec" href="/stock.html">Open Voorraad</a>'+
     '<a class="ob-btn sec" href="/bestellingen.html">Open Bestellingen</a>'+
-    '</div><p class="hint">Personeelscode tijdelijk: famo2026 (tot u die later versterkt in Vercel). Facturen hier zijn intern — Peppol volgt via boekhouding.</p>';
+    '</div><p class="hint">Zet <b>STAFF_CODE</b> in Vercel (Production + Preview). Zonder die variabele is staff-login gesloten. Facturen hier zijn intern — Peppol volgt via boekhouding.</p>';
 }
 
 function val(id){const el=document.getElementById(id);return el?el.value.trim():""}

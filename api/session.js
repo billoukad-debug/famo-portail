@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
     if (rateLimited(rlKey, 5, 30000)) {
       return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
     }
-    if (!auth.staffOk(req, body.code)) {
+    if (!auth.codeEquals(body.code)) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });
     }
     _rl.delete(rlKey);
@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: true, expiresInSec: Math.floor(auth.TTL_MS / 1000) });
   }
   if (req.method === "GET") {
-    if (auth.staffOk(req, null)) return res.status(200).json({ ok: true });
+    if (auth.staffOk(req)) return res.status(200).json({ ok: true });
     return res.status(401).json({ error: "Sessie verlopen. Meld u opnieuw aan." });
   }
   if (req.method === "DELETE") {

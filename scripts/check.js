@@ -60,20 +60,37 @@ if (fs.existsSync(apiDir)) {
       fail(file, e.message);
     }
 
-    // Fallback famo2026 uniquement autorisé dans lib/staffauth.js (demande produit temporaire).
-    if (file !== "api/onboarding.js" && /\|\|\s*["']famo2026["']/.test(src)) {
-      fail(file, 'contient un fallback || "famo2026" — uniquement autorisé via lib/staffauth.js');
-    }
-    if (/STAFF_CODE\s*=\s*process\.env\.STAFF_CODE\s*\|\|/.test(src)) {
-      fail(file, "STAFF_CODE = process.env.STAFF_CODE || … dans api/ — utiliser lib/staffauth.js");
+    // Fail-closed : aucun fallback famo2026 / secret hardcodé.
+    if (/\|\|\s*["']famo2026["']/.test(src) || /STAFF_CODE\s*=\s*process\.env\.STAFF_CODE\s*\|\|/.test(src)) {
+      fail(file, 'fallback STAFF_CODE / famo2026 interdit — fail-closed via lib/staffauth.js');
     }
     if (/(?:const|let|var)\s+STAFF_CODE\s*=\s*["'][^"']+["']/.test(src)) {
       fail(file, "STAFF_CODE assigné en dur — interdit");
     }
-    if (/["']famo2026["']/.test(src) && !/reject|refuse|401|compromis|interdit|ancien|temporaire|TEMPORAIRE/i.test(src)) {
-      if (/(?:=\s*|\|\|\s*)["']famo2026["']/.test(src)) {
-        fail(file, "famo2026 utilisé comme valeur par défaut dans api/ — interdit (passer par staffauth)");
-      }
+    if (/["']famo2026["']/.test(src) && !/refuse|401|interdit|ancien|reject/i.test(src)) {
+      fail(file, "famo2026 ne doit plus apparaître comme secret utilisable dans api/");
+    }
+    if (/staffOk\s*\(\s*req\s*,/.test(src)) {
+      fail(file, "staffOk(req, code) interdit — cookie only (code uniquement via POST /api/session + codeEquals)");
+    }
+  }
+}
+
+// --- 1b. lib/staffauth fail-closed ---
+{
+  const authPath = path.join(root, "lib", "staffauth.js");
+  if (!fs.existsSync(authPath)) {
+    fail("lib/staffauth.js", "module auth manquant");
+  } else {
+    const src = fs.readFileSync(authPath, "utf8");
+    if (/\|\|\s*["']famo2026["']/.test(src) || /\|\|\s*["'][^"']+["']/.test(src) && /STAFF_CODE[\s\S]{0,40}\|\|\s*["'][^"']+["']/.test(src)) {
+      fail("lib/staffauth.js", "fallback famo2026 / secret par défaut interdit");
+    } else if (/function staffOk\s*\(\s*req\s*,/.test(src)) {
+      fail("lib/staffauth.js", "staffOk ne doit plus accepter legacyCode");
+    } else if (!/function staffOk\s*\(\s*req\s*\)/.test(src)) {
+      fail("lib/staffauth.js", "staffOk(req) cookie-only manquant");
+    } else {
+      pass("lib/staffauth.js", "fail-closed cookie-only");
     }
   }
 }
@@ -312,7 +329,7 @@ for (const page of OPERATIONAL) {
       fail("staff-delivery.js", e.message);
     }
   }
-  for (const page of ["leveringen.html", "order.html"]) {
+  for (const page of ["leveringen.html", "order.html", "entrepot.html"]) {
     const src = fs.readFileSync(path.join(root, page), "utf8");
     if (!src.includes("/staff-delivery.js")) fail(page, "doit inclure staff-delivery.js");
     if (!/openDeliveryConfirm/.test(src)) fail(page, "doit appeler openDeliveryConfirm");
@@ -374,6 +391,177 @@ for (const page of OPERATIONAL) {
       fail(f, "contentWindow.print interdit hors staff-doc-preview.js");
     }
   }
+}
+
+// --- Cohérence Phase 1 : bugs menteurs ---
+{
+  const docSrc = fs.readFileSync(path.join(root, "documenten.html"), "utf8");
+  if (/\.d-doc\s*\{\s*display\s*:\s*none/.test(docSrc) && !/\.d-list\s+\.d-doc\s*\{\s*display\s*:\s*block/.test(docSrc)) {
+    fail("documenten.html", "cartes mobile .d-doc restent invisibles — afficher .d-list .d-doc en ≤780px");
+  } else {
+    pass("documenten.html", "cartes mobile visibles");
+  }
+  const best = fs.readFileSync(path.join(root, "bestellingen.html"), "utf8");
+  if (!/status=open/.test(best) || !/statusMatch/.test(best)) {
+    fail("bestellingen.html", "chip Open doit filtrer status=open (non Facturée)");
+  } else if (!/syncUrlFromFilters|onFilterChange/.test(best)) {
+    fail("bestellingen.html", "filtres doivent synchroniser l’URL");
+  } else {
+    pass("bestellingen.html", "chip Open + sync URL");
+  }
+  const ent = fs.readFileSync(path.join(root, "entrepot.html"), "utf8");
+  if (!/showBoardError/.test(ent)) {
+    fail("entrepot.html", "load doit afficher une erreur visible (showBoardError)");
+  } else {
+    pass("entrepot.html", "erreur Magazijn visible");
+  }
+  const onb = fs.readFileSync(path.join(root, "aan-de-slag.html"), "utf8");
+  if (/saveProductRow[\s\S]{0,400}lowThreshold\s*:\s*0/.test(onb)) {
+    fail("aan-de-slag.html", "saveProductRow ne doit plus forcer lowThreshold:0");
+  } else {
+    pass("aan-de-slag.html", "drempel préservée à l’édition");
+  }
+  const sess = fs.readFileSync(path.join(root, "staff-session.js"), "utf8");
+  if (!/takeReturn\s*\(/.test(sess) || !/Lokale foto \(alleen voorbeeld/.test(sess)) {
+    fail("staff-session.js", "takeReturn après login + POD honnête requis");
+  } else {
+    pass("staff-session.js", "return URL + POD honnête");
+  }
+}
+
+// --- Cohérence Phase 2 : deep-links Magazijn ↔ Order ---
+{
+  const order = fs.readFileSync(path.join(root, "order.html"), "utf8");
+  if (!/entrepot\.html\?id=/.test(order) || !/magazijnHref/.test(order)) {
+    fail("order.html", "CTAs Magazijn doivent deep-linker ?id=");
+  } else {
+    pass("order.html", "deep-link Magazijn ?id=");
+  }
+  const ent = fs.readFileSync(path.join(root, "entrepot.html"), "utf8");
+  if (!/highlightFocusedOrder/.test(ent)) {
+    fail("entrepot.html", "doit ouvrir/focus la commande ?id=");
+  } else if (!/confirmDelivery/.test(ent) || !srcIncludes(ent, "/staff-delivery.js")) {
+    fail("entrepot.html", "Ontvangst doit utiliser openDeliveryConfirm in-place");
+  } else if (/href=\"\/order\.html\?id=/.test(ent) && /Ontvangst bevestigen/.test(ent)) {
+    fail("entrepot.html", "Ontvangst ne doit plus renvoyer vers order.html");
+  } else if (!/o\.factuurnummer\s*\?\s*'<button class="doc"/.test(ent) && !/factuurnummer\?'<button class="doc" onclick="doc\([^)]*'FA'\)/.test(ent)) {
+    fail("entrepot.html", "bouton Factuur doit être gated sur factuurnummer");
+  } else if (!/\/entrepot\.html\?id=/.test(ent) || /prep-order" href="\/order\.html/.test(ent)) {
+    fail("entrepot.html", "vue Dag doit lier vers Magazijn ?id= (pas order.html)");
+  } else {
+    pass("entrepot.html", "focus ?id= + Ontvangst in-place + Factuur gated");
+  }
+}
+
+// --- Cohérence Phase 3 : stock integrity + documents company ---
+{
+  const stockApi = fs.readFileSync(path.join(root, "api/stock.js"), "utf8");
+  if (!/history\s*===\s*["']1["']/.test(stockApi) && !/String\(q\.history/.test(stockApi)) {
+    fail("api/stock.js", "GET ?history=1 doit exposer les mouvements");
+  } else if (!/Seuil bas/.test(stockApi) || !/lowThreshold/.test(stockApi)) {
+    fail("api/stock.js", "POST doit pouvoir patcher Seuil bas (lowThreshold)");
+  } else if (!/rounded\s*!==\s*before/.test(stockApi) && !/rounded !== before/.test(stockApi)) {
+    fail("api/stock.js", "journal uniquement si la quantité change");
+  } else {
+    pass("api/stock.js", "history + seuil + journal conditionnel");
+  }
+
+  const stockPage = fs.readFileSync(path.join(root, "stock.html"), "utf8");
+  const hasGrensField = /lowThreshold/.test(stockPage) && (/['"]g_['"]\s*\+/.test(stockPage) || /id=["']g_/.test(stockPage));
+  if (!hasGrensField) {
+    fail("stock.html", "doit envoyer/éditer lowThreshold (Grens)");
+  } else if (!/history=1/.test(stockPage) || !/toggleHistory/.test(stockPage)) {
+    fail("stock.html", "doit afficher l’historique via /api/stock?history=1");
+  } else if (!/absolute|absoluut/i.test(stockPage)) {
+    fail("stock.html", "doit clarifier quantité absolue (pas delta)");
+  } else {
+    pass("stock.html", "grens éditable + historique");
+  }
+
+  const docsLib = fs.readFileSync(path.join(root, "documents.js"), "utf8");
+  if (!/setCompany/.test(docsLib) || !/getCompany/.test(docsLib)) {
+    fail("documents.js", "doit exposer setCompany/getCompany");
+  } else if (!/CREDITNOTA \(VOORBEELD\)/.test(docsLib) || !/niet geboekt/i.test(docsLib)) {
+    fail("documents.js", "creditnota doit être clairement un voorbeeld / non booké");
+  } else if (!/canInvoice/.test(docsLib) || !/invoiceBlockReason/.test(docsLib)) {
+    fail("documents.js", "facture doit être gated sur IBAN+BIC (canInvoice)");
+  } else if (/Jezusstraat 34/.test(docsLib) && /let COMPANY=\{[\s\S]*Jezusstraat/.test(docsLib)) {
+    fail("documents.js", "pas d’identité hardcodée de secours — setCompany depuis config");
+  } else {
+    pass("documents.js", "company live + creditnota voorbeeld + IBAN gate");
+  }
+
+  const docsPage = fs.readFileSync(path.join(root, "documenten.html"), "utf8");
+  if (!/\/api\/config/.test(docsPage) || !/setCompany/.test(docsPage)) {
+    fail("documenten.html", "doit charger /api/config et appeler setCompany");
+  } else if (!/Creditnota \(voorbeeld\)/.test(docsPage)) {
+    fail("documenten.html", "labels creditnota doivent dire voorbeeld");
+  } else if (!/canInvoice/.test(docsPage)) {
+    fail("documenten.html", "preview facture doit respecter canInvoice");
+  } else {
+    pass("documenten.html", "config company + credit voorbeeld + invoice gate");
+  }
+}
+
+// --- Cohérence Phase 4 : client portal + setup ---
+{
+  const idx = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  if (!/tryRestoreSession/.test(idx) || !/famo_client_sess/.test(idx)) {
+    fail("index.html", "session client doit survivre au refresh (sessionStorage)");
+  } else if (!/minOrderDate/.test(idx) || !/dateInvalid/.test(idx)) {
+    fail("index.html", "leverdatum doit bloquer passé / zondag");
+  } else if (!/!empty\?'<button class=\"text-btn\" onclick=\"clearCart\(\)\">Wissen/.test(idx)) {
+    fail("index.html", "Wissen doit être dispo aussi en mobile sheet");
+  } else if (!/config\?public=1/.test(idx) || !/applyCompany/.test(idx) || !/helpContact/.test(idx)) {
+    fail("index.html", "contact Hulp / login foot depuis config");
+  } else {
+    pass("index.html", "session + date + contact + wissen");
+  }
+
+  const cfg = fs.readFileSync(path.join(root, "api/config.js"), "utf8");
+  if (!/wantPublic/.test(cfg) || !/public/.test(cfg)) {
+    fail("api/config.js", "GET ?public=1 sans staff pour contact client");
+  } else {
+    pass("api/config.js", "public contact config");
+  }
+
+  const cat = fs.readFileSync(path.join(root, "api/catalogue.js"), "utf8");
+  if (!/loadCompany/.test(cat) || !/company:/.test(cat)) {
+    fail("api/catalogue.js", "login client doit renvoyer company");
+  } else {
+    pass("api/catalogue.js", "company dans login");
+  }
+
+  const onb = fs.readFileSync(path.join(root, "aan-de-slag.html"), "utf8");
+  if (!/editClient/.test(onb) || !/EDIT_CLIENT/.test(onb)) {
+    fail("aan-de-slag.html", "doit permettre d’éditer un client existant");
+  } else if (!/deletePrice/.test(onb)) {
+    fail("aan-de-slag.html", "doit pouvoir supprimer une prijs");
+  } else if (!/deactivateProduct/.test(onb) || !/actif:\s*false/.test(onb)) {
+    fail("aan-de-slag.html", "doit pouvoir uitschakelen un product");
+  } else if (!/"Vis"/.test(onb) || !/"Schaaldieren"/.test(onb)) {
+    fail("aan-de-slag.html", "catégories NL (Vis/Schaaldieren) requises");
+  } else {
+    pass("aan-de-slag.html", "edit client + delete price + deactivate + NL cats");
+  }
+
+  const onbApi = fs.readFileSync(path.join(root, "api/onboarding.js"), "utf8");
+  if (!/deletePrice/.test(onbApi)) {
+    fail("api/onboarding.js", "action deletePrice manquante");
+  } else {
+    pass("api/onboarding.js", "deletePrice");
+  }
+
+  const nav = fs.readFileSync(path.join(root, "staff-nav.js"), "utf8");
+  if (!/catalogus/.test(nav) || !/klanten/.test(nav)) {
+    fail("staff-nav.js", "banner setup doit couvrir catalogus/klanten");
+  } else {
+    pass("staff-nav.js", "banner setup enrichi");
+  }
+}
+
+function srcIncludes(src, needle) {
+  return String(src || "").includes(needle);
 }
 
 // --- Affichage FR "caisse" sans famoNL ---

@@ -124,10 +124,10 @@
     const previewId = o.previewId || (id + "Preview");
     const noteId = o.noteId || (id + "Note");
     return '<label>Bewijslink (https, optioneel)<input id="' + id + '" type="url" placeholder="https://…" autocomplete="off"></label>' +
-      '<label style="margin-top:10px">Voorbeeld foto (lokaal)<input id="' + fileId + '" type="file" accept="image/*"></label>' +
+      '<label style="margin-top:10px">Lokale foto (alleen voorbeeld — wordt niet opgeslagen)<input id="' + fileId + '" type="file" accept="image/*"></label>' +
       '<div id="' + previewId + '" style="display:none;margin-top:8px"><img alt="Voorbeeld bewijs" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid #e0e0e0"></div>' +
       '<p id="' + noteId + '" class="proof-upload-note" data-proof-blocked="PROOF_UPLOAD_BLOCKED" style="margin:8px 0 0;color:#9a6700;font-size:12px;line-height:1.45">' +
-      'PROOF_UPLOAD_BLOCKED — Bestandsupload vereist Vercel Blob of externe opslag. Peppol/Blob zijn externe diensten. Plak voorlopig een https-link; de lokale foto is alleen een voorbeeld en wordt niet naar Airtable gestuurd.' +
+      'Alleen een https-link wordt bewaard. De lokale foto is een voorbeeld en gaat niet naar Airtable (upload vereist later Blob/opslag).' +
       '</p>';
   }
 
@@ -164,7 +164,7 @@
           if (preview) preview.style.display = "block";
         }
         if (note) {
-          note.textContent = "PROOF_UPLOAD_BLOCKED — Lokale preview OK. Plak een https-link hierboven om het bewijs op te slaan (geen Blob-token geconfigureerd; data-URL’s worden niet naar Airtable gestuurd).";
+          note.textContent = "Lokale preview OK — dit bestand wordt niet opgeslagen. Plak een https-link hierboven om het bewijs te bewaren.";
         }
       };
       reader.onerror = () => {
@@ -200,6 +200,14 @@
       try {
         await login(code);
         if (codeEl) codeEl.value = "";
+        const ret = takeReturn(null);
+        if (ret) {
+          const here = location.pathname + location.search + location.hash;
+          if (ret !== here) {
+            location.href = ret;
+            return;
+          }
+        }
         await showApp();
       } catch (e) {
         if (errEl) errEl.textContent = translateError(e.message);
