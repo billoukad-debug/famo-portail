@@ -55,33 +55,42 @@ async function call(handler, body, replies, opts) {
 async function main() {
   const updateOrder = require(path.join(ROOT, "api", "updateorder.js"));
   const createOrder = require(path.join(ROOT, "api", "order.js"));
+  const session = require(path.join(ROOT, "api", "session.js"));
+  const authlib = require(path.join(ROOT, "lib", "staffauth.js"));
 
-  let result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", statut: "Sortie en livraison" }, [
+  // Cookie staff pour tous les appels API protégés (plus de body.code / query.code).
+  let sres = mkRes();
+  await session({ method: "POST", body: { code: process.env.STAFF_CODE }, headers: {} }, sres);
+  assert.equal(sres.statusCode, 200, "login session initial doit reussir");
+  const tok0 = decodeURIComponent(/famo_sess=([^;]+)/.exec(sres.headers["Set-Cookie"])[1]);
+  const staffHdr = { cookie: "famo_sess=" + encodeURIComponent(tok0) };
+
+  let result = await call(updateOrder, { id: "rec1", statut: "Sortie en livraison" }, [
     { fields: { Statut: "Prête", "Préparation validée": false } }
-  ]);
+  ], { headers: staffHdr });
   assert.equal(result.res.statusCode, 409);
   assert.match(result.res.payload.error, /Valideer eerst/);
 
-  result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", statut: "Facturée" }, [
+  result = await call(updateOrder, { id: "rec1", statut: "Facturée" }, [
     { fields: { Statut: "Sortie en livraison" } }
-  ]);
+  ], { headers: staffHdr });
   assert.equal(result.res.statusCode, 409);
   assert.match(result.res.payload.error, /Bevestig eerst/);
 
-  result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", preparationValidee: true }, [
+  result = await call(updateOrder, { id: "rec1", preparationValidee: true }, [
     { fields: { Statut: "Reçue" } },
     { fields: { "Préparation validée": true } }
-  ]);
+  ], { headers: staffHdr });
   assert.equal(result.res.statusCode, 200);
   const preparationPatch = JSON.parse(result.calls[1].options.body);
   assert.equal(preparationPatch.fields["Préparation validée"], true);
 
   result = await call(updateOrder, {
-    code: process.env.STAFF_CODE, id: "rec1", lignes: "Mosselen × 0.5 caisse", total: 6
+    id: "rec1", lignes: "Mosselen × 0.5 caisse", total: 6
   }, [
     { fields: { Statut: "Reçue" } },
     { records: [{ fields: { "Produit": "Mosselen", "Unité": "caisse" } }] }
-  ]);
+  ], { headers: staffHdr });
   assert.equal(result.res.statusCode, 400);
   assert.match(result.res.payload.error, /decimale hoeveelheid/);
 
@@ -114,9 +123,9 @@ async function main() {
 
   // --- Nouvelles regles de la release candidate ---
   // 1. Passage a Klaar SANS validation explicite -> 409
-  result = await call(updateOrder, { code: process.env.STAFF_CODE, id: "rec1", statut: "Prête" }, [
+  result = await call(updateOrder, { id: "rec1", statut: "Prête" }, [
     { id: "rec1", fields: { "Statut": "Reçue" } }
-  ]);
+  ], { headers: staffHdr });
   assert.equal(result.res.statusCode, 409, "Klaar sans validation doit etre refuse");
 
   // 2. Mot de passe en GET -> 405
@@ -137,11 +146,8 @@ async function main() {
 
 
   // --- Session staff commune ---
-  const session = require(path.join(ROOT, "api", "session.js"));
-  const authlib = require(path.join(ROOT, "lib", "staffauth.js"));
-
   // login correct -> cookie HttpOnly Secure SameSite
-  let sres = mkRes();
+  sres = mkRes();
   await session({ method: "POST", body: { code: process.env.STAFF_CODE }, headers: {} }, sres);
   assert.equal(sres.statusCode, 200, "login session doit reussir");
   const setC = sres.headers["Set-Cookie"] || "";
@@ -173,32 +179,36 @@ async function main() {
     await updateOrder({ method: "POST", body: { id: "rec1" }, headers: { cookie: "famo_sess=" + encodeURIComponent(tok) } }, res2);
     assert.notEqual(res2.statusCode, 401, "cookie doit suffire pour les API staff");
   }
-  console.log("✓ Session staff commune (cookie HttpOnly, expiration, logout, compat code)");
+  console.log("✓ Session staff commune (cookie HttpOnly, expiration, logout, cookie-only APIs)");
 
-  // --- A. Fallback temporaire famo2026 si STAFF_CODE env absente ---
+  // --- A. Fail-closed : sans STAFF_CODE, auth staff impossible ---
   {
     const saved = process.env.STAFF_CODE;
     delete process.env.STAFF_CODE;
     clearModule("lib/staffauth.js");
     clearModule("api/session.js");
+    clearModule("api/allorders.js");
     const sessionFb = require(path.join(ROOT, "api", "session.js"));
     const authFb = require(path.join(ROOT, "lib", "staffauth.js"));
-    assert.ok(authFb.hasCode(), "fallback temporaire doit fournir un code");
-    const rOk = mkRes();
-    await sessionFb({ method: "POST", body: { code: "famo2026" }, headers: {} }, rOk);
-    assert.equal(rOk.statusCode, 200, "login famo2026 doit marcher sans env (temporaire)");
-    const rBad = mkRes();
-    await sessionFb({ method: "POST", body: { code: "wrong" }, headers: {} }, rBad);
-    assert.equal(rBad.statusCode, 401, "mauvais code refuse meme avec fallback");
+    const allordersFb = require(path.join(ROOT, "api", "allorders.js"));
+    assert.equal(authFb.hasCode(), false, "sans STAFF_CODE → hasCode false");
+    const r500 = mkRes();
+    await sessionFb({ method: "POST", body: { code: "famo2026" }, headers: {} }, r500);
+    assert.equal(r500.statusCode, 500, "login sans STAFF_CODE doit échouer fermé (500)");
+    const rAll = mkRes();
+    await allordersFb({ method: "GET", query: { code: "famo2026" }, headers: {} }, rAll);
+    assert.equal(rAll.statusCode, 500, "API staff sans STAFF_CODE → 500 config");
     process.env.STAFF_CODE = saved;
     clearModule("lib/staffauth.js");
     clearModule("api/session.js");
+    clearModule("api/allorders.js");
     clearModule("api/updateorder.js");
     require(path.join(ROOT, "lib", "staffauth.js"));
     require(path.join(ROOT, "api", "session.js"));
+    require(path.join(ROOT, "api", "allorders.js"));
     require(path.join(ROOT, "api", "updateorder.js"));
   }
-  console.log("✓ A. Fallback temporaire famo2026 (env absente)");
+  console.log("✓ A. Fail-closed sans STAFF_CODE (famo2026 refusé)");
 
   // Rebind handlers after cache clear
   const updateOrder2 = require(path.join(ROOT, "api", "updateorder.js"));
@@ -227,7 +237,7 @@ async function main() {
     // Première Sortie avec préparation → déduction stock OK
     // Séquence : GET commande → GET Stock → PATCH Stock → POST mouvements → PATCH commande
     result = await call(updateOrder2, {
-      code: process.env.STAFF_CODE, id: "rec1", statut: "Sortie en livraison"
+      id: "rec1", statut: "Sortie en livraison"
     }, [
       {
         fields: {
@@ -242,14 +252,14 @@ async function main() {
       { records: [{ id: "stk1", fields: { "Quantité disponible": 8 } }] },
       { records: [] },
       { fields: { Statut: "Sortie en livraison", "Stock afgeboekt": true } }
-    ]);
+    ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 200, "première Sortie doit réussir");
     const stockPatches = result.calls.filter(c => /\/Stock$/.test(c.url) && (c.options.method || "").toUpperCase() === "PATCH");
     assert.equal(stockPatches.length, 1, "un seul PATCH stock à la première Sortie");
 
     // Déjà afgeboekt + tentative de changement de lignes → 409, aucun PATCH stock
     result = await call(updateOrder2, {
-      code: process.env.STAFF_CODE, id: "rec1", lignes: "Mosselen × 3 caisse", total: 30
+      id: "rec1", lignes: "Mosselen × 3 caisse", total: 30
     }, [
       {
         fields: {
@@ -259,7 +269,7 @@ async function main() {
           "Lignes (produits / quantités)": "Mosselen × 2 caisse"
         }
       }
-    ]);
+    ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 409, "lignes après afgeboekt → 409");
     assert.match(result.res.payload.error, /uit voorraad geboekt/);
     assert.equal(result.calls.filter(c => /Stock/.test(c.url)).length, 0, "pas de nouvel appel stock");
@@ -269,7 +279,7 @@ async function main() {
   // --- D. Facture unique : Factuurnummer déjà posé → pas de nouvel alloc ---
   {
     result = await call(updateOrder2, {
-      code: process.env.STAFF_CODE, id: "rec1", statut: "Facturée", deliveryConfirmed: true, recipient: "Jan"
+      id: "rec1", statut: "Facturée", deliveryConfirmed: true, recipient: "Jan"
     }, [
       {
         fields: {
@@ -280,7 +290,7 @@ async function main() {
         }
       },
       { fields: { Statut: "Facturée" } }
-    ]);
+    ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 200, "Facturée avec numéro existant doit réussir");
     const patchBodies = result.calls
       .filter(c => (c.options.method || "").toUpperCase() === "PATCH")
@@ -298,10 +308,10 @@ async function main() {
   // --- E. Destinataire requis pour deliveryConfirmed ---
   {
     result = await call(updateOrder2, {
-      code: process.env.STAFF_CODE, id: "rec1", statut: "Facturée", deliveryConfirmed: true, recipient: "  "
+      id: "rec1", statut: "Facturée", deliveryConfirmed: true, recipient: "  "
     }, [
       { fields: { Statut: "Sortie en livraison", "Livraison confirmée": false } }
-    ]);
+    ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 400);
     assert.match(result.res.payload.error, /ontvangen/);
   }
@@ -310,7 +320,7 @@ async function main() {
   // --- F. Préparation déjà validée + Sortie sans champ prep → OK ---
   {
     result = await call(updateOrder2, {
-      code: process.env.STAFF_CODE, id: "rec1", statut: "Sortie en livraison"
+      id: "rec1", statut: "Sortie en livraison"
     }, [
       {
         fields: {
@@ -325,7 +335,7 @@ async function main() {
       { records: [{ id: "stk2", fields: { "Quantité disponible": 4 } }] },
       { records: [] },
       { fields: { Statut: "Sortie en livraison", "Stock afgeboekt": true } }
-    ]);
+    ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 200, "Sortie sans preparationValidee body OK si flag déjà true");
   }
   console.log("✓ F. Double-prep / Sortie sans prep field si flag posé");
@@ -333,12 +343,12 @@ async function main() {
   // --- G. Lignes malveillantes / qty invalide rejetées ---
   {
     result = await call(updateOrder2, {
-      code: process.env.STAFF_CODE, id: "rec1",
+      id: "rec1",
       lignes: '<img src=x onerror=alert(1)> × -3 caisse'
     }, [
       { fields: { Statut: "Reçue", "Stock afgeboekt": false } },
       { records: [{ fields: { Produit: "<img src=x onerror=alert(1)>", Unité: "caisse" } }] }
-    ]);
+    ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 400, "qty négative / ligne XSS doit être refusée");
     assert.match(result.res.payload.error, /hoeveelheid|Catalogus|gevonden|decimale/i);
 
@@ -416,7 +426,13 @@ async function main() {
       assert.equal(r.statusCode, 200, "allorders avec cookie seul doit réussir");
       const r401 = mkRes();
       await allorders({ method: "GET", query: {}, headers: {} }, r401);
-      assert.equal(r401.statusCode, 401, "allorders sans cookie ni code → 401");
+      assert.equal(r401.statusCode, 401, "allorders sans cookie → 401");
+      const rCode = mkRes();
+      await allorders({ method: "GET", query: { code: "famo2026" }, headers: {} }, rCode);
+      assert.equal(rCode.statusCode, 401, "allorders avec ?code= seul (sans cookie) → 401");
+      const rCodeEnv = mkRes();
+      await allorders({ method: "GET", query: { code: process.env.STAFF_CODE }, headers: {} }, rCodeEnv);
+      assert.equal(rCodeEnv.statusCode, 401, "allorders avec ?code=STAFF_CODE sans cookie → 401");
     } finally {
       global.fetch = originalFetch;
     }

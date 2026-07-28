@@ -68,6 +68,8 @@
   .prep-empty{padding:24px 18px;color:#888;font-size:12.5px}
   .page-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   @media(max-width:860px){.prep-grid{grid-template-columns:1fr}}
+  .oc-focus{outline:2px solid #235e86;outline-offset:2px;box-shadow:0 0 0 4px rgba(35,94,134,.12)}
+  .prep-order-cta{margin-left:auto;color:#235e86;font-size:12px;font-weight:600}
   @media(max-width:620px){.wh-toolbar span{margin-left:0;width:100%}.page-actions{width:100%}.page-actions button{flex:1}}
 </style>
 </head>
@@ -152,6 +154,7 @@
 <div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="advanceTitle"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong id="advanceTitle">Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:#555;line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 
 <script src="/staff-session.js"></script>
+<script src="/staff-delivery.js"></script>
 <script src="/staff-doc-preview.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
@@ -212,19 +215,34 @@ async function bootWarehouse(){
 }
 const loginCtl=famoStaff.bindLogin({
   code:"code",error:"loginError",loginView:"loginView",appView:"app",
-  onDom(){ if(new URLSearchParams(location.search).get("view")==="dag") setView("dag"); },
+  onDom(){
+    const params=new URLSearchParams(location.search);
+    if(params.get("id")) setView("bord");
+    else if(params.get("view")==="dag") setView("dag");
+  },
   onReady:bootWarehouse
 });
 function enter(){loginCtl.enter()}
+function showBoardError(msg){
+  showNotice(msg,"error");
+  for(let i=0;i<4;i++){ const col=document.getElementById("c"+i); if(col) col.innerHTML=""; }
+  const c0=document.getElementById("c0");
+  if(c0) c0.innerHTML='<div class="staff-error" style="padding:12px">'+esc(msg)+'<br><button type="button" class="staff-action-secondary" style="margin-top:10px" onclick="load()">Opnieuw proberen</button></div>';
+  const dag=document.getElementById("dagContent");
+  if(dag) dag.innerHTML='<div class="staff-error">'+esc(msg)+'<br><button type="button" class="staff-action-secondary" style="margin-top:10px" onclick="load()">Opnieuw proberen</button></div>';
+  ["statTodo","statOnway","statOpen","n0","n1","n2","n3"].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent="0"; });
+}
 async function load(){
   try{
     const [a,b]=await Promise.all([famoStaff.api("/api/allorders"),famoStaff.api("/api/stock")]);
-    if(!a.ok) return;
-    const d=await a.json(), sd=await b.json().catch(()=>({}));
+    const d=await a.json().catch(()=>({})), sd=await b.json().catch(()=>({}));
+    if(!a.ok){ showBoardError(famoStaff.translateError(d.error||"Bestellingen konden niet worden geladen.")); return; }
     ORDERS=d.orders||[];
     STOCK=b.ok?(sd.items||[]):[];
     render();
-  }catch(e){}
+  }catch(err){
+    showBoardError(famoStaff.translateError(err.message||"Verbinding mislukt. Probeer opnieuw."));
+  }
 }
 
 function render(){
@@ -235,7 +253,15 @@ function render(){
     const si=STATUS.indexOf(o.statut); if(si<0) return; counts[si]++;
     const next=si<3?STATUS[si+1]:null;
     const paid=o.paiement==="Payé";
-    const el=document.createElement("div"); el.className="oc";
+    const focusId=new URLSearchParams(location.search).get("id")||"";
+    const el=document.createElement("div"); el.className="oc"+(focusId&&(o.id===focusId||o.ref===focusId)?" oc-focus":"");
+    el.dataset.orderId=o.id;
+    const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
+    const primary=canValidate
+      ? '<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>'
+      : (next==="Facturée"
+          ? '<button class="adv" onclick="confirmDelivery('+idx+')">Ontvangst bevestigen</button>'
+          : (next?'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''));
     el.innerHTML='<div class="ref">'+esc(o.ref)+'</div>'+
       '<div class="cl">'+esc(o.client)+'</div>'+
       renderLines(o.lignes)+
@@ -246,10 +272,10 @@ function render(){
       (o.livraisonConfirmee?'<div class="meta" style="color:#28734d">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
       (o.notes?'<div class="meta">'+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
-        ((o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee))?'<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>':(next?((next==="Facturée"?'<a class="adv" href="/order.html?id='+encodeURIComponent(o.id)+'" style="display:block;text-align:center;text-decoration:none">Ontvangst bevestigen</a>':'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>')):''))+
+        primary+
         (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
-        '<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>'+
-        '<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>'+
+        (o.statut!=="Reçue"?'<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>':'')+
+        (o.factuurnummer?'<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>':'')+
         '<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"Betaald":"Markeer betaald")+'</button>'+
       '</div><div id="e'+idx+'"></div>';
     document.getElementById("c"+si).appendChild(el);
@@ -259,7 +285,29 @@ function render(){
   const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
   if(CURRENT_VIEW==="dag") renderDayView();
+  else highlightFocusedOrder();
 }
+function highlightFocusedOrder(){
+  const focusId=new URLSearchParams(location.search).get("id");
+  if(!focusId||CURRENT_VIEW!=="bord") return;
+  const idx=ORDERS.findIndex(o=>o.id===focusId||o.ref===focusId);
+  if(idx<0){ showNotice("Bestelling niet gevonden op het bord.","error"); return; }
+  const card=document.querySelector('.oc[data-order-id="'+ORDERS[idx].id+'"]');
+  if(!card) return;
+  try{ card.scrollIntoView({behavior:"smooth",block:"center"}); }catch(err){ card.scrollIntoView(); }
+  const needsEdit=ORDERS[idx].statut==="Reçue"||(ORDERS[idx].statut==="Prête"&&!ORDERS[idx].preparationValidee);
+  const box=document.getElementById("e"+idx);
+  if(needsEdit&&box&&!box.innerHTML) editLines(idx);
+}
+function confirmDelivery(idx){
+  const o=ORDERS[idx];
+  if(!o) return;
+  famoStaff.openDeliveryConfirm(o,{
+    onDone:async()=>{ await load(); showNotice("Levering bevestigd en gefactureerd.","info"); },
+    onError:m=>showNotice(m,"error")
+  });
+}
+
 
 function orderView(){
   const q=ORDER_QUERY.trim().toLocaleLowerCase("nl-BE");
@@ -327,7 +375,10 @@ function renderDayView(){
     '<div class="prep-grid"><section class="prep-panel"><h2>Geconsolideerde picking</h2><p>Tel per product over de geselecteerde bestellingen. Controleer individuele lijnen in Magazijn vóór vertrek.</p>'+
     (items.length?items.map(i=>'<div class="prep-product"><div><b>'+esc(i.name)+'</b><small>'+i.orders+' bestelling'+(i.orders===1?'':'en')+' · '+esc(famoNL.unit(i.unit)||i.unit||"eenheid")+'</small></div><span class="prep-product-qty">'+i.quantity+' '+esc(famoNL.unit(i.unit)||i.unit)+'</span></div>').join(""):'<div class="prep-empty">Geen open bestellingen voor deze selectie.</div>')+
     '</section><section class="prep-panel"><h2>Betrokken bestellingen</h2><p>Open een bestelling om de artikelen afzonderlijk te valideren.</p>'+
-    (orders.length?orders.map(o=>'<a class="prep-order" href="/order.html?id='+encodeURIComponent(o.id)+'"><div class="prep-order-head"><span class="prep-order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span></div><div class="prep-order-client">'+esc(o.client)+'</div><div class="prep-order-lines">'+esc(famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · ")))+'</div></a>').join(""):'<div class="prep-empty">Geen bestellingen gevonden.</div>')+
+    (orders.length?orders.map(o=>{
+      const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
+      return '<a class="prep-order" href="/entrepot.html?id='+encodeURIComponent(o.id)+'"><div class="prep-order-head"><span class="prep-order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span>'+(canValidate?'<span class="prep-order-cta">Valideren</span>':'')+'</div><div class="prep-order-client">'+esc(o.client)+'</div><div class="prep-order-lines">'+esc(famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · ")))+'</div></a>';
+    }).join(""):'<div class="prep-empty">Geen bestellingen gevonden.</div>')+
     '</section></div>';
 }
 function printConsolidatedPicklist(){

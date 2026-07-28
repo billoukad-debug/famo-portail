@@ -29,12 +29,12 @@
     <section id="attentionBox" class="staff-attention hidden" aria-label="Aandacht vereist"></section>
     <section class="orders-tools" aria-label="Bestellingen filteren">
       <input id="search" class="staff-field" type="search" placeholder="Zoek referentie, klant, artikel of factuur…" oninput="render()">
-      <select id="status" class="staff-select" onchange="render()"><option value="all">Alle statussen</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select>
-      <select id="payment" class="staff-select" onchange="render()"><option value="all">Alle betalingen</option><option value="En attente">Openstaand</option><option value="Payé">Betaald</option></select>
-      <select id="source" class="staff-select" onchange="render()"><option value="all">Alle bronnen</option><option value="Klantportaal">Klantportaal</option><option value="WhatsApp">WhatsApp</option><option value="Telefoon">Telefoon</option><option value="E-mail">E-mail</option><option value="Ter plaatse">Ter plaatse</option></select>
-      <select id="dateFilter" class="staff-select" onchange="render()"><option value="all">Alle datums</option><option value="today">Levering vandaag</option><option value="tomorrow">Levering morgen</option><option value="overdue">Te laat</option><option value="undated">Zonder leverdatum</option></select>
-      <select id="attention" class="staff-select" onchange="render()"><option value="all">Alle aandacht</option><option value="required">Aandacht vereist</option></select>
-      <select id="sort" class="staff-select" onchange="render()"><option value="recent">Nieuwste eerst</option><option value="delivery">Leverdatum</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
+      <select id="status" class="staff-select" onchange="onFilterChange()"><option value="all">Alle statussen</option><option value="open">Open (niet gefactureerd)</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select>
+      <select id="payment" class="staff-select" onchange="onFilterChange()"><option value="all">Alle betalingen</option><option value="En attente">Openstaand</option><option value="Payé">Betaald</option></select>
+      <select id="source" class="staff-select" onchange="onFilterChange()"><option value="all">Alle bronnen</option><option value="Klantportaal">Klantportaal</option><option value="WhatsApp">WhatsApp</option><option value="Telefoon">Telefoon</option><option value="E-mail">E-mail</option><option value="Ter plaatse">Ter plaatse</option></select>
+      <select id="dateFilter" class="staff-select" onchange="onFilterChange()"><option value="all">Alle datums</option><option value="today">Levering vandaag</option><option value="tomorrow">Levering morgen</option><option value="overdue">Te laat</option><option value="undated">Zonder leverdatum</option></select>
+      <select id="attention" class="staff-select" onchange="onFilterChange()"><option value="all">Alle aandacht</option><option value="required">Aandacht vereist</option></select>
+      <select id="sort" class="staff-select" onchange="onFilterChange()"><option value="recent">Nieuwste eerst</option><option value="delivery">Leverdatum</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
     </section>
     <section id="summary" class="orders-summary" aria-label="Bestellingstellers"></section>
     <div id="state" class="orders-state"></div>
@@ -87,8 +87,25 @@ async function load(){
     render();
   }catch(error){LAST_ERROR=famoStaff.translateError(error.message||"Netwerkfout.");render()}
 }
-function filtered(){const term=document.getElementById("search").value.trim().toLowerCase(),status=document.getElementById("status").value,payment=document.getElementById("payment").value,source=document.getElementById("source").value,dateFilter=document.getElementById("dateFilter").value,attention=document.getElementById("attention").value,sort=document.getElementById("sort").value;const list=ORDERS.filter(o=>{const hay=[o.ref,o.client,o.lignes,o.factuurnummer].join(" ").toLowerCase();return(!term||hay.includes(term))&&(status==="all"||o.statut===status)&&(payment==="all"||o.paiement===payment)&&(source==="all"||sourceOf(o)===source)&&matchesDate(o,dateFilter)&&(attention==="all"||isAttention(o))});return list.sort((a,b)=>{if(sort==="delivery")return String(a.dateLiv||"9999").localeCompare(String(b.dateLiv||"9999"));if(sort==="client")return String(a.client).localeCompare(String(b.client));if(sort==="total")return Number(b.total)-Number(a.total);return String(b.date||"").localeCompare(String(a.date||""))})}
-function setStatusFilter(value){document.getElementById("status").value=value;render()}
+function statusMatch(o,status){if(status==="all")return true;if(status==="open")return o.statut!=="Facturée";return o.statut===status}
+function filtered(){const term=document.getElementById("search").value.trim().toLowerCase(),status=document.getElementById("status").value,payment=document.getElementById("payment").value,source=document.getElementById("source").value,dateFilter=document.getElementById("dateFilter").value,attention=document.getElementById("attention").value,sort=document.getElementById("sort").value;const list=ORDERS.filter(o=>{const hay=[o.ref,o.client,o.lignes,o.factuurnummer].join(" ").toLowerCase();return(!term||hay.includes(term))&&statusMatch(o,status)&&(payment==="all"||o.paiement===payment)&&(source==="all"||sourceOf(o)===source)&&matchesDate(o,dateFilter)&&(attention==="all"||isAttention(o))});return list.sort((a,b)=>{if(sort==="delivery")return String(a.dateLiv||"9999").localeCompare(String(b.dateLiv||"9999"));if(sort==="client")return String(a.client).localeCompare(String(b.client));if(sort==="total")return Number(b.total)-Number(a.total);return String(b.date||"").localeCompare(String(a.date||""))})}
+function syncUrlFromFilters(){
+  const params=new URLSearchParams();
+  ["status","payment","source","dateFilter","attention","sort"].forEach(name=>{
+    const field=document.getElementById(name);
+    if(!field)return;
+    const v=field.value;
+    if(!v||v==="all")return;
+    if(name==="sort"&&v==="recent")return;
+    params.set(name,v);
+  });
+  const q=params.toString();
+  const next=location.pathname+(q?"?"+q:"")+location.hash;
+  const cur=location.pathname+location.search+location.hash;
+  if(next!==cur) history.replaceState(null,"",next);
+}
+function onFilterChange(){syncUrlFromFilters();render()}
+function setStatusFilter(value){document.getElementById("status").value=value;onFilterChange()}
 function chipActive(href){
   const u=new URL(href,location.origin),p=u.searchParams;
   const cur=new URLSearchParams(location.search);
@@ -113,7 +130,7 @@ function renderChips(){
   const attn=ORDERS.filter(isAttention).length;
   const chips=[
     {href:"/bestellingen.html?dateFilter=today",count:today,label:"Vandaag"},
-    {href:"/bestellingen.html",count:open,label:"Open"},
+    {href:"/bestellingen.html?status=open",count:open,label:"Open"},
     {href:"/bestellingen.html?status=Sortie%20en%20livraison",count:confirm,label:"Te bevestigen"},
     {href:"/bestellingen.html?payment=En%20attente",count:unpaid,label:"Openstaand"},
     {href:"/stock.html",count:low,label:"Voorraad laag"},
@@ -126,16 +143,18 @@ function renderChips(){
 }
 function renderAttention(){
   const box=document.getElementById("attentionBox");
-  const items=ORDERS.filter(isAttention).slice(0,6);
+  const all=ORDERS.filter(isAttention);
+  const items=all.slice(0,6);
   if(!items.length){box.classList.add("hidden");box.innerHTML="";return}
   box.classList.remove("hidden");
+  const more=all.length>6?'<a class="staff-attention-more" href="/bestellingen.html?attention=required">Toon alles ('+all.length+')</a>':'<a class="staff-attention-more" href="/bestellingen.html?attention=required">Filter op aandacht</a>';
   box.innerHTML='<h2>Aandacht vereist</h2><div class="staff-attention-list">'+items.map(o=>
     '<a class="staff-attention-item" href="/order.html?id='+encodeURIComponent(o.id)+'">'+
     '<span class="order-ref">'+esc(o.ref)+'</span>'+
     '<span class="staff-attention-client">'+esc(o.client)+'</span>'+
     '<span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span>'+
     '</a>'
-  ).join("")+'</div>';
+  ).join("")+'</div>'+more;
 }
 function render(){
   const summary=document.getElementById("summary"),state=document.getElementById("state"),table=document.getElementById("tableWrap"),rows=document.getElementById("rows"),cards=document.getElementById("cards");

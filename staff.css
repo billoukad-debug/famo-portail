@@ -111,6 +111,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .famo-delivery-toast.hidden{display:none}
 .staff-setup-banner{margin:0 0 18px;padding:11px 14px;border:1px solid #e4e4e4;border-left:3px solid #9a6700;border-radius:9px;background:#fffaf0;color:#6a5200;font-size:12.5px;line-height:1.45}
 .staff-setup-banner a{color:#111;font-weight:600}
+.staff-attention-more{display:inline-block;margin-top:10px;color:#235e86;font-size:12.5px;font-weight:600;text-decoration:none}
+.staff-attention-more:hover{text-decoration:underline}
 @media(max-width:600px){.famo-delivery-modal{padding:0}.famo-delivery-sheet{width:100%;border-radius:15px 15px 0 0}}
 
 /* Shared document preview (A4 + print + PDF download) — stays inside the app. */
