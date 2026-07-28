@@ -191,7 +191,12 @@ async function send(){
     if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+famoStaff.translateError(d.error||"opslaan mislukt"); btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); return; }
     const total=typeof d.total==="number"?d.total:shownTotal;
     box.style.display="block";
-    box.innerHTML='<b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+'<br>Ze staat nu in het magazijn onder « Ontvangen ».';
+    box.innerHTML='<b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+
+      '<br>Ze staat nu in het magazijn onder « Ontvangen ».'+
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
+      (d.id?'<a class="staff-action" href="/entrepot.html?id='+encodeURIComponent(d.id)+'">Open in Magazijn</a>':'<a class="staff-action" href="/entrepot.html">Open Magazijn</a>')+
+      (d.id?'<a class="staff-action-secondary" href="/order.html?id='+encodeURIComponent(d.id)+'">Open bestelling</a>':'')+
+      '</div>';
     panier={}; comments={}; document.getElementById("notes").value="";
     renderCatalogue(); renderCart();
     btn.textContent="Bestelling controleren";

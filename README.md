@@ -33,9 +33,9 @@ Redirects conservés :
 - `/overzicht.html` → `/bestellingen.html`
 - `/dagprep.html` → `/entrepot.html?view=dag`
 
-Shell unique : `staff-shell` + `data-famo-nav` (`staff-nav.js`) + design tokens `staff.css`. Login unique via `staff-session.js` (`bindLogin` / `.staff-login`). Confirmation de livraison partagée : `staff-delivery.js` (`famoStaff.openDeliveryConfirm`).
+Shell unique : `staff-shell` + `data-famo-nav` (`staff-nav.js`) + design tokens `staff.css`. Login unique via `staff-session.js` (`bindLogin` / `.staff-login`). Confirmation de livraison : **Leveringen** (owner) via `staff-delivery.js`. Documents : `documenten.html` + `documents.js` (IBAN/BIC réel ou exemple temporaire via `staff-company.js`).
 
-Documents staff (LB, facture, creditnota, picking) : aperçu in-app via `staff-doc-preview.js` (fermer / imprimer / télécharger un vrai PDF). Aucun `window.open` pour l’export côté pages staff.
+Voir aussi `FLOW_RAPPORT.md` (audit flux + correctifs).
 
 Le portail client `/` est hors scope du redesign staff.
 
@@ -56,7 +56,7 @@ AIRTABLE_TOKEN=...
 STAFF_CODE=...
 ```
 
-Si `STAFF_CODE` est absent, un **fallback temporaire** `famo2026` est utilisé (demande produit). Préférez quand même définir `STAFF_CODE` dans Vercel dès que possible.
+Si `STAFF_CODE` est **absent**, le login staff est **refusé** (fail-closed). Il n’y a plus de fallback `famo2026`. Définissez `STAFF_CODE` dans Vercel (Production + Preview) avant d’utiliser le portail.
 
 Exécuter les contrôles avant publication :
 

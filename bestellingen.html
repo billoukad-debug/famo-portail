@@ -131,15 +131,17 @@ function renderChips(){
   const chips=[
     {href:"/bestellingen.html?dateFilter=today",count:today,label:"Vandaag"},
     {href:"/bestellingen.html?status=open",count:open,label:"Open"},
-    {href:"/bestellingen.html?status=Sortie%20en%20livraison",count:confirm,label:"Te bevestigen"},
-    {href:"/bestellingen.html?payment=En%20attente",count:unpaid,label:"Openstaand"},
+    {href:"/leveringen.html",count:confirm,label:"Te bevestigen"},
+    {href:"/bestellingen.html?payment=En%20attente",count:unpaid,label:"Te betalen"},
     {href:"/stock.html",count:low,label:"Voorraad laag"},
     {href:"/bestellingen.html?dateFilter=overdue",count:late,label:"Te laat"},
     {href:"/bestellingen.html?attention=required",count:attn,label:"Aandacht"}
   ];
-  document.getElementById("chips").innerHTML=chips.map(c=>
-    '<a class="staff-chip'+(chipActive(c.href)?" active":"")+'" href="'+c.href+'"><b>'+c.count+'</b> '+esc(c.label)+'</a>'
-  ).join("");
+  document.getElementById("chips").innerHTML=chips.map(c=>{
+    const onStock=c.href.indexOf("/stock.html")>=0;
+    const active=onStock?(location.pathname.indexOf("stock")>=0):chipActive(c.href);
+    return '<a class="staff-chip'+(active?" active":"")+'" href="'+c.href+'"><b>'+c.count+'</b> '+esc(c.label)+'</a>';
+  }).join("");
 }
 function renderAttention(){
   const box=document.getElementById("attentionBox");

@@ -92,7 +92,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .staff-mobile-nav>a.active,.staff-mobile-nav>a[aria-current="page"]{color:#111;font-weight:650}
   .staff-meer{margin-left:4px}
   .staff-meer[open]{position:absolute;right:8px;top:52px;background:#fff;border:1px solid var(--f-line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.12);min-width:160px;padding:6px 0;z-index:100}
-  .staff-meer[open] summary{display:none}
+  .staff-meer[open] summary{display:block;padding:8px 12px;font-weight:650;color:#111;cursor:pointer;list-style:none;border-bottom:1px solid var(--f-line)}
+  .staff-meer[open] summary::-webkit-details-marker{display:none}
+  .staff-meer[open] summary::after{content:" ×";font-weight:700}
   .staff-page{padding:24px 20px 56px}.staff-shell .staff-main{width:100%}
 }
 @media(max-width:620px){.staff-page{padding:20px 14px 46px}.staff-page-head h1{font-size:20px}.staff-page-head>div:last-child{width:100%;display:flex}.staff-page-head>div:last-child button{flex:1}.staff-mobile-nav{padding:8px 10px}}
