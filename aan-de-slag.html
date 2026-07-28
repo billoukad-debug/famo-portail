@@ -142,6 +142,7 @@ textarea.fld{min-height:84px;resize:vertical}
   </div>
 </div>
 
+<script src="/staff-company.js"></script>
 <script src="/staff-session.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
@@ -250,12 +251,12 @@ function renderCompany(box){
     fld("btw","BTW-nummer *",c.btw)+
     fld("adres","Adres",c.adres,"full")+
     fld("plaats","Postcode en plaats",c.plaats,"full")+
-    fld("telefoon","Telefoon",c.telefoon)+
-    fld("email","E-mail",c.email)+
-    fld("iban","IBAN *",c.iban)+
-    fld("bic","BIC *",c.bic)+
+    fld("telefoon","Telefoon",c.telefoon||"03 000 00 00")+
+    fld("email","E-mail",c.email||"info@famotrading.be")+
+    fld("iban","IBAN *",c.iban||(window.famoCompany?famoCompany.EXAMPLE.iban:"BE68 5390 0754 7034"))+
+    fld("bic","BIC *",c.bic||(window.famoCompany?famoCompany.EXAMPLE.bic:"GKCCBEBB"))+
     '</div><div class="ob-actions"><button class="ob-btn" onclick="saveCompany()">Opslaan en verder</button></div>'+
-    '<p class="hint">'+(DATA.status.identiteit?'<span class="badge ok">klaar</span> Bedrijfsgegevens compleet.':'IBAN/BIC ontbreken nog of zijn onvolledig.')+'</p>';
+    '<p class="hint">'+(DATA.status.identiteit?'<span class="badge ok">klaar</span> Bedrijfsgegevens compleet.':'Voorbeeld IBAN/BIC voorgesteld — bewaar ze of vervang door de echte bankgegevens.')+'</p>';
 }
 
 function fld(id,lab,val,extra){

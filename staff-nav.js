@@ -3,8 +3,8 @@
   const PRIMARY = [
     { id: "bestellingen", href: "/bestellingen.html", label: "Bestellingen", icon: "orders" },
     { id: "magazijn", href: "/entrepot.html", label: "Magazijn", icon: "warehouse" },
-    { id: "invoeren", href: "/invoer.html", label: "Invoeren", icon: "entry" },
-    { id: "leveringen", href: "/leveringen.html", label: "Leveringen", icon: "delivery" }
+    { id: "leveringen", href: "/leveringen.html", label: "Leveringen", icon: "delivery" },
+    { id: "invoeren", href: "/invoer.html", label: "Invoeren", icon: "entry" }
   ];
   const MEER = [
     { id: "voorraad", href: "/stock.html", label: "Voorraad", icon: "stock" },

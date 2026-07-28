@@ -246,7 +246,7 @@ for (const page of STAFF_PAGES) {
       if (labels.includes("Dagvoorbereiding")) fail("staff-nav.js", "PRIMARY ne doit pas lister Dagvoorbereiding");
       if (labels.includes("Aan de slag")) fail("staff-nav.js", "PRIMARY ne doit pas lister Aan de slag");
       if (labels.length !== 4) fail("staff-nav.js", "PRIMARY doit contenir exactement 4 items");
-      const expected = ["Bestellingen", "Magazijn", "Invoeren", "Leveringen"];
+      const expected = ["Bestellingen", "Magazijn", "Leveringen", "Invoeren"];
       if (expected.some((l, i) => labels[i] !== l)) {
         fail("staff-nav.js", "PRIMARY attendu: " + expected.join(" | ") + " — reçu: " + labels.join(" | "));
       } else if (!meerLabels.includes("Voorraad") || !meerLabels.includes("Documenten")) {
@@ -329,11 +329,14 @@ for (const page of OPERATIONAL) {
       fail("staff-delivery.js", e.message);
     }
   }
-  for (const page of ["leveringen.html", "order.html", "entrepot.html"]) {
+  for (const page of ["leveringen.html", "order.html"]) {
     const src = fs.readFileSync(path.join(root, page), "utf8");
     if (!src.includes("/staff-delivery.js")) fail(page, "doit inclure staff-delivery.js");
     if (!/openDeliveryConfirm/.test(src)) fail(page, "doit appeler openDeliveryConfirm");
   }
+  const entDel = fs.readFileSync(path.join(root, "entrepot.html"), "utf8");
+  if (!/\/leveringen\.html/.test(entDel)) fail("entrepot.html", "Onderweg doit pointer vers Leveringen");
+  else pass("entrepot.html", "réception via Leveringen (pas de 3e sheet)");
 }
 
 // --- Preview documentaire partagée (pas de window.open / print hors composant) ---
@@ -440,16 +443,16 @@ for (const page of OPERATIONAL) {
   const ent = fs.readFileSync(path.join(root, "entrepot.html"), "utf8");
   if (!/highlightFocusedOrder/.test(ent)) {
     fail("entrepot.html", "doit ouvrir/focus la commande ?id=");
-  } else if (!/confirmDelivery/.test(ent) || !srcIncludes(ent, "/staff-delivery.js")) {
-    fail("entrepot.html", "Ontvangst doit utiliser openDeliveryConfirm in-place");
-  } else if (/href=\"\/order\.html\?id=/.test(ent) && /Ontvangst bevestigen/.test(ent)) {
-    fail("entrepot.html", "Ontvangst ne doit plus renvoyer vers order.html");
-  } else if (!/o\.factuurnummer\s*\?\s*'<button class="doc"/.test(ent) && !/factuurnummer\?'<button class="doc" onclick="doc\([^)]*'FA'\)/.test(ent)) {
-    fail("entrepot.html", "bouton Factuur doit être gated sur factuurnummer");
+  } else if (!/\/leveringen\.html/.test(ent)) {
+    fail("entrepot.html", "Onderweg doit renvoyer vers Leveringen");
+  } else if (/Ontvangst bevestigen/.test(ent)) {
+    fail("entrepot.html", "ne plus confirmer réception in-place (unique owner = Leveringen)");
+  } else if (!/documenten\.html\?order=/.test(ent)) {
+    fail("entrepot.html", "docs doivent deep-linker Documenten");
   } else if (!/\/entrepot\.html\?id=/.test(ent) || /prep-order" href="\/order\.html/.test(ent)) {
     fail("entrepot.html", "vue Dag doit lier vers Magazijn ?id= (pas order.html)");
   } else {
-    pass("entrepot.html", "focus ?id= + Ontvangst in-place + Factuur gated");
+    pass("entrepot.html", "focus ?id= + Leveringen owner + Documenten deep-link");
   }
 }
 
@@ -487,8 +490,10 @@ for (const page of OPERATIONAL) {
     fail("documents.js", "facture doit être gated sur IBAN+BIC (canInvoice)");
   } else if (/Jezusstraat 34/.test(docsLib) && /let COMPANY=\{[\s\S]*Jezusstraat/.test(docsLib)) {
     fail("documents.js", "pas d’identité hardcodée de secours — setCompany depuis config");
+  } else if (!fs.existsSync(path.join(root, "staff-company.js"))) {
+    fail("staff-company.js", "exemple IBAN/BIC temporaire manquant");
   } else {
-    pass("documents.js", "company live + creditnota voorbeeld + IBAN gate");
+    pass("documents.js", "company live + creditnota voorbeeld + IBAN gate + exemple banque");
   }
 
   const docsPage = fs.readFileSync(path.join(root, "documenten.html"), "utf8");

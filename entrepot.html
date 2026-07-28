@@ -107,7 +107,7 @@
     <div class="wh-stats" aria-label="Dagstatistieken">
       <span>Te bereiden <b id="statTodo">0</b></span>
       <span>Onderweg <b id="statOnway">0</b></span>
-      <span>Openstaand <b id="statOpen">0</b></span>
+      <span>Niet gefactureerd <b id="statOpen">0</b></span>
     </div>
 
     <div id="viewBord">
@@ -153,8 +153,8 @@
 <div id="notice" class="notice hidden" role="alert"></div>
 <div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="advanceTitle"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong id="advanceTitle">Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:#555;line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 
+<script src="/staff-company.js"></script>
 <script src="/staff-session.js"></script>
-<script src="/staff-delivery.js"></script>
 <script src="/staff-doc-preview.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
@@ -166,8 +166,9 @@ const FAMO = {
   cp: "2000 Antwerpen, België",
   tva: "BE 0788.705.713",
   tel: "",
-  iban: "",
-  bic: "",
+  iban: famoCompany.EXAMPLE.iban,
+  bic: famoCompany.EXAMPLE.bic,
+  exampleBank: true,
   tauxTVA: 6
 };
 /* =========================================== */
@@ -210,7 +211,10 @@ async function bootWarehouse(){
     if(rc.ok){ const cj=await rc.json(); const c=cj.config||{};
       FAMO.nom=c.bedrijfsnaam||FAMO.nom; FAMO.adresse=c.adres||FAMO.adresse;
       FAMO.cp=c.plaats||FAMO.cp; FAMO.tva=c.btw||FAMO.tva;
-      FAMO.tel=c.telefoon||FAMO.tel; FAMO.iban=c.iban||""; FAMO.bic=c.bic||""; }
+      FAMO.tel=c.telefoon||FAMO.tel;
+      const bank=famoCompany.withExampleBank({iban:c.iban||"",bic:c.bic||""});
+      FAMO.iban=bank.iban; FAMO.bic=bank.bic; FAMO.exampleBank=!!bank.exampleBank;
+    }
   }catch(e){}
 }
 const loginCtl=famoStaff.bindLogin({
@@ -260,7 +264,7 @@ function render(){
     const primary=canValidate
       ? '<button class="adv" onclick="editLines('+idx+')">Artikels valideren</button>'
       : (next==="Facturée"
-          ? '<button class="adv" onclick="confirmDelivery('+idx+')">Ontvangst bevestigen</button>'
+          ? '<a class="adv" href="/leveringen.html" style="display:block;text-align:center;text-decoration:none">Open Leveringen</a>'
           : (next?'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''));
     el.innerHTML='<div class="ref">'+esc(o.ref)+'</div>'+
       '<div class="cl">'+esc(o.client)+'</div>'+
@@ -274,9 +278,9 @@ function render(){
       '<div class="row">'+
         primary+
         (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
-        (o.statut!=="Reçue"?'<button class="doc" onclick="doc('+idx+',\'BL\')">Leverbon</button>':'')+
-        (o.factuurnummer?'<button class="doc" onclick="doc('+idx+',\'FA\')">Factuur</button>':'')+
-        '<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"Betaald":"Markeer betaald")+'</button>'+
+        (o.statut!=="Reçue"?'<a class="doc" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=lb" style="display:inline-flex;align-items:center;text-decoration:none">Leverbon</a>':'')+
+        (o.factuurnummer?'<a class="doc" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=facture" style="display:inline-flex;align-items:center;text-decoration:none">Factuur</a>':'')+
+        (o.statut==="Facturée"?'<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"Betaald":"Markeer betaald")+'</button>':'')+
       '</div><div id="e'+idx+'"></div>';
     document.getElementById("c"+si).appendChild(el);
   });
@@ -299,16 +303,6 @@ function highlightFocusedOrder(){
   const box=document.getElementById("e"+idx);
   if(needsEdit&&box&&!box.innerHTML) editLines(idx);
 }
-function confirmDelivery(idx){
-  const o=ORDERS[idx];
-  if(!o) return;
-  famoStaff.openDeliveryConfirm(o,{
-    onDone:async()=>{ await load(); showNotice("Levering bevestigd en gefactureerd.","info"); },
-    onError:m=>showNotice(m,"error")
-  });
-}
-
-
 function orderView(){
   const q=ORDER_QUERY.trim().toLocaleLowerCase("nl-BE");
   const rows=ORDERS.map((o,idx)=>({o,idx})).filter(({o})=>!q||[o.ref,o.client,o.lignes,o.notes].join(" ").toLocaleLowerCase("nl-BE").includes(q));
@@ -362,6 +356,8 @@ function consolidatedItems(){
 }
 function renderDayView(){
   const orders=preparationOrders(),items=consolidatedItems();
+  const today=dayKey();
+  const onway=ORDERS.filter(o=>o.statut==="Sortie en livraison"&&!o.livraisonConfirmee&&(!String(o.dateLiv||"").slice(0,10)||String(o.dateLiv||"").slice(0,10)<=dayKey(1)));
   const stockBy=new Map(STOCK.map(x=>[String(x.product).toLowerCase(),x]));
   const alerts=items.map(i=>{
     const s=stockBy.get(i.name.toLowerCase());
@@ -372,6 +368,7 @@ function renderDayView(){
   c.className="";
   c.innerHTML='<p class="prep-meta">'+orders.length+' bestellingen · '+items.length+' verschillende producten'+(label?' · '+dateLabel(label):'')+'</p>'+
     (alerts.length?'<div class="prep-alert"><b>Voorraadcontrole vereist</b><br>'+alerts.map(esc).join("<br>")+'</div>':'')+
+    (onway.length?'<div class="prep-alert" style="border-color:#b6d4e6;background:#f2f8fc;color:#174e70"><b>'+onway.length+' onderweg — te bevestigen</b><br><a href="/leveringen.html" style="color:#111;font-weight:650">Open Leveringen →</a></div>':'')+
     '<div class="prep-grid"><section class="prep-panel"><h2>Geconsolideerde picking</h2><p>Tel per product over de geselecteerde bestellingen. Controleer individuele lijnen in Magazijn vóór vertrek.</p>'+
     (items.length?items.map(i=>'<div class="prep-product"><div><b>'+esc(i.name)+'</b><small>'+i.orders+' bestelling'+(i.orders===1?'':'en')+' · '+esc(famoNL.unit(i.unit)||i.unit||"eenheid")+'</small></div><span class="prep-product-qty">'+i.quantity+' '+esc(famoNL.unit(i.unit)||i.unit)+'</span></div>').join(""):'<div class="prep-empty">Geen open bestellingen voor deze selectie.</div>')+
     '</section><section class="prep-panel"><h2>Betrokken bestellingen</h2><p>Open een bestelling om de artikelen afzonderlijk te valideren.</p>'+
@@ -453,8 +450,8 @@ async function saveLines(idx){
 }
 
 function printPicklist(){
-  const todo=ORDERS.filter(o=>o.statut==="Reçue"||o.statut==="Prête");
-  if(!todo.length){ showNotice("Er zijn geen bestellingen om voor te bereiden.","error"); return; }
+  const todo=preparationOrders();
+  if(!todo.length){ showNotice("Er zijn geen bestellingen om voor te bereiden voor deze selectie.","error"); return; }
   const day=dayKey();
   const blocks=todo.map(o=>'<section><header><b>'+esc(o.ref)+' — '+esc(o.client)+'</b><span>Levering: '+esc(o.dateLiv||"—")+'</span></header><table>'+String(o.lignes||"").split("\n").filter(Boolean).map(l=>'<tr><td class="box">☐</td><td>'+esc(famoNL.lines(l.replace(/\s*\[€[^\]]+\]/g,"")))+'</td></tr>').join("")+'</table></section>').join("");
   const html='<!doctype html><html><head><meta charset="utf-8"><title>Voorbereidingslijst</title><style>@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;color:#111;margin:0;padding:28px}h1{font-size:21px;border-bottom:3px solid #111;padding-bottom:8px;margin:0}section{border:2px solid #111;margin:14px 0;padding:10px;page-break-inside:avoid}header{display:flex;justify-content:space-between;font-size:15px}header span{font-size:12px}table{width:100%;border-collapse:collapse;margin-top:7px}td{border-top:1px solid #ddd;padding:8px;font-size:14px}.box{width:28px;font-size:19px}</style></head><body><h1>Famo Trading — Voorbereidingslijst</h1>'+blocks+'</body></html>';
@@ -463,87 +460,6 @@ function printPicklist(){
     meta:todo.length+" bestellingen · "+day,
     filename:famoDocPreview.filenameFor("picking",{date:day}),
     html
-  });
-}
-
-function doc(idx,type){
-  const o=ORDERS[idx], isFA=type==="FA";
-  if(isFA && (!FAMO.iban || !FAMO.bic)){ showNotice("Factuur kan niet worden afgedrukt: IBAN/BIC ontbreken. Vul ze in via Airtable → tabel Configuratie (zie Aan de slag).","error"); return; }
-  if(isFA && !o.factuurnummer){ showNotice("Factureer de bestelling eerst. Dan krijgt ze een officieel factuurnummer.","error"); return; }
-  if(!isFA && o.statut==="Reçue"){ showNotice("Zet de bestelling eerst op ‘Klaar’ vóór u de leverbon afdrukt.","error"); return; }
-  const k=o.klant||{nom:o.client,adresse:"",btw:"",klantnr:""};
-  const htva=o.total/(1+FAMO.tauxTVA/100), tva=o.total-htva;
-  const titre=isFA?"FACTUUR":"LEVERINGSBON";
-  const seq=o.ref.replace("CMD-","");
-  const num=isFA ? (o.factuurnummer || "FA-"+seq) : ("LB-"+seq);
-  const d=new Date();
-  const verval=new Date(d.getTime()+30*86400000);
-  const fdate=x=>x.toLocaleDateString("nl-BE");
-
-  const rows=String(o.lignes||"").split("\n").filter(x=>x.trim()).map(l=>{
-    const m=l.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)(.*)$/);
-    if(!m) return {nom:l, aantal:"", eenheid:"", prijs:null, opm:""};
-    const tail=m[4]||"", price=tail.match(/\[€\s*([\d.,]+)\]/), comment=tail.match(/\((.*?)\)/);
-    return {nom:m[1].trim(), aantal:m[2], eenheid:m[3].trim(), prijs:price?parseFloat(price[1].replace(",",".")):null, opm:comment?comment[1]:""};
-  });
-
-  const docHtml='<html><head><meta charset="utf-8"><title>'+num+'</title><style>'+
-    'body{font-family:Arial,sans-serif;padding:32px;color:#1c2a3a;font-size:12.5px}'+
-    '.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #111;padding-bottom:12px}'+
-    'h1{color:#111;font-size:22px;margin-bottom:6px}h2{font-size:17px;margin:0 0 6px}'+
-    '.parties{display:flex;gap:40px;margin-top:20px}.parties>div{flex:1}'+
-    '.lbl{font-weight:bold;color:#111;margin-bottom:5px;font-size:13px}'+
-    'table.it{width:100%;border-collapse:collapse;margin-top:22px}'+
-    'table.it th{background:#f5f5f5;border-bottom:2px solid #ddd;padding:8px;text-align:left;font-size:11.5px;color:#111}'+
-    'table.it td{border-bottom:1px solid #e2e8f0;padding:8px}'+
-    '.num{text-align:right}'+
-    '.tot{margin-top:18px;margin-left:auto;width:290px}'+
-    '.tot div{display:flex;justify-content:space-between;padding:5px 0}'+
-    '.tot .g{border-top:2px solid #111;margin-top:5px;padding-top:8px;font-size:16px;font-weight:bold;color:#111}'+
-    '.bank{margin-top:26px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;font-size:11.5px}'+
-    '.ft{margin-top:20px;font-size:10.5px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:8px;line-height:1.55}'+
-    '.sig{margin-top:34px;font-size:12px}'+
-    '</style></head><body>'+
-
-    '<div class="hd"><div><h1>'+esc(FAMO.nom)+'</h1><div>'+esc(FAMO.adresse)+'<br>'+esc(FAMO.cp)+
-      '<br>BTW: '+esc(FAMO.tva)+(FAMO.tel?'<br>'+esc(FAMO.tel):'')+'</div></div>'+
-    '<div style="text-align:right"><h2>'+titre+'</h2>'+
-      '<div><b>'+(isFA?'Factuur':'Leverbon')+':</b> '+esc(num)+
-      '<br><b>Bestelbonnummer:</b> '+esc(o.ref)+
-      '<br><b>Documentdatum:</b> '+fdate(d)+
-      (isFA?'<br><b>Vervaldatum:</b> '+fdate(verval):'')+
-      (o.dateLiv?'<br><b>Leverdatum:</b> '+esc(o.dateLiv):'')+'</div></div></div>'+
-
-    '<div class="parties"><div><div class="lbl">Leverancier</div>'+esc(FAMO.nom)+'<br>'+esc(FAMO.adresse)+'<br>'+esc(FAMO.cp)+'<br>BTW: '+esc(FAMO.tva)+'</div>'+
-    '<div><div class="lbl">Klant</div>'+esc(k.nom)+
-      (k.adresse?'<br>'+esc(k.adresse).replace(/\n/g,"<br>"):'')+
-      (k.klantnr?'<br>Klantnummer: '+esc(k.klantnr):'')+
-      (k.btw?'<br>BTW: '+esc(k.btw):'')+'</div></div>'+
-
-    '<table class="it"><tr><th>Beschrijving</th><th class="num">Aantal</th><th>Eenheid</th>'+
-      (isFA?'<th class="num">Tarief</th><th class="num">BTW</th><th class="num">Subtotaal</th>':'')+'</tr>'+
-    rows.map(r=>'<tr><td>'+esc(r.nom)+(r.opm?'<br><i style="color:#64748b;font-size:11px">'+esc(r.opm)+'</i>':'')+'</td>'+
-      '<td class="num">'+esc(r.aantal)+'</td><td>'+esc(famoNL.unit(r.eenheid)||r.eenheid)+'</td>'+
-      (isFA?'<td class="num">'+(r.prijs==null?"":eur(r.prijs))+'</td><td class="num">'+FAMO.tauxTVA+',0%</td><td class="num">'+(r.prijs==null?"":eur(r.prijs*(parseFloat(String(r.aantal).replace(",","."))||0)))+'</td>':'')+'</tr>').join("")+
-    '</table>'+
-
-    (isFA
-      ? '<div class="tot"><div><span>Totaal exclusief btw</span><span>'+eur(htva)+'</span></div>'+
-        '<div><span>BTW '+FAMO.tauxTVA+',0%</span><span>'+eur(tva)+'</span></div>'+
-        '<div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
-        (FAMO.iban?'<div class="bank"><b>Bankgegevens</b><br>'+esc(FAMO.nom)+'<br>IBAN: '+esc(FAMO.iban)+(FAMO.bic?'<br>BIC: '+esc(FAMO.bic):'')+'<br>Betalingskenmerk: '+esc(seq)+'</div>':'<div class="bank"><b>Betaling</b><br>Bankgegevens worden afzonderlijk door de boekhouding verstrekt.<br>Betalingskenmerk: '+esc(seq)+'</div>')+
-        '<div class="ft">Betaalstatus: '+esc(famoNL.pay(o.paiement||"En attente"))+
-        '<br>Intern document. De wettelijke e-factuur (Peppol) verloopt via de boekhouding.</div>'
-      : '<div class="tot"><div class="g"><span>Totaal</span><span>'+eur(o.total)+'</span></div></div>'+
-        '<div class="sig">Handtekening klant: ______________________<br><br>Goederen ontvangen in goede staat en conform.</div>'+
-        '<div class="ft">Klachten over verse vis binnen de 12u, over diepvries binnen de 24u.</div>')+
-    '</body></html>';
-  const kind=isFA?"invoice":"delivery";
-  famoDocPreview.open({
-    title:titre==="FACTUUR"?"Factuur":"Leveringsbon",
-    meta:num+" · "+(o.ref||""),
-    filename:famoDocPreview.filenameFor(kind,{number:num,ref:o.ref,invoice:o.factuurnummer}),
-    html:docHtml
   });
 }
 
