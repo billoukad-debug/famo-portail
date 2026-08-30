@@ -81,6 +81,7 @@
     const appView = document.getElementById("app");
     if (loginView) {
       loginView.classList.remove("hidden");
+      loginView.style.visibility = "";
       if (appView) appView.classList.add("hidden");
       const codeEl = document.getElementById("code");
       if (codeEl) {
@@ -192,6 +193,11 @@
     const appView = typeof cfg.appView === "string" ? document.getElementById(cfg.appView) : cfg.appView;
     let busy = false;
 
+    // Le formulaire de connexion est visible par défaut dans le HTML (avant que ce
+    // script ne s'exécute). On le masque tout de suite — le temps que la session
+    // soit vérifiée — pour éviter un flash de la page de connexion à chaque navigation.
+    if (loginView) loginView.style.visibility = "hidden";
+
     function showAdminDenied() {
       if (loginView) loginView.classList.add("hidden");
       if (appView) appView.classList.add("hidden");
@@ -259,6 +265,7 @@
     window.addEventListener("famo:session-expired", () => {
       if (loginView) {
         loginView.classList.remove("hidden");
+        loginView.style.visibility = "";
         if (appView) appView.classList.add("hidden");
         if (errEl) errEl.textContent = "Sessie verlopen. Meld u opnieuw aan.";
         if (codeEl) {
@@ -275,7 +282,10 @@
           return;
         }
       } catch (e) { /* show login */ }
-      if (loginView) loginView.classList.remove("hidden");
+      if (loginView) {
+        loginView.classList.remove("hidden");
+        loginView.style.visibility = "";
+      }
       if (appView) appView.classList.add("hidden");
       if (codeEl) codeEl.focus();
     });

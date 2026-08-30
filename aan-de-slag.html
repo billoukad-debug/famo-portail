@@ -97,7 +97,7 @@ textarea.fld{min-height:84px;resize:vertical}
 <section id="login" class="ob-login"><div>
   <h1>Welkom Mohsen</h1>
   <p>Vul in 6 korte stappen alles in wat Famo nodig heeft. Geen Airtable — alles hier op het platform.</p>
-  <input id="code" type="password" placeholder="Personeelscode" autocomplete="current-password">
+  <input id="code" type="password" placeholder="Toegangscode (personeel of beheerder)" autocomplete="current-password">
   <button type="button" onclick="enter()">Start onboarding</button>
   <div id="err" class="ob-err"></div>
 </div></section>
@@ -148,6 +148,9 @@ textarea.fld{min-height:84px;resize:vertical}
 <script src="/staff-nav.js"></script>
 <script>
 let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null, UNIT="kassa", EDIT_ID=null, PROD_Q="", EDIT_CLIENT=null, PREFILL=null;
+// Masque le formulaire de connexion le temps de verifier la session, pour eviter
+// le flash de la page de connexion a chaque navigation entre pages admin.
+document.getElementById("login").style.visibility="hidden";
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 const unitOut=u=>window.famoNL?famoNL.unit(u):u;
 
@@ -610,8 +613,13 @@ window.addEventListener("DOMContentLoaded",async()=>{
       document.getElementById("app").classList.remove("hidden");
       await refresh();
       go(firstOpenStep());
+      return;
     }
   }catch(e){}
+  const loginEl=document.getElementById("login");
+  loginEl.style.visibility="";
+  loginEl.classList.remove("hidden");
+  document.getElementById("code").focus();
 });
 </script>
 </body>
