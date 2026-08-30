@@ -96,13 +96,24 @@
     }).then(data => {
       if (!data || !data.status) return;
       const s = data.status;
+      const main = document.querySelector(".staff-main .staff-page");
+      if (!main) return;
+
+      const aanvragen = Number(s.aanvragen) || 0;
+      if (aanvragen > 0 && !main.querySelector(".staff-request-banner")) {
+        const req = document.createElement("div");
+        req.className = "staff-request-banner";
+        req.setAttribute("role", "status");
+        req.innerHTML = aanvragen + " nieuwe aanvra" + (aanvragen > 1 ? "gen" : "ag") +
+          " van de website — <a href=\"/aan-de-slag.html\">bekijken en klant aanmaken</a>.";
+        main.insertBefore(req, main.firstChild);
+      }
+
       const gaps = [];
       if (!s.identiteit) gaps.push("bedrijfsgegevens/IBAN");
       if (!(Number(s.catalogue) > 0 || s.catalogueReady)) gaps.push("catalogus");
       if (!(Number(s.clients) > 0 || s.clientsReady)) gaps.push("klanten");
-      if (!gaps.length) return;
-      const main = document.querySelector(".staff-main .staff-page");
-      if (!main || main.querySelector(".staff-setup-banner")) return;
+      if (!gaps.length || main.querySelector(".staff-setup-banner")) return;
       const banner = document.createElement("div");
       banner.className = "staff-setup-banner";
       banner.setAttribute("role", "status");

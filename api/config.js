@@ -51,12 +51,13 @@ module.exports = async (req, res) => {
     if (!staffOk) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     if (q.status === "1") {
-      const [catalogue, clients, prijzen, stock, orders] = await Promise.all([
+      const [catalogue, clients, prijzen, stock, orders, aanvragen] = await Promise.all([
         count("Catalogue", "{Actif}=1"),
         count("Clients"),
         count("Prix négociés"),
         count("Stock"),
-        count("Commandes")
+        count("Commandes"),
+        count("Aanvragen", "{Status}='Nieuw'")
       ]);
       return res.status(200).json({ config, status: {
         identiteit: !!(config.bedrijfsnaam && config.btw && config.iban && config.bic),
@@ -65,7 +66,7 @@ module.exports = async (req, res) => {
         clientsReady: clients > 0,
         prijzenReady: prijzen > 0,
         stockReady: stock > 0,
-        catalogue, clients, prijzen, stock, orders
+        catalogue, clients, prijzen, stock, orders, aanvragen
       }});
     }
     res.status(200).json({ config });
