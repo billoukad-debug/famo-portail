@@ -27,12 +27,13 @@ const STAFF_PAGES = [
   "stock.html",
   "documenten.html",
   "leveringen.html",
-  "aan-de-slag.html"
+  "beheer.html"
 ];
 
 const REDIRECT_PAGES = {
   "overzicht.html": "/bestellingen.html",
-  "dagprep.html": "/entrepot.html"
+  "dagprep.html": "/entrepot.html",
+  "aan-de-slag.html": "/beheer.html"
 };
 
 function stripHtmlComments(src) {
@@ -418,11 +419,11 @@ for (const page of OPERATIONAL) {
   } else {
     pass("entrepot.html", "erreur Magazijn visible");
   }
-  const onb = fs.readFileSync(path.join(root, "aan-de-slag.html"), "utf8");
+  const onb = fs.readFileSync(path.join(root, "beheer.html"), "utf8");
   if (/saveProductRow[\s\S]{0,400}lowThreshold\s*:\s*0/.test(onb)) {
-    fail("aan-de-slag.html", "saveProductRow ne doit plus forcer lowThreshold:0");
+    fail("beheer.html", "ne doit pas forcer lowThreshold:0");
   } else {
-    pass("aan-de-slag.html", "drempel préservée à l’édition");
+    pass("beheer.html", "drempel préservée à l’édition");
   }
   const sess = fs.readFileSync(path.join(root, "staff-session.js"), "utf8");
   if (!/takeReturn\s*\(/.test(sess) || !/Lokale foto \(alleen voorbeeld/.test(sess)) {
@@ -537,17 +538,17 @@ for (const page of OPERATIONAL) {
     pass("api/catalogue.js", "company dans login");
   }
 
-  const onb = fs.readFileSync(path.join(root, "aan-de-slag.html"), "utf8");
+  const onb = fs.readFileSync(path.join(root, "beheer.html"), "utf8");
   if (!/editClient/.test(onb) || !/EDIT_CLIENT/.test(onb)) {
-    fail("aan-de-slag.html", "doit permettre d’éditer un client existant");
+    fail("beheer.html", "doit permettre d’éditer un client existant");
   } else if (!/deletePrice/.test(onb)) {
-    fail("aan-de-slag.html", "doit pouvoir supprimer une prijs");
+    fail("beheer.html", "doit pouvoir supprimer une prijs");
   } else if (!/deactivateProduct/.test(onb) || !/actif:\s*false/.test(onb)) {
-    fail("aan-de-slag.html", "doit pouvoir uitschakelen un product");
+    fail("beheer.html", "doit pouvoir uitschakelen un product");
   } else if (!/"Vis"/.test(onb) || !/"Schaaldieren"/.test(onb)) {
-    fail("aan-de-slag.html", "catégories NL (Vis/Schaaldieren) requises");
+    fail("beheer.html", "catégories NL (Vis/Schaaldieren) requises");
   } else {
-    pass("aan-de-slag.html", "edit client + delete price + deactivate + NL cats");
+    pass("beheer.html", "edit client + delete price + deactivate + NL cats");
   }
 
   const onbApi = fs.readFileSync(path.join(root, "api/onboarding.js"), "utf8");
@@ -577,12 +578,12 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   }
 }
 {
-  const guide = path.join(root, "aan-de-slag.html");
+  const guide = path.join(root, "beheer.html");
   if (fs.existsSync(guide)) {
     const src = stripHtmlComments(fs.readFileSync(guide, "utf8"));
     // chaîne UI littérale "caisse" (unité d'affichage) — autoriser uniquement via famoNL
     if (/["']caisse["']/.test(src) && !/famoNL\.unit\s*\(\s*["']caisse["']\s*\)/.test(src)) {
-      fail("aan-de-slag.html", 'unité d\'affichage "caisse" — utiliser famoNL (kassa), pas le français brut');
+      fail("beheer.html", 'unité d\'affichage "caisse" — utiliser famoNL (kassa), pas le français brut');
     }
   }
 }

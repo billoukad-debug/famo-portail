@@ -12,6 +12,9 @@ window.FamoDocuments=(()=>{
     tel:"",
     iban:"",
     bic:"",
+    btwTarief:6,
+    betalingsvoorwaarden:"",
+    leveringsvoorwaarden:"",
     exampleBank:false
   };
   function setCompany(cfg){
@@ -24,6 +27,10 @@ window.FamoDocuments=(()=>{
       iban:String(cfg&&cfg.iban||"").trim(),
       bic:String(cfg&&cfg.bic||"").trim()
     };
+    const tarief=Number(cfg&&cfg.btwTarief);
+    base.btwTarief=Number.isFinite(tarief)&&tarief>0?tarief:6;
+    base.betalingsvoorwaarden=String(cfg&&cfg.betalingsvoorwaarden||"").trim();
+    base.leveringsvoorwaarden=String(cfg&&cfg.leveringsvoorwaarden||"").trim();
     COMPANY=window.famoCompany?famoCompany.withExampleBank(base):Object.assign({exampleBank:false},base);
     return COMPANY;
   }
@@ -31,8 +38,8 @@ window.FamoDocuments=(()=>{
     return !!(COMPANY.iban && COMPANY.bic && COMPANY.nom);
   }
   function invoiceBlockReason(){
-    if(!COMPANY.nom) return "Bedrijfsgegevens ontbreken. Vul ze in via Aan de slag.";
-    if(!COMPANY.iban||!COMPANY.bic) return "Factuur geblokkeerd: IBAN/BIC ontbreken. Vul ze in via Aan de slag.";
+    if(!COMPANY.nom) return "Bedrijfsgegevens ontbreken. Vul ze in via Beheer.";
+    if(!COMPANY.iban||!COMPANY.bic) return "Factuur geblokkeerd: IBAN/BIC ontbreken. Vul ze in via Beheer.";
     return "";
   }
   function usingExampleBank(){ return !!COMPANY.exampleBank; }
@@ -66,7 +73,8 @@ window.FamoDocuments=(()=>{
     const sign=credit?-1:1;
     const rows=parse(order.lignes);
     const total=Number(order.total||0)*sign;
-    const htva=total/1.06, tva=total-htva;
+    const pct=Number(COMPANY.btwTarief)>0?Number(COMPANY.btwTarief):6;
+    const htva=total/(1+pct/100), tva=total-htva;
     const num=number(order,type);
     const title=credit?"CREDITNOTA (VOORBEELD)":(invoice?"FACTUUR":"LEVERINGSBON");
     const lineRows=rows.map(row=>{
@@ -80,11 +88,11 @@ window.FamoDocuments=(()=>{
     const foot=credit
       ? '<b>Voorbeeld / intern document.</b> Geen Airtable-creditnota, geen officieel nummer, geen Peppol. Alleen ter referentie.'
       : (invoice
-        ? 'Betaalstatus: '+esc(payLabel)+'. Intern document — geen automatische Peppol/Billtobox-verzending.'
-        : 'Handtekening klant: ______________________________<br><br>Goederen ontvangen in goede staat en conform.<br>Klachten over verse vis binnen de 12u, over diepvries binnen de 24u.');
+        ? 'Betaalstatus: '+esc(payLabel)+'.'+(COMPANY.betalingsvoorwaarden?' '+esc(COMPANY.betalingsvoorwaarden):'')+' Intern document — geen automatische Peppol/Billtobox-verzending.'
+        : 'Handtekening klant: ______________________________<br><br>'+esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
     const banners=(credit?'<div class="banner"><b>Voorbeeld — niet geboekt.</b> Creditnota (intern) zonder Airtable-nummer; niet automatisch verzonden.</div>':'')+
       (invoice&&COMPANY.exampleBank?'<div class="banner"><b>Voorbeeld bankgegevens.</b> '+(window.famoCompany?esc(famoCompany.EXAMPLE.label):'Vervang IBAN/BIC via Aan de slag vóór echte facturatie.')+'</div>':'');
-    return '<!doctype html><html><head><meta charset="utf-8"><title>'+esc(num)+'</title><style>body{font-family:Arial,sans-serif;color:#111;margin:0;padding:34px;font-size:12px}.head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:12px}h1{margin:0;font-size:20px}.meta{margin-top:3px;color:#444;line-height:1.45}.banner{margin-top:12px;padding:8px 10px;border:1px solid #c9a227;background:#fff8e8;color:#6a5200;font-size:11px}.parties{display:flex;gap:44px;margin-top:20px}.parties>div{flex:1}h2{font-size:10px;text-transform:uppercase;color:#555}table{width:100%;border-collapse:collapse;margin-top:22px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}th{font-size:10px;text-transform:uppercase;background:#f3f3f3}.num{text-align:right}.total{margin:18px 0 0 auto;width:250px}.total div{display:flex;justify-content:space-between;padding:4px 0}.grand{border-top:2px solid #111;margin-top:4px;padding-top:8px!important;font-size:14px;font-weight:bold}.bank{margin-top:18px;padding:10px 12px;border:1px solid #e2e8f0;background:#f8fafc;font-size:11px;line-height:1.5}.foot{margin-top:25px;border-top:1px solid #ddd;padding-top:8px;font-size:10px;color:#555;line-height:1.55}</style></head><body><div class="head"><div><h1>'+esc(COMPANY.nom||"—" )+'</h1><div class="meta">'+companyBlock()+'</div></div><div style="text-align:right"><h1>'+title+'</h1><div class="meta">'+esc(num)+'<br>Bestelling: '+esc(order.ref)+(order.factuurnummer?'<br>Factuur: '+esc(order.factuurnummer):'')+'<br>Datum: '+esc(date(new Date().toISOString()))+'</div></div></div>'+banners+'<div class="parties"><div><h2>Leverancier</h2>'+companyBlock()+'</div><div><h2>Klant</h2>'+esc(order.client)+'<br>'+esc((order.klant||{}).adresse||"").replace(/\n/g,"<br>")+'</div></div><table><tr><th>Beschrijving</th><th class="num">'+(priced?'Aantal':'Aantal')+'</th><th>Eenheid</th>'+(priced?'<th class="num">Tarief</th><th class="num">Subtotaal</th>':'')+'</tr>'+lineRows+'</table>'+(priced?'<div class="total"><div><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div><div><span>BTW 6,0%</span><span>'+eur(tva)+'</span></div><div class="grand"><span>Totaal</span><span>'+eur(total)+'</span></div></div>'+(invoice?bank:'')+'<div class="foot">'+foot+'</div>':'<div class="foot">'+foot+'</div>')+'</body></html>';
+    return '<!doctype html><html><head><meta charset="utf-8"><title>'+esc(num)+'</title><style>body{font-family:Arial,sans-serif;color:#111;margin:0;padding:34px;font-size:12px}.head{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:12px}h1{margin:0;font-size:20px}.meta{margin-top:3px;color:#444;line-height:1.45}.banner{margin-top:12px;padding:8px 10px;border:1px solid #c9a227;background:#fff8e8;color:#6a5200;font-size:11px}.parties{display:flex;gap:44px;margin-top:20px}.parties>div{flex:1}h2{font-size:10px;text-transform:uppercase;color:#555}table{width:100%;border-collapse:collapse;margin-top:22px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}th{font-size:10px;text-transform:uppercase;background:#f3f3f3}.num{text-align:right}.total{margin:18px 0 0 auto;width:250px}.total div{display:flex;justify-content:space-between;padding:4px 0}.grand{border-top:2px solid #111;margin-top:4px;padding-top:8px!important;font-size:14px;font-weight:bold}.bank{margin-top:18px;padding:10px 12px;border:1px solid #e2e8f0;background:#f8fafc;font-size:11px;line-height:1.5}.foot{margin-top:25px;border-top:1px solid #ddd;padding-top:8px;font-size:10px;color:#555;line-height:1.55}</style></head><body><div class="head"><div><h1>'+esc(COMPANY.nom||"—" )+'</h1><div class="meta">'+companyBlock()+'</div></div><div style="text-align:right"><h1>'+title+'</h1><div class="meta">'+esc(num)+'<br>Bestelling: '+esc(order.ref)+(order.factuurnummer?'<br>Factuur: '+esc(order.factuurnummer):'')+'<br>Datum: '+esc(date(new Date().toISOString()))+'</div></div></div>'+banners+'<div class="parties"><div><h2>Leverancier</h2>'+companyBlock()+'</div><div><h2>Klant</h2>'+esc(order.client)+'<br>'+esc((order.klant||{}).adresse||"").replace(/\n/g,"<br>")+'</div></div><table><tr><th>Beschrijving</th><th class="num">'+(priced?'Aantal':'Aantal')+'</th><th>Eenheid</th>'+(priced?'<th class="num">Tarief</th><th class="num">Subtotaal</th>':'')+'</tr>'+lineRows+'</table>'+(priced?'<div class="total"><div><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div><div><span>BTW '+esc(String(pct).replace(".",","))+'%</span><span>'+eur(tva)+'</span></div><div class="grand"><span>Totaal</span><span>'+eur(total)+'</span></div></div>'+(invoice?bank:'')+'<div class="foot">'+foot+'</div>':'<div class="foot">'+foot+'</div>')+'</body></html>';
   }
   return{build,number,filename,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
 })();

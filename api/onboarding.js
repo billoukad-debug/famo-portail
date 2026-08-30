@@ -91,7 +91,10 @@ async function statusPayload() {
     telefoon: c["Telefoon"] || "",
     email: c["E-mail"] || "",
     iban: (c["IBAN"] || "").trim(),
-    bic: (c["BIC"] || "").trim()
+    bic: (c["BIC"] || "").trim(),
+    btwTarief: Number(c["BTW-tarief"]) > 0 ? Number(c["BTW-tarief"]) : 6,
+    betalingsvoorwaarden: c["Betalingsvoorwaarden"] || "",
+    leveringsvoorwaarden: c["Leveringsvoorwaarden"] || ""
   };
 
   const [cat, clients, prices, stock, orders, aanvragen] = await Promise.all([
@@ -211,8 +214,12 @@ module.exports = async (req, res) => {
         "Telefoon": clean(body.telefoon, 40),
         "E-mail": clean(body.email, 120),
         "IBAN": clean(body.iban, 40).replace(/\s+/g, "").toUpperCase(),
-        "BIC": clean(body.bic, 20).replace(/\s+/g, "").toUpperCase()
+        "BIC": clean(body.bic, 20).replace(/\s+/g, "").toUpperCase(),
+        "Betalingsvoorwaarden": clean(body.betalingsvoorwaarden, 200),
+        "Leveringsvoorwaarden": clean(body.leveringsvoorwaarden, 500)
       };
+      const tarief = Number(body.btwTarief);
+      if (Number.isFinite(tarief) && tarief >= 0 && tarief <= 100) fields["BTW-tarief"] = tarief;
       if (!fields["Bedrijfsnaam"] || !fields["BTW-nummer"]) {
         return res.status(400).json({ error: "Bedrijfsnaam en BTW-nummer zijn verplicht" });
       }

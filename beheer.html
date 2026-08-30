@@ -264,7 +264,10 @@ function copyCreds(){
 function renderProducten(p){
   const e=EDIT_PRODUCT,all=DATA.products||[];
   const list=QP?all.filter(x=>x.nom.toLowerCase().includes(QP.toLowerCase())):all;
-  const units=["kg","caisse","carton","pièce"];
+  // Unités canoniques Airtable, tirées de la table de traduction : aucun libellé français en dur ici.
+  const units=Object.keys(window.FAMO_NL.unit).filter(u=>u!=="piece");
+  // Suggesties in het Nederlands; het veld blijft vrij invulbaar.
+  const CATS=["Vis","Schaaldieren","Schelpdieren","Diepvries","Algemeen"];
   let h='<div class="b-head"><div><h2>Producten</h2><p>Wat klanten in de catalogus zien. “Uit catalogus halen” verbergt een product zonder de geschiedenis te wissen.</p></div></div>';
   h+='<div class="b-form"><h3>'+(e?"Product bewerken":"Nieuw product")+'</h3>'+
     '<p class="hint">'+(e?'U bewerkt <b>'+esc(e.nom)+'</b>.':'Prijs per eenheid, exclusief btw. Alleen producten per kg mogen later decimale hoeveelheden krijgen.')+'</p>'+
@@ -272,7 +275,8 @@ function renderProducten(p){
     '<div class="full"><label>Productnaam *</label><input class="staff-field" id="pnom" value="'+esc(e?e.nom:"")+'"></div>'+
     '<div><label>Basisprijs € *</label><input class="staff-field" id="pprix" type="number" min="0" step="0.01" value="'+(e?e.base:"")+'"></div>'+
     '<div><label>Eenheid</label><select class="staff-select" id="punit">'+units.map(u=>'<option value="'+u+'"'+(e&&e.unite===u?" selected":"")+'>'+esc(famoNL.unit(u)||u)+'</option>').join("")+'</select></div>'+
-    '<div><label>Categorie</label><input class="staff-field" id="pcat" value="'+esc(e?e.cat:"")+'" placeholder="Algemeen"></div>'+
+    '<div><label>Categorie</label><input class="staff-field" id="pcat" list="catlist" value="'+esc(e?e.cat:"")+'" placeholder="Algemeen">'+
+    '<datalist id="catlist">'+CATS.map(c=>'<option value="'+esc(c)+'"></option>').join("")+'</datalist></div>'+
     '</div>'+
     '<div class="b-acts"><button class="staff-action" onclick="saveProduct()">'+(e?"Wijzigingen opslaan":"Product toevoegen")+'</button>'+
     (e?'<button class="staff-action-secondary" onclick="cancelProduct()">Annuleren</button>':'')+'</div></div>';
@@ -280,7 +284,7 @@ function renderProducten(p){
   h+='<div class="b-list">'+(list.length?list.map(x=>
     '<div class="b-row"><div class="grow"><b>'+esc(x.nom)+'</b><span class="sub">'+eur(x.base)+' / '+esc(famoNL.unit(x.unite)||x.unite)+(x.cat?' · '+esc(x.cat):'')+'</span></div>'+
     '<div class="acts"><button class="staff-action-secondary" onclick="editProduct(\''+esc(x.id)+'\')">Bewerken</button>'+
-    '<button class="staff-action-secondary" onclick="deactivate(\''+esc(x.id)+'\')">Uit catalogus</button></div></div>'
+    '<button class="staff-action-secondary" onclick="deactivateProduct(\''+esc(x.id)+'\')">Uit catalogus</button></div></div>'
   ).join(""):'<div class="staff-empty">'+(QP?"Geen product gevonden.":"Nog geen actieve producten.")+'</div>')+'</div>';
   p.innerHTML=h;
 }
@@ -295,7 +299,7 @@ async function saveProduct(){
   if(EDIT_PRODUCT&&EDIT_PRODUCT.id)payload.id=EDIT_PRODUCT.id;
   if(await post(payload,EDIT_PRODUCT?"Product bijgewerkt":"Product toegevoegd")){EDIT_PRODUCT=null;render()}
 }
-async function deactivate(id){
+async function deactivateProduct(id){
   const x=(DATA.products||[]).find(y=>y.id===id);
   if(!x)return;
   if(await post({action:"saveProduct",id,nom:x.nom,base:x.base,unite:x.unite,cat:x.cat||"Algemeen",actif:false},"“"+x.nom+"” uit de catalogus gehaald"))render();
@@ -342,15 +346,30 @@ function renderBedrijf(p){
     '<div><label>BTW-nummer *</label><input class="staff-field" id="fbtw" value="'+esc(c.btw)+'"></div>'+
     '<div><label>Telefoon</label><input class="staff-field" id="ftel" value="'+esc(c.telefoon)+'"></div>'+
     '<div><label>E-mail</label><input class="staff-field" id="fmail" value="'+esc(c.email)+'"></div>'+
-    '<div><label>IBAN</label><input class="staff-field" id="fiban" value="'+esc(c.iban)+'"></div>'+
+    '<div><label>IBAN</label><input class="staff-field" id="fiban" value="'+esc(c.iban)+'" placeholder="BE.. .... .... ...."></div>'+
     '<div><label>BIC</label><input class="staff-field" id="fbic" value="'+esc(c.bic)+'"></div>'+
+    '</div><div class="b-acts"><button class="staff-action" onclick="saveConfig()">Opslaan</button></div></div>'+
+
+    '<div class="b-form"><h3>Documenten</h3><p class="hint">Deze waarden verschijnen op de leveringsbonnen en facturen. Wijzigingen gelden meteen voor elk nieuw document.</p>'+
+    '<div class="b-grid">'+
+    '<div><label>BTW-tarief %</label><input class="staff-field" id="ftar" type="number" min="0" max="100" step="0.1" value="'+esc(c.btwTarief==null?6:c.btwTarief)+'"></div>'+
+    '<div class="full"><label>Betalingsvoorwaarden (op factuur)</label><input class="staff-field" id="fbet" value="'+esc(c.betalingsvoorwaarden)+'" placeholder="Betaalbaar binnen 14 dagen na factuurdatum."></div>'+
+    '<div class="full"><label>Leveringsvoorwaarden (op leveringsbon)</label><input class="staff-field" id="flev" value="'+esc(c.leveringsvoorwaarden)+'" placeholder="Goederen ontvangen in goede staat en conform. Klachten over verse vis binnen 12u."></div>'+
     '</div><div class="b-acts"><button class="staff-action" onclick="saveConfig()">Opslaan</button></div></div>';
   p.innerHTML=h;
 }
 async function saveConfig(){
   const nom=val("fnom"),btw=val("fbtw");
   if(!nom||!btw){toast("Bedrijfsnaam en BTW-nummer zijn verplicht.",true);return}
-  if(await post({action:"saveConfig",bedrijfsnaam:nom,adres:val("fadr"),plaats:val("fpl"),btw,telefoon:val("ftel"),email:val("fmail"),iban:val("fiban"),bic:val("fbic")},"Bedrijfsgegevens opgeslagen"))render();
+  const iban=val("fiban").replace(/\s+/g,"").toUpperCase();
+  if(iban&&!/^[A-Z]{2}[0-9A-Z]{13,32}$/.test(iban)){toast("Dit IBAN lijkt niet geldig. Controleer het nummer.",true);return}
+  const tar=Number(val("ftar"));
+  if(val("ftar")&&(!Number.isFinite(tar)||tar<0||tar>100)){toast("BTW-tarief moet tussen 0 en 100 liggen.",true);return}
+  const ok=await post({action:"saveConfig",bedrijfsnaam:nom,adres:val("fadr"),plaats:val("fpl"),btw,
+    telefoon:val("ftel"),email:val("fmail"),iban,bic:val("fbic"),
+    btwTarief:val("ftar")?tar:undefined,
+    betalingsvoorwaarden:val("fbet"),leveringsvoorwaarden:val("flev")},"Bedrijfsgegevens opgeslagen");
+  if(ok)render();
 }
 </script>
 </body></html>

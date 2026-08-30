@@ -1,82 +1,77 @@
 # FAMO Portail
 
-Portail B2B FAMO pour la prise de commande, la préparation magasin, le stock et le suivi jusqu’à la facture.
+Portail B2B de Famo Trading : le client commande en ligne, le personnel prépare et livre, le responsable administre. Site statique + fonctions serverless Vercel, données dans Airtable.
 
-## Parcours opérationnel
+## Les trois interfaces
 
-1. Le client ou un membre de l’équipe encode une commande. Le serveur relit le catalogue Airtable et recalcule les prix : le navigateur ne décide jamais du prix final.
-2. Au magasin, chaque article est validé séparément et la quantité réellement préparée est saisie. Cette validation est nécessaire avant le départ.
-3. Au départ en livraison, le stock est contrôlé et déduit. Une ligne de journal est créée par produit avec quantité avant/après.
-4. À la réception, le magasin enregistre la personne qui a réceptionné la commande et peut joindre un lien HTTPS vers la photo ou signature de preuve. La facture est ensuite numérotée.
-5. Les corrections de stock demandent un type de mouvement et une raison/référence, et sont journalisées.
-
-Les produits vendus au kilo acceptent des quantités décimales (par exemple `0,5 kg`). Les unités Airtable `caisse` restent en quantités entières et s’affichent **kassa** dans l’interface (jamais le mot français « caisse » à l’écran).
-
-## Parcours staff (UI)
-
-Navigation quotidienne (≤ 4 destinations + Meer) :
-
-| Destination | Page | Rôle |
+| Interface | Pages | Accès |
 |---|---|---|
-| **Bestellingen** | `/bestellingen.html` | Accueil opérationnel (liste, chips, attention) |
-| **Magazijn** | `/entrepot.html` | Board kanban (**Bord**) + vue journée (**Dag** via `?view=dag`) |
-| **Invoeren** | `/invoer.html` | Saisie manuelle téléphone / WhatsApp |
-| **Leveringen** | `/leveringen.html` | File livreur : Maps + confirmation réception |
-| Meer → Voorraad | `/stock.html` | Inventaire et seuils |
-| Meer → Documenten | `/documenten.html` | LB / facture / creditnota (`?order=` & `?type=lb\|facture\|credit`) |
-| Setup (hors nav) | `/aan-de-slag.html` | Onboarding — lien footer seulement |
+| **Client** | `/` (catalogue, panier, historique), `/aanvraag.html` (demande d'accès) | identifiant + mot de passe client |
+| **Personnel** — *Dagelijks* | `/bestellingen.html`, `/entrepot.html`, `/leveringen.html`, `/order.html` | `STAFF_CODE` ou `ADMIN_CODE` |
+| **Administration** — *Beheer* | `/beheer.html`, `/invoer.html`, `/documenten.html` | `ADMIN_CODE` uniquement |
 
-Deep-link (pas une entrée de menu) : `/order.html?id=…`.
+Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
 
-Redirects conservés :
+Redirections conservées : `/overzicht.html` → Bestellingen, `/dagprep.html` → Magazijn (vue jour), `/aan-de-slag.html` → Beheer.
 
-- `/overzicht.html` → `/bestellingen.html`
-- `/dagprep.html` → `/entrepot.html?view=dag`
+Hors menu : `/stock.html` reste accessible par URL directe mais n'est plus proposé — le stock Airtable n'est pas compté et aucune transition ne le déduit (voir « Politique de stock »).
 
-Shell unique : `staff-shell` + `data-famo-nav` (`staff-nav.js`) + design tokens `staff.css`. Login unique via `staff-session.js` (`bindLogin` / `.staff-login`). Confirmation de livraison : **Leveringen** (owner) via `staff-delivery.js`. Documents : `documenten.html` + `documents.js` (IBAN/BIC réel ou exemple temporaire via `staff-company.js`).
+## Le parcours d'une commande
 
-Voir aussi `FLOW_RAPPORT.md` (audit flux + correctifs).
+1. Le client commande. **Le serveur relit le catalogue et recalcule le prix** : le navigateur ne décide jamais du montant (`api/order.js`).
+2. Le personnel prépare : validation article par article dans Magazijn, ou raccourci **Snel voorbereiden** depuis la fiche commande.
+3. Départ en livraison. La commande est alors **verrouillée** : lignes et total ne sont plus modifiables (verrou basé sur le statut, pas sur le stock).
+4. Réception confirmée dans **Leveringen** — le nom du réceptionnaire est obligatoire.
+5. Le numéro de facture est attribué une seule fois, au format `FA-2026-0001`.
 
-Le portail client `/` est hors scope du redesign staff.
+Le total est recalculé côté serveur à chaque modification de lignes (`api/updateorder.js`), jamais accepté tel quel depuis le navigateur.
 
-Auth staff : cookie de session HttpOnly (`POST /api/session`), durée 8 h. Le code personnel ne doit plus apparaître dans les URL ni dans le stockage navigateur.
+Les produits au kilo acceptent les décimales (`0,5 kg`). Les autres unités restent entières. L'unité Airtable `caisse` s'affiche **kassa** — jamais le mot français à l'écran (`staff-i18n.js`).
 
-## Données Airtable utilisées
+## Politique de stock
 
-- `Clients`, `Catalogue`, `Prix négociés`, `Commandes`, `Stock`;
-- `Mouvements de stock` pour les entrées, retours, corrections et sorties;
-- dans `Commandes` : préparation validée, dates de préparation/livraison/facture, confirmation de réception, réceptionnaire et preuve de livraison.
+Le stock Airtable n'est pas fiable tant qu'un inventaire réel n'a pas été fait. En conséquence : **aucune transition ne déduit le stock** (`skipStock`), et Voorraad est retiré du menu. Une seule règle, partout — c'est volontaire, pas un oubli.
 
-## Développement et contrôles
+Pour réactiver : compter physiquement, remplir la table `Stock`, retirer `skipStock` de `entrepot.html` et `order.html`, remettre Voorraad dans `staff-nav.js`.
 
-Les fonctions Vercel lisent les variables d’environnement suivantes :
+## Administration (`/beheer.html`)
+
+Tout se règle ici, sans passer par Airtable :
+
+- **Overzicht** — compteurs et alertes actionnables
+- **Aanvragen** — demandes du site public ; « Klant aanmaken » pré-remplit et clôture la demande
+- **Klanten** — création, édition, identifiants (affichés une seule fois, bouton copier)
+- **Producten** — catalogue, prix de base, unité, catégorie, retrait
+- **Prijzen** — prix négociés par client
+- **Bedrijfsgegevens** — identité, IBAN/BIC, **taux de TVA**, conditions de paiement et de livraison
+
+Le taux de TVA et les mentions légales des documents viennent de ces réglages : rien n'est codé en dur dans `documents.js`.
+
+## Variables d'environnement (Vercel)
 
 ```text
 AIRTABLE_TOKEN=...
-STAFF_CODE=...
 ADMIN_CODE=...
+STAFF_CODE=...
 ```
 
-Si `STAFF_CODE` **et** `ADMIN_CODE` sont absents, le login staff est **refusé** (fail-closed). Il n’y a plus de fallback `famo2026`. Définissez au moins `ADMIN_CODE` dans Vercel (Production + Preview) avant d’utiliser le portail.
+Sans `ADMIN_CODE` ni `STAFF_CODE`, le login est **refusé** (fail-closed, aucun code de secours). `ADMIN_CODE` donne l'accès complet ; `STAFF_CODE` limite au travail quotidien. Les deux peuvent être identiques au démarrage.
 
-Deux rôles, deux codes distincts :
-- `ADMIN_CODE` → accès complet : Bestellingen, Magazijn, Leveringen **+** Invoeren, Voorraad, Documenten, Aan de slag (IBAN, clients, prix, demandes d’inscription).
-- `STAFF_CODE` → personnel courant, limité au strict nécessaire pour préparer et livrer : Bestellingen, Magazijn, Leveringen.
+Après modification d'une variable : **Redeploy**.
 
-Les pages/API réservées à l’admin refusent une session `STAFF_CODE` même valide (401 « Enkel voor beheerders »). Pour démarrer sans rien casser : donnez à `ADMIN_CODE` la même valeur que votre `STAFF_CODE` actuel, puis changez `STAFF_CODE` pour un code différent le jour où vous donnez un accès limité à quelqu’un d’autre.
-
-Exécuter les contrôles avant publication :
+## Contrôles avant publication
 
 ```bash
 node scripts/check.js
 ```
 
-Ils vérifient la syntaxe des API et des scripts HTML, les fonctions appelées depuis le HTML, la nav staff (4 + Meer, redirects, pas de warehouse-sidebar), et les règles métier critiques : prix serveur, validation de préparation et confirmation de réception. GitHub Actions exécute le même contrôle à chaque push sur `main`.
+Vérifie la syntaxe, les fonctions appelées depuis le HTML, l'échappement XSS, la navigation, et les règles métier critiques : prix serveur, verrou après départ, réceptionnaire obligatoire, numéro de facture unique, séparation des rôles. GitHub Actions rejoue le même contrôle à chaque push sur `main`.
 
-## Limites à raccorder avant exploitation comptable complète
+## Limites connues
 
-- La facture générée par le portail est un document interne. L’envoi légal B2B via Peppol doit être relié au prestataire comptable choisi (par exemple Billtobox).
-- La preuve de livraison accepte aujourd’hui un lien HTTPS vers une photo ou une signature. Un dépôt direct de fichiers nécessite de choisir et connecter un stockage (Vercel Blob, Drive ou équivalent).
-- La numérotation actuelle est séquentielle pour un usage normal. La garantie atomique multi-utilisateur doit être fournie par le système comptable/Peppol avant d’émettre des factures légales en parallèle.
-
-Les factures historiques ne sont pas automatiquement complétées avec une preuve de livraison fictive : elles restent traçables comme données antérieures au nouveau processus.
+- Les mots de passe clients sont stockés en clair dans Airtable et transitent à chaque appel. À remplacer par des hachages et une vraie session serveur.
+- Un seul code par rôle : pas d'identité individuelle ni de révocation ciblée.
+- Aucun envoi d'email automatique — identifiants et documents se transmettent à la main.
+- Les factures sont des **documents internes**. L'émission légale B2B belge (Peppol) doit passer par le prestataire comptable.
+- La preuve de livraison accepte un lien HTTPS ; aucun fichier n'est stocké.
+- La numérotation de facture est séquentielle mais pas atomique : deux facturations simultanées pourraient entrer en conflit.

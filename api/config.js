@@ -45,7 +45,10 @@ module.exports = async (req, res) => {
       telefoon: c["Telefoon"] || "",
       email: c["E-mail"] || "",
       iban: (c["IBAN"] || "").trim(),
-      bic: (c["BIC"] || "").trim()
+      bic: (c["BIC"] || "").trim(),
+      btwTarief: Number(c["BTW-tarief"]) > 0 ? Number(c["BTW-tarief"]) : 6,
+      betalingsvoorwaarden: (c["Betalingsvoorwaarden"] || "").trim(),
+      leveringsvoorwaarden: (c["Leveringsvoorwaarden"] || "").trim()
     };
     const contactOnly = {
       bedrijfsnaam: config.bedrijfsnaam || "Famo Trading BV",
