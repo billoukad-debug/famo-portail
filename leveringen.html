@@ -41,7 +41,11 @@
           <h1>Leveringen</h1>
           <p>Onderweg, te bevestigen en recent afgehandeld.</p>
         </div>
-        <div><button class="staff-action-secondary" onclick="load()">Vernieuwen</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="staff-action-secondary" href="/entrepot.html" style="display:inline-flex;align-items:center;text-decoration:none">Magazijn</a>
+          <a class="staff-action-secondary" href="/documenten.html" style="display:inline-flex;align-items:center;text-decoration:none">Documenten</a>
+          <button class="staff-action-secondary" onclick="load()">Vernieuwen</button>
+        </div>
       </header>
       <div class="l-tools">
         <input id="q" class="staff-field" type="search" placeholder="Zoek klant of referentie…" oninput="render()">
