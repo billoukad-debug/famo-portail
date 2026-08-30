@@ -6,9 +6,22 @@ async function at(path){
   const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
   return r.json();
 }
+async function atAll(path){
+  let offset = "", records = [];
+  do {
+    const sep = path.includes("?") ? "&" : "?";
+    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
+    if (page.error) return page;
+    records = records.concat(page.records || []);
+    offset = page.offset || "";
+  } while (offset);
+  return { records };
+}
+// Pagine sur toute la table : au-dela de 100 lignes, un simple pageSize=100
+// mentait sur le compte (plafonne silencieusement).
 async function count(table, formula){
-  const f = formula ? `&filterByFormula=${encodeURIComponent(formula)}` : "";
-  const j = await at(`${encodeURIComponent(table)}?pageSize=100${f}`);
+  const f = formula ? `?filterByFormula=${encodeURIComponent(formula)}` : "";
+  const j = await atAll(`${encodeURIComponent(table)}${f}`);
   return (j.records || []).length;
 }
 
