@@ -466,11 +466,11 @@ function printPicklist(){
 function showNotice(message,kind="info"){const box=document.getElementById("notice");box.textContent=message;box.className="notice "+kind;clearTimeout(window._noticeTimer);window._noticeTimer=setTimeout(()=>box.classList.add("hidden"),7000)}
 async function logoutWarehouse(){await loginCtl.logout()}
 
-async function adv(id,statut){ await upd({id,statut}); }
+async function adv(id,statut){ const patch={id,statut}; if(statut==="Sortie en livraison") patch.skipStock=true; await upd(patch); }
 function confirmAdvance(id,statut,index){
   const ref=ORDERS[index]?ORDERS[index].ref:"";
   let message="Bestelling "+ref+" naar ‘"+famoNL.status(statut)+"’ verplaatsen?";
-  if(statut==="Sortie en livraison") message+=" De definitieve hoeveelheden worden vastgezet en de voorraad wordt één keer afgeboekt. Controleer voorbereiding en leverbon eerst.";
+  if(statut==="Sortie en livraison") message+=" Voorraad wordt niet automatisch bijgewerkt (nog handmatig beheerd). Controleer voorbereiding en leverbon eerst.";
   if(statut==="Facturée") message+=" Er wordt een definitief factuurnummer toegekend.";
   document.getElementById("advanceText").textContent=message;
   document.getElementById("advanceConfirm").onclick=async()=>{closeAdvanceModal();await adv(id,statut)};

@@ -460,17 +460,18 @@ async function main() {
     const famoNav = sandbox.window.famoNav || sandbox.global.famoNav;
     const items = famoNav.ITEMS;
     const primary = famoNav.PRIMARY.map(i => i.label);
-    assert.equal(items.length, 7, "7 entrées de menu (4 primary + 2 meer + setup)");
+    assert.equal(items.length, 6, "6 entrées de menu (4 primary + 1 meer + setup) — Voorraad retiré du menu tant que le stock n'est pas fiable");
     assert.equal(primary.length, 4, "4 destinations primary");
     assert.ok(!primary.includes("Overzicht"), "Overzicht ne doit pas être primary");
     assert.ok(!primary.includes("Dagvoorbereiding"), "Dagvoorbereiding ne doit pas être primary");
     const labels = items.map(i => i.label);
     for (const need of [
       "Bestellingen", "Magazijn", "Invoeren", "Leveringen",
-      "Voorraad", "Documenten", "Aan de slag"
+      "Documenten", "Aan de slag"
     ]) {
       assert.ok(labels.includes(need), "label manquant: " + need);
     }
+    assert.ok(!labels.includes("Voorraad"), "Voorraad ne doit plus être dans le menu (stock non fiable)");
   }
   console.log("✓ I. staff-nav 4 primary + Meer + Aan de slag");
 

@@ -6,8 +6,9 @@
     { id: "leveringen", href: "/leveringen.html", label: "Leveringen", icon: "delivery" },
     { id: "invoeren", href: "/invoer.html", label: "Invoeren", icon: "entry" }
   ];
+  // Voorraad reste accessible via son URL directe, mais n'est plus dans le menu :
+  // le stock n'est pas encore fiable, on ne veut pas encourager son usage quotidien.
   const MEER = [
-    { id: "voorraad", href: "/stock.html", label: "Voorraad", icon: "stock" },
     { id: "documenten", href: "/documenten.html", label: "Documenten", icon: "docs" }
   ];
   const SETUP = { id: "aan-de-slag", href: "/aan-de-slag.html", label: "Aan de slag", icon: "guide" };

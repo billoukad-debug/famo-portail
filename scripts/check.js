@@ -249,8 +249,8 @@ for (const page of STAFF_PAGES) {
       const expected = ["Bestellingen", "Magazijn", "Leveringen", "Invoeren"];
       if (expected.some((l, i) => labels[i] !== l)) {
         fail("staff-nav.js", "PRIMARY attendu: " + expected.join(" | ") + " — reçu: " + labels.join(" | "));
-      } else if (!meerLabels.includes("Voorraad") || !meerLabels.includes("Documenten")) {
-        fail("staff-nav.js", "MEER doit contenir Voorraad et Documenten");
+      } else if (!meerLabels.includes("Documenten")) {
+        fail("staff-nav.js", "MEER doit contenir Documenten");
       } else if (!famoNav.SETUP || famoNav.SETUP.label !== "Aan de slag") {
         fail("staff-nav.js", "SETUP footer Aan de slag manquant");
       } else {
