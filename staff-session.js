@@ -43,6 +43,9 @@
     return fallback || null;
   }
 
+  let lastRole = null;
+  function getRole() { return lastRole; }
+
   async function login(code) {
     const r = await fetch("/api/session", {
       method: "POST",
@@ -52,11 +55,18 @@
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(translateError(d.error || "Aanmelden mislukt"));
+    lastRole = d.role || null;
     return d;
   }
 
   async function check() {
     const r = await fetch("/api/session", { method: "GET", credentials: "include" });
+    if (r.ok) {
+      const d = await r.json().catch(() => ({}));
+      lastRole = d.role || null;
+    } else {
+      lastRole = null;
+    }
     return r.ok;
   }
 
@@ -182,7 +192,28 @@
     const appView = typeof cfg.appView === "string" ? document.getElementById(cfg.appView) : cfg.appView;
     let busy = false;
 
+    function showAdminDenied() {
+      if (loginView) loginView.classList.add("hidden");
+      if (appView) appView.classList.add("hidden");
+      let box = document.getElementById("famoAdminDenied");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "famoAdminDenied";
+        box.setAttribute("role", "alert");
+        box.style.cssText = "max-width:420px;margin:15vh auto;padding:24px;text-align:center;font-family:Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#333";
+        box.innerHTML = '<h2 style="margin:0 0 10px;font-size:18px">Enkel voor beheerders</h2>' +
+          '<p style="color:#666;margin:0 0 18px;line-height:1.5">Deze pagina is beperkt tot de beheerder. Neem contact op als u hier toegang toe nodig hebt.</p>' +
+          '<a href="/bestellingen.html" style="color:#111;font-weight:600">Terug naar Bestellingen</a>';
+        document.body.appendChild(box);
+      }
+      box.style.display = "block";
+    }
+
     async function showApp() {
+      if (cfg.requireAdmin && getRole() !== "admin") {
+        showAdminDenied();
+        return;
+      }
       if (loginView) loginView.classList.add("hidden");
       if (appView) appView.classList.remove("hidden");
       if (typeof cfg.onReady === "function") await cfg.onReady();
@@ -253,7 +284,7 @@
   }
 
   global.famoStaff = {
-    login, check, logout, api, apiJson, bindLogin,
+    login, check, logout, api, apiJson, bindLogin, getRole,
     translateError, saveReturn, takeReturn, stripCodeParam,
     proofFieldsHtml, bindProofFile, PROOF_MAX_BYTES
   };

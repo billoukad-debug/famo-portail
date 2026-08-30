@@ -115,7 +115,7 @@ async function showAppAfterSession(){
   const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); const p=n=>String(n).padStart(2,"0"); document.getElementById("dateLiv").value=tomorrow.getFullYear()+"-"+p(tomorrow.getMonth()+1)+"-"+p(tomorrow.getDate());
 }
 
-const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"loginView",appView:"app",onReady:showAppAfterSession});
+const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"loginView",appView:"app",requireAdmin:true,onReady:showAppAfterSession});
 function enter(){loginCtl.enter()}
 async function logout(){await loginCtl.logout()}
 

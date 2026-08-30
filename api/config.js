@@ -20,6 +20,7 @@ module.exports = async (req, res) => {
     const q = req.query || {};
     const wantPublic = String(q.public || "") === "1";
     const staffOk = __auth.staffOk(req);
+    const adminOk = __auth.adminOk(req);
 
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};
@@ -33,24 +34,27 @@ module.exports = async (req, res) => {
       iban: (c["IBAN"] || "").trim(),
       bic: (c["BIC"] || "").trim()
     };
+    const contactOnly = {
+      bedrijfsnaam: config.bedrijfsnaam || "Famo Trading BV",
+      adres: config.adres,
+      plaats: config.plaats,
+      btw: config.btw,
+      telefoon: config.telefoon,
+      email: config.email
+    };
 
     // Public contact block for the client portal (no IBAN/BIC).
     if (wantPublic && !staffOk) {
-      return res.status(200).json({
-        config: {
-          bedrijfsnaam: config.bedrijfsnaam || "Famo Trading BV",
-          adres: config.adres,
-          plaats: config.plaats,
-          btw: config.btw,
-          telefoon: config.telefoon,
-          email: config.email
-        }
-      });
+      return res.status(200).json({ config: contactOnly });
     }
 
     if (!staffOk) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
+    // Personeel (niet-beheerder) ziet enkel de contactgegevens — IBAN/BIC is enkel voor de beheerder.
+    if (!adminOk) return res.status(200).json({ config: contactOnly });
+
     if (q.status === "1") {
+      if (!adminOk) return res.status(401).json({ error: "Enkel voor beheerders" });
       const [catalogue, clients, prijzen, stock, orders, aanvragen] = await Promise.all([
         count("Catalogue", "{Actif}=1"),
         count("Clients"),

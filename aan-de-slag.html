@@ -176,6 +176,20 @@ function ask(msg){
   });
 }
 
+function showAdminDenied(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.add("hidden");
+  let box=document.getElementById("famoAdminDenied");
+  if(!box){
+    box=document.createElement("div");
+    box.id="famoAdminDenied";
+    box.setAttribute("role","alert");
+    box.style.cssText="max-width:420px;margin:15vh auto;padding:24px;text-align:center;font-family:Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#333";
+    box.innerHTML='<h2 style="margin:0 0 10px;font-size:18px">Enkel voor beheerders</h2><p style="color:#666;margin:0 0 18px;line-height:1.5">Deze pagina is beperkt tot de beheerder. Neem contact op als u hier toegang toe nodig hebt.</p><a href="/bestellingen.html" style="color:#111;font-weight:600">Terug naar Bestellingen</a>';
+    document.body.appendChild(box);
+  }
+  box.style.display="block";
+}
 async function enter(){
   const input=document.getElementById("code"), err=document.getElementById("err");
   const code=(input.value||"").trim();
@@ -184,6 +198,7 @@ async function enter(){
   try{
     await famoStaff.login(code);
     input.value="";
+    if(famoStaff.getRole()!=="admin"){showAdminDenied();return}
     document.getElementById("login").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     await refresh();
@@ -203,7 +218,7 @@ function firstOpenStep(){
   const s=DATA.status||{};
   if(!s.identiteit)return 0;
   if(!s.catalogue)return 1;
-  if(!s.clients)return 2;
+  if(!s.clients||(s.aanvragen||0)>0)return 2;
   if(!s.prijzen)return 3;
   return 4;
 }
@@ -484,13 +499,16 @@ async function saveClient(){
     let d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     const creds=(!payload.id||payload.generate||payload.password)?(d.credentials||null):null;
     const aanvraagId=PREFILL&&PREFILL.aanvraagId;
+    let aanvraagWarning=false;
     if(!payload.id&&aanvraagId){
       try{
         d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"closeAanvraag",id:aanvraagId})});
-      }catch(e){}
+      }catch(e){aanvraagWarning=true}
     }
     DATA=d; LAST_CREDS=creds; EDIT_CLIENT=null; PREFILL=null;
-    toast(payload.id?"Klant bijgewerkt":"Klant opgeslagen — login klaar");
+    toast((payload.id?"Klant bijgewerkt":"Klant opgeslagen — login klaar")+
+      (aanvraagWarning?" — let op: aanvraag kon niet als verwerkt worden gemarkeerd, controleer handmatig zodat er geen dubbele klant ontstaat.":""),
+      aanvraagWarning);
     render();
   }catch(e){toast(famoStaff.translateError(e.message),true)}
   finally{BUSY=false}
@@ -587,6 +605,7 @@ document.getElementById("code").addEventListener("keydown",e=>{if(e.key==="Enter
 window.addEventListener("DOMContentLoaded",async()=>{
   try{
     if(await famoStaff.check()){
+      if(famoStaff.getRole()!=="admin"){showAdminDenied();return}
       document.getElementById("login").classList.add("hidden");
       document.getElementById("app").classList.remove("hidden");
       await refresh();

@@ -183,8 +183,8 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === "GET") {
-      if (!__auth.staffOk(req)) {
-        return res.status(401).json({ error: "Ongeldige personeelscode" });
+      if (!__auth.adminOk(req)) {
+        return res.status(401).json({ error: "Enkel voor beheerders" });
       }
       const data = await statusPayload();
       return res.status(200).json(data);
@@ -195,8 +195,8 @@ module.exports = async (req, res) => {
     }
 
     const body = parseBody(req);
-    if (!__auth.staffOk(req)) {
-      return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!__auth.adminOk(req)) {
+      return res.status(401).json({ error: "Enkel voor beheerders" });
     }
 
     const action = clean(body.action, 40);

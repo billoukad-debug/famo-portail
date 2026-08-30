@@ -59,7 +59,7 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const q = req.query || {};
-    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!__auth.adminOk(req)) return res.status(401).json({ error: "Enkel voor beheerders" });
 
     if (req.method === "GET" && String(q.history || "") === "1") {
       const product = String(q.product || "").trim();

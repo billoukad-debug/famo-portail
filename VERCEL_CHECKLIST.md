@@ -4,7 +4,8 @@
 | Variable | Valeur | Note |
 |---|---|---|
 | `AIRTABLE_TOKEN` | (secret) | obligatoire |
-| `STAFF_CODE` | code staff fort | **obligatoire** — sans ça, login staff = 401/500. Plus de fallback `famo2026`. |
+| `ADMIN_CODE` | code admin fort | **obligatoire** — accès complet (config, IBAN, clients, prix, Invoeren, Voorraad, Documenten). |
+| `STAFF_CODE` | code personnel fort | optionnel — accès limité à Bestellingen/Magazijn/Leveringen. Peut être identique à `ADMIN_CODE` au démarrage. Plus de fallback `famo2026`. |
 
 Auth staff = cookie de session HttpOnly (`/api/session`). Les pages n’utilisent plus `?code=`.
 

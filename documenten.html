@@ -35,7 +35,7 @@ function makeDocs(){
     DOCS.push({order:o,type:"credit",label:"Creditnota (voorbeeld)",number:FamoDocuments.number(o,"credit"),available:hasFa,reason:hasFa?"Voorbeeld — niet geboekt in Airtable":"Beschikbaar na factuur",date:o.factureeLe||"",amount:hasFa?-Math.abs(Number(o.total||0)):null});
   });
 }
-const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"login",appView:"app",onReady:load});
+const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"login",appView:"app",requireAdmin:true,onReady:load});
 function enter(){loginCtl.enter()}
 async function loadCompany(){
   try{

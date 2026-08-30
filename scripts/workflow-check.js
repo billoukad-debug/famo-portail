@@ -1,6 +1,7 @@
 // Règles métier critiques, sans accès Airtable réel.
 // Les appels réseau sont simulés pour vérifier les gardes du backend.
 process.env.STAFF_CODE = process.env.STAFF_CODE || "testcode-ci";
+process.env.ADMIN_CODE = process.env.ADMIN_CODE || "admincode-ci";
 const assert = require("assert");
 const path = require("path");
 const fs = require("fs");
@@ -181,24 +182,34 @@ async function main() {
   }
   console.log("✓ Session staff commune (cookie HttpOnly, expiration, logout, cookie-only APIs)");
 
-  // --- A. Fail-closed : sans STAFF_CODE, auth staff impossible ---
+  // --- A. Fail-closed : sans aucun code configuré, auth staff impossible ---
   {
-    const saved = process.env.STAFF_CODE;
+    const savedStaff = process.env.STAFF_CODE;
+    const savedAdmin = process.env.ADMIN_CODE;
     delete process.env.STAFF_CODE;
+    delete process.env.ADMIN_CODE;
     clearModule("lib/staffauth.js");
     clearModule("api/session.js");
     clearModule("api/allorders.js");
     const sessionFb = require(path.join(ROOT, "api", "session.js"));
     const authFb = require(path.join(ROOT, "lib", "staffauth.js"));
     const allordersFb = require(path.join(ROOT, "api", "allorders.js"));
-    assert.equal(authFb.hasCode(), false, "sans STAFF_CODE → hasCode false");
+    assert.equal(authFb.hasCode(), false, "sans STAFF_CODE ni ADMIN_CODE → hasCode false");
     const r500 = mkRes();
     await sessionFb({ method: "POST", body: { code: "famo2026" }, headers: {} }, r500);
-    assert.equal(r500.statusCode, 500, "login sans STAFF_CODE doit échouer fermé (500)");
+    assert.equal(r500.statusCode, 500, "login sans aucun code doit échouer fermé (500)");
     const rAll = mkRes();
     await allordersFb({ method: "GET", query: { code: "famo2026" }, headers: {} }, rAll);
-    assert.equal(rAll.statusCode, 500, "API staff sans STAFF_CODE → 500 config");
-    process.env.STAFF_CODE = saved;
+    assert.equal(rAll.statusCode, 500, "API staff sans aucun code → 500 config");
+
+    // STAFF_CODE seul configuré : hasCode true, mais adminOk reste fermé (pas d'ADMIN_CODE).
+    process.env.STAFF_CODE = savedStaff;
+    clearModule("lib/staffauth.js");
+    const authStaffOnly = require(path.join(ROOT, "lib", "staffauth.js"));
+    assert.equal(authStaffOnly.hasCode(), true, "STAFF_CODE seul → hasCode true");
+    assert.equal(authStaffOnly.hasAdminCode(), false, "sans ADMIN_CODE → hasAdminCode false");
+
+    process.env.ADMIN_CODE = savedAdmin;
     clearModule("lib/staffauth.js");
     clearModule("api/session.js");
     clearModule("api/allorders.js");
@@ -208,7 +219,7 @@ async function main() {
     require(path.join(ROOT, "api", "allorders.js"));
     require(path.join(ROOT, "api", "updateorder.js"));
   }
-  console.log("✓ A. Fail-closed sans STAFF_CODE (famo2026 refusé)");
+  console.log("✓ A. Fail-closed sans code configuré + rôles STAFF_CODE/ADMIN_CODE distincts");
 
   // Rebind handlers after cache clear
   const updateOrder2 = require(path.join(ROOT, "api", "updateorder.js"));
@@ -231,6 +242,11 @@ async function main() {
   await session2({ method: "POST", body: { code: process.env.STAFF_CODE }, headers: {} }, sres);
   const tok2 = decodeURIComponent(/famo_sess=([^;]+)/.exec(sres.headers["Set-Cookie"])[1]);
   const cookieHdr = { cookie: "famo_sess=" + encodeURIComponent(tok2) };
+
+  const aresAdmin = mkRes();
+  await session2({ method: "POST", body: { code: process.env.ADMIN_CODE }, headers: {} }, aresAdmin);
+  const tokAdmin = decodeURIComponent(/famo_sess=([^;]+)/.exec(aresAdmin.headers["Set-Cookie"])[1]);
+  const adminCookieHdr = { cookie: "famo_sess=" + encodeURIComponent(tokAdmin) };
 
   // --- C. Stock déduit une seule fois / lignes bloquées si déjà afgeboekt ---
   {
@@ -271,10 +287,43 @@ async function main() {
       }
     ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 409, "lignes après afgeboekt → 409");
-    assert.match(result.res.payload.error, /uit voorraad geboekt/);
+    assert.match(result.res.payload.error, /onderweg/);
     assert.equal(result.calls.filter(c => /Stock/.test(c.url)).length, 0, "pas de nouvel appel stock");
+
+    // skipStock: départ sans toucher au stock, mais le verrou anti-modification
+    // doit quand même se poser (basé sur le statut, pas sur "Stock afgeboekt").
+    result = await call(updateOrder2, {
+      id: "rec2", statut: "Sortie en livraison", skipStock: true
+    }, [
+      {
+        fields: {
+          Statut: "Prête",
+          "Préparation validée": true,
+          "Lignes (produits / quantités)": "Mosselen × 2 caisse",
+          "Référence": "CMD-2",
+          "Stock afgeboekt": false
+        }
+      },
+      { fields: { Statut: "Sortie en livraison" } }
+    ], { headers: cookieHdr });
+    assert.equal(result.res.statusCode, 200, "Sortie avec skipStock doit réussir");
+    assert.equal(result.calls.filter(c => /Stock/.test(c.url)).length, 0, "skipStock ne touche jamais au stock");
+
+    result = await call(updateOrder2, {
+      id: "rec2", lignes: "Mosselen × 5 caisse", total: 50
+    }, [
+      {
+        fields: {
+          Statut: "Sortie en livraison",
+          "Stock afgeboekt": false,
+          "Préparation validée": true,
+          "Lignes (produits / quantités)": "Mosselen × 2 caisse"
+        }
+      }
+    ], { headers: cookieHdr });
+    assert.equal(result.res.statusCode, 409, "lignes après départ (skipStock) → 409 même sans Stock afgeboekt");
   }
-  console.log("✓ C. Stock déduit une seule fois / 409 si afgeboekt");
+  console.log("✓ C. Stock déduit une seule fois / 409 si afgeboekt / verrou aussi sans skipStock");
 
   // --- D. Facture unique : Factuurnummer déjà posé → pas de nouvel alloc ---
   {
@@ -439,19 +488,27 @@ async function main() {
   }
   console.log("✓ K. allorders cookie-only (sans ?code=)");
 
-  // --- L. Onboarding API : preview credentials + validation saveConfig ---
+  // --- L. Onboarding API : admin-only, preview credentials + validation saveConfig ---
   {
     const onboarding = require(path.join(ROOT, "api", "onboarding.js"));
     const originalFetch = global.fetch;
     global.fetch = async () => ({ json: async () => ({ records: [] }) });
     try {
-      const r = mkRes();
+      const rStaff = mkRes();
       await onboarding({
         method: "POST",
         body: { action: "previewCredentials", nom: "Test Klant" },
         headers: cookieHdr
+      }, rStaff);
+      assert.equal(rStaff.statusCode, 401, "onboarding refuse un simple staff (non-admin)");
+
+      const r = mkRes();
+      await onboarding({
+        method: "POST",
+        body: { action: "previewCredentials", nom: "Test Klant" },
+        headers: adminCookieHdr
       }, r);
-      assert.equal(r.statusCode, 200, "previewCredentials");
+      assert.equal(r.statusCode, 200, "previewCredentials (admin)");
       assert.ok(r.payload.user && r.payload.password, "user+password generes");
       assert.ok(r.payload.password.length >= 6);
 
@@ -459,14 +516,14 @@ async function main() {
       await onboarding({
         method: "POST",
         body: { action: "saveConfig", bedrijfsnaam: "", btw: "" },
-        headers: cookieHdr
+        headers: adminCookieHdr
       }, rBad);
       assert.equal(rBad.statusCode, 400, "saveConfig incomplet refuse");
     } finally {
       global.fetch = originalFetch;
     }
   }
-  console.log("✓ L. Onboarding credentials + validation config");
+  console.log("✓ L. Onboarding admin-only + credentials + validation config");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());

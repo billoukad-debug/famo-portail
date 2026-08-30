@@ -36,29 +36,39 @@
       '><span class="staff-nav-icon ' + item.icon + '"></span>' + item.label + "</a>";
   }
 
-  function sidebarHtml(active) {
+  // Personeel (rol "staff") ziet enkel het dagelijkse minimum. Voorraad, Documenten,
+  // Invoeren en Aan de slag zijn beheerderstaken (server-side afgedwongen via adminOk).
+  const STAFF_PRIMARY = PRIMARY.filter(i => i.id !== "invoeren");
+
+  function sidebarHtml(active, isAdmin) {
     active = active || detectActive();
+    const primary = isAdmin ? PRIMARY : STAFF_PRIMARY;
     const logout = "famoStaff.logout().then(function(){location.reload()})";
+    const meerBlock = isAdmin
+      ? '<div class="staff-nav-label meer-label">Meer</div>' + MEER.map(i => linkHtml(i, active)).join("")
+      : "";
+    const setupBlock = isAdmin
+      ? '<div class="staff-nav-foot"><a class="staff-setup-link' + (active === "aan-de-slag" ? " active" : "") + '" href="/aan-de-slag.html"' +
+        (active === "aan-de-slag" ? ' aria-current="page"' : "") + '>Aan de slag</a></div>'
+      : "";
     return '<a class="staff-logo" href="/bestellingen.html"><span class="staff-logo-mark">F</span>Famo Trading</a>' +
       '<div class="staff-nav-label">Vandaag</div>' +
-      PRIMARY.map(i => linkHtml(i, active)).join("") +
-      '<div class="staff-nav-label meer-label">Meer</div>' +
-      MEER.map(i => linkHtml(i, active)).join("") +
+      primary.map(i => linkHtml(i, active)).join("") +
+      meerBlock +
       '<div class="staff-nav-spacer"></div>' +
-      '<div class="staff-nav-foot">' +
-        '<a class="staff-setup-link' + (active === "aan-de-slag" ? " active" : "") + '" href="/aan-de-slag.html"' +
-        (active === "aan-de-slag" ? ' aria-current="page"' : "") + '>Aan de slag</a>' +
-      "</div>" +
+      setupBlock +
       '<div class="staff-session"><span class="staff-session-avatar">PM</span><div><b>Personeel</b><small>Famo Trading</small></div>' +
       '<a href="#" onclick="' + logout + ';return false">Uitloggen</a></div>';
   }
 
-  function mobileHtml(active) {
+  function mobileHtml(active, isAdmin) {
     active = active || detectActive();
-    const primary = PRIMARY.map(i => {
+    const items = isAdmin ? PRIMARY : STAFF_PRIMARY;
+    const primary = items.map(i => {
       const cur = active === i.id ? ' aria-current="page"' : "";
       return '<a href="' + i.href + '"' + cur + (active === i.id ? ' class="active"' : "") + ">" + i.label + "</a>";
     }).join("");
+    if (!isAdmin) return primary;
     const meerOpen = active === "voorraad" || active === "documenten" || active === "aan-de-slag";
     return primary +
       '<details class="staff-meer"' + (meerOpen ? " open" : "") + ">" +
@@ -70,28 +80,37 @@
       "</details>";
   }
 
-  function mount(active) {
-    active = active || detectActive();
+  function render(active, isAdmin) {
     document.querySelectorAll("[data-famo-nav]").forEach(el => {
-      el.innerHTML = sidebarHtml(active);
+      el.innerHTML = sidebarHtml(active, isAdmin);
       el.setAttribute("aria-label", "Personeelsnavigatie");
       el.classList.add("staff-sidebar");
     });
     document.querySelectorAll("[data-famo-mobile-nav]").forEach(el => {
-      el.innerHTML = mobileHtml(active);
+      el.innerHTML = mobileHtml(active, isAdmin);
       el.setAttribute("aria-label", "Mobiele navigatie");
       el.classList.add("staff-mobile-nav");
     });
-    maybeSetupBanner();
   }
 
-  function maybeSetupBanner() {
+  function mount(active) {
+    active = active || detectActive();
+    // Standaard het beperkte personeelsmenu tonen (geen flits van beheerderslinks);
+    // pas uitbreiden zodra de rol bevestigd is als admin.
+    render(active, false);
+    maybeSetupBanner(active);
+  }
+
+  function maybeSetupBanner(active) {
     const path = (location.pathname || "").split("/").pop() || "";
     if (path === "aan-de-slag.html" || path === "index.html" || !path.endsWith(".html")) return;
     const staff = global.famoStaff;
     if (!staff || typeof staff.check !== "function" || typeof staff.api !== "function") return;
     staff.check().then(ok => {
-      if (!ok) return;
+      if (!ok) return null;
+      const isAdmin = typeof staff.getRole === "function" && staff.getRole() === "admin";
+      render(active, isAdmin);
+      if (!isAdmin) return null;
       return staff.api("/api/config?status=1").then(r => r.ok ? r.json() : null);
     }).then(data => {
       if (!data || !data.status) return;

@@ -30,16 +30,17 @@ module.exports = async (req, res) => {
     if (rateLimited(rlKey, 5, 30000)) {
       return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
     }
-    if (!auth.codeEquals(body.code)) {
+    const role = auth.roleForCode(body.code);
+    if (!role) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });
     }
     _rl.delete(rlKey);
-    const tok = auth.sign(Date.now() + auth.TTL_MS);
+    const tok = auth.sign(Date.now() + auth.TTL_MS, role);
     auth.setCookie(res, tok, Math.floor(auth.TTL_MS / 1000));
-    return res.status(200).json({ ok: true, expiresInSec: Math.floor(auth.TTL_MS / 1000) });
+    return res.status(200).json({ ok: true, role, expiresInSec: Math.floor(auth.TTL_MS / 1000) });
   }
   if (req.method === "GET") {
-    if (auth.staffOk(req)) return res.status(200).json({ ok: true });
+    if (auth.staffOk(req)) return res.status(200).json({ ok: true, role: auth.roleOf(req) });
     return res.status(401).json({ error: "Sessie verlopen. Meld u opnieuw aan." });
   }
   if (req.method === "DELETE") {

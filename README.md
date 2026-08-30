@@ -54,9 +54,16 @@ Les fonctions Vercel lisent les variables d’environnement suivantes :
 ```text
 AIRTABLE_TOKEN=...
 STAFF_CODE=...
+ADMIN_CODE=...
 ```
 
-Si `STAFF_CODE` est **absent**, le login staff est **refusé** (fail-closed). Il n’y a plus de fallback `famo2026`. Définissez `STAFF_CODE` dans Vercel (Production + Preview) avant d’utiliser le portail.
+Si `STAFF_CODE` **et** `ADMIN_CODE` sont absents, le login staff est **refusé** (fail-closed). Il n’y a plus de fallback `famo2026`. Définissez au moins `ADMIN_CODE` dans Vercel (Production + Preview) avant d’utiliser le portail.
+
+Deux rôles, deux codes distincts :
+- `ADMIN_CODE` → accès complet : Bestellingen, Magazijn, Leveringen **+** Invoeren, Voorraad, Documenten, Aan de slag (IBAN, clients, prix, demandes d’inscription).
+- `STAFF_CODE` → personnel courant, limité au strict nécessaire pour préparer et livrer : Bestellingen, Magazijn, Leveringen.
+
+Les pages/API réservées à l’admin refusent une session `STAFF_CODE` même valide (401 « Enkel voor beheerders »). Pour démarrer sans rien casser : donnez à `ADMIN_CODE` la même valeur que votre `STAFF_CODE` actuel, puis changez `STAFF_CODE` pour un code différent le jour où vous donnez un accès limité à quelqu’un d’autre.
 
 Exécuter les contrôles avant publication :
 

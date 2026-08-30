@@ -142,11 +142,15 @@ module.exports = async (req, res) => {
     const cur = await at(`Commandes/${id}`);
     if (cur.error) return res.status(500).json(cur);
     const f = cur.fields || {};
+    const statuses = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
+    const departed = statuses.indexOf(f["Statut"] || "Reçue") >= 2;
 
     // Once goods left the warehouse, changing quantities would no longer match
     // the stock movement and the delivery note. Create a correction instead.
-    if (f["Stock afgeboekt"] && (typeof lignes === "string" || typeof total === "number" || preparationValidee)) {
-      return res.status(409).json({ error: "Deze levering is al uit voorraad geboekt en kan niet meer worden gewijzigd" });
+    // Based on the order status, not "Stock afgeboekt": a departure can skip the
+    // stock deduction (skipStock) and still must lock the order against edits.
+    if (departed && (typeof lignes === "string" || typeof total === "number" || preparationValidee)) {
+      return res.status(409).json({ error: "Deze levering is al onderweg en kan niet meer worden gewijzigd" });
     }
 
     const fields = {};
@@ -161,7 +165,6 @@ module.exports = async (req, res) => {
       fields["Lignes (produits / quantités)"] = lignes;
     }
     if (typeof total === "number") fields["Total"] = total;
-    const statuses = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
     if (statut && !statuses.includes(statut)) return res.status(400).json({ error: "Ongeldige bestelstatus" });
     if (statut) {
       const currentIndex = statuses.indexOf(f["Statut"] || "Reçue");
@@ -186,7 +189,9 @@ module.exports = async (req, res) => {
 
     // Stock déduit au moment où la marchandise part réellement
     // (skipStock: le stock Airtable n'est pas encore fiable — géré à la main pour l'instant)
-    if (statut === "Sortie en livraison" && !f["Stock afgeboekt"]) {
+    // Garde d'entrée sur le statut (pas "Stock afgeboekt") pour empêcher une double
+    // déduction si l'appel est rejoué après le départ, skipStock ou non.
+    if (statut === "Sortie en livraison" && !departed) {
       if (!f["Préparation validée"]) {
         return res.status(409).json({ error: "Valideer eerst alle artikelen van deze bestelling" });
       }
