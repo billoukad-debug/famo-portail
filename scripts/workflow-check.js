@@ -461,7 +461,7 @@ async function main() {
     const items = famoNav.ITEMS;
     const primary = famoNav.PRIMARY.map(i => i.label);
     assert.equal(items.length, 6, "6 entrées de menu (4 primary + 1 meer + setup) — Voorraad retiré du menu tant que le stock n'est pas fiable");
-    assert.equal(primary.length, 4, "4 destinations primary");
+    assert.equal(primary.length, 3, "3 destinations quotidiennes (Dagelijks)");
     assert.ok(!primary.includes("Overzicht"), "Overzicht ne doit pas être primary");
     assert.ok(!primary.includes("Dagvoorbereiding"), "Dagvoorbereiding ne doit pas être primary");
     const labels = items.map(i => i.label);

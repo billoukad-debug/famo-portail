@@ -245,12 +245,12 @@ for (const page of STAFF_PAGES) {
       if (labels.includes("Overzicht")) fail("staff-nav.js", "PRIMARY ne doit pas lister Overzicht");
       if (labels.includes("Dagvoorbereiding")) fail("staff-nav.js", "PRIMARY ne doit pas lister Dagvoorbereiding");
       if (labels.includes("Aan de slag")) fail("staff-nav.js", "PRIMARY ne doit pas lister Aan de slag");
-      if (labels.length !== 4) fail("staff-nav.js", "PRIMARY doit contenir exactement 4 items");
-      const expected = ["Bestellingen", "Magazijn", "Leveringen", "Invoeren"];
+      if (labels.length !== 3) fail("staff-nav.js", "PRIMARY doit contenir exactement 3 items (zone Dagelijks)");
+      const expected = ["Bestellingen", "Magazijn", "Leveringen"];
       if (expected.some((l, i) => labels[i] !== l)) {
         fail("staff-nav.js", "PRIMARY attendu: " + expected.join(" | ") + " — reçu: " + labels.join(" | "));
-      } else if (!meerLabels.includes("Documenten")) {
-        fail("staff-nav.js", "MEER doit contenir Documenten");
+      } else if (!meerLabels.includes("Documenten") || !meerLabels.includes("Invoeren")) {
+        fail("staff-nav.js", "MEER (zone Beheer) doit contenir Invoeren et Documenten");
       } else if (!famoNav.SETUP || famoNav.SETUP.label !== "Beheer") {
         fail("staff-nav.js", "SETUP footer Beheer manquant");
       } else {

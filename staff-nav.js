@@ -1,17 +1,22 @@
-// Staff navigation: 4 daily destinations + Meer + footer setup.
+// Navigation en trois zones explicites :
+//   DAGELIJKS  — le travail du jour, visible par tout le personnel
+//   BEHEER     — administration, réservée au rôle admin (aussi imposé côté serveur)
+//   footer     — passage vers le portail client + identité de la session
 (function (global) {
+  // Zone 1 : opérations quotidiennes (personnel + admin).
   const PRIMARY = [
     { id: "bestellingen", href: "/bestellingen.html", label: "Bestellingen", icon: "orders" },
     { id: "magazijn", href: "/entrepot.html", label: "Magazijn", icon: "warehouse" },
-    { id: "leveringen", href: "/leveringen.html", label: "Leveringen", icon: "delivery" },
-    { id: "invoeren", href: "/invoer.html", label: "Invoeren", icon: "entry" }
+    { id: "leveringen", href: "/leveringen.html", label: "Leveringen", icon: "delivery" }
   ];
-  // Voorraad reste accessible via son URL directe, mais n'est plus dans le menu :
-  // le stock n'est pas encore fiable, on ne veut pas encourager son usage quotidien.
+  // Zone 2 : administration (admin seulement).
+  // Voorraad reste accessible via son URL directe, mais hors menu : le stock
+  // n'est pas fiable, on ne veut pas encourager son usage quotidien.
   const MEER = [
+    { id: "invoeren", href: "/invoer.html", label: "Invoeren", icon: "entry" },
     { id: "documenten", href: "/documenten.html", label: "Documenten", icon: "docs" }
   ];
-  // Back-office quotidien (klanten, producten, prijzen, bedrijfsgegevens).
+  // Back-office (klanten, producten, prijzen, bedrijfsgegevens).
   // aan-de-slag.html reste l'assistant de mise en service initiale.
   const SETUP = { id: "beheer", href: "/beheer.html", label: "Beheer", icon: "guide" };
   const ITEMS = PRIMARY.concat(MEER).concat([SETUP]);
@@ -40,47 +45,38 @@
       '><span class="staff-nav-icon ' + item.icon + '"></span>' + item.label + "</a>";
   }
 
-  // Personeel (rol "staff") ziet enkel het dagelijkse minimum. Voorraad, Documenten,
-  // Invoeren en Aan de slag zijn beheerderstaken (server-side afgedwongen via adminOk).
-  const STAFF_PRIMARY = PRIMARY.filter(i => i.id !== "invoeren");
-
   function sidebarHtml(active, isAdmin) {
     active = active || detectActive();
-    const primary = isAdmin ? PRIMARY : STAFF_PRIMARY;
     const logout = "famoStaff.logout().then(function(){location.reload()})";
-    const meerBlock = isAdmin
-      ? '<div class="staff-nav-label meer-label">Meer</div>' + MEER.map(i => linkHtml(i, active)).join("")
-      : "";
-    const setupBlock = isAdmin
-      ? '<div class="staff-nav-foot"><a class="staff-setup-link' + (active === "beheer" ? " active" : "") + '" href="/beheer.html"' +
-        (active === "beheer" ? ' aria-current="page"' : "") + '>Beheer</a></div>'
+    // Zone administration : uniquement pour l'admin (le serveur refuse de toute façon).
+    const adminBlock = isAdmin
+      ? '<div class="staff-nav-label meer-label">Beheer</div>' +
+        MEER.concat([SETUP]).map(i => linkHtml(i, active)).join("")
       : "";
     return '<a class="staff-logo" href="/bestellingen.html"><span class="staff-logo-mark">F</span>Famo Trading</a>' +
-      '<div class="staff-nav-label">Vandaag</div>' +
-      primary.map(i => linkHtml(i, active)).join("") +
-      meerBlock +
+      '<div class="staff-nav-label">Dagelijks</div>' +
+      PRIMARY.map(i => linkHtml(i, active)).join("") +
+      adminBlock +
       '<div class="staff-nav-spacer"></div>' +
-      setupBlock +
-      '<div class="staff-session"><span class="staff-session-avatar">PM</span><div><b>Personeel</b><small>Famo Trading</small></div>' +
+      '<div class="staff-nav-foot"><a class="staff-setup-link" href="/" target="_blank" rel="noopener">Klantportaal bekijken ↗</a></div>' +
+      '<div class="staff-session"><span class="staff-session-avatar">' + (isAdmin ? "BH" : "PM") + '</span>' +
+      '<div><b>' + (isAdmin ? "Beheerder" : "Personeel") + '</b><small>Famo Trading</small></div>' +
       '<a href="#" onclick="' + logout + ';return false">Uitloggen</a></div>';
   }
 
   function mobileHtml(active, isAdmin) {
     active = active || detectActive();
-    const items = isAdmin ? PRIMARY : STAFF_PRIMARY;
-    const primary = items.map(i => {
+    const link = i => {
       const cur = active === i.id ? ' aria-current="page"' : "";
       return '<a href="' + i.href + '"' + cur + (active === i.id ? ' class="active"' : "") + ">" + i.label + "</a>";
-    }).join("");
+    };
+    const primary = PRIMARY.map(link).join("");
     if (!isAdmin) return primary;
-    const meerOpen = active === "voorraad" || active === "documenten" || active === "beheer";
+    const adminOpen = active === "invoeren" || active === "documenten" || active === "beheer" || active === "voorraad";
     return primary +
-      '<details class="staff-meer"' + (meerOpen ? " open" : "") + ">" +
-      "<summary>Meer</summary>" +
-      MEER.concat([SETUP]).map(i => {
-        const cur = active === i.id ? ' aria-current="page"' : "";
-        return '<a href="' + i.href + '"' + cur + (active === i.id ? ' class="active"' : "") + ">" + i.label + "</a>";
-      }).join("") +
+      '<details class="staff-meer"' + (adminOpen ? " open" : "") + ">" +
+      "<summary>Beheer</summary>" +
+      MEER.concat([SETUP]).map(link).join("") +
       "</details>";
   }
 
