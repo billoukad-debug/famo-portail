@@ -18,7 +18,7 @@ async function load(){const v=document.getElementById("view");v.className="staff
 function docLink(type){return '/documenten.html?order='+encodeURIComponent(ORDER.id)+'&type='+type}
 function render(){const o=ORDER,l=parse(o.lignes),v=document.getElementById("view");v.className="";
   let action="";
-  if(o.statut==="Reçue") action='<a class="staff-action" href="'+magazijnHref()+'">Voorbereiden in magazijn</a>';
+  if(o.statut==="Reçue") action='<button class="staff-action" onclick="quickPrep()">Snel voorbereiden</button> <a class="staff-action-secondary" href="'+magazijnHref()+'">Via magazijn (per artikel)</a>';
   else if(o.statut==="Prête") action=o.preparationValidee?'<button class="staff-action" onclick="depart()">Vertrek bevestigen</button>':'<a class="staff-action" href="'+magazijnHref()+'">Validatie openen</a>';
   else if(o.statut==="Sortie en livraison") action='<a class="staff-action" href="/leveringen.html">Open Leveringen</a> <button class="staff-action-secondary" onclick="openDelivery()">Hier bevestigen</button>';
   else action='<button class="staff-action-secondary" onclick="paid()">'+(o.paiement==="Payé"?'Markeer openstaand':'Markeer betaald')+'</button>';
@@ -41,8 +41,13 @@ async function update(p){
   finally{BUSY=false;document.querySelectorAll("button").forEach(b=>b.disabled=false)}
 }
 function depart(){
-  document.getElementById("advanceText").textContent="Bestelling "+ORDER.ref+" naar ‘Onderweg’ verplaatsen? De voorraad wordt één keer afgeboekt.";
-  document.getElementById("advanceConfirm").onclick=async()=>{closeAdvanceModal();await update({statut:"Sortie en livraison"})};
+  document.getElementById("advanceText").textContent="Bestelling "+ORDER.ref+" naar ‘Onderweg’ verplaatsen? Voorraad wordt niet automatisch bijgewerkt (nog handmatig beheerd).";
+  document.getElementById("advanceConfirm").onclick=async()=>{closeAdvanceModal();await update({statut:"Sortie en livraison",skipStock:true})};
+  document.getElementById("advanceModal").classList.remove("hidden");
+}
+function quickPrep(){
+  document.getElementById("advanceText").textContent="Bestelling "+ORDER.ref+" klaarzetten zonder artikel-per-artikel controle in het magazijn?";
+  document.getElementById("advanceConfirm").onclick=async()=>{closeAdvanceModal();await update({statut:"Prête",preparationValidee:true})};
   document.getElementById("advanceModal").classList.remove("hidden");
 }
 function closeAdvanceModal(){document.getElementById("advanceModal").classList.add("hidden")}

@@ -135,7 +135,7 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl } = body;
+    const { id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl, skipStock } = body;
     if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
     if (!id) return res.status(400).json({ error: "Bestelling-id ontbreekt" });
 
@@ -185,21 +185,24 @@ module.exports = async (req, res) => {
     let stockReport = null, factuurnummer = null;
 
     // Stock déduit au moment où la marchandise part réellement
+    // (skipStock: le stock Airtable n'est pas encore fiable — géré à la main pour l'instant)
     if (statut === "Sortie en livraison" && !f["Stock afgeboekt"]) {
       if (!f["Préparation validée"]) {
         return res.status(409).json({ error: "Valideer eerst alle artikelen van deze bestelling" });
       }
-      const useLines = (typeof lignes === "string" ? lignes : f["Lignes (produits / quantités)"]);
-      stockReport = await deductStock(useLines);
-      if (stockReport.error || stockReport.missing.length || stockReport.insufficient.length) {
-        return res.status(409).json({
-          error: stockReport.error || "Voorraadcontrole mislukt",
-          stock: stockReport
-        });
+      if (!skipStock) {
+        const useLines = (typeof lignes === "string" ? lignes : f["Lignes (produits / quantités)"]);
+        stockReport = await deductStock(useLines);
+        if (stockReport.error || stockReport.missing.length || stockReport.insufficient.length) {
+          return res.status(409).json({
+            error: stockReport.error || "Voorraadcontrole mislukt",
+            stock: stockReport
+          });
+        }
+        fields["Stock afgeboekt"] = true;
+        const movementError = await createStockMovements(stockReport, f["Référence"] || id);
+        if (movementError) stockReport.journalWarning = movementError;
       }
-      fields["Stock afgeboekt"] = true;
-      const movementError = await createStockMovements(stockReport, f["Référence"] || id);
-      if (movementError) stockReport.journalWarning = movementError;
     }
 
     if (statut === "Facturée") {
