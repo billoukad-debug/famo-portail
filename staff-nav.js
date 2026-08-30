@@ -11,7 +11,9 @@
   const MEER = [
     { id: "documenten", href: "/documenten.html", label: "Documenten", icon: "docs" }
   ];
-  const SETUP = { id: "aan-de-slag", href: "/aan-de-slag.html", label: "Aan de slag", icon: "guide" };
+  // Back-office quotidien (klanten, producten, prijzen, bedrijfsgegevens).
+  // aan-de-slag.html reste l'assistant de mise en service initiale.
+  const SETUP = { id: "beheer", href: "/beheer.html", label: "Beheer", icon: "guide" };
   const ITEMS = PRIMARY.concat(MEER).concat([SETUP]);
 
   function detectActive() {
@@ -21,6 +23,7 @@
     if (path === "stock.html") return "voorraad";
     if (path === "order.html" || path === "overzicht.html" || path === "bestellingen.html") return "bestellingen";
     if (path === "aan-de-slag.html") return "aan-de-slag";
+    if (path === "beheer.html") return "beheer";
     if (path === "leveringen.html") return "leveringen";
     if (path === "documenten.html") return "documenten";
     const hit = ITEMS.find(i => i.href.endsWith("/" + path) || i.href === "/" + path);
@@ -49,8 +52,8 @@
       ? '<div class="staff-nav-label meer-label">Meer</div>' + MEER.map(i => linkHtml(i, active)).join("")
       : "";
     const setupBlock = isAdmin
-      ? '<div class="staff-nav-foot"><a class="staff-setup-link' + (active === "aan-de-slag" ? " active" : "") + '" href="/aan-de-slag.html"' +
-        (active === "aan-de-slag" ? ' aria-current="page"' : "") + '>Aan de slag</a></div>'
+      ? '<div class="staff-nav-foot"><a class="staff-setup-link' + (active === "beheer" ? " active" : "") + '" href="/beheer.html"' +
+        (active === "beheer" ? ' aria-current="page"' : "") + '>Beheer</a></div>'
       : "";
     return '<a class="staff-logo" href="/bestellingen.html"><span class="staff-logo-mark">F</span>Famo Trading</a>' +
       '<div class="staff-nav-label">Vandaag</div>' +
@@ -70,7 +73,7 @@
       return '<a href="' + i.href + '"' + cur + (active === i.id ? ' class="active"' : "") + ">" + i.label + "</a>";
     }).join("");
     if (!isAdmin) return primary;
-    const meerOpen = active === "voorraad" || active === "documenten" || active === "aan-de-slag";
+    const meerOpen = active === "voorraad" || active === "documenten" || active === "beheer";
     return primary +
       '<details class="staff-meer"' + (meerOpen ? " open" : "") + ">" +
       "<summary>Meer</summary>" +
@@ -112,7 +115,7 @@
 
   function maybeSetupBanner(active) {
     const path = (location.pathname || "").split("/").pop() || "";
-    if (path === "aan-de-slag.html" || path === "index.html" || !path.endsWith(".html")) return;
+    if (path === "aan-de-slag.html" || path === "beheer.html" || path === "index.html" || !path.endsWith(".html")) return;
     const staff = global.famoStaff;
     if (!staff || typeof staff.check !== "function" || typeof staff.api !== "function") return;
     staff.check().then(ok => {
@@ -133,7 +136,7 @@
         req.className = "staff-request-banner";
         req.setAttribute("role", "status");
         req.innerHTML = aanvragen + " nieuwe aanvra" + (aanvragen > 1 ? "gen" : "ag") +
-          " van de website — <a href=\"/aan-de-slag.html\">bekijken en klant aanmaken</a>.";
+          " van de website — <a href=\"/beheer.html\">bekijken en klant aanmaken</a>.";
         main.insertBefore(req, main.firstChild);
       }
 
@@ -145,7 +148,7 @@
       const banner = document.createElement("div");
       banner.className = "staff-setup-banner";
       banner.setAttribute("role", "status");
-      banner.innerHTML = "Setup nog niet afgerond (" + gaps.join(", ") + ") — ga naar <a href=\"/aan-de-slag.html\">Aan de slag</a>.";
+      banner.innerHTML = "Setup nog niet afgerond (" + gaps.join(", ") + ") — ga naar <a href=\"/beheer.html\">Beheer</a>.";
       main.insertBefore(banner, main.firstChild);
     }).catch(() => {});
   }

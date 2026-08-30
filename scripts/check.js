@@ -251,8 +251,8 @@ for (const page of STAFF_PAGES) {
         fail("staff-nav.js", "PRIMARY attendu: " + expected.join(" | ") + " — reçu: " + labels.join(" | "));
       } else if (!meerLabels.includes("Documenten")) {
         fail("staff-nav.js", "MEER doit contenir Documenten");
-      } else if (!famoNav.SETUP || famoNav.SETUP.label !== "Aan de slag") {
-        fail("staff-nav.js", "SETUP footer Aan de slag manquant");
+      } else if (!famoNav.SETUP || famoNav.SETUP.label !== "Beheer") {
+        fail("staff-nav.js", "SETUP footer Beheer manquant");
       } else {
         pass("staff-nav.js", "PRIMARY 4+Meer + setup footer");
       }

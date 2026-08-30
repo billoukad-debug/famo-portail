@@ -1,0 +1,356 @@
+<!DOCTYPE html><html lang="nl"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Famo Trading — Beheer</title>
+<link rel="stylesheet" href="/staff.css">
+<style>
+.b-tabs{display:flex;gap:4px;background:#f0f0f0;padding:4px;border-radius:11px;margin-top:20px;overflow-x:auto}
+.b-tabs button{min-height:38px;padding:0 15px;border:0;border-radius:8px;background:transparent;color:#666;font-size:13.5px;font-weight:550;cursor:pointer;white-space:nowrap}
+.b-tabs button.active{background:#fff;color:#111;box-shadow:0 1px 2px rgba(0,0,0,.07)}
+.b-tabs button .n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;border-radius:10px;background:#235e86;color:#fff;font-size:11px;font-weight:600}
+.b-panel{margin-top:22px}
+.b-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.b-head h2{margin:0 0 4px;font-size:16px}
+.b-head p{margin:0;color:#777;font-size:13px;max-width:60ch;line-height:1.5}
+.b-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:11px}
+.b-card{border:1px solid #e8e8e8;border-radius:12px;background:#fff;padding:15px 16px}
+.b-card .v{display:block;font:600 25px Geist Mono,ui-monospace,monospace;letter-spacing:-.02em}
+.b-card .l{display:block;font-size:11.5px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-weight:600}
+.b-card.warn{border-color:#e6d4a8;background:#fffdf6}
+.b-card.warn .v{color:#8a6200}
+.b-card.ok .v{color:#2e7d53}
+.b-list{border:1px solid #e8e8e8;border-radius:12px;background:#fff;overflow:hidden}
+.b-row{display:flex;gap:13px;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f2;flex-wrap:wrap}
+.b-row:last-child{border-bottom:0}
+.b-row .grow{flex:1;min-width:190px}
+.b-row b{font-size:14px;font-weight:600;display:block}
+.b-row span.sub{font-size:12.5px;color:#777;line-height:1.5}
+.b-row .acts{display:flex;gap:7px;flex-wrap:wrap}
+.b-form{border:1px solid #e8e8e8;border-radius:12px;background:#fff;padding:18px;margin-bottom:16px}
+.b-form h3{margin:0 0 3px;font-size:14.5px}
+.b-form .hint{margin:0 0 15px;font-size:12.5px;color:#777;line-height:1.5}
+.b-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.b-grid .full{grid-column:1/-1}
+.b-grid label{display:block;font-size:11.5px;font-weight:600;color:#777;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.b-grid input,.b-grid select{width:100%}
+.b-acts{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
+.b-check{display:flex;gap:9px;align-items:center;font-size:13.5px;color:#333;font-weight:500}
+.b-check input{width:auto}
+.b-creds{margin-top:15px;border:1px solid #cfe0d4;background:#f3f9f5;border-radius:11px;padding:15px}
+.b-creds small{display:block;font-size:11.5px;color:#2b6b48;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+.b-creds .kv{display:flex;gap:10px;align-items:baseline;margin-bottom:5px;font-size:13px}
+.b-creds .kv i{font-style:normal;color:#666;min-width:88px}
+.b-creds code{font:600 13.5px Geist Mono,ui-monospace,monospace;background:#fff;border:1px solid #d8e6dc;border-radius:6px;padding:3px 8px}
+.b-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#111;color:#fff;padding:12px 18px;border-radius:10px;font-size:13.5px;z-index:200;display:none;max-width:min(560px,92vw);line-height:1.5;box-shadow:0 10px 34px rgba(0,0,0,.22)}
+.b-toast.err{background:#a4362a}
+.b-note{border:1px solid #e6d4a8;background:#fffdf6;color:#7a5800;border-radius:11px;padding:13px 15px;font-size:13px;line-height:1.55;margin-bottom:16px}
+.b-note a{color:#111;font-weight:600}
+.b-search{margin-bottom:13px;display:flex;gap:9px;flex-wrap:wrap}
+.b-search input{flex:1;min-width:210px}
+@media(max-width:620px){.b-row .acts{width:100%}.b-row .acts button{flex:1}}
+</style></head><body>
+
+<section id="login" class="staff-login"><div>
+  <h1>Beheer</h1>
+  <p>Alleen voor beheerders. Klanten, producten, prijzen en bedrijfsgegevens.</p>
+  <input id="code" type="password" autocomplete="current-password" placeholder="Toegangscode (beheerder)">
+  <button type="button" onclick="enter()">Aanmelden</button>
+  <div id="err" class="staff-login-error" role="alert"></div>
+</div></section>
+
+<div id="app" class="hidden staff-shell">
+  <aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
+  <nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
+  <main class="staff-main"><div class="staff-page">
+    <header class="staff-page-head">
+      <div><h1>Beheer</h1><p>Alles wat u instelt voor het portaal: klanten, producten, prijzen en bedrijfsgegevens.</p></div>
+      <div><button class="staff-action-secondary" onclick="refresh()">Vernieuwen</button></div>
+    </header>
+    <div class="b-tabs" id="tabs"></div>
+    <div class="b-panel" id="panel"><div class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div></div>
+  </div></main>
+</div>
+<div id="toast" class="b-toast" role="status"></div>
+
+<script src="/staff-session.js"></script>
+<script src="/staff-i18n.js"></script>
+<script src="/staff-nav.js"></script>
+<script>
+let DATA=null,TAB="overzicht",BUSY=false,CREDS=null,EDIT_CLIENT=null,EDIT_PRODUCT=null,PREFILL=null,QC="",QP="";
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+const eur=n=>"€ "+Number(n||0).toFixed(2).replace(".",",");
+const val=id=>{const el=document.getElementById(id);return el?el.value.trim():""};
+const checked=id=>{const el=document.getElementById(id);return!!(el&&el.checked)};
+
+const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"login",appView:"app",requireAdmin:true,onReady:refresh});
+function enter(){loginCtl.enter()}
+
+function toast(msg,isErr){
+  const el=document.getElementById("toast");
+  el.textContent=msg;el.className="b-toast"+(isErr?" err":"");el.style.display="block";
+  clearTimeout(toast._t);toast._t=setTimeout(()=>{el.style.display="none"},5000);
+}
+
+async function refresh(){
+  try{
+    DATA=await famoStaff.apiJson("/api/onboarding");
+    render();
+  }catch(e){
+    document.getElementById("panel").innerHTML='<div class="staff-error">'+esc(famoStaff.translateError(e.message||"Netwerkfout."))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="refresh()">Opnieuw proberen</button></div>';
+  }
+}
+
+async function post(payload,okMsg){
+  if(BUSY)return false;
+  BUSY=true;
+  try{
+    const d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    DATA=d;
+    if(okMsg)toast(okMsg);
+    return d;
+  }catch(e){
+    toast(famoStaff.translateError(e.message||"Opslaan mislukt"),true);
+    return false;
+  }finally{BUSY=false}
+}
+
+function go(tab){TAB=tab;CREDS=null;render()}
+
+function render(){
+  if(!DATA)return;
+  const s=DATA.status||{},nA=(DATA.aanvragen||[]).length;
+  const tabs=[
+    ["overzicht","Overzicht",0],
+    ["aanvragen","Aanvragen",nA],
+    ["klanten","Klanten",0],
+    ["producten","Producten",0],
+    ["prijzen","Prijzen",0],
+    ["bedrijf","Bedrijfsgegevens",0]
+  ];
+  document.getElementById("tabs").innerHTML=tabs.map(t=>
+    '<button class="'+(TAB===t[0]?"active":"")+'" onclick="go(\''+t[0]+'\')">'+esc(t[1])+(t[2]?'<span class="n">'+t[2]+'</span>':'')+'</button>'
+  ).join("");
+  const p=document.getElementById("panel");
+  p.className="b-panel";
+  if(TAB==="overzicht")renderOverzicht(p,s);
+  else if(TAB==="aanvragen")renderAanvragen(p);
+  else if(TAB==="klanten")renderKlanten(p);
+  else if(TAB==="producten")renderProducten(p);
+  else if(TAB==="prijzen")renderPrijzen(p);
+  else renderBedrijf(p);
+}
+
+function renderOverzicht(p,s){
+  const nA=(DATA.aanvragen||[]).length;
+  const cards=[
+    [nA,"Open aanvragen",nA?"warn":""],
+    [s.clients||0,"Klanten",""],
+    [s.credentials||0,"Met login",""],
+    [s.catalogue||0,"Actieve producten",""],
+    [s.prijzen||0,"Afgesproken prijzen",""],
+    [s.orders||0,"Bestellingen",""]
+  ];
+  let warn="";
+  if(nA) warn+='<div class="b-note">Er '+(nA>1?'zijn '+nA+' nieuwe aanvragen':'is 1 nieuwe aanvraag')+' via de website. <a href="#" onclick="go(\'aanvragen\');return false">Behandelen</a></div>';
+  if(!s.clients) warn+='<div class="b-note">Nog geen enkele klant. <a href="#" onclick="go(\'klanten\');return false">Maak een eerste klant aan</a> zodat er besteld kan worden.</div>';
+  if(!s.catalogue) warn+='<div class="b-note">Geen actieve producten. <a href="#" onclick="go(\'producten\');return false">Voeg producten toe</a>.</div>';
+  p.innerHTML=warn+
+    '<div class="b-cards">'+cards.map(c=>'<div class="b-card '+c[2]+'"><span class="v">'+c[0]+'</span><span class="l">'+esc(c[1])+'</span></div>').join("")+'</div>'+
+    '<div class="b-head" style="margin-top:26px"><div><h2>Snel naar</h2><p>De dagelijkse schermen staan in het menu links. Hier beheert u wat daarachter zit.</p></div></div>'+
+    '<div class="staff-chips" style="margin-top:0">'+
+      '<a class="staff-chip" href="/bestellingen.html">Bestellingen</a>'+
+      '<a class="staff-chip" href="/entrepot.html">Magazijn</a>'+
+      '<a class="staff-chip" href="/leveringen.html">Leveringen</a>'+
+      '<a class="staff-chip" href="/documenten.html">Documenten</a>'+
+      '<a class="staff-chip" href="/" target="_blank">Klantportaal openen</a>'+
+    '</div>';
+}
+
+function renderAanvragen(p){
+  const list=DATA.aanvragen||[];
+  let h='<div class="b-head"><div><h2>Aanvragen via de website</h2><p>Mensen die een account hebben aangevraagd op de openbare pagina. Maak er een klant van, of markeer als behandeld.</p></div></div>';
+  if(!list.length){
+    h+='<div class="b-list"><div class="staff-empty">Geen openstaande aanvragen.</div></div>';
+  }else{
+    h+='<div class="b-list">'+list.map(a=>
+      '<div class="b-row"><div class="grow"><b>'+esc(a.bedrijfsnaam)+'</b><span class="sub">'+esc(a.contactpersoon)+' · '+esc(a.email)+(a.telefoon?' · '+esc(a.telefoon):'')+
+      (a.adres?'<br>'+esc(a.adres):'')+(a.notities?'<br><i>'+esc(a.notities)+'</i>':'')+'</span></div>'+
+      '<div class="acts"><button class="staff-action" onclick="useAanvraag(\''+esc(a.id)+'\')">Klant aanmaken</button>'+
+      '<button class="staff-action-secondary" onclick="closeAanvraag(\''+esc(a.id)+'\')">Behandeld</button></div></div>'
+    ).join("")+'</div>';
+  }
+  p.innerHTML=h;
+}
+
+function useAanvraag(id){
+  const a=(DATA.aanvragen||[]).find(x=>x.id===id);
+  if(!a)return;
+  PREFILL={nom:a.bedrijfsnaam,adresse:a.adres,tel:a.telefoon,aanvraagId:a.id};
+  EDIT_CLIENT=null;CREDS=null;TAB="klanten";render();
+  toast("Gegevens overgenomen uit de aanvraag — vul aan en sla op.");
+}
+async function closeAanvraag(id){
+  if(await post({action:"closeAanvraag",id},"Aanvraag gemarkeerd als behandeld"))render();
+}
+
+function renderKlanten(p){
+  const e=EDIT_CLIENT,pf=PREFILL;
+  const all=DATA.clients||[];
+  const list=QC?all.filter(c=>(c.nom+" "+c.user).toLowerCase().includes(QC.toLowerCase())):all;
+  let h='<div class="b-head"><div><h2>Klanten</h2><p>Elke klant heeft een eigen login voor het bestelportaal. Het wachtwoord is maar één keer zichtbaar: geef het meteen door.</p></div></div>';
+
+  h+='<div class="b-form"><h3>'+(e?"Klant bewerken":"Nieuwe klant")+'</h3>'+
+    '<p class="hint">'+(e?'U bewerkt <b>'+esc(e.nom)+'</b>. Laat “nieuw wachtwoord” uit om het huidige te behouden.':(pf?'Vooringevuld vanuit de aanvraag van <b>'+esc(pf.nom)+'</b>.':'Gebruikersnaam en wachtwoord worden automatisch gegenereerd.'))+'</p>'+
+    '<div class="b-grid">'+
+    '<div class="full"><label>Bedrijfsnaam *</label><input class="staff-field" id="cnom" value="'+esc(e?e.nom:(pf?pf.nom:""))+'"></div>'+
+    '<div class="full"><label>Leveradres</label><input class="staff-field" id="cadr" value="'+esc(e?e.adresse:(pf?pf.adresse:""))+'"></div>'+
+    '<div><label>Telefoon</label><input class="staff-field" id="ctel" value="'+esc(e?e.tel:(pf?pf.tel:""))+'"></div>'+
+    '<div><label>BTW-nummer</label><input class="staff-field" id="cbtw" value="'+esc(e?e.btw:"")+'"></div>'+
+    '<div><label>Klantnummer</label><input class="staff-field" id="cnr" value="'+esc(e?e.klantnr:"")+'"></div>'+
+    '<div><label>Gebruikersnaam</label><input class="staff-field" id="cuser" value="'+esc(e?e.user:"")+'" placeholder="automatisch"></div>'+
+    '<div class="full"><label class="b-check"><input type="checkbox" id="cgen"'+(e?"":" checked")+'> '+(e?"Nieuw wachtwoord genereren":"Automatisch genereren")+'</label></div>'+
+    '</div>'+
+    '<div class="b-acts"><button class="staff-action" onclick="saveClient()">'+(e?"Wijzigingen opslaan":"Klant aanmaken")+'</button>'+
+    ((e||pf)?'<button class="staff-action-secondary" onclick="cancelClient()">Annuleren</button>':'')+'</div>'+
+    (CREDS?'<div class="b-creds"><small>Login klaar — noteer of stuur nu door</small>'+
+      '<div class="kv"><i>Klant</i><b>'+esc(CREDS.nom)+'</b></div>'+
+      '<div class="kv"><i>Gebruiker</i><code>'+esc(CREDS.user)+'</code></div>'+
+      '<div class="kv"><i>Wachtwoord</i><code>'+esc(CREDS.password)+'</code></div>'+
+      '<div class="b-acts"><button class="staff-action-secondary" onclick="copyCreds()">Kopiëren</button></div></div>':'')+
+    '</div>';
+
+  h+='<div class="b-search"><input class="staff-field" id="qc" type="search" placeholder="Zoek klant…" value="'+esc(QC)+'" oninput="setQC(this.value)"></div>';
+  h+='<div class="b-list">'+(list.length?list.map(c=>
+    '<div class="b-row"><div class="grow"><b>'+esc(c.nom)+'</b><span class="sub">login: '+esc(c.user||"—")+(c.hasPassword?"":" · nog geen wachtwoord")+(c.adresse?'<br>'+esc(c.adresse):"")+'</span></div>'+
+    '<div class="acts"><button class="staff-action-secondary" onclick="editClient(\''+esc(c.id)+'\')">Bewerken</button>'+
+    '<button class="staff-action-secondary" onclick="resetPw(\''+esc(c.id)+'\')">Nieuw wachtwoord</button></div></div>'
+  ).join(""):'<div class="staff-empty">'+(QC?"Geen klant gevonden.":"Nog geen klanten.")+'</div>')+'</div>';
+  p.innerHTML=h;
+}
+function setQC(v){QC=v;const el=document.getElementById("qc");const pos=el?el.selectionStart:0;render();const n=document.getElementById("qc");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}}
+function editClient(id){EDIT_CLIENT=(DATA.clients||[]).find(c=>c.id===id)||null;PREFILL=null;CREDS=null;render();window.scrollTo({top:0,behavior:"smooth"})}
+function cancelClient(){EDIT_CLIENT=null;PREFILL=null;CREDS=null;render()}
+async function saveClient(){
+  const nom=val("cnom");
+  if(!nom){toast("Bedrijfsnaam is verplicht.",true);return}
+  const gen=checked("cgen");
+  const payload={action:"saveClient",nom,adresse:val("cadr"),tel:val("ctel"),btw:val("cbtw"),klantnr:val("cnr"),user:val("cuser"),generate:gen};
+  if(EDIT_CLIENT&&EDIT_CLIENT.id)payload.id=EDIT_CLIENT.id;
+  const d=await post(payload);
+  if(!d)return;
+  const creds=(!payload.id||gen)?(d.credentials||null):null;
+  const aid=PREFILL&&PREFILL.aanvraagId;
+  let warn=false;
+  if(!payload.id&&aid){
+    const c=await post({action:"closeAanvraag",id:aid});
+    if(!c)warn=true;
+  }
+  CREDS=creds;EDIT_CLIENT=null;PREFILL=null;
+  render();
+  toast((payload.id?"Klant bijgewerkt":"Klant aangemaakt")+(warn?" — let op: de aanvraag kon niet als behandeld worden gemarkeerd, controleer dit om dubbels te vermijden.":""),warn);
+}
+async function resetPw(id){
+  const d=await post({action:"resetPassword",id});
+  if(!d)return;
+  CREDS=d.credentials||null;EDIT_CLIENT=null;TAB="klanten";render();
+  toast("Nieuw wachtwoord gegenereerd — geef het door aan de klant.");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function copyCreds(){
+  if(!CREDS)return;
+  const t="Klant: "+CREDS.nom+"\nGebruiker: "+CREDS.user+"\nWachtwoord: "+CREDS.password+"\nPortaal: "+location.origin+"/";
+  navigator.clipboard.writeText(t).then(()=>toast("Gekopieerd naar het klembord")).catch(()=>toast(t));
+}
+
+function renderProducten(p){
+  const e=EDIT_PRODUCT,all=DATA.products||[];
+  const list=QP?all.filter(x=>x.nom.toLowerCase().includes(QP.toLowerCase())):all;
+  const units=["kg","caisse","carton","pièce"];
+  let h='<div class="b-head"><div><h2>Producten</h2><p>Wat klanten in de catalogus zien. “Uit catalogus halen” verbergt een product zonder de geschiedenis te wissen.</p></div></div>';
+  h+='<div class="b-form"><h3>'+(e?"Product bewerken":"Nieuw product")+'</h3>'+
+    '<p class="hint">'+(e?'U bewerkt <b>'+esc(e.nom)+'</b>.':'Prijs per eenheid, exclusief btw. Alleen producten per kg mogen later decimale hoeveelheden krijgen.')+'</p>'+
+    '<div class="b-grid">'+
+    '<div class="full"><label>Productnaam *</label><input class="staff-field" id="pnom" value="'+esc(e?e.nom:"")+'"></div>'+
+    '<div><label>Basisprijs € *</label><input class="staff-field" id="pprix" type="number" min="0" step="0.01" value="'+(e?e.base:"")+'"></div>'+
+    '<div><label>Eenheid</label><select class="staff-select" id="punit">'+units.map(u=>'<option value="'+u+'"'+(e&&e.unite===u?" selected":"")+'>'+esc(famoNL.unit(u)||u)+'</option>').join("")+'</select></div>'+
+    '<div><label>Categorie</label><input class="staff-field" id="pcat" value="'+esc(e?e.cat:"")+'" placeholder="Algemeen"></div>'+
+    '</div>'+
+    '<div class="b-acts"><button class="staff-action" onclick="saveProduct()">'+(e?"Wijzigingen opslaan":"Product toevoegen")+'</button>'+
+    (e?'<button class="staff-action-secondary" onclick="cancelProduct()">Annuleren</button>':'')+'</div></div>';
+  h+='<div class="b-search"><input class="staff-field" id="qp" type="search" placeholder="Zoek product…" value="'+esc(QP)+'" oninput="setQP(this.value)"></div>';
+  h+='<div class="b-list">'+(list.length?list.map(x=>
+    '<div class="b-row"><div class="grow"><b>'+esc(x.nom)+'</b><span class="sub">'+eur(x.base)+' / '+esc(famoNL.unit(x.unite)||x.unite)+(x.cat?' · '+esc(x.cat):'')+'</span></div>'+
+    '<div class="acts"><button class="staff-action-secondary" onclick="editProduct(\''+esc(x.id)+'\')">Bewerken</button>'+
+    '<button class="staff-action-secondary" onclick="deactivate(\''+esc(x.id)+'\')">Uit catalogus</button></div></div>'
+  ).join(""):'<div class="staff-empty">'+(QP?"Geen product gevonden.":"Nog geen actieve producten.")+'</div>')+'</div>';
+  p.innerHTML=h;
+}
+function setQP(v){QP=v;const el=document.getElementById("qp");const pos=el?el.selectionStart:0;render();const n=document.getElementById("qp");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}}
+function editProduct(id){EDIT_PRODUCT=(DATA.products||[]).find(x=>x.id===id)||null;render();window.scrollTo({top:0,behavior:"smooth"})}
+function cancelProduct(){EDIT_PRODUCT=null;render()}
+async function saveProduct(){
+  const nom=val("pnom"),base=Number(val("pprix"));
+  if(!nom){toast("Productnaam is verplicht.",true);return}
+  if(!Number.isFinite(base)||base<0){toast("Vul een geldige basisprijs in.",true);return}
+  const payload={action:"saveProduct",nom,base,unite:val("punit"),cat:val("pcat")||"Algemeen",actif:true};
+  if(EDIT_PRODUCT&&EDIT_PRODUCT.id)payload.id=EDIT_PRODUCT.id;
+  if(await post(payload,EDIT_PRODUCT?"Product bijgewerkt":"Product toegevoegd")){EDIT_PRODUCT=null;render()}
+}
+async function deactivate(id){
+  const x=(DATA.products||[]).find(y=>y.id===id);
+  if(!x)return;
+  if(await post({action:"saveProduct",id,nom:x.nom,base:x.base,unite:x.unite,cat:x.cat||"Algemeen",actif:false},"“"+x.nom+"” uit de catalogus gehaald"))render();
+}
+
+function renderPrijzen(p){
+  const clients=DATA.clients||[],prods=DATA.products||[],prices=DATA.prices||[];
+  const byC={},byP={};
+  clients.forEach(c=>byC[c.id]=c.nom);prods.forEach(x=>byP[x.id]=x.nom);
+  let h='<div class="b-head"><div><h2>Afgesproken prijzen</h2><p>Een prijs per klant en product. Zonder afspraak geldt automatisch de basisprijs uit de catalogus.</p></div></div>';
+  if(!clients.length||!prods.length){
+    h+='<div class="b-note">U hebt minstens één klant én één product nodig voordat u een prijs kunt afspreken.</div>';
+  }else{
+    h+='<div class="b-form"><h3>Prijs afspreken</h3><p class="hint">Bestaat de combinatie al, dan wordt de prijs overschreven.</p><div class="b-grid">'+
+      '<div><label>Klant</label><select class="staff-select" id="prc">'+clients.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.nom)+'</option>').join("")+'</select></div>'+
+      '<div><label>Product</label><select class="staff-select" id="prp">'+prods.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.nom)+' ('+eur(x.base)+')</option>').join("")+'</select></div>'+
+      '<div><label>Afgesproken prijs €</label><input class="staff-field" id="prv" type="number" min="0" step="0.01"></div>'+
+      '</div><div class="b-acts"><button class="staff-action" onclick="savePrice()">Prijs opslaan</button></div></div>';
+  }
+  h+='<div class="b-list">'+(prices.length?prices.map(x=>
+    '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → '+eur(x.prix)+'</span></div>'+
+    '<div class="acts"><button class="staff-action-secondary" onclick="delPrice(\''+esc(x.id)+'\')">Verwijderen</button></div></div>'
+  ).join(""):'<div class="staff-empty">Nog geen afgesproken prijzen.</div>')+'</div>';
+  p.innerHTML=h;
+}
+async function savePrice(){
+  const prix=Number(val("prv"));
+  if(!Number.isFinite(prix)||prix<0){toast("Vul een geldige prijs in.",true);return}
+  if(await post({action:"savePrice",clientId:val("prc"),productId:val("prp"),prix},"Prijs opgeslagen"))render();
+}
+async function delPrice(id){
+  if(await post({action:"deletePrice",id},"Prijs verwijderd"))render();
+}
+
+function renderBedrijf(p){
+  const c=DATA.config||{};
+  const isExample=String(c.iban||"").replace(/\s/g,"").toUpperCase()==="BE68539007547034";
+  let h='<div class="b-head"><div><h2>Bedrijfsgegevens</h2><p>Deze gegevens staan op elke leveringsbon en factuur. Ze worden nooit aan klanten getoond behalve op documenten.</p></div></div>';
+  if(isExample) h+='<div class="b-note"><b>Let op:</b> het IBAN hieronder is nog het voorbeeldnummer. Facturen dragen dus rekeninggegevens die niet van Famo zijn. Vervang het vóór u een echte factuur verstuurt.</div>';
+  h+='<div class="b-form"><div class="b-grid">'+
+    '<div class="full"><label>Bedrijfsnaam *</label><input class="staff-field" id="fnom" value="'+esc(c.bedrijfsnaam)+'"></div>'+
+    '<div class="full"><label>Adres</label><input class="staff-field" id="fadr" value="'+esc(c.adres)+'"></div>'+
+    '<div><label>Postcode en plaats</label><input class="staff-field" id="fpl" value="'+esc(c.plaats)+'"></div>'+
+    '<div><label>BTW-nummer *</label><input class="staff-field" id="fbtw" value="'+esc(c.btw)+'"></div>'+
+    '<div><label>Telefoon</label><input class="staff-field" id="ftel" value="'+esc(c.telefoon)+'"></div>'+
+    '<div><label>E-mail</label><input class="staff-field" id="fmail" value="'+esc(c.email)+'"></div>'+
+    '<div><label>IBAN</label><input class="staff-field" id="fiban" value="'+esc(c.iban)+'"></div>'+
+    '<div><label>BIC</label><input class="staff-field" id="fbic" value="'+esc(c.bic)+'"></div>'+
+    '</div><div class="b-acts"><button class="staff-action" onclick="saveConfig()">Opslaan</button></div></div>';
+  p.innerHTML=h;
+}
+async function saveConfig(){
+  const nom=val("fnom"),btw=val("fbtw");
+  if(!nom||!btw){toast("Bedrijfsnaam en BTW-nummer zijn verplicht.",true);return}
+  if(await post({action:"saveConfig",bedrijfsnaam:nom,adres:val("fadr"),plaats:val("fpl"),btw,telefoon:val("ftel"),email:val("fmail"),iban:val("fiban"),bic:val("fbic")},"Bedrijfsgegevens opgeslagen"))render();
+}
+</script>
+</body></html>

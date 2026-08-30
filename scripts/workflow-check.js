@@ -467,7 +467,7 @@ async function main() {
     const labels = items.map(i => i.label);
     for (const need of [
       "Bestellingen", "Magazijn", "Invoeren", "Leveringen",
-      "Documenten", "Aan de slag"
+      "Documenten", "Beheer"
     ]) {
       assert.ok(labels.includes(need), "label manquant: " + need);
     }
