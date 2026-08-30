@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Famo Trading — Toegang aanvragen</title>
+<style>
+  :root{--ink:#0d0d0d;--muted:#6b6b6b;--quiet:#9b9b9b;--line:#e5e5e5;--soft:#f6f6f6;--white:#fff;--brand:#235e86;--danger:#b33a2b;--success:#28734d;--r:10px}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--white);font-size:14px}button,input,textarea{font:inherit;color:inherit}button{cursor:pointer}.hidden{display:none!important}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .login{min-height:100vh;display:grid;grid-template-columns:minmax(360px,44%) 1fr;background:#f4f4f4}
+  .login-panel{background:#fff;padding:42px clamp(28px,6vw,88px);display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--line)}
+  .login-form{width:100%;max-width:420px;margin:auto}
+  .logo{width:38px;height:38px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:17px}
+  .login h1{font-size:26px;letter-spacing:-.04em;margin:30px 0 7px}
+  .login .lead{color:var(--muted);line-height:1.5;margin:0 0 26px}
+  .field{display:block;margin:0 0 15px}
+  .field span{display:block;font-size:13px;color:var(--muted);margin:0 0 7px}
+  .input,textarea.input{width:100%;border:1px solid #ddd;border-radius:9px;padding:0 12px;background:#fff;transition:.15s}
+  .input{height:44px}
+  textarea.input{height:70px;padding:10px 12px;resize:vertical}
+  .input:hover{border-color:#c9c9c9}
+  .input:focus{border-color:#aaa;outline:3px solid #eee}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .primary{border:0;border-radius:9px;background:var(--ink);color:#fff;height:44px;padding:0 16px;font-weight:550;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  .primary:hover{background:#292929}
+  .primary:disabled{background:#e9e9e9;color:#aaa;cursor:default}
+  .primary.full{width:100%}
+  .login-error{min-height:20px;color:var(--danger);font-size:13px;margin:10px 0}
+  .staff-entry{display:block;width:max-content;margin:18px auto 0;color:var(--muted);font-size:12.5px;text-decoration:none;border-bottom:1px solid transparent}
+  .staff-entry:hover,.staff-entry:focus-visible{color:var(--ink);border-color:currentColor}
+  .login-foot{font-size:12px;color:var(--quiet);line-height:1.6;margin-top:28px}
+  .login-art{display:grid;place-items:center;padding:8vw;color:#a4a4a4}
+  .login-art-inner{max-width:440px}
+  .login-art .mark{font-size:64px;line-height:1;color:#dedede;font-weight:650;letter-spacing:-.06em}
+  .login-art p{font-size:16px;line-height:1.6;color:#888;margin:14px 0 0}
+  .login-art ul{list-style:none;padding:0;margin:26px 0 0;color:#999;font-size:14px;line-height:2}
+  .login-art li{display:flex;gap:10px;align-items:flex-start}
+  .login-art li svg{flex:0 0 auto;margin-top:3px;color:#bbb}
+  .confirm{padding:20px 0}
+  .confirm-icon{width:42px;height:42px;border-radius:50%;background:#eaf3ee;color:var(--success);display:grid;place-items:center;margin-bottom:16px}
+  .confirm h1{font-size:22px;margin:0 0 10px}
+  .confirm p{color:var(--muted);line-height:1.55;margin:0 0 18px}
+  @media(max-width:720px){.login{display:block;background:#fff}.login-panel{min-height:100vh;border:0;padding:28px 22px}.login-art{display:none}.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="login">
+  <section class="login-panel">
+    <div class="login-form">
+      <div class="logo">F</div>
+
+      <div id="formView">
+        <h1>Toegang aanvragen</h1>
+        <p class="lead">Vul uw gegevens in. We maken uw account aan met uw afgesproken prijzen en bezorgen u de inloggegevens.</p>
+
+        <label class="field"><span>Bedrijfsnaam *</span><input id="bedrijfsnaam" class="input" autocomplete="organization"></label>
+        <label class="field"><span>Contactpersoon *</span><input id="contactpersoon" class="input" autocomplete="name"></label>
+        <div class="row2">
+          <label class="field"><span>E-mail *</span><input id="email" class="input" type="email" autocomplete="email"></label>
+          <label class="field"><span>Telefoon *</span><input id="telefoon" class="input" type="tel" autocomplete="tel"></label>
+        </div>
+        <label class="field"><span>Leveradres</span><input id="adres" class="input" autocomplete="street-address"></label>
+        <label class="field"><span>Opmerking (optioneel)</span><textarea id="notities" class="input"></textarea></label>
+
+        <button id="sendBtn" class="primary full" onclick="submitAanvraag()">Aanvraag versturen</button>
+        <div id="err" class="login-error" role="alert"></div>
+        <a class="staff-entry" href="/">Al een account? Meld u hier aan</a>
+      </div>
+
+      <div id="doneView" class="confirm hidden">
+        <div class="confirm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg></div>
+        <h1>Aanvraag verstuurd</h1>
+        <p>Bedankt! We nemen uw aanvraag in behandeling en bezorgen u uw inloggegevens per e-mail of telefoon.</p>
+        <a class="staff-entry" href="/">Terug naar de aanmeldpagina</a>
+      </div>
+
+      <div class="login-foot">Famo Trading BV<br>Jezusstraat 34, 2000 Antwerpen<br>BTW BE 0788.705.713</div>
+    </div>
+  </section>
+  <aside class="login-art">
+    <div class="login-art-inner">
+      <div class="mark">Famo.</div>
+      <p>Groothandel in verse vis en zeevruchten voor professionele keukens.</p>
+      <ul>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg> Uw eigen afgesproken prijzen</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg> Bestellen wanneer het u uitkomt</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg> Duidelijke bon en factuur</li>
+      </ul>
+    </div>
+  </aside>
+</div>
+<script>
+async function submitAanvraag(){
+  const val=id=>document.getElementById(id).value.trim();
+  const btn=document.getElementById("sendBtn"),err=document.getElementById("err");
+  const bedrijfsnaam=val("bedrijfsnaam"),contactpersoon=val("contactpersoon"),email=val("email"),telefoon=val("telefoon"),adres=val("adres"),notities=val("notities");
+  if(!bedrijfsnaam||!contactpersoon||!email||!telefoon){err.textContent="Bedrijfsnaam, contactpersoon, e-mail en telefoon zijn verplicht.";return}
+  btn.disabled=true;btn.textContent="Versturen…";err.textContent="";
+  try{
+    const r=await fetch("/api/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bedrijfsnaam,contactpersoon,email,telefoon,adres,notities})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||"Versturen mislukt");
+    document.getElementById("formView").classList.add("hidden");
+    document.getElementById("doneView").classList.remove("hidden");
+  }catch(e){
+    err.textContent=e.message||"Netwerkfout — probeer opnieuw.";
+    btn.disabled=false;btn.textContent="Aanvraag versturen";
+  }
+}
+</script>
+</body>
+</html>

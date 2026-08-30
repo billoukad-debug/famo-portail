@@ -94,18 +94,20 @@ async function statusPayload() {
     bic: (c["BIC"] || "").trim()
   };
 
-  const [cat, clients, prices, stock, orders] = await Promise.all([
+  const [cat, clients, prices, stock, orders, aanvragen] = await Promise.all([
     atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`),
     atAll("Clients"),
     atAll(encodeURIComponent("Prix négociés")),
     atAll("Stock"),
-    atAll("Commandes?maxRecords=5")
+    atAll("Commandes?maxRecords=5"),
+    atAll(`Aanvragen?filterByFormula=${encodeURIComponent("{Status}='Nieuw'")}`)
   ]);
 
   if (cat.error) throw new Error(cat.error.message || "Catalogue");
   if (clients.error) throw new Error(clients.error.message || "Clients");
   if (prices.error) throw new Error(prices.error.message || "Prijzen");
   if (stock.error) throw new Error(stock.error.message || "Stock");
+  if (aanvragen.error) throw new Error(aanvragen.error.message || "Aanvragen");
 
   const products = (cat.records || []).map(r => ({
     id: r.id,
@@ -141,12 +143,25 @@ async function statusPayload() {
     lowThreshold: Number(r.fields["Seuil bas"] || 0)
   })).sort((a, b) => a.product.localeCompare(b.product, "nl"));
 
+  const aanvraagList = (aanvragen.records || [])
+    .sort((a, b) => new Date(a.createdTime) - new Date(b.createdTime))
+    .map(r => ({
+      id: r.id,
+      bedrijfsnaam: r.fields["Bedrijfsnaam"] || "",
+      contactpersoon: r.fields["Contactpersoon"] || "",
+      email: r.fields["Email"] || "",
+      telefoon: r.fields["Telefoon"] || "",
+      adres: r.fields["Adres"] || "",
+      notities: r.fields["Notities"] || ""
+    }));
+
   return {
     config,
     products,
     clients: clientList,
     prices: priceList,
     stock: stockList,
+    aanvragen: aanvraagList,
     status: {
       identiteit: !!(config.bedrijfsnaam && config.btw && config.iban && config.bic),
       ibanOntbreekt: !config.iban || !config.bic,
@@ -155,7 +170,8 @@ async function statusPayload() {
       prijzen: priceList.length,
       stock: stockList.length,
       orders: (orders.records || []).length,
-      credentials: clientList.filter(c => c.user && c.hasPassword).length
+      credentials: clientList.filter(c => c.user && c.hasPassword).length,
+      aanvragen: aanvraagList.length
     }
   };
 }
@@ -332,6 +348,18 @@ module.exports = async (req, res) => {
         },
         ...(await statusPayload())
       });
+    }
+
+    // ---- Aanvraag (demande d'inscription publique) ----
+    if (action === "closeAanvraag") {
+      const id = clean(body.id, 40);
+      if (!id) return res.status(400).json({ error: "Aanvraag-id ontbreekt" });
+      const saved = await at(`Aanvragen/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ fields: { "Status": "Verwerkt" } })
+      });
+      if (saved.error) return res.status(500).json({ error: saved.error.message || "Aanvraag bijwerken mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
     // ---- Prix négocié ----

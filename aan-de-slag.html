@@ -147,7 +147,7 @@ textarea.fld{min-height:84px;resize:vertical}
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
-let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null, UNIT="kassa", EDIT_ID=null, PROD_Q="", EDIT_CLIENT=null;
+let DATA=null, STEP=0, BUSY=false, LAST_CREDS=null, UNIT="kassa", EDIT_ID=null, PROD_Q="", EDIT_CLIENT=null, PREFILL=null;
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 const unitOut=u=>window.famoNL?famoNL.unit(u):u;
 
@@ -431,12 +431,18 @@ function renderClients(box){
   const editing=EDIT_CLIENT;
   const cred=LAST_CREDS?'<div class="cred"><small>Nieuwe login — noteer of stuur door</small><div>Gebruiker</div><code>'+esc(LAST_CREDS.user)+'</code><div style="margin-top:8px">Wachtwoord</div><code>'+esc(LAST_CREDS.password)+'</code><div style="margin-top:10px"><button class="ob-btn sec" type="button" onclick="copyCreds()">Kopiëren</button></div></div>':'';
   const rows=(DATA.clients||[]).map(c=>'<div class="ob-row"><div class="grow"><b>'+esc(c.nom)+'</b><br><span>login: '+esc(c.user||"—")+(c.hasPassword?' · wachtwoord gezet':' · nog geen wachtwoord')+'</span></div><button class="ob-btn sec" type="button" onclick="editClient(\''+esc(c.id)+'\')">Bewerken</button></div>').join("")||'<div class="ob-row"><span>Nog geen klanten.</span></div>';
+  const aanvragen=DATA.aanvragen||[];
+  const aanvraagBlock=aanvragen.length?('<div class="ob-list" style="margin-bottom:18px;border-color:#e0b23d"><p class="hint" style="margin:0 0 8px"><b>'+aanvragen.length+' nieuwe aanvraag'+(aanvragen.length>1?'en':'')+'</b> via de website</p>'+
+    aanvragen.map(a=>'<div class="ob-row"><div class="grow"><b>'+esc(a.bedrijfsnaam)+'</b><br><span>'+esc(a.contactpersoon)+' · '+esc(a.email)+(a.telefoon?' · '+esc(a.telefoon):'')+'</span>'+(a.adres?'<br><span>'+esc(a.adres)+'</span>':'')+(a.notities?'<br><span class="hint">'+esc(a.notities)+'</span>':'')+'</div><button class="ob-btn" type="button" onclick="useAanvraag(\''+esc(a.id)+'\')">Klant aanmaken</button></div>').join("")+
+    '</div>'):'';
   box.innerHTML='<h2>3. Klant + login</h2><p class="lead">'+(editing?'Bewerk bestaande klant. Laat “Automatisch genereren” uit om het wachtwoord te behouden.':'Laat “Automatisch genereren” aan staan. U krijgt meteen de credentials te zien.')+'</p>'+
     (editing?'<p class="hint">Bezig met bewerken: <b>'+esc(editing.nom)+'</b> · <button class="ob-btn sec" type="button" onclick="clearEditClient()">Nieuwe klant</button></p>':'')+
+    aanvraagBlock+
+    (PREFILL?'<p class="hint">Vooringevuld vanuit aanvraag: <b>'+esc(PREFILL.nom)+'</b> · <button class="ob-btn sec" type="button" onclick="PREFILL=null;render()">Wissen</button></p>':'')+
     '<div class="ob-grid">'+
-    fld("cnom","Klantnaam *",editing?editing.nom:"","full")+
-    fld("cadresse","Leveradres",editing?editing.adresse:"","full")+
-    fld("ctel","Telefoon",editing?editing.tel:"")+
+    fld("cnom","Klantnaam *",editing?editing.nom:(PREFILL?PREFILL.nom:""),"full")+
+    fld("cadresse","Leveradres",editing?editing.adresse:(PREFILL?PREFILL.adresse:""),"full")+
+    fld("ctel","Telefoon",editing?editing.tel:(PREFILL?PREFILL.tel:""))+
     fld("cbtw","BTW-nummer",editing?editing.btw:"")+
     fld("cklantnr","Klantnummer",editing?editing.klantnr:"")+
     '<div class="full"><label style="display:flex;gap:8px;align-items:center;font-size:13px"><input id="cgen" type="checkbox"'+(editing?'':' checked')+'> Automatisch gebruikersnaam + wachtwoord genereren</label></div>'+
@@ -456,6 +462,15 @@ function clearEditClient(){
   render();
 }
 
+function useAanvraag(id){
+  const a=(DATA.aanvragen||[]).find(x=>x.id===id);
+  if(!a)return;
+  EDIT_CLIENT=null;
+  LAST_CREDS=null;
+  PREFILL={nom:a.bedrijfsnaam,adresse:a.adres,tel:a.telefoon,aanvraagId:a.id};
+  render();
+}
+
 async function saveClient(){
   if(BUSY)return; BUSY=true;
   try{
@@ -466,8 +481,15 @@ async function saveClient(){
       user:val("cuser"), password:val("cpw")
     };
     if(EDIT_CLIENT&&EDIT_CLIENT.id) payload.id=EDIT_CLIENT.id;
-    const d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-    DATA=d; LAST_CREDS=(!payload.id||payload.generate||payload.password)?(d.credentials||null):null; EDIT_CLIENT=null;
+    let d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const creds=(!payload.id||payload.generate||payload.password)?(d.credentials||null):null;
+    const aanvraagId=PREFILL&&PREFILL.aanvraagId;
+    if(!payload.id&&aanvraagId){
+      try{
+        d=await famoStaff.apiJson("/api/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"closeAanvraag",id:aanvraagId})});
+      }catch(e){}
+    }
+    DATA=d; LAST_CREDS=creds; EDIT_CLIENT=null; PREFILL=null;
     toast(payload.id?"Klant bijgewerkt":"Klant opgeslagen — login klaar");
     render();
   }catch(e){toast(famoStaff.translateError(e.message),true)}
