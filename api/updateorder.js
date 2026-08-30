@@ -75,6 +75,37 @@ async function validatePreparedLines(txt){
   }
 }
 
+// Le navigateur ne decide jamais du prix : le total d'une commande modifiee est
+// toujours recalcule ici depuis le catalogue (et le prix negocie du client s'il existe),
+// jamais accepte tel quel depuis le corps de la requete.
+async function computeTotal(txt, clientId){
+  const lines = parseLines(txt);
+  if (!lines.length) return 0;
+  const catalogue = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
+  if (catalogue.error) throw new Error(catalogue.error.message || "Catalogus kon niet worden gelezen");
+  const normalize = value => String(value || "").toLowerCase().trim();
+  const byName = new Map((catalogue.records || []).map(record => [normalize(record.fields["Produit"]), record]));
+  const negByProduct = new Map();
+  if (clientId) {
+    const neg = await atAll(encodeURIComponent("Prix négociés"));
+    if (!neg.error) {
+      (neg.records || []).forEach(record => {
+        const clients = record.fields["Client"] || [];
+        const products = record.fields["Produit"] || [];
+        if (clients.includes(clientId) && products[0]) negByProduct.set(products[0], numberOf(record.fields["Prix négocié"]));
+      });
+    }
+  }
+  let total = 0;
+  for (const line of lines) {
+    const product = byName.get(normalize(line.nom));
+    if (!product) continue;
+    const price = negByProduct.has(product.id) ? negByProduct.get(product.id) : numberOf(product.fields["Prix de base"]);
+    total += price * line.qty;
+  }
+  return Math.round(total * 100) / 100;
+}
+
 // Déduit toutes les quantités en une seule mise à jour Airtable. Aucune ligne ne
 // part si un produit est inconnu : le magasin peut corriger le BL sans dérive de stock.
 async function deductStock(lignes){
@@ -163,8 +194,10 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: String(error.message || error) });
       }
       fields["Lignes (produits / quantités)"] = lignes;
+      // Le total envoye par le navigateur n'est jamais utilise : on le recalcule
+      // depuis le catalogue et le prix negocie du client, ici comme partout ailleurs.
+      fields["Total"] = await computeTotal(lignes, (f["Client"] || [])[0]);
     }
-    if (typeof total === "number") fields["Total"] = total;
     if (statut && !statuses.includes(statut)) return res.status(400).json({ error: "Ongeldige bestelstatus" });
     if (statut) {
       const currentIndex = statuses.indexOf(f["Statut"] || "Reçue");

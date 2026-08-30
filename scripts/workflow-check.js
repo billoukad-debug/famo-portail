@@ -325,6 +325,23 @@ async function main() {
   }
   console.log("✓ C. Stock déduit une seule fois / 409 si afgeboekt / verrou aussi sans skipStock");
 
+  // --- C2. Modifier les lignes recalcule le total côté serveur, jamais celui envoyé ---
+  {
+    result = await call(updateOrder2, {
+      id: "rec3", lignes: "Mosselen × 2 caisse", total: 9999
+    }, [
+      { fields: { Statut: "Prête", "Préparation validée": true } },
+      { records: [{ id: "cat1", fields: { Produit: "Mosselen", "Unité": "caisse", "Prix de base": 28 } }] },
+      { records: [{ id: "cat1", fields: { Produit: "Mosselen", "Unité": "caisse", "Prix de base": 28 } }] },
+      { fields: { ok: true } }
+    ], { headers: cookieHdr });
+    assert.equal(result.res.statusCode, 200, "modifier les lignes doit réussir");
+    const patchCall = result.calls.find(c => /Commandes\//.test(c.url) && (c.options.method || "").toUpperCase() === "PATCH");
+    const patchedTotal = JSON.parse(patchCall.options.body).fields["Total"];
+    assert.equal(patchedTotal, 56, "le total est recalculé depuis le catalogue (2 × 28), jamais celui envoyé (9999)");
+  }
+  console.log("✓ C2. Total recalculé serveur, jamais celui du navigateur");
+
   // --- D. Facture unique : Factuurnummer déjà posé → pas de nouvel alloc ---
   {
     result = await call(updateOrder2, {
