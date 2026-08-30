@@ -222,6 +222,13 @@
       }
       if (loginView) loginView.classList.add("hidden");
       if (appView) appView.classList.remove("hidden");
+      // La navigation est dessinée au chargement de la page, avant que le rôle soit
+      // connu (menu restreint par défaut). Une fois la session validée, il faut la
+      // redessiner, sinon un admin garde le menu du personnel jusqu'au prochain
+      // rechargement complet de la page.
+      if (global.famoNav && typeof global.famoNav.refreshRole === "function") {
+        global.famoNav.refreshRole();
+      }
       if (typeof cfg.onReady === "function") await cfg.onReady();
     }
 

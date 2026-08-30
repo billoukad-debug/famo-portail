@@ -94,12 +94,20 @@
     });
   }
 
-  function mount(active) {
+  function mount(active, knownAdmin) {
     active = active || detectActive();
     // Standaard het beperkte personeelsmenu tonen (geen flits van beheerderslinks);
     // pas uitbreiden zodra de rol bevestigd is als admin.
-    render(active, false);
+    render(active, knownAdmin === true);
     maybeSetupBanner(active);
+  }
+
+  /** Herteken de navigatie zodra de rol bekend is (bv. net na het aanmelden). */
+  function refreshRole() {
+    const staff = global.famoStaff;
+    const isAdmin = !!(staff && typeof staff.getRole === "function" && staff.getRole() === "admin");
+    render(detectActive(), isAdmin);
+    maybeSetupBanner(detectActive());
   }
 
   function maybeSetupBanner(active) {
@@ -142,7 +150,7 @@
     }).catch(() => {});
   }
 
-  global.famoNav = { ITEMS, PRIMARY, MEER, SETUP, detectActive, sidebarHtml, mobileHtml, mount };
+  global.famoNav = { ITEMS, PRIMARY, MEER, SETUP, detectActive, sidebarHtml, mobileHtml, mount, refreshRole };
   if (typeof document !== "undefined") {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => mount());
