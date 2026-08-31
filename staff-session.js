@@ -185,6 +185,32 @@
     });
   }
 
+  /**
+   * Ajoute les portes de sortie sous un écran de connexion staff : accès à
+   * l'autre rôle et retour au portail client. Sans ça, une page de connexion
+   * est un cul-de-sac pour qui n'a pas le code.
+   */
+  function addLoginExits(loginView) {
+    if (!loginView) return;
+    const box = loginView.querySelector("div");
+    if (!box || box.querySelector(".staff-login-exit")) return;
+    const here = (location.pathname || "").split("/").pop() || "";
+    const exits = [];
+    if (here === "beheer.html") {
+      exits.push(['/bestellingen.html', "Personeel? Ga naar Bestellingen"]);
+    } else {
+      exits.push(['/beheer.html', "Beheerder? Ga naar Beheer"]);
+      if (here !== "bestellingen.html") {
+        exits.push(['/bestellingen.html', "Alle bestellingen"]);
+      }
+    }
+    exits.push(['/', "Terug naar het klantportaal"]);
+    const nav = document.createElement("div");
+    nav.className = "staff-login-exit";
+    nav.innerHTML = exits.map(e => '<a href="' + e[0] + '">' + e[1] + "</a>").join("");
+    box.appendChild(nav);
+  }
+
   /** Bind login form: #code input, errorEl, onReady after session ok. */
   function bindLogin(cfg) {
     const codeEl = typeof cfg.code === "string" ? document.getElementById(cfg.code) : cfg.code;
@@ -197,6 +223,11 @@
     // script ne s'exécute). On le masque tout de suite — le temps que la session
     // soit vérifiée — pour éviter un flash de la page de connexion à chaque navigation.
     if (loginView) loginView.style.visibility = "hidden";
+
+    // Un écran de connexion sans porte de sortie est un cul-de-sac : qui n'a pas
+    // le code reste bloqué. On injecte les sorties ici plutôt que dans chacune des
+    // huit pages, pour qu'elles ne puissent pas diverger.
+    addLoginExits(loginView);
 
     function showAdminDenied() {
       if (loginView) loginView.classList.add("hidden");
