@@ -124,7 +124,8 @@ function render(){
     ["klanten","Klanten",0],
     ["producten","Producten",0],
     ["prijzen","Prijzen",0],
-    ["bedrijf","Bedrijfsgegevens",0]
+    ["bedrijf","Bedrijfsgegevens",0],
+    ["toegang","Toegang",0]
   ];
   document.getElementById("tabs").innerHTML=tabs.map(t=>
     '<button class="'+(TAB===t[0]?"active":"")+'" onclick="go(\''+t[0]+'\')">'+esc(t[1])+(t[2]?'<span class="n">'+t[2]+'</span>':'')+'</button>'
@@ -136,7 +137,8 @@ function render(){
   else if(TAB==="klanten")renderKlanten(p);
   else if(TAB==="producten")renderProducten(p);
   else if(TAB==="prijzen")renderPrijzen(p);
-  else renderBedrijf(p);
+  else if(TAB==="bedrijf")renderBedrijf(p);
+  else renderToegang(p);
 }
 
 function renderOverzicht(p,s){
@@ -335,6 +337,51 @@ async function savePrice(){
 }
 async function delPrice(id){
   if(await post({action:"deletePrice",id},"Prijs verwijderd"))render();
+}
+
+function renderToegang(p){
+  const c=DATA.config||{};
+  const box=(titel,which,custom,uitleg)=>
+    '<div class="b-form"><h3>'+esc(titel)+'</h3><p class="hint">'+uitleg+'</p>'+
+    '<div class="b-note" style="border-color:'+(custom?'#cfe0d4':'#e6d4a8')+';background:'+(custom?'#f3f9f5':'#fffdf6')+';color:'+(custom?'#2b6b48':'#7a5800')+'">'+
+      (custom
+        ? 'Er is een eigen code ingesteld. De code uit Vercel werkt hiervoor <b>niet meer</b>.'
+        : 'Nog geen eigen code — de code uit de Vercel-omgeving is nog van kracht.')+
+    '</div>'+
+    '<div class="b-grid">'+
+    '<div class="full"><label>Nieuwe code</label><input class="staff-field" id="nc_'+which+'" type="password" autocomplete="new-password" placeholder="minstens 10 tekens"></div>'+
+    '<div class="full"><label>Herhaal de code</label><input class="staff-field" id="nc2_'+which+'" type="password" autocomplete="new-password"></div>'+
+    '</div>'+
+    '<div class="b-acts"><button class="staff-action" onclick="saveCode(\''+which+'\')">Code instellen</button>'+
+    (custom?'<button class="staff-action-secondary" onclick="resetCode(\''+which+'\')">Terug naar de Vercel-code</button>':'')+
+    '</div></div>';
+
+  p.innerHTML='<div class="b-head"><div><h2>Toegang</h2><p>Wie mag wat. De codes worden versleuteld bewaard — ze zijn nergens leesbaar, ook niet in Airtable.</p></div></div>'+
+
+    '<div class="b-list" style="margin-bottom:18px">'+
+      '<div class="b-row"><div class="grow"><b>Beheerder</b><span class="sub">Alles: bestellingen, magazijn, leveringen, invoeren, documenten en dit scherm.</span></div></div>'+
+      '<div class="b-row"><div class="grow"><b>Personeel</b><span class="sub">Alleen het dagelijkse werk: Bestellingen, Magazijn, Leveringen. Geen prijzen, geen klantgegevens, geen IBAN.</span></div></div>'+
+      '<div class="b-row"><div class="grow"><b>Klant</b><span class="sub">Eigen login per klant, beheerd bij Klanten. Ziet enkel de catalogus en zijn eigen bestellingen.</span></div></div>'+
+    '</div>'+
+
+    box("Beheerderscode","admin",c.adminCodeCustom,
+      "Geeft toegang tot alles, inclusief IBAN en klantgegevens. Kies iets dat niemand raadt.")+
+    box("Personeelscode","staff",c.staffCodeCustom,
+      "Voor wie enkel voorbereidt en levert. Wijzig deze wanneer iemand vertrekt.")+
+
+    '<div class="b-note">Kwijt geraakt? Maak in Airtable het veld <b>Beheerderscode hash</b> of <b>Personeelscode hash</b> leeg: de code uit de Vercel-omgeving geldt dan opnieuw. Die variabelen moeten altijd ingevuld blijven — ze beveiligen de sessies.</div>';
+}
+
+async function saveCode(which){
+  const a=val("nc_"+which),b=val("nc2_"+which);
+  if(!a){toast("Vul een nieuwe code in.",true);return}
+  if(a!==b){toast("De twee codes zijn niet gelijk.",true);return}
+  if(a.length<10){toast("De code moet minstens 10 tekens lang zijn.",true);return}
+  if(/^famo/i.test(a)){toast("Kies geen code die met de bedrijfsnaam begint.",true);return}
+  if(await post({action:"saveCode",which,code:a},"Code gewijzigd — gebruik hem bij de volgende aanmelding"))render();
+}
+async function resetCode(which){
+  if(await post({action:"saveCode",which,reset:true},"Terug naar de code uit de Vercel-omgeving"))render();
 }
 
 function renderBedrijf(p){

@@ -1,4 +1,28 @@
 const auth = require("../lib/staffauth");
+const TOKEN = process.env.AIRTABLE_TOKEN;
+const BASE = "appcdduLth9iGX8I0";
+
+// Codes enregistres depuis Beheer (haches). Lecture uniquement a la connexion :
+// les gardes des autres endpoints restent synchrones (verification du cookie).
+// En cas d'echec de lecture on renvoie {} : seuls les codes d'environnement
+// fonctionnent alors, ce qui garde une porte d'entree plutot qu'un blocage total.
+async function storedCodes() {
+  try {
+    const r = await fetch(
+      `https://api.airtable.com/v0/${BASE}/${encodeURIComponent("Configuratie")}?maxRecords=1`,
+      { headers: { Authorization: `Bearer ${TOKEN}` } }
+    );
+    const j = await r.json();
+    const f = ((j && j.records) || [])[0];
+    const fields = (f && f.fields) || {};
+    return {
+      adminHash: String(fields["Beheerderscode hash"] || "").trim(),
+      staffHash: String(fields["Personeelscode hash"] || "").trim()
+    };
+  } catch (e) {
+    return {};
+  }
+}
 
 // Anti-abus minimal (mémoire d'instance, best-effort sur serverless).
 const _rl = new Map();
@@ -30,7 +54,7 @@ module.exports = async (req, res) => {
     if (rateLimited(rlKey, 5, 30000)) {
       return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
     }
-    const role = auth.roleForCode(body.code);
+    const role = auth.roleForCode(body.code, await storedCodes());
     if (!role) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });
     }

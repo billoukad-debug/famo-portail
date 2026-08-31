@@ -707,6 +707,71 @@ async function main() {
   }
   console.log("✓ M. E-mails commande (inerte sans clé, destinataires séparés, échec sans impact)");
 
+  // --- N. Codes d'accès modifiables depuis Beheer -----------------------------
+  {
+    const authN = require(path.join(ROOT, "lib", "staffauth.js"));
+    const sessionN = require(path.join(ROOT, "api", "session.js"));
+    const adminHash = authN.hashCode("EenSterkeCode2026");
+
+    const withConfig = fields => {
+      const originalFetch = global.fetch;
+      global.fetch = async () => json({ records: [{ id: "conf1", fields }] });
+      return () => { global.fetch = originalFetch; };
+    };
+
+    // N1 — le code enregistré ouvre, celui de l'environnement ne marche plus.
+    {
+      const restore = withConfig({ "Beheerderscode hash": adminHash });
+      try {
+        let r = mkRes();
+        await sessionN({ method: "POST", body: { code: "EenSterkeCode2026" }, headers: {} }, r);
+        assert.equal(r.statusCode, 200, "N1 le code enregistré ouvre");
+        assert.equal(r.payload.role, "admin", "N1 rôle admin");
+
+        r = mkRes();
+        await sessionN({ method: "POST", body: { code: process.env.ADMIN_CODE }, headers: {} }, r);
+        assert.equal(r.statusCode, 401, "N1 le code d'environnement ne marche plus une fois un code enregistré");
+
+        r = mkRes();
+        await sessionN({ method: "POST", body: { code: process.env.STAFF_CODE }, headers: {} }, r);
+        assert.equal(r.statusCode, 200, "N1 le code personnel d'environnement reste valable (pas de hash staff)");
+      } finally { restore(); }
+    }
+
+    // N2 — Airtable en panne : on retombe sur les codes d'environnement.
+    {
+      const originalFetch = global.fetch;
+      global.fetch = async () => { throw new Error("airtable indisponible"); };
+      try {
+        const r = mkRes();
+        await sessionN({ method: "POST", body: { code: process.env.ADMIN_CODE }, headers: {} }, r);
+        assert.equal(r.statusCode, 200, "N2 porte de secours si la base est injoignable");
+      } finally { global.fetch = originalFetch; }
+    }
+
+    // N3 — le hachage ne laisse jamais fuir le code.
+    assert.ok(!adminHash.includes("EenSterkeCode2026"), "N3 le code n'apparaît pas dans l'empreinte");
+    assert.match(adminHash, /^scrypt\$[0-9a-f]+\$[0-9a-f]+$/, "N3 format d'empreinte attendu");
+    assert.equal(authN.verifyHash(adminHash, "EenSterkeCode2026"), true, "N3 bonne vérification");
+    assert.equal(authN.verifyHash(adminHash, "eensterkecode2026"), false, "N3 casse respectée");
+    assert.equal(authN.verifyHash("", "x"), false, "N3 empreinte vide refusée");
+    assert.notEqual(authN.hashCode("x"), authN.hashCode("x"), "N3 sel aléatoire à chaque hachage");
+
+    // N4 — l'empreinte n'est jamais renvoyée par l'API, seulement son existence.
+    {
+      const onboardingN = require(path.join(ROOT, "api", "onboarding.js"));
+      const restore = withConfig({ "Bedrijfsnaam": "Famo", "Beheerderscode hash": adminHash });
+      try {
+        const r = mkRes();
+        await onboardingN({ method: "GET", headers: adminCookieHdr, query: {} }, r);
+        const body = JSON.stringify(r.payload || {});
+        assert.ok(!body.includes(adminHash), "N4 l'empreinte ne sort jamais de l'API");
+        assert.equal(r.payload.config.adminCodeCustom, true, "N4 seule l'existence est signalée");
+      } finally { restore(); }
+    }
+  }
+  console.log("✓ N. Codes d'accès (remplacent l'environnement, hachés, jamais exposés)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

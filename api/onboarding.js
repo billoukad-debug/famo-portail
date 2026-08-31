@@ -96,7 +96,10 @@ async function statusPayload() {
     btwTarief: Number(c["BTW-tarief"]) > 0 ? Number(c["BTW-tarief"]) : 6,
     betalingsvoorwaarden: c["Betalingsvoorwaarden"] || "",
     leveringsvoorwaarden: c["Leveringsvoorwaarden"] || "",
-    bestellingenEmail: (c["Bestellingen e-mail"] || "").trim()
+    bestellingenEmail: (c["Bestellingen e-mail"] || "").trim(),
+    // On expose seulement l'EXISTENCE d'un code personnalisé, jamais l'empreinte.
+    adminCodeCustom: !!String(c["Beheerderscode hash"] || "").trim(),
+    staffCodeCustom: !!String(c["Personeelscode hash"] || "").trim()
   };
 
   const [cat, clients, prices, stock, orders, aanvragen] = await Promise.all([
@@ -369,6 +372,41 @@ module.exports = async (req, res) => {
         },
         ...(await statusPayload())
       });
+    }
+
+    // ---- Codes d'accès (Instellingen) ----
+    // Le code n'est jamais stocké en clair : seule son empreinte scrypt part en base.
+    if (action === "saveCode") {
+      const which = clean(body.which, 10);
+      if (which !== "admin" && which !== "staff") {
+        return res.status(400).json({ error: "Onbekend codetype" });
+      }
+      const code = String(body.code || "");
+      const reset = body.reset === true;
+      const field = which === "admin" ? "Beheerderscode hash" : "Personeelscode hash";
+
+      if (!reset) {
+        if (code.length < 10) {
+          return res.status(400).json({ error: "De code moet minstens 10 tekens lang zijn" });
+        }
+        if (/^famo/i.test(code)) {
+          return res.status(400).json({ error: "Gebruik geen code die met de bedrijfsnaam begint — te makkelijk te raden" });
+        }
+      }
+
+      const existing = await getConfigRecord();
+      if (existing && existing.error) return res.status(500).json(existing);
+      if (!existing || !existing.id) {
+        return res.status(400).json({ error: "Vul eerst de bedrijfsgegevens in" });
+      }
+      const fields = {};
+      fields[field] = reset ? "" : __auth.hashCode(code);
+      const saved = await at(`${encodeURIComponent("Configuratie")}/${existing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ fields })
+      });
+      if (saved.error) return res.status(500).json({ error: saved.error.message || "Code opslaan mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
     // ---- Aanvraag (demande d'inscription publique) ----

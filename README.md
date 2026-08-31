@@ -46,6 +46,22 @@ Tout se règle ici, sans passer par Airtable :
 - **Prijzen** — prix négociés par client
 - **Bedrijfsgegevens** — identité, IBAN/BIC, **taux de TVA**, conditions de paiement et de livraison,
   et **Bestelmeldingen** : la boîte interne qui reçoit chaque nouvelle commande
+- **Toegang** — qui a accès à quoi, et **changement des codes** admin et personnel
+
+## Codes d'accès
+
+Les codes se changent depuis **Beheer → Toegang**, sans passer par Vercel ni redéployer.
+Ils sont stockés **hachés** (scrypt) dans Airtable : ni le code ni sa valeur ne sont
+lisibles nulle part, pas même dans la base.
+
+Dès qu'un code est enregistré pour un rôle, il **remplace** celui de l'environnement —
+sinon changer un code ne servirait à rien, l'ancien continuerait d'ouvrir la porte.
+
+**Si un code est perdu** : videz le champ `Beheerderscode hash` ou `Personeelscode hash`
+dans Airtable ; le code de la variable Vercel redevient valable.
+
+`STAFF_CODE` et `ADMIN_CODE` doivent **toujours rester définis** dans Vercel : ils
+sèment le secret HMAC des cookies de session. Sans eux, ce secret serait devinable.
 
 Le taux de TVA et les mentions légales des documents viennent de ces réglages : rien n'est codé en dur dans `documents.js`.
 
@@ -92,7 +108,7 @@ Vérifie la syntaxe, les fonctions appelées depuis le HTML, l'échappement XSS,
 ## Limites connues
 
 - Les mots de passe clients sont stockés en clair dans Airtable et transitent à chaque appel. À remplacer par des hachages et une vraie session serveur.
-- Un seul code par rôle : pas d'identité individuelle ni de révocation ciblée.
+- Un seul code par rôle : pas d'identité individuelle ni de révocation ciblée (on sait qu'une action vient du personnel, pas de qui).
 - Seule la **confirmation de commande** part par e-mail. Les identifiants clients et les documents
   (bon de livraison, facture) se transmettent toujours à la main.
 - L'envoi est **synchrone** : il ajoute ~0,5 s à la réponse (plafonné à 4 s). Vercel ne garantit pas

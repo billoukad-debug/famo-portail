@@ -597,6 +597,15 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   } else {
     pass("api/config.js", "boite ops privee (hors contactOnly)");
   }
+  // Les empreintes de code ne doivent jamais quitter le serveur : statusPayload
+  // n'expose que adminCodeCustom / staffCodeCustom (des booléens).
+  const onbSrc = fs.readFileSync(path.join(root, "api", "onboarding.js"), "utf8");
+  const payload = /const config = \{([\s\S]*?)\n  \};/.exec(onbSrc);
+  if (payload && /["']?(adminHash|staffHash)["']?\s*:|hash["']?\s*:\s*\(?c\[/.test(payload[1])) {
+    fail("api/onboarding.js", "empreinte de code exposee dans la reponse API — n'exposer que adminCodeCustom/staffCodeCustom");
+  } else {
+    pass("api/onboarding.js", "empreintes de code jamais exposees");
+  }
   for (const rel of ["lib/mail.js", "lib/ordermail.js", "api/order.js", "api/staff.js", "api/onboarding.js"]) {
     const f = path.join(root, rel);
     if (!fs.existsSync(f)) continue;
