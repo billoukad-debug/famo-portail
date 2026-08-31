@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Famo Trading — Magazijn</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
   .wh-stats{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;color:var(--f-muted);font-size:12.5px}
-  .wh-stats b{font:500 13px Geist Mono,ui-monospace,monospace;color:var(--f-ink)}
+  .wh-stats b{font-weight:600;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--f-ink)}
   .wh-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
   .wh-toolbar label{font-size:12px;font-weight:600;color:var(--f-quiet)}
-  .wh-toolbar input{width:min(300px,100%);min-height:38px;padding:0 12px}
-  .wh-toolbar select{min-height:38px;padding:0 10px}
-  .wh-toolbar span{margin-left:auto;color:var(--f-muted);font:500 12px Geist Mono,ui-monospace,monospace}
+  .wh-toolbar input{width:min(300px,100%);min-height:44px;padding:0 12px}
+  .wh-toolbar select{min-height:44px;padding:0 10px}
+  .wh-toolbar span{margin-left:auto;color:var(--f-quiet);font-size:12px;font-variant-numeric:tabular-nums}
   .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;padding-bottom:40px}
   @media (max-width:1000px){ .board{grid-template-columns:1fr 1fr} }
   @media (max-width:560px){ .board{grid-template-columns:1fr} }
@@ -23,14 +24,14 @@
   .oc{background:#fff;border:1px solid var(--f-line);border-radius:12px;padding:14px;margin-bottom:10px}
   .oc .ref{font:600 14px Geist Mono,ui-monospace,monospace;color:var(--f-ink)}
   .oc .cl{font-size:14px;color:var(--f-ink);font-weight:600;margin:2px 0 4px}
-  .order-lines{background:var(--f-panel);border:1px solid var(--f-line);border-radius:6px;padding:5px 10px;margin:6px 0}
-  .order-line{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid var(--f-line)}
+  .order-lines{background:var(--f-panel);border:1px solid var(--f-line);border-radius:6px;padding:5px 12px;margin:8px 0}
+  .order-line{display:flex;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid var(--f-line)}
   .order-line:last-child{border-bottom:0}
-  .order-line .q{min-width:38px;text-align:right;font:600 18px Geist Mono,ui-monospace,monospace;color:var(--f-ink)}
-  .order-line .d{font-size:13.5px;font-weight:600;line-height:1.25;color:var(--f-muted)}
+  .order-line .q{min-width:40px;text-align:right;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums;color:var(--f-ink)}
+  .order-line .d{font-size:14px;font-weight:500;line-height:1.3;color:var(--f-muted)}
   .oc .meta{font-size:12px;color:var(--f-muted);margin-top:6px}
   .oc .row{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
-  .oc button{border:none;border-radius:8px;padding:9px 11px;font-size:12.5px;font-weight:600;min-height:38px;cursor:pointer}
+  .oc button{border:none;border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;min-height:44px;cursor:pointer}
   .adv{background:var(--f-accent);color:#fff;width:100%;min-height:44px;margin-top:4px}
   .edit{background:var(--f-panel);color:var(--f-ink);border:1px solid var(--f-line)!important}
   .doc{background:#fff;color:var(--f-ink);border:1px solid var(--f-line)!important}
@@ -38,13 +39,13 @@
   .paid{background:#1F6D4E;color:#fff}
   .save{background:var(--f-ink);color:#fff}
   .oc textarea{width:100%;font-family:inherit;font-size:13px;border:1.5px solid var(--f-line);border-radius:8px;padding:8px;min-height:76px;margin-top:8px}
-  .tin{width:100px;padding:8px;border:1.5px solid var(--f-line);border-radius:8px;font-size:13px}
+  .tin{width:100px;min-height:44px;padding:8px 10px;border:1.5px solid var(--f-line);border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums}
   .ehint{font-size:11px;color:var(--f-quiet);margin-top:5px}
   .pick-editor{margin-top:10px;border:1px solid var(--f-line);border-radius:8px;overflow:hidden;background:#fff}
-  .pick-row{display:grid;grid-template-columns:28px minmax(0,1fr) 130px;gap:9px;align-items:center;padding:10px;border-bottom:1px solid var(--f-line)}
-  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{width:20px;height:20px;accent-color:#1F6D4E}
-  .pick-row .pn{font-size:13px;font-weight:700}.pick-row .pm{font-size:11px;color:var(--f-quiet);margin-top:2px}.pick-row.done{background:#E6F0E9}
-  .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:32px;min-height:32px;padding:0;background:var(--f-panel);color:var(--f-ink);font-size:18px}.actual input{width:48px;min-height:32px;text-align:center;border:1px solid var(--f-line);border-radius:5px;font:700 14px ui-monospace,monospace}
+  .pick-row{display:grid;grid-template-columns:40px minmax(0,1fr) 158px;gap:9px;align-items:center;min-height:44px;padding:10px 12px 10px 8px;border-bottom:1px solid var(--f-line);cursor:pointer}
+  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{width:24px;height:24px;margin:10px 8px;accent-color:#1F6D4E;cursor:pointer}
+  .pick-row .pn{font-size:14px;font-weight:600}.pick-row .pm{font-size:11.5px;color:var(--f-quiet);margin-top:2px;font-variant-numeric:tabular-nums}.pick-row.done{background:#E6F0E9}
+  .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:44px;min-height:44px;padding:0;background:var(--f-panel);color:var(--f-ink);font-size:20px}.actual input{width:56px;min-height:44px;text-align:center;border:1px solid var(--f-line);border-radius:5px;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
   .edit-head{font-size:12px;font-weight:700;color:var(--f-ink);margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
   .empty{color:var(--f-quiet);font-size:12.5px;padding:8px;text-align:center}
   .prep-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:18px}
@@ -55,7 +56,7 @@
   .prep-panel h2{margin:0;padding:16px 18px 8px;font-size:14.5px}
   .prep-panel p{margin:0;padding:0 18px 13px;color:var(--f-quiet);font-size:12.5px}
   .prep-product{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--f-line)}
-  .prep-product-qty{margin-left:auto;font:500 17px Geist Mono,ui-monospace,monospace;white-space:nowrap}
+  .prep-product-qty{margin-left:auto;font-weight:600;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .prep-product b{display:block;font-size:13.5px;font-weight:500}
   .prep-product small{display:block;margin-top:2px;color:var(--f-quiet);font-size:11.5px}
   .prep-order{display:block;padding:12px 18px;border-top:1px solid var(--f-line);color:var(--f-ink);text-decoration:none}
@@ -71,6 +72,10 @@
   .oc-focus{outline:2px solid var(--f-accent);outline-offset:2px;box-shadow:0 0 0 4px rgba(12,97,87,.14)}
   .prep-order-cta{margin-left:auto;color:var(--f-accent);font-size:12px;font-weight:600}
   @media(max-width:620px){.wh-toolbar span{margin-left:0;width:100%}.page-actions{width:100%}.page-actions button{flex:1}}
+  .oc-progress{height:3px;border-radius:999px;background:var(--f-line);margin-bottom:10px;overflow:hidden}
+  .oc-progress span{display:block;height:100%;width:0;border-radius:999px;background:var(--f-accent);transition:width .18s ease}
+  @media(prefers-reduced-motion:reduce){.oc-progress span{transition:none}}
+  .col .f-empty{padding:26px 10px}
 </style>
 </head>
 <body>
@@ -244,6 +249,7 @@ async function load(){
     ORDERS=d.orders||[];
     STOCK=b.ok?(sd.items||[]):[];
     render();
+    const board=document.querySelector(".board"); if(board) board.classList.add("f-enter");
   }catch(err){
     showBoardError(famoStaff.translateError(err.message||"Verbinding mislukt. Probeer opnieuw."));
   }
@@ -284,7 +290,8 @@ function render(){
       '</div><div id="e'+idx+'"></div>';
     document.getElementById("c"+si).appendChild(el);
   });
-  for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML='<div class="empty">—</div>'; }
+  const emptyPick='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 9h17v10.5h-17z"/><path d="M3.5 12.75h17M8.2 9v10.5M15.8 9v10.5"/><path d="M7.5 9l2-4.5h5l2 4.5"/></svg><b>Alles klaar.</b><p>Geen bestellingen te verzamelen.</p></div>';
+  for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML=(i===0?emptyPick:'<div class="empty">—</div>'); }
   document.getElementById("statTodo").textContent=counts[0]+counts[1]; document.getElementById("statOnway").textContent=counts[2]; document.getElementById("statOpen").textContent=counts[0]+counts[1]+counts[2];
   const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
@@ -365,7 +372,7 @@ function renderDayView(){
   }).filter(Boolean);
   const label=DAY_FILTER==="custom"?document.getElementById("dayCustom").value:DAY_FILTER==="today"?dayKey():DAY_FILTER==="tomorrow"?dayKey(1):"";
   const c=document.getElementById("dagContent");
-  c.className="";
+  c.className="f-enter";
   c.innerHTML='<p class="prep-meta">'+orders.length+' bestellingen · '+items.length+' verschillende producten'+(label?' · '+dateLabel(label):'')+'</p>'+
     (alerts.length?'<div class="prep-alert"><b>Voorraadcontrole vereist</b><br>'+alerts.map(esc).join("<br>")+'</div>':'')+
     (onway.length?'<div class="prep-alert" style="border-color:#b6d4e6;background:#f2f8fc;color:#174e70"><b>'+onway.length+' onderweg — te bevestigen</b><br><a href="/leveringen.html" style="color:#111;font-weight:650">Open Leveringen →</a></div>':'')+
@@ -374,7 +381,7 @@ function renderDayView(){
     '</section><section class="prep-panel"><h2>Betrokken bestellingen</h2><p>Open een bestelling om de artikelen afzonderlijk te valideren.</p>'+
     (orders.length?orders.map(o=>{
       const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
-      return '<a class="prep-order" href="/entrepot.html?id='+encodeURIComponent(o.id)+'"><div class="prep-order-head"><span class="prep-order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span>'+(canValidate?'<span class="prep-order-cta">Valideren</span>':'')+'</div><div class="prep-order-client">'+esc(o.client)+'</div><div class="prep-order-lines">'+esc(famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · ")))+'</div></a>';
+      return '<a class="prep-order f-lift" href="/entrepot.html?id='+encodeURIComponent(o.id)+'"><div class="prep-order-head"><span class="prep-order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span>'+(canValidate?'<span class="prep-order-cta">Valideren</span>':'')+'</div><div class="prep-order-client">'+esc(o.client)+'</div><div class="prep-order-lines">'+esc(famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · ")))+'</div></a>';
     }).join(""):'<div class="prep-empty">Geen bestellingen gevonden.</div>')+
     '</section></div>';
 }
@@ -418,10 +425,19 @@ function refreshActualTotal(orderIndex){
 function markPicked(orderIndex,lineIndex){
   const check=document.getElementById("ok"+orderIndex+"_"+lineIndex), row=document.getElementById("pr"+orderIndex+"_"+lineIndex);
   if(row) row.classList.toggle("done",!!check.checked);
+  updatePickProgress(orderIndex);
+}
+function updatePickProgress(orderIndex){
+  const bar=document.getElementById("pg"+orderIndex); if(!bar||!bar.firstElementChild) return;
+  const lines=(window._editingLines||{})[orderIndex]||[];
+  const total=lines.length||1;
+  let done=0;
+  lines.forEach((_,i)=>{ const check=document.getElementById("ok"+orderIndex+"_"+i); if(check&&check.checked) done++; });
+  bar.firstElementChild.style.width=Math.round(done/total*100)+"%";
 }
 function editLines(idx){
   const o=ORDERS[idx], box=document.getElementById("e"+idx);
-  if(box.innerHTML){ box.innerHTML=""; return; }
+  if(box.innerHTML){ box.innerHTML=""; const oldBar=document.getElementById("pg"+idx); if(oldBar) oldBar.remove(); return; }
   const lines=String(o.lignes||"").split("\n").filter(Boolean).map(parseOrderLine);
   window._editingLines=window._editingLines||{}; window._editingLines[idx]=lines;
   const allPriced=lines.every(line=>line.price!=null);
@@ -435,6 +451,15 @@ function editLines(idx){
     '<div class="edit-total">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+
     '<div class="ehint">Deeltijdige levering: pas de aantallen hieronder aan vóór vertrek (Sortie). Statussen en Airtable-kolommen blijven ongewijzigd — alleen de voorbereide hoeveelheden tellen.</div>'+
     '<div class="ehint">De aantallen en het totaal worden vastgezet zodra de goederen vertrekken.</div>';
+  const card=box.closest(".oc");
+  if(card&&!document.getElementById("pg"+idx)){
+    const bar=document.createElement("div");
+    bar.className="oc-progress"; bar.id="pg"+idx;
+    bar.setAttribute("aria-hidden","true");
+    bar.appendChild(document.createElement("span"));
+    card.prepend(bar);
+  }
+  updatePickProgress(idx);
   refreshActualTotal(idx);
 }
 async function saveLines(idx){

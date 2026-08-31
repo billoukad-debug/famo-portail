@@ -77,13 +77,21 @@ window.FamoDocuments=(()=>{
     const htva=total/(1+pct/100), tva=total-htva;
     const num=number(order,type);
     const title=credit?"CREDITNOTA (VOORBEELD)":(invoice?"FACTUUR":"LEVERINGSBON");
+    // Rendu uniquement à partir d'ici — parse/calculs inchangés (parité M6).
+    const nlUnit=value=>(typeof window!=="undefined"&&window.famoNL)?famoNL.unit(value):value;
+    const ibanFmt=value=>String(value||"").replace(/\s+/g,"").replace(/(.{4})/g,"$1 ").trim();
     const lineRows=rows.map(row=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
       const sub=unitPrice==null?null:unitPrice*qty;
-      return '<tr><td>'+esc(row.name)+(row.comment?'<br><small>'+esc(row.comment)+'</small>':'')+'</td><td class="num">'+esc(row.qty)+'</td><td>'+esc(row.unit)+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
+      return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+'</td><td class="num">'+esc(row.qty)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
-    const bank='<div class="bank"><b>Bankgegevens</b><br>'+esc(COMPANY.nom)+'<br>IBAN: '+esc(COMPANY.iban)+(COMPANY.bic?'<br>BIC: '+esc(COMPANY.bic):'')+(COMPANY.exampleBank?'<br><em>Voorbeeld — nog niet definitief</em>':'')+'</div>';
+    const bank='<div class="bank"><div class="banklabel">Bankgegevens</div>'+
+      '<div class="bankrow"><span>Begunstigde</span><b>'+esc(COMPANY.nom)+'</b></div>'+
+      '<div class="bankrow"><span>IBAN</span><b class="mono">'+esc(ibanFmt(COMPANY.iban))+'</b></div>'+
+      (COMPANY.bic?'<div class="bankrow"><span>BIC</span><b class="mono">'+esc(COMPANY.bic)+'</b></div>':'')+
+      (COMPANY.exampleBank?'<div class="bankexample"><em>Voorbeeld — nog niet definitief</em></div>':'')+
+      '</div>';
     const payLabel=(typeof window!=="undefined"&&window.famoNL)?famoNL.pay(order.paiement||"En attente"):(order.paiement||"Openstaand");
     const foot=credit
       ? '<b>Voorbeeld / intern document.</b> Geen Airtable-creditnota, geen officieel nummer, geen Peppol. Alleen ter referentie.'
@@ -92,7 +100,73 @@ window.FamoDocuments=(()=>{
         : 'Handtekening klant: ______________________________<br><br>'+esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
     const banners=(credit?'<div class="banner"><b>Voorbeeld — niet geboekt.</b> Creditnota (intern) zonder Airtable-nummer; niet automatisch verzonden.</div>':'')+
       (invoice&&COMPANY.exampleBank?'<div class="banner"><b>Voorbeeld bankgegevens.</b> '+(window.famoCompany?esc(famoCompany.EXAMPLE.label):'Vervang IBAN/BIC via Aan de slag vóór echte facturatie.')+'</div>':'');
-    return '<!doctype html><html><head><meta charset="utf-8"><title>'+esc(num)+'</title><style>body{font-family:Arial,sans-serif;color:#191512;margin:0;padding:34px;font-size:12px}.head{display:flex;justify-content:space-between;border-bottom:2px solid #191512;padding-bottom:12px}h1{margin:0;font-size:21px;font-family:Georgia,serif;font-weight:500;letter-spacing:-.01em}.meta{margin-top:3px;color:#5F574E;line-height:1.45}.banner{margin-top:12px;padding:8px 10px;border:1px solid #C79A2F;background:#FBF3DF;color:#6B4E0B;font-size:11px}.parties{display:flex;gap:44px;margin-top:20px}.parties>div{flex:1}h2{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#5F574E}table{width:100%;border-collapse:collapse;margin-top:22px}th,td{padding:8px;border-bottom:1px solid #E5DDD3;text-align:left}th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#5F574E;background:#F2ECE3}.num{text-align:right}.total{margin:18px 0 0 auto;width:250px}.total div{display:flex;justify-content:space-between;padding:4px 0}.grand{border-top:2px solid #191512;margin-top:4px;padding-top:8px!important;font-size:14px;font-weight:bold}.bank{margin-top:18px;padding:10px 12px;border:1px solid #E5DDD3;background:#FAF6F0;font-size:11px;line-height:1.5}.foot{margin-top:25px;border-top:1px solid #E5DDD3;padding-top:8px;font-size:10px;color:#5F574E;line-height:1.55}</style></head><body><div class="head"><div><h1>'+esc(COMPANY.nom||"—" )+'</h1><div class="meta">'+companyBlock()+'</div></div><div style="text-align:right"><h1>'+title+'</h1><div class="meta">'+esc(num)+'<br>Bestelling: '+esc(order.ref)+(order.factuurnummer?'<br>Factuur: '+esc(order.factuurnummer):'')+'<br>Datum: '+esc(date(new Date().toISOString()))+'</div></div></div>'+banners+'<div class="parties"><div><h2>Leverancier</h2>'+companyBlock()+'</div><div><h2>Klant</h2>'+esc(order.client)+'<br>'+esc((order.klant||{}).adresse||"").replace(/\n/g,"<br>")+'</div></div><table><tr><th>Beschrijving</th><th class="num">'+(priced?'Aantal':'Aantal')+'</th><th>Eenheid</th>'+(priced?'<th class="num">Tarief</th><th class="num">Subtotaal</th>':'')+'</tr>'+lineRows+'</table>'+(priced?'<div class="total"><div><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div><div><span>BTW '+esc(String(pct).replace(".",","))+'%</span><span>'+eur(tva)+'</span></div><div class="grand"><span>Totaal</span><span>'+eur(total)+'</span></div></div>'+(invoice?bank:'')+'<div class="foot">'+foot+'</div>':'<div class="foot">'+foot+'</div>')+'</body></html>';
+    // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
+    const mark='<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="#0C6157" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25V1.75h9.5"/><path d="M3.75 8h3.05c1.5 0 1.85-1.4 3.35-1.4s1.6 1.4 3.1 1.4"/></g></svg>';
+    const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?"BTW "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
+    const mast='<header class="mast"><div class="brand">'+mark+'<div class="wordmark">'+esc(COMPANY.nom||"—")+'</div></div><div class="coords">'+(coords||'<em>Bedrijfsgegevens niet geladen</em>')+'</div></header>';
+    const klant=order.klant||{};
+    const metaCell=(label,value,mono)=>value?'<div><div class="metalabel">'+label+'</div><div class="metavalue'+(mono?' mono':'')+'">'+esc(value)+'</div></div>':'';
+    const metaband='<div class="metaband">'+
+      metaCell("Document",num,true)+
+      metaCell("Bestelling",order.ref,true)+
+      (!invoice&&order.factuurnummer?metaCell("Factuur",order.factuurnummer,true):"")+
+      metaCell("Datum",date(new Date().toISOString()))+
+      (order.dateLiv?metaCell("Leverdatum",date(order.dateLiv)):"")+
+      (klant.klantnr?metaCell("Klantnummer",klant.klantnr,true):"")+
+      '</div>';
+    const klantBlock='<section class="party"><h2>Klant</h2><div class="partyname">'+esc(order.client)+'</div>'+
+      (klant.adresse?'<div class="partymeta">'+esc(klant.adresse).replace(/\n/g,"<br>")+'</div>':'')+
+      (klant.btw?'<div class="partymeta">BTW '+esc(klant.btw)+'</div>':'')+
+      '</section>';
+    const table='<table><thead><tr><th>Beschrijving</th><th class="num">Aantal</th><th>Eenheid</th>'+
+      (priced?'<th class="num">Tarief</th><th class="num">Subtotaal</th>':'')+
+      '</tr></thead><tbody>'+lineRows+'</tbody></table>';
+    const totals='<div class="totals">'+
+      '<div class="trow"><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div>'+
+      '<div class="trow"><span>BTW '+esc(String(pct).replace(".",","))+'%</span><span>'+eur(tva)+'</span></div>'+
+      '<div class="trow grand"><span>Totaal</span><span>'+eur(total)+'</span></div>'+
+      '</div>';
+    const css='*{box-sizing:border-box}'+
+      'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#191512;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+      'em{font-style:italic}'+
+      '.mast{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}'+
+      '.brand{display:flex;align-items:center;gap:12px}'+
+      '.brand svg{display:block;flex:none}'+
+      '.wordmark{font-size:14px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}'+
+      '.coords{text-align:right;font-size:10.5px;line-height:1.65;color:rgba(25,21,18,.62)}'+
+      'h1{margin:30px 0 0;font-family:Georgia,"Iowan Old Style",serif;font-size:26px;font-weight:500;letter-spacing:-.012em}'+
+      '.metaband{display:flex;flex-wrap:wrap;margin-top:14px;border-top:1px solid #E5DDD3;border-bottom:1px solid #E5DDD3}'+
+      '.metaband>div{padding:9px 20px 10px 0}'+
+      '.metaband>div+div{border-left:1px solid #E5DDD3;padding-left:20px}'+
+      '.metalabel{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
+      '.metavalue{margin-top:3px;font-size:12px}'+
+      '.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}'+
+      '.banner{margin-top:14px;padding:10px 13px;border:1px solid #E5DDD3;border-radius:12px;background:#FAF6F0;color:#8A6110;font-size:11px;line-height:1.5}'+
+      '.party{margin-top:24px}'+
+      'h2{margin:0 0 6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:#5F574E}'+
+      '.partyname{font-size:14px;font-weight:600}'+
+      '.partymeta{margin-top:3px;font-size:11.5px;line-height:1.55;color:rgba(25,21,18,.70)}'+
+      'table{width:100%;border-collapse:collapse;margin-top:26px}'+
+      'thead th{padding:8px 10px;background:#F2ECE3;border-bottom:1px solid #E5DDD3;text-align:left;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:#5F574E}'+
+      'td{padding:10px;border-bottom:1px solid #E5DDD3;text-align:left;vertical-align:top;font-size:12px}'+
+      'td small{display:block;margin-top:2px;font-size:10.5px;color:rgba(25,21,18,.62)}'+
+      '.num{text-align:right;white-space:nowrap}'+
+      '.totals{width:280px;max-width:100%;margin:8px 0 0 auto}'+
+      '.trow{display:flex;justify-content:space-between;gap:16px;padding:6px 10px;color:rgba(25,21,18,.70)}'+
+      '.trow span:last-child{color:#191512}'+
+      '.grand{margin-top:4px;border-top:2px solid #191512;padding-top:10px;font-size:18px;font-weight:600;color:#191512}'+
+      '.bank{margin-top:24px;padding:13px 16px;border:1px solid #E5DDD3;border-radius:12px;background:#FAF6F0;font-size:11.5px;page-break-inside:avoid}'+
+      '.banklabel{margin-bottom:6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:#5F574E}'+
+      '.bankrow{display:flex;gap:14px;padding:2px 0}'+
+      '.bankrow span{flex:none;width:92px;color:rgba(25,21,18,.62)}'+
+      '.bankrow b{font-weight:600}'+
+      '.bankexample{margin-top:6px;color:#8A6110}'+
+      '.foot{margin-top:30px;border-top:1px solid #E5DDD3;padding-top:10px;font-size:9px;line-height:1.7;color:rgba(25,21,18,.62)}'+
+      '@media print{thead{display:table-header-group}tr{page-break-inside:avoid}.totals,.banner,.metaband{page-break-inside:avoid}}';
+    return '<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>'+esc(num)+'</title><style>'+css+'</style></head><body>'+
+      mast+'<h1>'+title+'</h1>'+metaband+banners+klantBlock+table+
+      (priced?totals+(invoice?bank:''):'')+
+      '<div class="foot">'+foot+'</div></body></html>';
   }
   return{build,number,filename,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
 })();

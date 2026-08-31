@@ -4,99 +4,193 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Famo Trading — Toegang aanvragen</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <style>
-  :root{--ink:#191512;--muted:rgba(25,21,18,.70);--quiet:rgba(25,21,18,.55);--line:#E5DDD3;--soft:#F2ECE3;--white:#fff;--brand:#0C6157;--danger:#A8371F;--success:#1F6D4E;--r:10px}
-  *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#FAF6F0;font-size:14px}button,input,textarea{font:inherit;color:inherit}button{cursor:pointer}.hidden{display:none!important}
-  :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-  .login{min-height:100vh;display:grid;grid-template-columns:minmax(360px,44%) 1fr;background:var(--soft)}
-  .login-panel{background:#fff;padding:42px clamp(28px,6vw,88px);display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--line)}
-  .login-form{width:100%;max-width:420px;margin:auto}
-  .logo{width:38px;height:38px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:17px}
-  .login h1{font-family:Georgia,"Iowan Old Style",serif;font-weight:500;font-size:26px;letter-spacing:-.012em;margin:30px 0 7px}
-  .login .lead{color:var(--muted);line-height:1.5;margin:0 0 26px}
-  .field{display:block;margin:0 0 15px}
-  .field span{display:block;font-size:13px;color:var(--muted);margin:0 0 7px}
-  .input,textarea.input{width:100%;border:1px solid var(--line);border-radius:9px;padding:0 12px;background:#fff;transition:.15s}
+  /* Contrastes calculés : encre .70 sur canvas 6,4:1 · accent #0C6157 sur canvas 6,8:1 ·
+     danger #A8371F sur blanc 6,5:1 et sur canvas 6,1:1 · encre .62 sur blanc 5,1:1 — tous AA. */
+  :root{
+    --canvas:#FAF6F0;--panel:#F2ECE3;--surface:#fff;
+    --ink:#191512;--ink70:rgba(25,21,18,.70);--ink62:rgba(25,21,18,.62);--ink28:rgba(25,21,18,.28);
+    --line:#E5DDD3;--accent:#0C6157;--accent-2:#084A42;--wash:#E0EDE8;--danger:#A8371F;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;font-family:Geist,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--canvas);font-size:14px}
+  button,input,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
+  .hidden{display:none!important}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ——— barre de marque ——— */
+  .topbar{height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 clamp(20px,4.5vw,48px);border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:500;font-size:15px;letter-spacing:-.005em}
+  .logo{width:34px;height:34px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+  .back{display:inline-flex;align-items:center;min-height:44px;padding:0 6px;color:var(--ink70);font-size:13.5px;text-decoration:none;border-radius:8px}
+  .back:hover{color:var(--ink)}
+
+  /* ——— disposition ——— */
+  .stage{max-width:1060px;margin:0 auto;padding:clamp(30px,6vh,66px) clamp(20px,4.5vw,48px) 56px;display:grid;grid-template-columns:minmax(300px,5fr) minmax(340px,6fr);gap:clamp(32px,6vw,84px);align-items:start}
+
+  /* colonne de réassurance */
+  .side{padding-top:8px}
+  .eyebrow{font-size:12px;letter-spacing:.015em;text-transform:uppercase;color:var(--ink62);margin:0 0 12px}
+  .side h1{font-family:Georgia,"Iowan Old Style",serif;font-weight:500;font-size:28px;line-height:1.22;letter-spacing:-.012em;margin:0 0 12px}
+  .side .lead{color:var(--ink70);line-height:1.55;font-size:14.5px;margin:0 0 34px;max-width:38ch}
+  .assure{list-style:none;margin:0;padding:0;display:grid;gap:22px}
+  .assure li{display:flex;gap:14px;align-items:flex-start}
+  .assure svg{flex:0 0 auto;width:22px;height:22px;margin-top:1px;color:var(--accent);fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .assure b{display:block;font-weight:500;font-size:14.5px;line-height:1.35}
+  .assure p{margin:3px 0 0;color:var(--ink62);font-size:13px;line-height:1.5;max-width:36ch}
+  .side-foot{margin-top:42px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--ink62);line-height:1.7}
+
+  /* carte formulaire */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:clamp(22px,3.4vw,34px)}
+  .card h2{font-weight:500;font-size:16px;margin:0 0 6px}
+  .card .sub{color:var(--ink70);line-height:1.5;font-size:13.5px;margin:0 0 22px}
+  .field{display:block;margin:0 0 16px}
+  .field>span{display:block;font-size:13px;color:var(--ink70);margin:0 0 6px}
+  .field>span small{color:var(--ink62);font-weight:400}
+  .input,textarea.input{width:100%;border:1px solid var(--line);border-radius:8px;padding:0 12px;background:var(--surface);transition:border-color .15s,box-shadow .15s}
   .input{height:44px}
-  textarea.input{height:70px;padding:10px 12px;resize:vertical}
-  .input:hover{border-color:var(--line)}
-  .input:focus{border-color:var(--quiet);outline:3px solid var(--soft)}
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
-  .primary{border:0;border-radius:8px;background:var(--brand);color:#fff;height:44px;padding:0 16px;font-weight:550;display:inline-flex;align-items:center;justify-content:center;gap:8px}
-  .primary:hover{background:#084A42}
-  .primary:disabled{background:var(--soft);color:var(--quiet);cursor:default}
-  .primary.full{width:100%}
-  .login-error{min-height:20px;color:var(--danger);font-size:13px;margin:10px 0}
-  .staff-entry{display:block;width:max-content;margin:18px auto 0;color:var(--muted);font-size:12.5px;text-decoration:none;border-bottom:1px solid transparent}
-  .staff-entry:hover,.staff-entry:focus-visible{color:var(--ink);border-color:currentColor}
-  .login-foot{font-size:12px;color:var(--quiet);line-height:1.6;margin-top:28px}
-  .login-art{display:grid;place-items:center;padding:8vw;color:var(--quiet)}
-  .login-art-inner{max-width:440px}
-  .login-art .mark{font-size:64px;line-height:1;color:var(--line);font-weight:650;letter-spacing:-.06em}
-  .login-art p{font-size:16px;line-height:1.6;color:var(--muted);margin:14px 0 0}
-  .login-art ul{list-style:none;padding:0;margin:26px 0 0;color:#999;font-size:14px;line-height:2}
-  .login-art li{display:flex;gap:10px;align-items:flex-start}
-  .login-art li svg{flex:0 0 auto;margin-top:3px;color:var(--quiet)}
-  .confirm{padding:20px 0}
-  .confirm-icon{width:42px;height:42px;border-radius:50%;background:#eaf3ee;color:var(--success);display:grid;place-items:center;margin-bottom:16px}
-  .confirm h1{font-family:Georgia,"Iowan Old Style",serif;font-weight:500;font-size:22px;margin:0 0 10px}
-  .confirm p{color:var(--muted);line-height:1.55;margin:0 0 18px}
-  @media(max-width:720px){.login{display:block;background:#fff}.login-panel{min-height:100vh;border:0;padding:28px 22px}.login-art{display:none}.row2{grid-template-columns:1fr}}
+  textarea.input{height:76px;padding:10px 12px;resize:vertical}
+  .input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--wash)}
+  .field.invalid .input{border-color:var(--danger)}
+  .field.invalid .input:focus{box-shadow:0 0 0 3px rgba(168,55,31,.12)}
+  .ferr{display:block;font-style:normal;color:var(--danger);font-size:12.5px;line-height:1.4;margin:5px 0 0}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .primary{border:0;border-radius:8px;background:var(--accent);color:#fff;height:46px;padding:0 16px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:6px}
+  .primary:hover{background:var(--accent-2)}
+  .primary:disabled{background:var(--panel);color:var(--ink28);cursor:default}
+  .form-error{min-height:20px;color:var(--danger);font-size:13px;line-height:1.45;margin:10px 0 0}
+  .under{margin-top:16px;display:flex;flex-direction:column;gap:2px;align-items:center}
+  .under a{display:inline-flex;align-items:center;min-height:38px;padding:0 8px;color:var(--ink62);font-size:12.5px;text-decoration:none;border-radius:8px}
+  .under a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+
+  /* ——— confirmation ——— */
+  .confirm{padding:10px 0 4px;text-align:center}
+  .check{width:56px;height:56px;display:block;margin:6px auto 20px}
+  .check circle,.check path{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 1;stroke-dashoffset:0}
+  .check circle{stroke-width:2}
+  .check path{stroke-width:2.25}
+  @keyframes f-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+  .confirm .check circle{animation:f-draw .3s ease-out both}
+  .confirm .check path{animation:f-draw .3s .28s ease-out both}
+  @keyframes f-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .confirm{animation:f-enter .24s ease-out both}
+  .confirm h2{font-weight:500;font-size:18px;letter-spacing:-.006em;margin:0 0 10px}
+  .confirm p{color:var(--ink70);line-height:1.55;font-size:14px;max-width:40ch;margin:0 auto 20px}
+  .confirm a{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;color:var(--accent);font-size:13.5px;text-decoration:none;border-radius:8px}
+  .confirm a:hover{color:var(--accent-2);text-decoration:underline;text-underline-offset:3px}
+  @media(prefers-reduced-motion:reduce){
+    .confirm,.confirm .check circle,.confirm .check path{animation:none}
+    .input,.back,.under a{transition:none}
+  }
+
+  /* ——— mobile : empilé, formulaire d'abord ——— */
+  @media(max-width:860px){
+    .stage{grid-template-columns:1fr;gap:30px;padding-top:24px}
+    .side{order:2;padding-top:0}
+    .form-col{order:1}
+    .side h1{display:none}
+    .side .lead{margin-bottom:26px}
+    #formView h2{font-family:Georgia,"Iowan Old Style",serif;font-weight:500;font-size:24px;letter-spacing:-.010em}
+    .row2{grid-template-columns:1fr}
+  }
 </style>
 </head>
 <body>
-<div class="login">
-  <section class="login-panel">
-    <div class="login-form">
-      <div class="logo">F</div>
 
+<header class="topbar">
+  <div class="brand"><span class="logo">F</span><span>Famo Trading</span></div>
+  <a class="back" href="/">&larr; Inloggen</a>
+</header>
+
+<main class="stage">
+  <aside class="side">
+    <p class="eyebrow">Klantportaal</p>
+    <h1>Toegang aanvragen</h1>
+    <p class="lead">Groothandel in verse vis en zeevruchten voor professionele keukens. Vraag toegang aan en bestel aan uw eigen voorwaarden.</p>
+    <ul class="assure">
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 3.5h7.6l9.4 9.4-7.6 7.6-9.4-9.4z"/><circle cx="8" cy="8" r="1.4"/></svg>
+        <div><b>Uw eigen prijzen</b><p>U bestelt aan de tarieven die we samen afspreken, meteen zichtbaar bij elk product.</p></div>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.9"/></svg>
+        <div><b>Bestellen voor 22 uur</b><p>Voor 22 uur besteld, de volgende ochtend vroeg geleverd.</p></div>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21c4.2-4.3 6.5-7.4 6.5-10.5a6.5 6.5 0 1 0-13 0C5.5 13.6 7.8 16.7 12 21z"/><circle cx="12" cy="10.5" r="2.25"/></svg>
+        <div><b>Levering in Antwerpen en omstreken</b><p>Onze eigen wagens leveren dagelijks in de regio.</p></div>
+      </li>
+    </ul>
+    <div class="side-foot">Famo Trading BV<br>Jezusstraat 34, 2000 Antwerpen<br>BTW BE 0788.705.713</div>
+  </aside>
+
+  <div class="form-col">
+    <section class="card" aria-label="Aanvraagformulier">
       <div id="formView">
-        <h1>Toegang aanvragen</h1>
-        <p class="lead">Vul uw gegevens in. We maken uw account aan met uw afgesproken prijzen en bezorgen u de inloggegevens.</p>
+        <h2>Vraag uw account aan</h2>
+        <p class="sub">Vul uw gegevens in. We maken uw account aan met uw afgesproken prijzen en bezorgen u de inloggegevens.</p>
 
-        <label class="field"><span>Bedrijfsnaam *</span><input id="bedrijfsnaam" class="input" autocomplete="organization"></label>
-        <label class="field"><span>Contactpersoon *</span><input id="contactpersoon" class="input" autocomplete="name"></label>
+        <label class="field" id="f-bedrijfsnaam"><span>Bedrijfsnaam</span><input id="bedrijfsnaam" class="input" autocomplete="organization"><em class="ferr hidden" id="ferr-bedrijfsnaam"></em></label>
+        <label class="field" id="f-contactpersoon"><span>Contactpersoon</span><input id="contactpersoon" class="input" autocomplete="name"><em class="ferr hidden" id="ferr-contactpersoon"></em></label>
         <div class="row2">
-          <label class="field"><span>E-mail *</span><input id="email" class="input" type="email" autocomplete="email"></label>
-          <label class="field"><span>Telefoon *</span><input id="telefoon" class="input" type="tel" autocomplete="tel"></label>
+          <label class="field" id="f-email"><span>E-mail</span><input id="email" class="input" type="email" autocomplete="email" inputmode="email"><em class="ferr hidden" id="ferr-email"></em></label>
+          <label class="field" id="f-telefoon"><span>Telefoon</span><input id="telefoon" class="input" type="tel" autocomplete="tel" inputmode="tel"><em class="ferr hidden" id="ferr-telefoon"></em></label>
         </div>
-        <label class="field"><span>Leveradres</span><input id="adres" class="input" autocomplete="street-address"></label>
-        <label class="field"><span>Opmerking (optioneel)</span><textarea id="notities" class="input"></textarea></label>
+        <label class="field" id="f-adres"><span>Leveradres <small>(optioneel)</small></span><input id="adres" class="input" autocomplete="street-address"></label>
+        <label class="field" id="f-notities"><span>Opmerking <small>(optioneel)</small></span><textarea id="notities" class="input"></textarea></label>
 
-        <button id="sendBtn" class="primary full" onclick="submitAanvraag()">Aanvraag versturen</button>
-        <div id="err" class="login-error" role="alert"></div>
-        <a class="staff-entry" href="/">Al een account? Meld u hier aan</a><a class="staff-entry" href="/bestellingen.html">Personeel? Meld u hier aan</a>
+        <button id="sendBtn" class="primary" onclick="submitAanvraag()">Aanvraag versturen</button>
+        <div id="err" class="form-error" role="alert"></div>
       </div>
 
       <div id="doneView" class="confirm hidden">
-        <div class="confirm-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg></div>
-        <h1>Aanvraag verstuurd</h1>
-        <p>Bedankt! We nemen uw aanvraag in behandeling en bezorgen u uw inloggegevens per e-mail of telefoon.</p>
-        <a class="staff-entry" href="/">Terug naar de aanmeldpagina</a>
+        <svg class="check" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="22" pathLength="1"/>
+          <path d="M15 24.5l6.2 6.2L33 18" pathLength="1"/>
+        </svg>
+        <h2>Aanvraag ontvangen</h2>
+        <p>Bedankt voor uw aanvraag. We nemen binnen &eacute;&eacute;n werkdag contact met u op en bezorgen u uw inloggegevens.</p>
+        <a href="/">&larr; Terug naar de aanmeldpagina</a>
       </div>
+    </section>
 
-      <div class="login-foot">Famo Trading BV<br>Jezusstraat 34, 2000 Antwerpen<br>BTW BE 0788.705.713</div>
+    <div class="under">
+      <a href="/">Al een account? Meld u hier aan</a>
+      <a href="/bestellingen.html">Personeel? Meld u hier aan</a>
     </div>
-  </section>
-  <aside class="login-art">
-    <div class="login-art-inner">
-      <div class="mark">Famo.</div>
-      <p>Groothandel in verse vis en zeevruchten voor professionele keukens.</p>
-      <ul>
-        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg> Uw eigen afgesproken prijzen</li>
-        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg> Bestellen wanneer het u uitkomt</li>
-        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg> Duidelijke bon en factuur</li>
-      </ul>
-    </div>
-  </aside>
-</div>
+  </div>
+</main>
+
 <script>
+function setFieldError(id,msg){
+  const wrap=document.getElementById("f-"+id),em=document.getElementById("ferr-"+id);
+  if(!wrap||!em)return;
+  if(msg){wrap.classList.add("invalid");em.textContent=msg;em.classList.remove("hidden");
+    const inp=document.getElementById(id);if(inp)inp.setAttribute("aria-invalid","true");
+  }else{wrap.classList.remove("invalid");em.textContent="";em.classList.add("hidden");
+    const inp=document.getElementById(id);if(inp)inp.removeAttribute("aria-invalid");
+  }
+}
+function clearFieldError(ev){setFieldError(ev.target.id,"")}
+["bedrijfsnaam","contactpersoon","email","telefoon"].forEach(function(id){
+  document.getElementById(id).addEventListener("input",clearFieldError);
+});
 async function submitAanvraag(){
   const val=id=>document.getElementById(id).value.trim();
   const btn=document.getElementById("sendBtn"),err=document.getElementById("err");
   const bedrijfsnaam=val("bedrijfsnaam"),contactpersoon=val("contactpersoon"),email=val("email"),telefoon=val("telefoon"),adres=val("adres"),notities=val("notities");
-  if(!bedrijfsnaam||!contactpersoon||!email||!telefoon){err.textContent="Bedrijfsnaam, contactpersoon, e-mail en telefoon zijn verplicht.";return}
-  btn.disabled=true;btn.textContent="Versturen…";err.textContent="";
+  err.textContent="";
+  let first=null;
+  if(!bedrijfsnaam){setFieldError("bedrijfsnaam","Vul uw bedrijfsnaam in.");first=first||"bedrijfsnaam"}else setFieldError("bedrijfsnaam","");
+  if(!contactpersoon){setFieldError("contactpersoon","Vul een contactpersoon in.");first=first||"contactpersoon"}else setFieldError("contactpersoon","");
+  if(!email){setFieldError("email","Vul uw e-mailadres in.");first=first||"email"}
+  else if(!/^\S+@\S+\.\S+$/.test(email)){setFieldError("email","Dit e-mailadres lijkt niet geldig.");first=first||"email"}
+  else setFieldError("email","");
+  if(!telefoon){setFieldError("telefoon","Vul uw telefoonnummer in.");first=first||"telefoon"}else setFieldError("telefoon","");
+  if(first){document.getElementById(first).focus();return}
+  btn.disabled=true;btn.textContent="Versturen…";
   try{
     const r=await fetch("/api/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bedrijfsnaam,contactpersoon,email,telefoon,adres,notities})});
     const d=await r.json().catch(()=>({}));
@@ -104,7 +198,7 @@ async function submitAanvraag(){
     document.getElementById("formView").classList.add("hidden");
     document.getElementById("doneView").classList.remove("hidden");
   }catch(e){
-    err.textContent=e.message||"Netwerkfout — probeer opnieuw.";
+    err.textContent=e.message||"Netwerkfout — probeer het opnieuw.";
     btn.disabled=false;btn.textContent="Aanvraag versturen";
   }
 }

@@ -1,25 +1,27 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Famo Trading — Voorraad</title><link rel="stylesheet" href="/staff.css"><style>
+<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Famo Trading — Voorraad</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E"><link rel="stylesheet" href="/staff.css"><style>
+.stock-note{margin:16px 0 0;padding:10px 14px;border:1px solid var(--f-line);border-radius:8px;background:var(--f-panel);color:var(--f-quiet);font-size:12.5px;line-height:1.5}
+.stock-emptybox{margin-top:16px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface)}
 .stock-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:22px}
 .stock-tools input{flex:1;min-width:220px}
-.stock-filters{display:flex;gap:5px;background:var(--f-panel);padding:3px;border-radius:8px}
-.stock-filters button{height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--f-muted);font-size:12.5px}
-.stock-filters button.active{background:#fff;color:var(--f-ink);box-shadow:0 1px 2px #0001}
+.stock-filters{display:flex;gap:4px;background:var(--f-panel);padding:3px;border-radius:9999px}
+.stock-filters button{min-height:38px;padding:0 14px;border:1px solid transparent;border-radius:9999px;background:transparent;color:var(--f-muted);font-size:12.5px;cursor:pointer}
+.stock-filters button.active{border-color:var(--f-line);background:var(--f-surface);color:var(--f-ink)}
 .stock-hint{margin-top:8px;font-size:12px;color:var(--f-quiet);line-height:1.4}
 .stock-table{margin-top:16px;border:1px solid var(--f-line);border-radius:12px;overflow:hidden}
 .stock-table table{width:100%;border-collapse:collapse}
 .stock-table th{padding:10px 13px;text-align:left;background:var(--f-panel);border-bottom:1px solid var(--f-line);color:var(--f-quiet);font-size:11px;font-weight:500}
 .stock-table td{padding:12px 13px;border-bottom:1px solid var(--f-panel);font-size:12.5px;vertical-align:top}
 .stock-product{font-weight:500}
-.stock-qty{font:500 14px Geist Mono,ui-monospace,monospace}
-.stock-low{color:#8A6110}
+.stock-qty{font-size:14.5px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stock-low{color:var(--f-warning)}
 .stock-edit{display:grid;grid-template-columns:88px 72px minmax(120px,1fr) minmax(120px,1.2fr) auto;gap:6px;align-items:center}
 .stock-edit input,.stock-edit select{height:36px;min-width:0;padding:0 8px;font-size:12px}
 .stock-edit button{height:36px;padding:0 10px;border:1px solid var(--f-ink);border-radius:8px;background:var(--f-ink);color:#fff;font-size:12px}
 .stock-edit .hist-btn{background:#fff;color:var(--f-ink);border-color:var(--f-line)}
-.stock-msg{margin-top:5px;font-size:11px;color:#1F6D4E}
+.stock-msg{margin-top:5px;font-size:11px;color:var(--f-success)}
 .stock-msg.error{color:var(--f-danger)}
 .stock-history{margin-top:8px;padding:8px 10px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-panel);font-size:11.5px;line-height:1.4;max-height:180px;overflow:auto}
-.stock-history-item{padding:5px 0;border-bottom:1px solid var(--f-panel)}
+.stock-history-item{padding:5px 0;border-bottom:1px solid var(--f-line)}
 .stock-history-item:last-child{border:0}
 .stock-history-meta{color:var(--f-quiet);font-size:10.5px}
 .stock-cards{display:none;margin-top:16px}
@@ -38,8 +40,9 @@
 <section id="login" class="staff-login"><div><h1>Voorraad</h1><p>Werk voorraad alleen bij na telling, ontvangst of retour.</p><input id="code" type="password" placeholder="Toegangscode (personeel of beheerder)" autocomplete="current-password"><button type="button" onclick="enter()">Aanmelden</button><div id="err" class="staff-login-error" role="alert"></div></div></section>
 <div id="app" class="hidden staff-shell"><aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside><nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav><main class="staff-main"><div class="staff-page">
 <header class="staff-page-head"><div><h1>Voorraad</h1><p>Beschikbare hoeveelheid, minimumgrens en traceerbare correcties.</p></div><div><button class="staff-ghost" onclick="load()">Vernieuwen</button></div></header>
+<p class="stock-note">Indicatieve voorraad — dit overzicht stuurt het klantportaal niet aan. Werk alleen bij na telling, ontvangst of retour.</p>
 <div class="stock-tools"><input id="q" class="staff-field" type="search" placeholder="Zoek product…" oninput="render()"><div class="stock-filters"><button id="all" class="active" onclick="setFilter('all')">Alle</button><button id="low" onclick="setFilter('low')">Laag</button><button id="zero" onclick="setFilter('zero')">Geen voorraad</button></div></div>
-<p class="stock-hint">Hoeveelheid = absolute voorraad (geen delta). Grens = Seuil bas. Geschiedenis toont bewegingen uit Airtable.</p>
+<p class="stock-hint">Hoeveelheid = absolute voorraad (geen verschil). Grens = ondergrens waaronder het product als laag geldt. Geschiedenis toont bewegingen uit Airtable.</p>
 <div id="summary" class="staff-count" style="margin-top:11px"></div>
 <div id="table" class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div>
 <div id="cards" class="stock-cards"></div>
@@ -69,6 +72,8 @@ async function load(){
     if(!r.ok)throw new Error(d.error||"Voorraad kon niet worden geladen.");
     ITEMS=d.items||[];
     render();
+    box.classList.add("f-enter");
+    document.getElementById("cards").classList.add("f-enter");
   }catch(e){
     box.className="staff-error";
     box.innerHTML=esc(famoStaff.translateError(e.message||"Netwerkfout."))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button>';
@@ -98,8 +103,8 @@ function render(){
   document.getElementById("summary").textContent=rows.length+" getoond · "+lowCount+" laag · "+zeroCount+" zonder voorraad";
   const table=document.getElementById("table"),cards=document.getElementById("cards");
   if(!rows.length){
-    table.className="staff-empty";
-    table.textContent="Geen producten voor deze selectie.";
+    table.className="stock-emptybox";
+    table.innerHTML='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8 12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M3.5 8 12 12.5 20.5 8M12 12.5v8"/></svg><b>Geen producten voor deze selectie</b><p>Pas de zoekopdracht of het filter aan.</p></div>';
     cards.innerHTML="";
     return;
   }

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Famo Trading — Bestelling invoeren</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
 .invoer-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;margin-top:22px;align-items:start}
@@ -11,25 +12,30 @@
 .invoer-card h2{margin:0 0 12px;font-size:14px;font-weight:600}
 .invoer-card.sticky{position:sticky;top:24px}
 .fld-l{display:block;font-size:11px;font-weight:600;color:var(--f-quiet);margin:12px 0 5px;text-transform:uppercase;letter-spacing:.05em}
-.invoer-card select,.invoer-card input[type=date],.invoer-card input[type=text],.invoer-card textarea{width:100%;min-height:42px;padding:10px 11px;border:1px solid var(--f-line);border-radius:8px;background:#fff;font:inherit}
-.invoer-card textarea{min-height:52px;resize:vertical}
+.invoer-card select,.invoer-card input[type=date],.invoer-card input[type=text],.invoer-card textarea{width:100%;min-height:44px;padding:10px 11px;border:1px solid var(--f-line);border-radius:8px;background:#fff;font:inherit}
+.invoer-card textarea{min-height:56px;resize:vertical}
+.invoer-card select:focus,.invoer-card input:focus,.invoer-card textarea:focus{border-color:var(--f-accent)!important;box-shadow:0 0 0 3px var(--f-wash)}
 .src{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
-.src button{flex:1;min-width:80px;min-height:40px;border:1px solid var(--f-line);background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:var(--f-muted);cursor:pointer}
-.src button.on{border-color:var(--f-ink);background:var(--f-ink);color:#fff}
+.src button{flex:1;min-width:80px;min-height:44px;border:1px solid var(--f-line);background:#fff;border-radius:8px;font-size:13px;font-weight:600;color:var(--f-muted);cursor:pointer}
+.src button.on{border-color:var(--f-accent);background:var(--f-wash);color:var(--f-accent)}
 .cat-h{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--f-quiet);margin:18px 2px 6px}
 .prow{display:flex;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid var(--f-panel)}
 .pinfo{flex:1;min-width:0}.pname{font-weight:500;font-size:14px}.pmeta{font-size:12.5px;color:var(--f-muted);margin-top:2px}
-.pprice{font:600 13px Geist Mono,ui-monospace,monospace;color:var(--f-ink)}.pbase{text-decoration:line-through;color:var(--f-quiet);font-size:11.5px;margin-left:5px}
+.pprice{font-weight:600;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--f-ink)}.pbase{text-decoration:line-through;color:var(--f-quiet);font-size:11.5px;margin-left:5px;font-variant-numeric:tabular-nums}
 .tag{background:var(--f-panel);color:var(--f-muted);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;margin-left:5px}
 .qty{display:flex;align-items:center;gap:6px}
-.qty button{width:40px;height:40px;border:1px solid var(--f-line);background:#fff;border-radius:8px;font-size:18px;color:var(--f-ink);font-weight:600;cursor:pointer}
-.qty input{width:56px;height:40px;text-align:center;border:1px solid var(--f-line);border-radius:8px;font:600 14px Geist Mono,ui-monospace,monospace}
-.cmt-in{width:100%;margin-top:6px;padding:8px 9px;border:1px solid var(--f-line);border-radius:8px;font-size:12.5px;background:var(--f-panel)}
+.qty button{width:44px;height:44px;border:1px solid var(--f-line);background:#fff;border-radius:8px;font-size:19px;color:var(--f-ink);font-weight:600;cursor:pointer}
+.qty button:hover{background:var(--f-panel)}
+.qty input{width:56px;height:44px;text-align:center;border:1px solid var(--f-line);border-radius:8px;font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
+.cmt-in{width:100%;min-height:44px;margin-top:6px;padding:8px 10px;border:1px solid var(--f-line);border-radius:8px;font-size:13px;background:var(--f-panel)}
 .cline{padding:8px 0;border-bottom:1px solid #f2f5f7;font-size:13.5px}.cline .r1{display:flex;justify-content:space-between;gap:10px}.cline .cm{font-size:12px;color:var(--f-muted);font-style:italic}
 .total-row{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:12px;border-top:1px solid var(--f-line)}
-.total-row .val{font:600 22px Geist Mono,ui-monospace,monospace;color:var(--f-ink)}
+.total-row .val{font-weight:600;font-size:17px;font-variant-numeric:tabular-nums;color:var(--f-ink)}
+#totalBox .total-row .val{font-family:Georgia,"Iowan Old Style",serif;font-weight:500;font-size:26px;letter-spacing:-.012em;line-height:1.1}
 .empty{color:var(--f-quiet);font-size:13px;padding:12px 0;text-align:center}
-.ok-box{background:#E6F0E9;border:1px solid #C6DCCB;color:#1F6D4E;padding:13px;border-radius:8px;margin-top:12px;font-size:13.5px;display:none}
+.ok-box{background:#E6F0E9;border:1px solid #C6DCCB;border-left:3px solid #1F6D4E;border-left-color:#1F6D4E!important;color:#1F6D4E;padding:13px 14px;border-radius:8px;margin-top:12px;font-size:13.5px;line-height:1.5;display:none}
+.ok-box.is-error{background:#FBF1EE!important;border-color:#E8CFC7!important;border-left-color:var(--f-danger)!important;color:var(--f-danger)!important}
+.ok-box svg{width:15px;height:15px;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .review-box{margin-top:14px;padding:14px;border:1px solid var(--f-line);border-radius:8px;background:var(--f-panel)}
 .review-box h3{font-size:13px;margin:0 0 8px}.review-line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #e7ecef;font-size:13px}
 .review-line:last-of-type{border-bottom:0}.review-meta{font-size:12px;color:var(--f-muted);line-height:1.6;margin-bottom:10px}
@@ -127,7 +133,9 @@ async function loadClient(){
   const d=await r.json();
   PRODUCTS=d.products||[];
   document.getElementById("noClient").classList.add("hidden");
-  document.getElementById("catBox").classList.remove("hidden");
+  const catBox=document.getElementById("catBox");
+  catBox.classList.remove("hidden");
+  catBox.classList.remove("f-enter"); void catBox.offsetWidth; catBox.classList.add("f-enter");
   renderCatalogue();
 }
 
@@ -188,10 +196,12 @@ async function send(){
       body:JSON.stringify({clientId:CID,items,notes:document.getElementById("notes").value,dateLivraison:document.getElementById("dateLiv").value,bron:SRC})});
     const d=await r.json();
     const box=document.getElementById("okBox");
-    if(!r.ok){ box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent="Fout: "+famoStaff.translateError(d.error||"opslaan mislukt"); btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); return; }
+    if(!r.ok){ box.style.display="block"; box.classList.add("is-error"); box.textContent="Fout: "+famoStaff.translateError(d.error||"opslaan mislukt"); btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); return; }
     const total=typeof d.total==="number"?d.total:shownTotal;
     box.style.display="block";
-    box.innerHTML='<b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+
+    box.classList.remove("is-error");
+    box.classList.remove("f-enter"); void box.offsetWidth; box.classList.add("f-enter");
+    box.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg> <b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+
       '<br>Ze staat nu in het magazijn onder « Ontvangen ».'+
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
       (d.id?'<a class="staff-action" href="/entrepot.html?id='+encodeURIComponent(d.id)+'">Open in Magazijn</a>':'<a class="staff-action" href="/entrepot.html">Open Magazijn</a>')+
@@ -200,7 +210,7 @@ async function send(){
     panier={}; comments={}; document.getElementById("notes").value="";
     renderCatalogue(); renderCart();
     btn.textContent="Bestelling controleren";
-  }catch(e){ const box=document.getElementById("okBox"); box.style.display="block"; box.style.background="#fef2f2"; box.style.borderColor="#fecaca"; box.style.color="#991b1b"; box.textContent=famoStaff.translateError(e.message||"Netwerkfout. Probeer opnieuw."); btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); }
+  }catch(e){ const box=document.getElementById("okBox"); box.style.display="block"; box.classList.add("is-error"); box.textContent=famoStaff.translateError(e.message||"Netwerkfout. Probeer opnieuw."); btn.disabled=false; btn.textContent="Bestelling controleren"; document.querySelectorAll(".review-actions button").forEach(button=>button.disabled=false); }
   finally{send._busy=false}
 }
 </script>

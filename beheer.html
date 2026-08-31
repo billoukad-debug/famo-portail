@@ -1,30 +1,63 @@
 <!DOCTYPE html><html lang="nl"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Famo Trading — Beheer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
-.b-tabs{display:flex;gap:4px;background:var(--f-panel);padding:4px;border-radius:12px;margin-top:20px;overflow-x:auto}
-.b-tabs button{min-height:38px;padding:0 15px;border:0;border-radius:8px;background:transparent;color:var(--f-muted);font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap}
-.b-tabs button.active{background:#fff;color:var(--f-ink);box-shadow:0 1px 2px rgba(0,0,0,.07)}
-.b-tabs button .n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;border-radius:12px;background:var(--f-accent);color:#fff;font-size:11px;font-weight:600}
-.b-panel{margin-top:22px}
-.b-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px}
-.b-head h2{margin:0 0 4px;font-size:16px}
-.b-head p{margin:0;color:var(--f-quiet);font-size:13px;max-width:60ch;line-height:1.5}
+/* Onglets : soulignement accent 2px sous l'actif, libelles .70 -> encre. */
+.b-tabs{display:flex;gap:2px;margin-top:22px;border-bottom:1px solid var(--f-line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.b-tabs::-webkit-scrollbar{display:none}
+.b-tabs button{position:relative;flex:none;min-height:44px;padding:0 13px;border:0;background:transparent;color:var(--f-muted);font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap}
+.b-tabs button::after{content:"";position:absolute;left:13px;right:13px;bottom:0;height:2px;border-radius:1px;background:var(--f-accent);transform:scaleX(0)}
+.b-tabs button:hover{color:var(--f-ink)}
+.b-tabs button.active{color:var(--f-ink)}
+.b-tabs button.active::after{transform:scaleX(1);animation:b-tab-in .15s cubic-bezier(.2,.7,.3,1)}
+@keyframes b-tab-in{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.b-tabs button .n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;border-radius:12px;background:var(--f-accent);color:#fff;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+.b-panel{margin-top:24px}
+/* Tete de section : capitales suivies en .62, phrase d'aide en .62. */
+.b-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.b-head h2{margin:0 0 4px;font-size:12px;font-weight:600;color:var(--f-quiet);text-transform:uppercase;letter-spacing:.07em}
+.b-head p{margin:0;color:var(--f-quiet);font-size:13px;max-width:62ch;line-height:1.5}
+.b-progress{font-variant-numeric:tabular-nums;font-size:22px;font-weight:500;letter-spacing:-.01em;color:var(--f-ink);white-space:nowrap}
+.b-progress i{font-style:normal;font-size:13px;font-weight:500;color:var(--f-quiet)}
+/* Cartes de chiffres : sans + tabular-nums, graisse 500 (jamais de mono ici). */
 .b-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:11px}
 .b-card{border:1px solid var(--f-line);border-radius:12px;background:#fff;padding:15px 16px}
-.b-card .v{display:block;font:600 25px Geist Mono,ui-monospace,monospace;letter-spacing:-.02em}
+.b-card .v{display:block;font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .b-card .l{display:block;font-size:11.5px;color:var(--f-quiet);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-weight:600}
 .b-card.warn{border-color:#E7D6A9;background:#FBF3DF}
-.b-card.warn .v{color:#8a6200}
+.b-card.warn .v{color:#8A6110}
 .b-card.ok .v{color:#1F6D4E}
+/* Checklist de completude : coche accent = fait, cercle vide = a faire. */
+.b-checklist{border:1px solid var(--f-line);border-radius:12px;background:#fff;overflow:hidden}
+.b-meter{height:2px;background:var(--f-panel)}
+.b-meter i{display:block;height:100%;background:var(--f-accent)}
+.b-check-item{display:flex;align-items:center;gap:12px;width:100%;min-height:50px;padding:12px 16px;border:0;border-bottom:1px solid var(--f-panel);background:transparent;text-align:left;cursor:pointer;font:inherit}
+.b-check-item:last-child{border-bottom:0}
+.b-check-item:hover{background:rgba(224,237,232,.45)}
+.b-check-dot{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--f-faint);display:grid;place-items:center;color:#fff}
+.b-check-item.is-done .b-check-dot{border-color:var(--f-accent);background:var(--f-accent)}
+.b-check-dot svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.b-check-txt{flex:1;min-width:0}
+.b-check-txt b{display:block;font-size:13.5px;font-weight:500;color:var(--f-ink)}
+.b-check-item.is-done .b-check-txt b{color:var(--f-muted)}
+.b-check-txt small{display:block;font-size:12px;color:var(--f-quiet);margin-top:1px;line-height:1.45}
+.b-check-go{flex:none;color:var(--f-quiet);font-size:12px;white-space:nowrap}
+.b-check-item:hover .b-check-go{color:var(--f-accent)}
+/* Listes : en-tete panel en capitales suivies, survol lavis tres leger. */
 .b-list{border:1px solid var(--f-line);border-radius:12px;background:#fff;overflow:hidden}
+.b-list-head{display:flex;justify-content:space-between;gap:13px;padding:9px 16px;background:var(--f-panel);border-bottom:1px solid var(--f-line);color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.b-list-head .grow{flex:1}
 .b-row{display:flex;gap:13px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--f-panel);flex-wrap:wrap}
 .b-row:last-child{border-bottom:0}
+.b-row:hover{background:rgba(224,237,232,.45)}
 .b-row .grow{flex:1;min-width:190px}
 .b-row b{font-size:14px;font-weight:600;display:block}
 .b-row span.sub{font-size:12.5px;color:var(--f-quiet);line-height:1.5}
 .b-row .acts{display:flex;gap:7px;flex-wrap:wrap}
+.b-amt{font-variant-numeric:tabular-nums;font-weight:500;color:var(--f-ink)}
+/* Formulaires : libelles au-dessus, aide en .62, groupes separes par filets. */
 .b-form{border:1px solid var(--f-line);border-radius:12px;background:#fff;padding:18px;margin-bottom:16px}
 .b-form h3{margin:0 0 3px;font-size:14.5px}
 .b-form .hint{margin:0 0 15px;font-size:12.5px;color:var(--f-quiet);line-height:1.5}
@@ -32,6 +65,8 @@
 .b-grid .full{grid-column:1/-1}
 .b-grid label{display:block;font-size:11.5px;font-weight:600;color:var(--f-quiet);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
 .b-grid input,.b-grid select{width:100%}
+.b-group{border-top:1px solid var(--f-line);padding-top:13px;margin-top:4px}
+.b-group span{font-size:11px;font-weight:600;color:var(--f-quiet);text-transform:uppercase;letter-spacing:.07em}
 .b-acts{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
 .b-check{display:flex;gap:9px;align-items:center;font-size:13.5px;color:var(--f-muted);font-weight:500}
 .b-check input{width:auto}
@@ -40,7 +75,7 @@
 .b-creds .kv{display:flex;gap:10px;align-items:baseline;margin-bottom:5px;font-size:13px}
 .b-creds .kv i{font-style:normal;color:var(--f-muted);min-width:88px}
 .b-creds code{font:600 13.5px Geist Mono,ui-monospace,monospace;background:#fff;border:1px solid #CFE0D6;border-radius:6px;padding:3px 8px}
-.b-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--f-ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:13.5px;z-index:200;display:none;max-width:min(560px,92vw);line-height:1.5;box-shadow:0 10px 34px rgba(0,0,0,.22)}
+.b-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--f-ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:13.5px;z-index:200;display:none;max-width:min(560px,92vw);line-height:1.5;box-shadow:0 10px 34px rgba(60,45,30,.22)}
 .b-toast.err{background:#a4362a}
 .b-note{border:1px solid #E7D6A9;background:#FBF3DF;color:#6B4E0B;border-radius:12px;padding:13px 15px;font-size:13px;line-height:1.55;margin-bottom:16px}
 .b-note a{color:var(--f-ink);font-weight:600}
@@ -49,6 +84,22 @@
 @media(max-width:620px){.b-row .acts{width:100%}.b-row .acts button{flex:1}}
 .b-danger{border:1px solid #E8CFC7;background:#FBF1EE;color:var(--f-danger);min-height:38px;padding:0 14px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer}
 .b-danger:hover{background:#F6E3DD}
+/* Toegang : deux roles en cartes surface, badge d'etat de code, formulaire sous filet.
+   Contrastes calcules : #1F6D4E sur #E6F0E9 = 5,4:1 · #8A6110 sur #FBF3DF = 5,0:1. */
+.b-roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}
+.b-role{border:1px solid var(--f-line);border-radius:12px;background:#fff;padding:18px}
+.b-role-top{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:10px}
+.b-role-ico{flex:none;width:34px;height:34px;border-radius:8px;background:var(--f-wash);display:grid;place-items:center;color:var(--f-accent-2)}
+.b-role-ico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.b-role h3{margin:0;font-size:14.5px;font-weight:600}
+.b-role p{margin:0 0 10px;color:var(--f-muted);font-size:13px;line-height:1.5}
+.b-role p.b-role-hint{margin-bottom:14px;color:var(--f-quiet);font-size:12.5px}
+.b-role-form{border-top:1px solid var(--f-line);padding-top:14px}
+.b-badge{display:inline-flex;align-items:center;margin-left:auto;min-height:22px;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.b-badge.ok{background:#E6F0E9;border:1px solid #C6DCCB;color:#1F6D4E}
+.b-badge.env{background:#FBF3DF;border:1px solid #E7D6A9;color:#8A6110}
+.b-footnote{margin:0 0 16px;color:var(--f-quiet);font-size:13px;line-height:1.5}
+.b-footnote a{color:var(--f-accent);font-weight:500}
 </style></head><body>
 
 <section id="login" class="staff-login"><div>
@@ -95,7 +146,7 @@ function toast(msg,isErr){
 async function refresh(){
   try{
     DATA=await famoStaff.apiJson("/api/onboarding");
-    render();
+    render(true);
   }catch(e){
     document.getElementById("panel").innerHTML='<div class="staff-error">'+esc(famoStaff.translateError(e.message||"Netwerkfout."))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="refresh()">Opnieuw proberen</button></div>';
   }
@@ -115,9 +166,9 @@ async function post(payload,okMsg){
   }finally{BUSY=false}
 }
 
-function go(tab){TAB=tab;CREDS=null;render()}
+function go(tab){TAB=tab;CREDS=null;render(true)}
 
-function render(){
+function render(animate){
   if(!DATA)return;
   const s=DATA.status||{},nA=(DATA.aanvragen||[]).length;
   const tabs=[
@@ -129,9 +180,12 @@ function render(){
     ["bedrijf","Bedrijfsgegevens",0],
     ["toegang","Toegang",0]
   ];
-  document.getElementById("tabs").innerHTML=tabs.map(t=>
+  // On ne reconstruit les onglets que s'ils changent : l'animation du
+  // soulignement ne rejoue ainsi qu'au vrai changement d'onglet.
+  const tabsHtml=tabs.map(t=>
     '<button class="'+(TAB===t[0]?"active":"")+'" onclick="go(\''+t[0]+'\')">'+esc(t[1])+(t[2]?'<span class="n">'+t[2]+'</span>':'')+'</button>'
   ).join("");
+  if(tabsHtml!==render._tabs){render._tabs=tabsHtml;document.getElementById("tabs").innerHTML=tabsHtml}
   const p=document.getElementById("panel");
   p.className="b-panel";
   if(TAB==="overzicht")renderOverzicht(p,s);
@@ -141,10 +195,11 @@ function render(){
   else if(TAB==="prijzen")renderPrijzen(p);
   else if(TAB==="bedrijf")renderBedrijf(p);
   else renderToegang(p);
+  if(animate){void p.offsetWidth;p.classList.add("f-enter")}
 }
 
 function renderOverzicht(p,s){
-  const nA=(DATA.aanvragen||[]).length;
+  const nA=(DATA.aanvragen||[]).length,c=DATA.config||{};
   const cards=[
     [nA,"Open aanvragen",nA?"warn":""],
     [s.clients||0,"Klanten",""],
@@ -155,11 +210,43 @@ function renderOverzicht(p,s){
   ];
   let warn="";
   if(nA) warn+='<div class="b-note">Er '+(nA>1?'zijn '+nA+' nieuwe aanvragen':'is 1 nieuwe aanvraag')+' via de website. <a href="#" onclick="go(\'aanvragen\');return false">Behandelen</a></div>';
-  if(!s.clients) warn+='<div class="b-note">Nog geen enkele klant. <a href="#" onclick="go(\'klanten\');return false">Maak een eerste klant aan</a> zodat er besteld kan worden.</div>';
-  if(!s.catalogue) warn+='<div class="b-note">Geen actieve producten. <a href="#" onclick="go(\'producten\');return false">Voeg producten toe</a>.</div>';
+
+  const isExample=String(c.iban||"").replace(/\s/g,"").toUpperCase()==="BE68539007547034";
+  const items=[
+    {done:!!s.identiteit&&!isExample,label:"Bedrijfsgegevens volledig",tab:"bedrijf",go:"Bedrijfsgegevens",
+      hint:isExample?"Het IBAN is nog het voorbeeldnummer — vervang het vóór de eerste factuur.":"Naam, BTW-nummer, IBAN en BIC voor op de documenten."},
+    {done:(s.catalogue||0)>0,label:"Minstens één actief product",tab:"producten",go:"Producten",
+      hint:"Zonder producten blijft de catalogus voor klanten leeg."},
+    {done:(s.clients||0)>0,label:"Minstens één klant",tab:"klanten",go:"Klanten",
+      hint:"Elke klant bestelt met een eigen login."},
+    {done:(s.clients||0)>0&&(s.credentials||0)>=(s.clients||0),label:"Elke klant kan aanmelden",tab:"klanten",go:"Klanten",
+      hint:(s.clients?(s.credentials||0)+" van "+s.clients+" klanten heeft een login met wachtwoord.":"Maak eerst een klant aan.")},
+    {done:(s.clients||0)>0&&!(s.klantenZonderEmail||0),label:"Elke klant heeft een e-mailadres",tab:"klanten",go:"Klanten",
+      hint:(s.klantenZonderEmail?s.klantenZonderEmail+" klant"+(s.klantenZonderEmail>1?"en":"")+" zonder adres krijgt geen bestelbevestiging.":"Nodig voor de bestelbevestiging.")},
+    {done:!!s.mailReady,label:"Bestelmeldingen ingesteld",tab:"bedrijf",go:"Bedrijfsgegevens",
+      hint:(s.mailEnabled?"Een melding per nieuwe bestelling in uw eigen postbus.":"Verzenden is nog niet geconfigureerd op de server.")},
+    {done:!!(c.adminCodeCustom&&c.staffCodeCustom),label:"Eigen toegangscodes ingesteld",tab:"toegang",go:"Toegang",
+      hint:"Vervang de codes uit de Vercel-omgeving door eigen codes."},
+    {done:!nA,label:"Geen openstaande aanvragen",tab:"aanvragen",go:"Aanvragen",
+      hint:(nA?nA+" aanvraag"+(nA>1?"en wachten":" wacht")+" op behandeling.":"Nieuwe aanvragen via de website verschijnen hier.")}
+  ];
+  const done=items.filter(i=>i.done).length;
+  const pct=Math.round(done/items.length*100);
+  const CHECK='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4 9-9"/></svg>';
+
   p.innerHTML=warn+
-    '<div class="b-cards">'+cards.map(c=>'<div class="b-card '+c[2]+'"><span class="v">'+c[0]+'</span><span class="l">'+esc(c[1])+'</span></div>').join("")+'</div>'+
-    '<div class="b-head" style="margin-top:26px"><div><h2>Snel naar</h2><p>De dagelijkse schermen staan in het menu links. Hier beheert u wat daarachter zit.</p></div></div>'+
+    '<div class="b-head"><div><h2>In cijfers</h2><p>De stand van het portaal op dit moment.</p></div></div>'+
+    '<div class="b-cards">'+cards.map(c2=>'<div class="b-card '+c2[2]+'"><span class="v">'+c2[0]+'</span><span class="l">'+esc(c2[1])+'</span></div>').join("")+'</div>'+
+    '<div class="b-head" style="margin-top:30px"><div><h2>Klaar om te verkopen</h2><p>Alles aangevinkt? Dan staat het portaal volledig op punt. Klik op een punt om het meteen te regelen.</p></div><span class="b-progress">'+done+'<i> / '+items.length+'</i></span></div>'+
+    '<div class="b-checklist"><div class="b-meter"><i style="width:'+pct+'%"></i></div>'+
+      items.map(i=>
+        '<button type="button" class="b-check-item'+(i.done?' is-done':'')+'" onclick="go(\''+i.tab+'\')">'+
+        '<span class="b-check-dot">'+(i.done?CHECK:'')+'</span>'+
+        '<span class="b-check-txt"><b>'+esc(i.label)+'</b><small>'+esc(i.hint)+'</small></span>'+
+        '<span class="b-check-go">'+esc(i.go)+' →</span></button>'
+      ).join("")+
+    '</div>'+
+    '<div class="b-head" style="margin-top:30px"><div><h2>Snel naar</h2><p>De dagelijkse schermen staan in het menu links. Hier beheert u wat daarachter zit.</p></div></div>'+
     '<div class="staff-chips" style="margin-top:0">'+
       '<a class="staff-chip" href="/bestellingen.html">Bestellingen</a>'+
       '<a class="staff-chip" href="/entrepot.html">Magazijn</a>'+
@@ -173,13 +260,15 @@ function renderAanvragen(p){
   const list=DATA.aanvragen||[];
   let h='<div class="b-head"><div><h2>Aanvragen via de website</h2><p>Mensen die een account hebben aangevraagd op de openbare pagina. Maak er een klant van, of markeer als behandeld.</p></div></div>';
   if(!list.length){
-    h+='<div class="b-list"><div class="staff-empty">Geen openstaande aanvragen.</div></div>';
+    h+='<div class="b-list"><div class="staff-empty f-empty">'+
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.7 5.5h10.6l2.2 8v5h-15v-5z"/><path d="M4.5 13.5h4.2l1.3 2.5h4l1.3-2.5h4.2"/></svg>'+
+      '<b>Geen openstaande aanvragen</b><p>Vraagt iemand een account aan via de website, dan verschijnt de aanvraag hier.</p></div></div>';
   }else{
-    h+='<div class="b-list">'+list.map(a=>
+    h+='<div class="b-list"><div class="b-list-head"><span class="grow">Aanvraag</span><span>Acties</span></div>'+list.map(a=>
       '<div class="b-row"><div class="grow"><b>'+esc(a.bedrijfsnaam)+'</b><span class="sub">'+esc(a.contactpersoon)+' · '+esc(a.email)+(a.telefoon?' · '+esc(a.telefoon):'')+
       (a.adres?'<br>'+esc(a.adres):'')+(a.notities?'<br><i>'+esc(a.notities)+'</i>':'')+'</span></div>'+
-      '<div class="acts"><button class="staff-action" onclick="useAanvraag(\''+esc(a.id)+'\')">Klant aanmaken</button>'+
-      '<button class="staff-action-secondary" onclick="closeAanvraag(\''+esc(a.id)+'\')">Behandeld</button></div></div>'
+      '<div class="acts"><button class="staff-action-secondary" onclick="useAanvraag(\''+esc(a.id)+'\')">Klant aanmaken</button>'+
+      '<button class="staff-ghost" onclick="closeAanvraag(\''+esc(a.id)+'\')">Behandeld</button></div></div>'
     ).join("")+'</div>';
   }
   p.innerHTML=h;
@@ -189,7 +278,7 @@ function useAanvraag(id){
   const a=(DATA.aanvragen||[]).find(x=>x.id===id);
   if(!a)return;
   PREFILL={nom:a.bedrijfsnaam,adresse:a.adres,tel:a.telefoon,email:a.email,aanvraagId:a.id};
-  EDIT_CLIENT=null;CREDS=null;TAB="klanten";render();
+  EDIT_CLIENT=null;CREDS=null;TAB="klanten";render(true);
   toast("Gegevens overgenomen uit de aanvraag — vul aan en sla op.");
 }
 async function closeAanvraag(id){
@@ -211,6 +300,7 @@ function renderKlanten(p){
     '<div><label>E-mail</label><input class="staff-field" id="cmail" type="email" value="'+esc(e?e.email:(pf?pf.email:""))+'" placeholder="voor de bestelbevestiging"></div>'+
     '<div><label>BTW-nummer</label><input class="staff-field" id="cbtw" value="'+esc(e?e.btw:"")+'"></div>'+
     '<div><label>Klantnummer</label><input class="staff-field" id="cnr" value="'+esc(e?e.klantnr:"")+'"></div>'+
+    '<div class="full b-group"><span>Login voor het portaal</span></div>'+
     '<div><label>Gebruikersnaam</label><input class="staff-field" id="cuser" value="'+esc(e?e.user:"")+'" placeholder="automatisch"></div>'+
     '<div class="full"><label class="b-check"><input type="checkbox" id="cgen"'+(e?"":" checked")+'> '+(e?"Nieuw wachtwoord genereren":"Automatisch genereren")+'</label></div>'+
     '</div>'+
@@ -224,11 +314,19 @@ function renderKlanten(p){
     '</div>';
 
   h+='<div class="b-search"><input class="staff-field" id="qc" type="search" placeholder="Zoek klant…" value="'+esc(QC)+'" oninput="setQC(this.value)"></div>';
-  h+='<div class="b-list">'+(list.length?list.map(c=>
-    '<div class="b-row"><div class="grow"><b>'+esc(c.nom)+'</b><span class="sub">login: '+esc(c.user||"—")+(c.hasPassword?"":" · nog geen wachtwoord")+(c.email?" · "+esc(c.email):" · geen e-mail")+(c.adresse?'<br>'+esc(c.adresse):"")+'</span></div>'+
-    '<div class="acts"><button class="staff-action-secondary" onclick="editClient(\''+esc(c.id)+'\')">Bewerken</button>'+
-    '<button class="staff-action-secondary" onclick="resetPw(\''+esc(c.id)+'\')">Nieuw wachtwoord</button></div></div>'
-  ).join(""):'<div class="staff-empty">'+(QC?"Geen klant gevonden.":"Nog geen klanten.")+'</div>')+'</div>';
+  if(list.length){
+    h+='<div class="b-list"><div class="b-list-head"><span class="grow">Klant</span><span>Acties</span></div>'+list.map(c=>
+      '<div class="b-row"><div class="grow"><b>'+esc(c.nom)+'</b><span class="sub">login: '+esc(c.user||"—")+(c.hasPassword?"":" · nog geen wachtwoord")+(c.email?" · "+esc(c.email):" · geen e-mail")+(c.adresse?'<br>'+esc(c.adresse):"")+'</span></div>'+
+      '<div class="acts"><button class="staff-ghost" onclick="editClient(\''+esc(c.id)+'\')">Bewerken</button>'+
+      '<button class="staff-ghost" onclick="resetPw(\''+esc(c.id)+'\')">Nieuw wachtwoord</button></div></div>'
+    ).join("")+'</div>';
+  }else if(QC){
+    h+='<div class="b-list"><div class="staff-empty f-empty"><b>Geen klant gevonden</b><p>Geen resultaat voor deze zoekopdracht.</p></div></div>';
+  }else{
+    h+='<div class="b-list"><div class="staff-empty f-empty">'+
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/></svg>'+
+      '<b>Nog geen klanten</b><p>Maak hierboven de eerste klant aan zodat er besteld kan worden.</p></div></div>';
+  }
   p.innerHTML=h;
 }
 function setQC(v){QC=v;const el=document.getElementById("qc");const pos=el?el.selectionStart:0;render();const n=document.getElementById("qc");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}}
@@ -288,11 +386,19 @@ function renderProducten(p){
     '<div class="b-acts"><button class="staff-action" onclick="saveProduct()">'+(e?"Wijzigingen opslaan":"Product toevoegen")+'</button>'+
     (e?'<button class="staff-action-secondary" onclick="cancelProduct()">Annuleren</button>':'')+'</div></div>';
   h+='<div class="b-search"><input class="staff-field" id="qp" type="search" placeholder="Zoek product…" value="'+esc(QP)+'" oninput="setQP(this.value)"></div>';
-  h+='<div class="b-list">'+(list.length?list.map(x=>
-    '<div class="b-row"><div class="grow"><b>'+esc(x.nom)+'</b><span class="sub">'+eur(x.base)+' / '+esc(famoNL.unit(x.unite)||x.unite)+(x.cat?' · '+esc(x.cat):'')+'</span></div>'+
-    '<div class="acts"><button class="staff-action-secondary" onclick="editProduct(\''+esc(x.id)+'\')">Bewerken</button>'+
-    '<button class="staff-action-secondary" onclick="deactivateProduct(\''+esc(x.id)+'\')">Uit catalogus</button></div></div>'
-  ).join(""):'<div class="staff-empty">'+(QP?"Geen product gevonden.":"Nog geen actieve producten.")+'</div>')+'</div>';
+  if(list.length){
+    h+='<div class="b-list"><div class="b-list-head"><span class="grow">Product</span><span>Acties</span></div>'+list.map(x=>
+      '<div class="b-row"><div class="grow"><b>'+esc(x.nom)+'</b><span class="sub"><span class="b-amt">'+eur(x.base)+'</span> / '+esc(famoNL.unit(x.unite)||x.unite)+(x.cat?' · '+esc(x.cat):'')+'</span></div>'+
+      '<div class="acts"><button class="staff-ghost" onclick="editProduct(\''+esc(x.id)+'\')">Bewerken</button>'+
+      '<button class="staff-ghost" onclick="deactivateProduct(\''+esc(x.id)+'\')">Uit catalogus</button></div></div>'
+    ).join("")+'</div>';
+  }else if(QP){
+    h+='<div class="b-list"><div class="staff-empty f-empty"><b>Geen product gevonden</b><p>Geen resultaat voor deze zoekopdracht.</p></div></div>';
+  }else{
+    h+='<div class="b-list"><div class="staff-empty f-empty">'+
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5 12 3.5l8.5 5v7L12 20.5l-8.5-5z"/><path d="M3.5 8.5 12 13.5l8.5-5M12 13.5v7"/></svg>'+
+      '<b>Nog geen actieve producten</b><p>Voeg hierboven het eerste product toe: het verschijnt meteen in de catalogus.</p></div></div>';
+  }
   p.innerHTML=h;
 }
 function setQP(v){QP=v;const el=document.getElementById("qp");const pos=el?el.selectionStart:0;render();const n=document.getElementById("qp");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}}
@@ -326,10 +432,16 @@ function renderPrijzen(p){
       '<div><label>Afgesproken prijs €</label><input class="staff-field" id="prv" type="number" min="0" step="0.01"></div>'+
       '</div><div class="b-acts"><button class="staff-action" onclick="savePrice()">Prijs opslaan</button></div></div>';
   }
-  h+='<div class="b-list">'+(prices.length?prices.map(x=>
-    '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → '+eur(x.prix)+'</span></div>'+
-    '<div class="acts"><button class="b-danger" onclick="delPrice(\''+esc(x.id)+'\')">Verwijderen</button></div></div>'
-  ).join(""):'<div class="staff-empty">Nog geen afgesproken prijzen.</div>')+'</div>';
+  if(prices.length){
+    h+='<div class="b-list"><div class="b-list-head"><span class="grow">Afspraak</span><span>Actie</span></div>'+prices.map(x=>
+      '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → <span class="b-amt">'+eur(x.prix)+'</span></span></div>'+
+      '<div class="acts"><button class="b-danger" onclick="delPrice(\''+esc(x.id)+'\')">Verwijderen</button></div></div>'
+    ).join("")+'</div>';
+  }else{
+    h+='<div class="b-list"><div class="staff-empty f-empty">'+
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 3.5h8v8l-9 9-8-8z"/><circle cx="16.8" cy="7.2" r="1.3"/></svg>'+
+      '<b>Nog geen afgesproken prijzen</b><p>Zonder afspraak betaalt elke klant gewoon de basisprijs uit de catalogus.</p></div></div>';
+  }
   p.innerHTML=h;
 }
 async function savePrice(){
@@ -343,35 +455,32 @@ async function delPrice(id){
 
 function renderToegang(p){
   const c=DATA.config||{};
-  const box=(titel,which,custom,uitleg)=>
-    '<div class="b-form"><h3>'+esc(titel)+'</h3><p class="hint">'+uitleg+'</p>'+
-    '<div class="b-note" style="border-color:'+(custom?'#C6DCCB':'#E7D6A9')+';background:'+(custom?'#E6F0E9':'#FBF3DF')+';color:'+(custom?'#1F6D4E':'#6B4E0B')+'">'+
-      (custom
-        ? 'Er is een eigen code ingesteld. De code uit Vercel werkt hiervoor <b>niet meer</b>.'
-        : 'Nog geen eigen code — de code uit de Vercel-omgeving is nog van kracht.')+
-    '</div>'+
-    '<div class="b-grid">'+
+  const LOCK='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11"/></svg>';
+  const box=(titel,which,custom,scope,uitleg)=>
+    '<div class="b-role">'+
+    '<div class="b-role-top"><span class="b-role-ico">'+LOCK+'</span><h3>'+esc(titel)+'</h3>'+
+    '<span class="b-badge '+(custom?'ok':'env')+'">'+(custom?'Eigen code actief':'Vercel-code actief')+'</span></div>'+
+    '<p>'+esc(scope)+'</p>'+
+    '<p class="b-role-hint">'+esc(uitleg)+(custom?' De code uit Vercel werkt hiervoor niet meer.':' Zolang er geen eigen code is, geldt de code uit de Vercel-omgeving.')+'</p>'+
+    '<div class="b-role-form"><div class="b-grid">'+
     '<div class="full"><label>Nieuwe code</label><input class="staff-field" id="nc_'+which+'" type="password" autocomplete="new-password" placeholder="minstens 10 tekens"></div>'+
     '<div class="full"><label>Herhaal de code</label><input class="staff-field" id="nc2_'+which+'" type="password" autocomplete="new-password"></div>'+
     '</div>'+
     '<div class="b-acts"><button class="staff-action" onclick="saveCode(\''+which+'\')">Code instellen</button>'+
-    (custom?'<button class="staff-action-secondary" onclick="resetCode(\''+which+'\')">Terug naar de Vercel-code</button>':'')+
-    '</div></div>';
+    (custom?'<button class="staff-ghost" onclick="resetCode(\''+which+'\')">Terug naar de Vercel-code</button>':'')+
+    '</div></div></div>';
 
   p.innerHTML='<div class="b-head"><div><h2>Toegang</h2><p>Wie mag wat. De codes worden versleuteld bewaard — ze zijn nergens leesbaar, ook niet in Airtable.</p></div></div>'+
-
-    '<div class="b-list" style="margin-bottom:18px">'+
-      '<div class="b-row"><div class="grow"><b>Beheerder</b><span class="sub">Alles: bestellingen, magazijn, leveringen, invoeren, documenten en dit scherm.</span></div></div>'+
-      '<div class="b-row"><div class="grow"><b>Personeel</b><span class="sub">Alleen het dagelijkse werk: Bestellingen, Magazijn, Leveringen. Geen prijzen, geen klantgegevens, geen IBAN.</span></div></div>'+
-      '<div class="b-row"><div class="grow"><b>Klant</b><span class="sub">Eigen login per klant, beheerd bij Klanten. Ziet enkel de catalogus en zijn eigen bestellingen.</span></div></div>'+
+    '<div class="b-roles">'+
+    box("Beheerder","admin",c.adminCodeCustom,
+      "Alles: bestellingen, magazijn, leveringen, invoeren, documenten en dit beheerscherm — inclusief IBAN en klantgegevens.",
+      "Kies iets dat niemand raadt.")+
+    box("Personeel","staff",c.staffCodeCustom,
+      "Alleen het dagelijkse werk: bestellingen, magazijn en leveringen. Geen prijzen, geen klantgegevens, geen IBAN.",
+      "Wijzig deze code wanneer iemand het team verlaat.")+
     '</div>'+
-
-    box("Beheerderscode","admin",c.adminCodeCustom,
-      "Geeft toegang tot alles, inclusief IBAN en klantgegevens. Kies iets dat niemand raadt.")+
-    box("Personeelscode","staff",c.staffCodeCustom,
-      "Voor wie enkel voorbereidt en levert. Wijzig deze wanneer iemand vertrekt.")+
-
-    '<div class="b-note">Kwijt geraakt? Maak in Airtable het veld <b>Beheerderscode hash</b> of <b>Personeelscode hash</b> leeg: de code uit de Vercel-omgeving geldt dan opnieuw. Die variabelen moeten altijd ingevuld blijven — ze beveiligen de sessies.</div>';
+    '<p class="b-footnote">Klanten gebruiken geen code maar een eigen login per bedrijf, beheerd onder <a href="#" onclick="go(\'klanten\');return false">Klanten</a>. Zij zien enkel de catalogus en hun eigen bestellingen.</p>'+
+    '<div class="b-note">Code kwijt? Maak in Airtable het veld <b>Beheerderscode hash</b> of <b>Personeelscode hash</b> leeg: de code uit de Vercel-omgeving geldt dan opnieuw. Die variabelen moeten altijd ingevuld blijven — ze beveiligen de sessies.</div>';
 }
 
 async function saveCode(which){
@@ -391,13 +500,14 @@ function renderBedrijf(p){
   const isExample=String(c.iban||"").replace(/\s/g,"").toUpperCase()==="BE68539007547034";
   let h='<div class="b-head"><div><h2>Bedrijfsgegevens</h2><p>Deze gegevens staan op elke leveringsbon en factuur. Ze worden nooit aan klanten getoond behalve op documenten.</p></div></div>';
   if(isExample) h+='<div class="b-note"><b>Let op:</b> het IBAN hieronder is nog het voorbeeldnummer. Facturen dragen dus rekeninggegevens die niet van Famo zijn. Vervang het vóór u een echte factuur verstuurt.</div>';
-  h+='<div class="b-form"><div class="b-grid">'+
+  h+='<div class="b-form"><h3>Identiteit</h3><p class="hint">Naam, adres en nummers zoals ze bovenaan elk document verschijnen.</p><div class="b-grid">'+
     '<div class="full"><label>Bedrijfsnaam *</label><input class="staff-field" id="fnom" value="'+esc(c.bedrijfsnaam)+'"></div>'+
     '<div class="full"><label>Adres</label><input class="staff-field" id="fadr" value="'+esc(c.adres)+'"></div>'+
     '<div><label>Postcode en plaats</label><input class="staff-field" id="fpl" value="'+esc(c.plaats)+'"></div>'+
     '<div><label>BTW-nummer *</label><input class="staff-field" id="fbtw" value="'+esc(c.btw)+'"></div>'+
     '<div><label>Telefoon</label><input class="staff-field" id="ftel" value="'+esc(c.telefoon)+'"></div>'+
     '<div><label>E-mail</label><input class="staff-field" id="fmail" value="'+esc(c.email)+'"></div>'+
+    '<div class="full b-group"><span>Bankrekening</span></div>'+
     '<div><label>IBAN</label><input class="staff-field" id="fiban" value="'+esc(c.iban)+'" placeholder="BE.. .... .... ...."></div>'+
     '<div><label>BIC</label><input class="staff-field" id="fbic" value="'+esc(c.bic)+'"></div>'+
     '</div><div class="b-acts"><button class="staff-action" onclick="saveConfig()">Opslaan</button></div></div>'+

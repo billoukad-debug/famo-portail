@@ -4,10 +4,53 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Famo Trading — Bestellingen</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
-.orders-tools{display:grid;grid-template-columns:minmax(210px,1fr) repeat(6,max-content);gap:8px;align-items:center;margin-top:22px}.orders-tools input{width:100%}.orders-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:22px}.orders-summary button{padding:13px 14px;text-align:left;border:1px solid var(--f-line);border-radius:12px;background:#fff;cursor:pointer}.orders-summary button:hover,.orders-summary button.active{border-color:var(--f-line);background:var(--f-panel)}.orders-summary b{display:block;font:500 19px Geist Mono,ui-monospace,monospace}.orders-summary span{display:block;margin-top:3px;color:var(--f-muted);font-size:12.5px}.orders-table{margin-top:20px;border:1px solid var(--f-line);border-radius:12px;overflow:hidden}.orders-table table{width:100%;border-collapse:collapse}.orders-table th{padding:10px 13px;border-bottom:1px solid var(--f-line);background:var(--f-panel);color:var(--f-quiet);font-size:11px;font-weight:500;text-align:left}.orders-table td{padding:12px 13px;border-bottom:1px solid var(--f-panel);font-size:13px;vertical-align:middle}.orders-table tr:last-child td{border-bottom:0}.orders-table tr[data-open]{cursor:pointer}.orders-table tr[data-open]:hover{background:var(--f-panel)}.order-ref{font:500 12.5px Geist Mono,ui-monospace,monospace}.order-client{font-weight:500}.order-lines{max-width:280px;color:var(--f-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.order-money{font:500 12.5px Geist Mono,ui-monospace,monospace;white-space:nowrap}.order-source{color:var(--f-quiet);font-size:12px}.order-alert{display:inline-flex;align-items:center;gap:5px;color:#8A6110;font-size:11.5px}.order-alert:before{content:"!";display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#fff2d5;font-weight:600}.orders-cards{display:none;margin-top:16px}.order-card{padding:15px 2px;border-bottom:1px solid var(--f-line)}.order-card:first-child{border-top:1px solid var(--f-line)}.order-card-head,.order-card-foot{display:flex;align-items:center;gap:10px}.order-card-client{margin-top:4px;font-size:13.5px;font-weight:500}.order-card-lines{margin:8px 0;color:var(--f-muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-card-foot{color:#8a8a8a;font-size:12px}.order-card-foot .order-money{margin-left:auto;color:var(--f-ink)}.order-card button{margin-left:auto;border:0;background:none;color:var(--f-accent);font-size:12.5px;cursor:pointer}.orders-note{margin-top:13px;color:#929292;font-size:12px}.orders-state{margin-top:20px}.staff-attention{margin-top:18px;padding:14px 16px;border:1px solid var(--f-line);border-radius:12px;background:#fff}.staff-attention h2{margin:0 0 10px;font-size:14px;font-weight:600}.staff-attention-list{display:flex;flex-direction:column;gap:0}.staff-attention-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--f-panel);text-decoration:none;color:var(--f-ink)}.staff-attention-item:first-child{border-top:0;padding-top:0}.staff-attention-item .order-ref{flex:0 0 auto}.staff-attention-client{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.staff-attention-item .staff-status{margin-left:auto}
-@media(max-width:980px){.orders-tools{grid-template-columns:1fr 1fr 1fr}.orders-tools input{grid-column:1/-1}.orders-summary{grid-template-columns:repeat(3,1fr)}.orders-table{display:none}.orders-cards{display:block}}@media(max-width:620px){.orders-tools{grid-template-columns:1fr 1fr}.orders-tools select{min-width:0}.orders-summary{grid-template-columns:1fr 1fr;gap:7px}.orders-summary button{padding:11px}.orders-summary b{font-size:17px}.order-card-head{align-items:flex-start}}
+/* Filtres */
+.orders-tools{display:grid;grid-template-columns:minmax(210px,1fr) repeat(6,max-content);gap:8px;align-items:center;margin-top:22px}.orders-tools input{width:100%}
+/* Rangée de compteurs du matin — chiffres 22px tabular, libellés capitales .62 */
+.m-pulse{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:22px}
+.m-pulse button{padding:14px 16px;text-align:left;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);cursor:pointer}
+.m-pulse button:hover{background:var(--f-panel)}
+.m-pulse b{display:block;font-size:22px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--f-ink)}
+.m-pulse span{display:block;margin-top:4px;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+/* Board du matin — 4 colonnes de statut, teinte panel + filet (règle 5h du matin) */
+.m-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px;align-items:start}
+.m-col{display:flex;flex-direction:column;gap:9px;padding:10px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-panel)}
+.m-col-head{display:flex;align-items:center;gap:7px;padding:5px 5px 0;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.m-col-head::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--col,#77706A)}
+.m-col-head b{margin-left:auto;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--f-muted)}
+.m-col-flash{outline:2px solid var(--f-accent);outline-offset:2px}
+.m-card{display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
+.m-card-top{display:flex;align-items:baseline;gap:8px}
+.m-card-date{margin-left:auto;color:var(--f-quiet);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.m-card-date.m-late{color:#A8371F} /* brique sur blanc : 6,5:1 (calculé) */
+.m-card-client{margin-top:5px;font-size:14px;font-weight:500;letter-spacing:-.005em}
+.m-card-lines{margin-top:3px;color:var(--f-quiet);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-card-foot{display:flex;align-items:center;gap:8px;margin-top:9px}
+.m-pay{color:var(--f-quiet);font-size:11.5px}
+.m-pay.open{color:#8A6110} /* ambre sur blanc : 5,5:1 (calculé) */
+.m-card-total{margin-left:auto;font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums}
+.m-col .staff-empty.f-empty{padding:26px 12px;gap:4px}
+.m-col .f-empty p{font-size:12.5px}
+/* Références et alertes */
+.order-ref{font:500 12.5px Geist Mono,ui-monospace,monospace}
+.order-alert{display:inline-flex;align-items:center;gap:5px;color:#8A6110;font-size:11.5px}
+.order-alert:before{content:"!";display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#fff2d5;font-weight:600}
+.orders-note{margin-top:16px;color:var(--f-quiet);font-size:12px}
+.orders-state{margin-top:20px}
+.staff-attention{margin-top:18px;padding:14px 16px;border:1px solid var(--f-line);border-radius:12px;background:#fff}
+.staff-attention h2{margin:0 0 10px;font-size:14px;font-weight:600}
+.staff-attention-list{display:flex;flex-direction:column;gap:0}
+.staff-attention-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--f-panel);text-decoration:none;color:var(--f-ink)}
+.staff-attention-item:first-child{border-top:0;padding-top:0}
+.staff-attention-item .order-ref{flex:0 0 auto}
+.staff-attention-client{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.staff-attention-item .staff-status{margin-left:auto}
+@media(max-width:1120px){.m-board{grid-template-columns:1fr 1fr}}
+@media(max-width:980px){.orders-tools{grid-template-columns:1fr 1fr 1fr}.orders-tools input{grid-column:1/-1}}
+@media(max-width:620px){.orders-tools{grid-template-columns:1fr 1fr}.orders-tools select{min-width:0}.m-pulse{grid-template-columns:1fr 1fr;gap:8px}.m-pulse button{padding:12px 13px}.m-board{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -36,10 +79,9 @@
       <select id="attention" class="staff-select" onchange="onFilterChange()"><option value="all">Alle aandacht</option><option value="required">Aandacht vereist</option></select>
       <select id="sort" class="staff-select" onchange="onFilterChange()"><option value="recent">Nieuwste eerst</option><option value="delivery">Leverdatum</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
     </section>
-    <section id="summary" class="orders-summary" aria-label="Bestellingstellers"></section>
+    <section id="summary" class="m-pulse" aria-label="Bestellingstellers"></section>
     <div id="state" class="orders-state"></div>
-    <section id="tableWrap" class="orders-table hidden"><table><thead><tr><th>Referentie</th><th>Klant</th><th>Artikelen</th><th>Status</th><th>Levering</th><th>Betaling</th><th>Totaal</th><th></th></tr></thead><tbody id="rows"></tbody></table></section>
-    <section id="cards" class="orders-cards"></section>
+    <section id="board" class="m-board" aria-label="Bestellingen per status"></section>
     <p class="orders-note">Prijzen worden server-side berekend en bij het aanmaken bevroren. Open een bestelling voor voorbereiding, levering en documenten.</p>
   </div></main>
 </div>
@@ -47,18 +89,30 @@
 <script src="/staff-i18n.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
-let ORDERS=[],STOCK=[],LAST_ERROR="";
+let ORDERS=[],STOCK=[],LAST_ERROR="",FIRST_PAINT=true;
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 const eur=n=>"€ "+Number(n||0).toFixed(2).replace(".",",");
-const statusColor={"Reçue":"var(--f-quiet)06A","Prête":"#8A6110","Sortie en livraison":"#2C6E7E","Facturée":"#1F6D4E"};
+const statusColor={"Reçue":"#77706A","Prête":"#8A6110","Sortie en livraison":"#2C6E7E","Facturée":"#1F6D4E"};
+const COLS=[
+  {key:"Reçue",color:"#77706A",empty:["Geen nieuwe bestellingen","Rustig begin. Zodra een klant bestelt, verschijnt de bestelling hier."]},
+  {key:"Prête",color:"#8A6110",empty:["Niets klaargezet","Zet een ontvangen bestelling klaar via het magazijn."]},
+  {key:"Sortie en livraison",color:"#2C6E7E",empty:["Geen leveringen onderweg","Bevestig het vertrek zodra een bestelling de deur uitgaat."]},
+  {key:"Facturée",color:"#1F6D4E",empty:["Nog niets gefactureerd","Bevestigde leveringen verschijnen hier met hun factuurnummer."]}
+];
 function sourceOf(order){const m=String(order.notes||"").match(/^\[([^\]]+)\]/);return m?m[1]:"Klantportaal"}
 function shortLines(lines){return famoNL.lines(String(lines||"").split("\n").map(x=>x.replace(/\s*\[€[^\]]+\]/g,"")).filter(Boolean).join(" · "))}
 function dateLabel(value){if(!value)return"—";const d=new Date(value+"T00:00:00");return Number.isNaN(d)?value:d.toLocaleDateString("nl-BE",{day:"2-digit",month:"2-digit",year:"numeric"})}
+function shortDate(value){const day=dayKey(value);if(!day)return"—";if(day===localDay())return"Vandaag";if(day===localDay(1))return"Morgen";const d=new Date(day+"T00:00:00");return Number.isNaN(+d)?day:d.toLocaleDateString("nl-BE",{day:"2-digit",month:"2-digit"})}
 function isAttention(o){return (o.statut==="Prête"&&!o.preparationValidee)||(o.statut==="Sortie en livraison"&&!o.livraisonConfirmee)}
 function localDay(offset=0){
   const base=new Date(new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(new Date())+"T12:00:00");
   base.setDate(base.getDate()+offset);
   return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(base);
+}
+function weekStartDay(){
+  const d=new Date(localDay()+"T12:00:00");
+  d.setDate(d.getDate()-((d.getDay()+6)%7));
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(d);
 }
 function matchesDate(o,filter){const day=String(o.dateLiv||"").slice(0,10);if(filter==="all")return true;if(filter==="undated")return !day;if(filter==="today")return day===localDay();if(filter==="tomorrow")return day===localDay(1);return Boolean(day&&day<localDay()&&o.statut!=="Facturée")}
 function dayKey(v){return String(v||"").slice(0,10)}
@@ -105,7 +159,13 @@ function syncUrlFromFilters(){
   if(next!==cur) history.replaceState(null,"",next);
 }
 function onFilterChange(){syncUrlFromFilters();render()}
-function setStatusFilter(value){document.getElementById("status").value=value;onFilterChange()}
+function focusColumn(key){
+  const el=document.querySelector('.m-col[data-col="'+key+'"]');
+  if(!el)return;
+  el.scrollIntoView({behavior:"smooth",block:"start"});
+  el.classList.add("m-col-flash");
+  setTimeout(()=>el.classList.remove("m-col-flash"),1200);
+}
 function chipActive(href){
   const u=new URL(href,location.origin),p=u.searchParams;
   const cur=new URLSearchParams(location.search);
@@ -155,27 +215,65 @@ function renderAttention(){
     '</a>'
   ).join("")+'</div>'+more;
 }
+function renderSummary(){
+  const t=localDay(),ws=weekStartDay();
+  const counters=[
+    {n:ORDERS.filter(o=>dayKey(o.date)===t).length,label:"Nieuw vandaag",col:"Reçue"},
+    {n:ORDERS.filter(o=>o.statut==="Reçue").length,label:"Klaar te zetten",col:"Reçue"},
+    {n:ORDERS.filter(o=>o.statut==="Sortie en livraison").length,label:"Onderweg",col:"Sortie en livraison"},
+    {n:ORDERS.filter(o=>o.statut==="Facturée"&&dayKey(o.livreeLe||o.date)>=ws).length,label:"Gefactureerd deze week",col:"Facturée"}
+  ];
+  document.getElementById("summary").innerHTML=counters.map(c=>
+    '<button type="button" onclick="focusColumn(\''+c.col+'\')"><b>'+c.n+'</b><span>'+esc(c.label)+'</span></button>'
+  ).join("");
+}
+function orderCard(o){
+  const day=dayKey(o.dateLiv);
+  const late=Boolean(day&&day<localDay()&&o.statut!=="Facturée");
+  const foot=isAttention(o)
+    ?'<span class="order-alert">Aandacht</span>'
+    :'<span class="m-pay'+(o.paiement==="Payé"?'':' open')+'">'+esc(famoNL.pay(o.paiement||"En attente"))+'</span>';
+  return '<a class="m-card f-lift" href="/order.html?id='+encodeURIComponent(o.id)+'">'+
+    '<div class="m-card-top"><span class="order-ref">'+esc(o.ref)+'</span><span class="m-card-date'+(late?' m-late':'')+'">'+esc(shortDate(o.dateLiv))+'</span></div>'+
+    '<div class="m-card-client">'+esc(o.client)+'</div>'+
+    '<div class="m-card-lines">'+esc(shortLines(o.lignes))+'</div>'+
+    '<div class="m-card-foot">'+foot+'<span class="m-card-total">'+eur(o.total)+'</span></div>'+
+    '</a>';
+}
 function render(){
-  const summary=document.getElementById("summary"),state=document.getElementById("state"),table=document.getElementById("tableWrap"),rows=document.getElementById("rows"),cards=document.getElementById("cards");
+  const summary=document.getElementById("summary"),state=document.getElementById("state"),board=document.getElementById("board");
   renderChips();
   if(LAST_ERROR){
-    summary.innerHTML="";table.classList.add("hidden");cards.innerHTML="";
+    summary.innerHTML="";board.innerHTML="";
     document.getElementById("attentionBox").classList.add("hidden");
     state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
     return;
   }
   renderAttention();
-  const stats=[{key:"all",label:"Alle",count:ORDERS.length},{key:"Reçue",label:"Ontvangen",count:ORDERS.filter(x=>x.statut==="Reçue").length},{key:"Prête",label:"Klaar",count:ORDERS.filter(x=>x.statut==="Prête").length},{key:"Sortie en livraison",label:"Onderweg",count:ORDERS.filter(x=>x.statut==="Sortie en livraison").length},{key:"Facturée",label:"Gefactureerd",count:ORDERS.filter(x=>x.statut==="Facturée").length}];
-  const active=document.getElementById("status").value;
-  summary.innerHTML=stats.map(x=>'<button class="'+((active===x.key||(active==="all"&&x.key==="all"))?"active":"")+'" onclick="setStatusFilter(\''+x.key+'\')"><b>'+x.count+'</b><span>'+x.label+'</span></button>').join("");
+  renderSummary();
+  if(!ORDERS.length){
+    board.innerHTML="";
+    state.innerHTML='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5 12 3.5l8.5 5v7L12 20.5l-8.5-5z"/><path d="M3.5 8.5 12 13.5l8.5-5M12 13.5v7"/></svg><b>Geen bestellingen vandaag</b><p>Zodra een klant bestelt of u er zelf één invoert, verschijnt de bestelling hier.</p><a class="staff-action-secondary" href="/invoer.html">Bestelling invoeren</a></div>';
+    return;
+  }
   const list=filtered();
-  if(!list.length){table.classList.add("hidden");cards.innerHTML="";state.innerHTML='<div class="staff-empty">Geen bestellingen gevonden met deze filters.</div>';return}
   state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen</div>';
-  table.classList.remove("hidden");
-  rows.innerHTML=list.map(o=>'<tr data-open onclick="openOrder(\''+esc(o.id)+'\')"><td><div class="order-ref">'+esc(o.ref)+'</div><div class="order-source">'+esc(sourceOf(o))+'</div></td><td><div class="order-client">'+esc(o.client)+'</div>'+((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")?'<div class="order-source">'+esc((o.notes||"").replace(/^\[[^\]]+\]\s*/,"")).slice(0,55)+'</div>':'')+'</td><td><div class="order-lines">'+esc(shortLines(o.lignes))+'</div>'+(isAttention(o)?'<span class="order-alert">Aandacht vereist</span>':'')+'</td><td><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span></td><td>'+dateLabel(o.dateLiv)+'</td><td>'+esc(famoNL.pay(o.paiement||"En attente"))+'</td><td class="order-money">'+eur(o.total)+'</td><td><button class="staff-ghost" onclick="openOrder(\''+esc(o.id)+'\')">Open</button></td></tr>').join("");
-  cards.innerHTML=list.map(o=>'<article class="order-card"><div class="order-card-head"><span class="order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+statusColor[o.statut]+'">'+esc(famoNL.status(o.statut))+'</span><button onclick="openOrder(\''+esc(o.id)+'\')">Open</button></div><div class="order-card-client">'+esc(o.client)+'</div><div class="order-card-lines">'+esc(shortLines(o.lignes))+'</div><div class="order-card-foot"><span>'+dateLabel(o.dateLiv)+'</span><span>'+esc(sourceOf(o))+'</span><span class="order-money">'+eur(o.total)+'</span></div></article>').join("");
+  board.innerHTML=COLS.map(c=>{
+    const colList=list.filter(o=>o.statut===c.key);
+    let body;
+    if(colList.length){
+      body=colList.map(orderCard).join("");
+    }else if(ORDERS.some(o=>o.statut===c.key)){
+      body='<div class="staff-empty f-empty"><b>Geen resultaten</b><p>Pas de filters of de zoekopdracht aan.</p></div>';
+    }else{
+      body='<div class="staff-empty f-empty"><b>'+esc(c.empty[0])+'</b><p>'+esc(c.empty[1])+'</p></div>';
+    }
+    return '<section class="m-col" data-col="'+esc(c.key)+'">'+
+      '<header class="m-col-head" style="--col:'+c.color+'">'+esc(famoNL.status(c.key))+'<b>'+colList.length+'</b></header>'+
+      body+'</section>';
+  }).join("");
+  if(FIRST_PAINT){FIRST_PAINT=false;summary.classList.add("f-enter");board.classList.add("f-enter")}
 }
-function openOrder(id){window.location.href="/order.html?id="+encodeURIComponent(id)}
 async function logout(){await loginCtl.logout()}
 </script>
 </body>

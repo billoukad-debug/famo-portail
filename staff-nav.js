@@ -57,6 +57,14 @@
     return '<svg viewBox="0 0 16 16" aria-hidden="true">' + body + "</svg>";
   }
 
+  // Monogramme Famo : un F dont la barre mediane se prolonge en ligne de houle.
+  // Trait 1.75, currentColor — le carre .staff-logo-mark fournit fond et couleur.
+  const LOGO_MONOGRAM =
+    '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+    '<path d="M4 13.5V2.5h8"/>' +
+    '<path d="M4 8h2.8c1.4 0 1.7-1.3 3.1-1.3s1.5 1.3 2.9 1.3"/>' +
+    "</svg>";
+
   function linkHtml(item, active) {
     const cur = active === item.id ? ' aria-current="page"' : "";
     return '<a class="' + linkClass(active, item.id) + '" href="' + item.href + '"' + cur +
@@ -71,7 +79,8 @@
       ? '<div class="staff-nav-label meer-label">Beheer</div>' +
         MEER.concat([SETUP]).map(i => linkHtml(i, active)).join("")
       : "";
-    return '<a class="staff-logo" href="/bestellingen.html"><span class="staff-logo-mark">F</span>Famo Trading</a>' +
+    return '<a class="staff-logo" href="/bestellingen.html"><span class="staff-logo-mark">' + LOGO_MONOGRAM + "</span>" +
+      '<span class="staff-logo-word">Famo Trading<small>Antwerpen</small></span></a>' +
       '<div class="staff-nav-label">Dagelijks</div>' +
       PRIMARY.map(i => linkHtml(i, active)).join("") +
       adminBlock +

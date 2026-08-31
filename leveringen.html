@@ -4,21 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Famo Trading — Leveringen</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
+/* De rit als route : genummerde stops aan een verticale lijn. */
 .l-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:22px}
 .l-tools input{width:min(310px,100%)}
-.l-list{margin-top:18px;border:1px solid var(--f-line);border-radius:12px;overflow:hidden}
-.l-card{padding:16px 18px;border-bottom:1px solid var(--f-line);background:var(--f-surface)}
-.l-card:last-child{border:0}
-.l-head,.l-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.l-ref{font:500 12.5px Geist Mono,ui-monospace,monospace}
-.l-client{font-size:14px;font-weight:500}
-.l-address,.l-lines{margin-top:5px;color:var(--f-muted);font-size:12.5px}
-.l-actions{margin-top:13px}
-.l-actions a,.l-actions button{min-height:42px;padding:0 12px;border:1px solid var(--f-line);border-radius:8px;background:#fff;color:var(--f-ink);font-size:12.5px;text-decoration:none}
+.l-count{margin-top:12px;color:var(--f-quiet);font-size:12px;font-variant-numeric:tabular-nums}
+.l-wrap{margin-top:10px}
+.l-sect{display:flex;align-items:center;gap:10px;margin:28px 0 10px;color:var(--f-quiet);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+.l-sect::after{content:"";flex:1;height:1px;background:var(--f-line)}
+.l-list{border:1px solid var(--f-line);border-radius:12px;overflow:hidden;background:var(--f-surface)}
+.l-card{display:flex;gap:14px;padding:16px 18px 18px 14px;border-bottom:1px solid var(--f-line);background:var(--f-surface)}
+.l-card:last-child{border-bottom:0}
+.l-stop{position:relative;flex:0 0 26px;display:flex;justify-content:center}
+.l-stop::before{content:"";position:absolute;top:31px;left:50%;bottom:-19px;width:1px;background:var(--f-line)}
+.l-card:last-child .l-stop::before{content:none}
+.l-stop-dot{position:relative;z-index:1;display:grid;place-items:center;width:26px;height:26px;border:1.5px solid var(--f-accent);border-radius:50%;background:var(--f-surface);color:var(--f-accent);font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.l-main{min-width:0;flex:1}
+.l-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.l-ref{font:500 12.5px Geist Mono,ui-monospace,monospace;color:var(--f-muted)}
+.l-client{margin-top:3px;font-size:15px;font-weight:500;letter-spacing:-.005em}
+.l-address{display:flex;align-items:flex-start;gap:6px;margin-top:6px;color:var(--f-quiet);font-size:12.5px;line-height:1.45}
+.l-pin{flex:none;width:14px;height:14px;margin-top:1px;color:var(--f-faint);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.l-lines{margin-top:4px;color:var(--f-quiet);font-size:12.5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.l-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
+.l-actions a,.l-actions button{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--f-line);border-radius:8px;background:var(--f-surface);color:var(--f-ink);font-size:13px;font-weight:500;text-decoration:none;cursor:pointer}
+.l-actions a:hover,.l-actions button:hover{background:var(--f-panel)}
 .l-actions button.primary{border-color:var(--f-accent);background:var(--f-accent);color:#fff}
-@media(max-width:600px){.l-tools>*{width:100%}}
+.l-actions button.primary:hover{border-color:var(--f-accent-2);background:var(--f-accent-2)}
+/* Afgehandeld : apaisé — fond canvas, stop groen afgevinkt, tekst rustiger. */
+.l-done .l-card{background:var(--f-canvas)}
+.l-done .l-stop-dot{border-color:var(--f-success);color:var(--f-success)}
+.l-done .l-client{color:var(--f-muted)}
+.l-check{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:600px){
+  .l-tools>*{width:100%}
+  .l-card{padding:14px 14px 16px 10px;gap:10px}
+  .l-actions a,.l-actions button{flex:1;justify-content:center}
+}
 </style>
 </head>
 <body>
@@ -55,6 +79,7 @@
           <option value="all">Alles</option>
         </select>
       </div>
+      <div id="count" class="l-count" aria-live="polite"></div>
       <div id="list" class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div>
     </div>
   </main>
@@ -67,6 +92,8 @@
 let ORDERS=[];
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 function lines(o){return famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · "))}
+const PIN='<svg class="l-pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.6-5.5-6.6-10.1a6.6 6.6 0 0 1 13.2 0C18.6 15.5 12 21 12 21z"/><circle cx="12" cy="10.7" r="2.4"/></svg>';
+const CHECK='<svg class="l-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 8"/></svg>';
 const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"login",appView:"app",onReady:load});
 function enter(){loginCtl.enter()}
 async function logout(){await loginCtl.logout()}
@@ -79,19 +106,60 @@ async function load(){
     if(!r.ok)throw new Error(d.error||"Leveringen konden niet worden geladen.");
     ORDERS=d.orders||[];
     render();
+    box.classList.add("f-enter");
   }catch(e){
     box.className="staff-error";
     box.innerHTML=esc(famoStaff.translateError(e.message||"Netwerkfout."))+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button>';
   }
 }
+function stopCard(o,n){
+  const done=!!o.livraisonConfirmee;
+  const adr=(o.klant||{}).adresse||"";
+  return '<article class="l-card">'
+    +'<div class="l-stop" aria-hidden="true"><span class="l-stop-dot">'+(done?CHECK:n)+'</span></div>'
+    +'<div class="l-main">'
+    +'<div class="l-head"><span class="l-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(done?'#1F6D4E':'#2C6E7E')+'">'+(done?'Geleverd':'Onderweg')+'</span></div>'
+    +'<div class="l-client">'+esc(o.client)+'</div>'
+    +'<div class="l-address">'+PIN+'<span>'+esc(adr||"Adres niet geregistreerd")+'</span></div>'
+    +'<div class="l-lines">'+esc(lines(o))+'</div>'
+    +'<div class="l-actions">'
+    +(adr?'<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(adr)+'">Kaart</a>':'')
+    +'<a href="/order.html?id='+encodeURIComponent(o.id)+'">Bestelling</a>'
+    +(done?'<span class="staff-status" style="--status:#1F6D4E">'+esc(o.receptionnePar||"Ontvangen")+'</span>':'<button class="primary" onclick="confirmDelivery(\''+esc(o.id)+'\')">Levering bevestigen</button>')
+    +'</div></div></article>';
+}
+function emptyBox(title,text){
+  return '<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 6.5H14v9H2.5z"/><path d="M14 9.5h3.6l3.9 3.4v2.6H14"/><circle cx="7" cy="17.8" r="1.9"/><circle cx="17.3" cy="17.8" r="1.9"/></svg><b>'+title+'</b><p>'+text+'</p></div>';
+}
 function render(){
   const q=document.getElementById("q").value.toLowerCase(),f=document.getElementById("filter").value;
-  const items=ORDERS.filter(o=>(o.statut==="Sortie en livraison"||o.livraisonConfirmee))
-    .filter(o=>f==="all"||(f==="open"&&o.statut==="Sortie en livraison"&&!o.livraisonConfirmee)||(f==="done"&&o.livraisonConfirmee))
+  const pool=ORDERS.filter(o=>(o.statut==="Sortie en livraison"||o.livraisonConfirmee))
     .filter(o=>(o.ref+" "+o.client).toLowerCase().includes(q));
+  const open=pool.filter(o=>o.statut==="Sortie en livraison"&&!o.livraisonConfirmee);
+  const done=pool.filter(o=>o.livraisonConfirmee);
+  document.getElementById("count").textContent=open.length+" te bevestigen · "+done.length+" afgehandeld";
+  let html="";
+  if(f!=="done"){
+    if(open.length){
+      html+='<div class="l-list">'+open.map((o,i)=>stopCard(o,i+1)).join("")+'</div>';
+    }else{
+      html+='<div class="l-list">'+(q
+        ?emptyBox("Geen leveringen gevonden","Geen resultaat voor deze zoekopdracht. Controleer de referentie of de klantnaam.")
+        :emptyBox("Geen leveringen onderweg","Zodra een bestelling het magazijn verlaat, verschijnt de stop hier in de rit."))+'</div>';
+    }
+  }
+  if(f!=="open"){
+    if(done.length){
+      html+='<div class="l-sect">Afgehandeld</div><div class="l-list l-done">'+done.map(o=>stopCard(o,0)).join("")+'</div>';
+    }else if(f==="done"){
+      html+='<div class="l-list">'+(q
+        ?emptyBox("Geen leveringen gevonden","Geen resultaat voor deze zoekopdracht. Controleer de referentie of de klantnaam.")
+        :emptyBox("Nog niets afgehandeld","Bevestigde leveringen verschijnen hier, met wie ze in ontvangst heeft genomen."))+'</div>';
+    }
+  }
   const box=document.getElementById("list");
-  box.className="l-list";
-  box.innerHTML=items.length?items.map(o=>'<article class="l-card"><div class="l-head"><span class="l-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(o.livraisonConfirmee?'#1F6D4E':'#2C6E7E')+'">'+(o.livraisonConfirmee?'Geleverd':'Onderweg')+'</span></div><div class="l-client">'+esc(o.client)+'</div><div class="l-address">'+esc((o.klant||{}).adresse||"Adres niet geregistreerd")+'</div><div class="l-lines">'+esc(lines(o))+'</div><div class="l-actions">'+((o.klant||{}).adresse?'<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((o.klant||{}).adresse)+'">Kaart</a>':'')+'<a href="/order.html?id='+encodeURIComponent(o.id)+'">Bestelling</a>'+(o.livraisonConfirmee?'<span class="staff-status" style="--status:#1F6D4E">'+esc(o.receptionnePar||"Ontvangen")+'</span>':'<button class="primary" onclick="confirmDelivery(\''+esc(o.id)+'\')">Levering bevestigen</button>')+'</div></article>').join(""):'<div class="staff-empty">Geen leveringen voor deze selectie.</div>';
+  box.className="l-wrap";
+  box.innerHTML=html;
 }
 function confirmDelivery(id){
   const order=ORDERS.find(x=>x.id===id);
