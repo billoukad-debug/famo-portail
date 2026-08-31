@@ -272,7 +272,7 @@ function render(){
       '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
       (o.factuurnummer?'<div class="meta">'+esc(o.factuurnummer)+'</div>':'')+
       (o.stockAf?'<div class="meta" style="color:#1F6D4E">✓ Voorraad afgeboekt</div>':'')+
-      (o.statut==="Prête"&&!o.preparationValidee?'<div class="meta" style="color:#9a6700">Artikels nog niet afzonderlijk gevalideerd</div>':'')+
+      (o.statut==="Prête"&&!o.preparationValidee?'<div class="meta" style="color:#8A6110">Artikels nog niet afzonderlijk gevalideerd</div>':'')+
       (o.livraisonConfirmee?'<div class="meta" style="color:#1F6D4E">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
       (o.notes?'<div class="meta">'+esc(o.notes)+'</div>':'')+
       '<div class="row">'+
