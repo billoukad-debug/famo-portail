@@ -63,7 +63,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .staff-login button{width:100%;height:44px;border:0;border-radius:8px;background:var(--f-ink);color:#fff;font-weight:600;cursor:pointer}
 .staff-login-error{min-height:18px;margin-top:8px;color:var(--f-danger);font-size:12.5px}
 .staff-shell{min-height:100vh;display:flex;background:var(--f-canvas)}.staff-shell .staff-main{background:#fff;min-width:0;flex:1}
-.staff-sidebar .staff-nav-label{padding-top:18px;text-transform:none;letter-spacing:0;font-size:11.5px}
+.staff-sidebar .staff-nav-label{padding-top:18px;text-transform:uppercase;letter-spacing:.09em;font-size:10.5px}
 .staff-nav-label.meer-label{margin-top:8px;padding-top:14px;border-top:1px solid var(--f-line)}
 .staff-setup-link{display:block;padding:8px 10px;color:var(--f-quiet);font-size:12px;text-decoration:none}
 .staff-setup-link:hover,.staff-setup-link.active,.staff-setup-link[aria-current="page"]{color:var(--f-ink)}
