@@ -39,10 +39,28 @@
     return "staff-nav-link" + (active === id ? " active" : "");
   }
 
+  // Icones SVG inline — dessinees ici, aucune dependance. Trait 1.75 via CSS,
+  // couleur heritee du lien (currentColor). Remplace les caracteres Unicode.
+  const NAV_ICONS = {
+    orders: '<path d="M5.5 4.5h8M5.5 8h8M5.5 11.5h8"/><path d="M2.4 4.5h.01M2.4 8h.01M2.4 11.5h.01"/>',
+    warehouse: '<path d="M2.5 5.5 8 2.5l5.5 3v5L8 13.5l-5.5-3z"/><path d="M2.5 5.5 8 8.5l5.5-3M8 8.5v5"/>',
+    delivery: '<path d="M1.5 3.5h8v6.5h-8z"/><path d="M9.5 6h2.6l2.4 2.6V10h-1.6"/><circle cx="4.4" cy="12" r="1.4"/><circle cx="11.2" cy="12" r="1.4"/>',
+    entry: '<circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/>',
+    docs: '<path d="M4 1.5h5l3 3V14.5H4z"/><path d="M9 1.5v3h3M6.2 8h3.6M6.2 10.6h3.6"/>',
+    guide: '<path d="M2.5 4.7h5.6M12 4.7h1.5M2.5 11.3h1.5M8 11.3h5.5"/><circle cx="10" cy="4.7" r="1.7"/><circle cx="5.9" cy="11.3" r="1.7"/>',
+    stock: '<path d="M2.5 11.5h11M2.5 8h11M2.5 4.5h11"/>',
+    overview: '<rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1"/><rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1"/><rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1"/><rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1"/>'
+  };
+
+  function iconSvg(name) {
+    const body = NAV_ICONS[name] || NAV_ICONS.overview;
+    return '<svg viewBox="0 0 16 16" aria-hidden="true">' + body + "</svg>";
+  }
+
   function linkHtml(item, active) {
     const cur = active === item.id ? ' aria-current="page"' : "";
     return '<a class="' + linkClass(active, item.id) + '" href="' + item.href + '"' + cur +
-      '><span class="staff-nav-icon ' + item.icon + '"></span>' + item.label + "</a>";
+      '><span class="staff-nav-icon ' + item.icon + '">' + iconSvg(item.icon) + "</span>" + item.label + "</a>";
   }
 
   function sidebarHtml(active, isAdmin) {
