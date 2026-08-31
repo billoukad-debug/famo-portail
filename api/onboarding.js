@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
+const __mail = require("../lib/mail");
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path, opts) {
@@ -94,7 +95,8 @@ async function statusPayload() {
     bic: (c["BIC"] || "").trim(),
     btwTarief: Number(c["BTW-tarief"]) > 0 ? Number(c["BTW-tarief"]) : 6,
     betalingsvoorwaarden: c["Betalingsvoorwaarden"] || "",
-    leveringsvoorwaarden: c["Leveringsvoorwaarden"] || ""
+    leveringsvoorwaarden: c["Leveringsvoorwaarden"] || "",
+    bestellingenEmail: (c["Bestellingen e-mail"] || "").trim()
   };
 
   const [cat, clients, prices, stock, orders, aanvragen] = await Promise.all([
@@ -128,6 +130,7 @@ async function statusPayload() {
     tel: r.fields["Téléphone"] || "",
     btw: r.fields["BTW-nummer"] || "",
     klantnr: r.fields["Klantnummer"] || "",
+    email: (r.fields["Email"] || "").trim(),
     user: r.fields["Gebruikersnaam"] || "",
     hasPassword: !!r.fields["Wachtwoord"]
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
@@ -174,7 +177,10 @@ async function statusPayload() {
       stock: stockList.length,
       orders: (orders.records || []).length,
       credentials: clientList.filter(c => c.user && c.hasPassword).length,
-      aanvragen: aanvraagList.length
+      aanvragen: aanvraagList.length,
+      mailEnabled: __mail.enabled(),
+      mailReady: __mail.enabled() && !!config.bestellingenEmail,
+      klantenZonderEmail: clientList.filter(c => !c.email).length
     }
   };
 }
@@ -216,8 +222,12 @@ module.exports = async (req, res) => {
         "IBAN": clean(body.iban, 40).replace(/\s+/g, "").toUpperCase(),
         "BIC": clean(body.bic, 20).replace(/\s+/g, "").toUpperCase(),
         "Betalingsvoorwaarden": clean(body.betalingsvoorwaarden, 200),
-        "Leveringsvoorwaarden": clean(body.leveringsvoorwaarden, 500)
+        "Leveringsvoorwaarden": clean(body.leveringsvoorwaarden, 500),
+        "Bestellingen e-mail": clean(body.bestellingenEmail, 120).toLowerCase()
       };
+      if (fields["Bestellingen e-mail"] && !__mail.isEmail(fields["Bestellingen e-mail"])) {
+        return res.status(400).json({ error: "Ongeldig e-mailadres voor bestelmeldingen" });
+      }
       const tarief = Number(body.btwTarief);
       if (Number.isFinite(tarief) && tarief >= 0 && tarief <= 100) fields["BTW-tarief"] = tarief;
       if (!fields["Bedrijfsnaam"] || !fields["BTW-nummer"]) {
@@ -313,9 +323,13 @@ module.exports = async (req, res) => {
         "Téléphone": clean(body.tel, 40),
         "BTW-nummer": clean(body.btw, 40),
         "Klantnummer": clean(body.klantnr, 40),
+        "Email": clean(body.email, 120).toLowerCase(),
         "Gebruikersnaam": user,
         "Wachtwoord": password
       };
+      if (fields["Email"] && !__mail.isEmail(fields["Email"])) {
+        return res.status(400).json({ error: "Ongeldig e-mailadres voor deze klant" });
+      }
 
       let saved;
       if (body.id) {

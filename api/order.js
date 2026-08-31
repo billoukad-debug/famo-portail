@@ -1,4 +1,5 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
+const __mail = require("../lib/ordermail");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -99,6 +100,25 @@ async function buildOrderLines(clientId, items){
   return { lignes: lines.join("\n"), total: roundMoney(total) };
 }
 
+// Prepare et envoie les deux confirmations. Ne jette jamais.
+async function notifyOrderMail(ctx) {
+  if (!__mail.enabled()) return null;
+  const cfg = await __mail.loadMailConfig(at);
+  return __mail.notifyNewOrder({
+    ref: ctx.ref,
+    date: ctx.date,
+    dateLivraison: ctx.dateLivraison,
+    notes: ctx.notes,
+    lignes: ctx.lignes,
+    total: ctx.total,
+    bron: ctx.bron,
+    orderUrl: __mail.portalUrl(ctx.req) ? __mail.portalUrl(ctx.req) + "/order.html?id=" + encodeURIComponent(ctx.recordId) : "",
+    klant: __mail.clientFrom(ctx.client),
+    opsEmail: cfg.opsEmail,
+    company: cfg
+  });
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   try {
@@ -143,7 +163,18 @@ module.exports = async (req, res) => {
     });
     const j = await r.json();
     if (j.error) return res.status(500).json(j);
-    res.status(200).json({ ref, id: j.records[0].id, total: order.total });
+
+    // Notification e-mail : la commande est DEJA enregistree ici. Le .catch est
+    // structurel — sans lui, un echec d'envoi remonterait au catch general qui
+    // repond 500, transformant une commande valide en erreur pour le client.
+    // On attend l'envoi car Vercel gele l'execution des que la reponse part.
+    const mail = await notifyOrderMail({
+      req, ref, date: today, dateLivraison, notes,
+      lignes: order.lignes, total: order.total,
+      recordId: j.records[0].id, client, bron: "Klantportaal"
+    }).catch(() => null);
+
+    res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

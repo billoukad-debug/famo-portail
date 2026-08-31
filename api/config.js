@@ -48,7 +48,10 @@ module.exports = async (req, res) => {
       bic: (c["BIC"] || "").trim(),
       btwTarief: Number(c["BTW-tarief"]) > 0 ? Number(c["BTW-tarief"]) : 6,
       betalingsvoorwaarden: (c["Betalingsvoorwaarden"] || "").trim(),
-      leveringsvoorwaarden: (c["Leveringsvoorwaarden"] || "").trim()
+      leveringsvoorwaarden: (c["Leveringsvoorwaarden"] || "").trim(),
+      // Boite interne qui recoit les nouvelles commandes. PRIVEE : volontairement
+      // absente de contactOnly ci-dessous, qui part au public et au staff non-admin.
+      bestellingenEmail: (c["Bestellingen e-mail"] || "").trim()
     };
     const contactOnly = {
       bedrijfsnaam: config.bedrijfsnaam || "Famo Trading BV",

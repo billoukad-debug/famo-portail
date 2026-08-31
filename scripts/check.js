@@ -588,6 +588,25 @@ for (const f of fs.readdirSync(root).filter(f => f.endsWith(".html"))) {
   }
 }
 
+// --- E-mails : la boite ops reste privee, aucune cle en dur ---
+{
+  const cfgSrc = fs.readFileSync(path.join(root, "api", "config.js"), "utf8");
+  const contactBlock = /const contactOnly = \{([\s\S]*?)\};/.exec(cfgSrc);
+  if (contactBlock && /bestellingenEmail/.test(contactBlock[1])) {
+    fail("api/config.js", "bestellingenEmail dans contactOnly — cette boite est privee, jamais exposee au public ni au staff non-admin");
+  } else {
+    pass("api/config.js", "boite ops privee (hors contactOnly)");
+  }
+  for (const rel of ["lib/mail.js", "lib/ordermail.js", "api/order.js", "api/staff.js", "api/onboarding.js"]) {
+    const f = path.join(root, rel);
+    if (!fs.existsSync(f)) continue;
+    const src = fs.readFileSync(f, "utf8");
+    if (/["']re_[A-Za-z0-9_]{8,}["']/.test(src)) {
+      fail(rel, "cle Resend en dur — interdit, utiliser RESEND_API_KEY");
+    }
+  }
+}
+
 console.log("");
 if (errors) {
   console.error(`\x1b[31m${errors} probleme(s) detecte(s). Le deploiement est bloque.\x1b[0m`);

@@ -184,7 +184,7 @@ function renderAanvragen(p){
 function useAanvraag(id){
   const a=(DATA.aanvragen||[]).find(x=>x.id===id);
   if(!a)return;
-  PREFILL={nom:a.bedrijfsnaam,adresse:a.adres,tel:a.telefoon,aanvraagId:a.id};
+  PREFILL={nom:a.bedrijfsnaam,adresse:a.adres,tel:a.telefoon,email:a.email,aanvraagId:a.id};
   EDIT_CLIENT=null;CREDS=null;TAB="klanten";render();
   toast("Gegevens overgenomen uit de aanvraag — vul aan en sla op.");
 }
@@ -204,6 +204,7 @@ function renderKlanten(p){
     '<div class="full"><label>Bedrijfsnaam *</label><input class="staff-field" id="cnom" value="'+esc(e?e.nom:(pf?pf.nom:""))+'"></div>'+
     '<div class="full"><label>Leveradres</label><input class="staff-field" id="cadr" value="'+esc(e?e.adresse:(pf?pf.adresse:""))+'"></div>'+
     '<div><label>Telefoon</label><input class="staff-field" id="ctel" value="'+esc(e?e.tel:(pf?pf.tel:""))+'"></div>'+
+    '<div><label>E-mail</label><input class="staff-field" id="cmail" type="email" value="'+esc(e?e.email:(pf?pf.email:""))+'" placeholder="voor de bestelbevestiging"></div>'+
     '<div><label>BTW-nummer</label><input class="staff-field" id="cbtw" value="'+esc(e?e.btw:"")+'"></div>'+
     '<div><label>Klantnummer</label><input class="staff-field" id="cnr" value="'+esc(e?e.klantnr:"")+'"></div>'+
     '<div><label>Gebruikersnaam</label><input class="staff-field" id="cuser" value="'+esc(e?e.user:"")+'" placeholder="automatisch"></div>'+
@@ -220,7 +221,7 @@ function renderKlanten(p){
 
   h+='<div class="b-search"><input class="staff-field" id="qc" type="search" placeholder="Zoek klant…" value="'+esc(QC)+'" oninput="setQC(this.value)"></div>';
   h+='<div class="b-list">'+(list.length?list.map(c=>
-    '<div class="b-row"><div class="grow"><b>'+esc(c.nom)+'</b><span class="sub">login: '+esc(c.user||"—")+(c.hasPassword?"":" · nog geen wachtwoord")+(c.adresse?'<br>'+esc(c.adresse):"")+'</span></div>'+
+    '<div class="b-row"><div class="grow"><b>'+esc(c.nom)+'</b><span class="sub">login: '+esc(c.user||"—")+(c.hasPassword?"":" · nog geen wachtwoord")+(c.email?" · "+esc(c.email):" · geen e-mail")+(c.adresse?'<br>'+esc(c.adresse):"")+'</span></div>'+
     '<div class="acts"><button class="staff-action-secondary" onclick="editClient(\''+esc(c.id)+'\')">Bewerken</button>'+
     '<button class="staff-action-secondary" onclick="resetPw(\''+esc(c.id)+'\')">Nieuw wachtwoord</button></div></div>'
   ).join(""):'<div class="staff-empty">'+(QC?"Geen klant gevonden.":"Nog geen klanten.")+'</div>')+'</div>';
@@ -233,7 +234,9 @@ async function saveClient(){
   const nom=val("cnom");
   if(!nom){toast("Bedrijfsnaam is verplicht.",true);return}
   const gen=checked("cgen");
-  const payload={action:"saveClient",nom,adresse:val("cadr"),tel:val("ctel"),btw:val("cbtw"),klantnr:val("cnr"),user:val("cuser"),generate:gen};
+  const email=val("cmail");
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("Dit e-mailadres lijkt niet geldig.",true);return}
+  const payload={action:"saveClient",nom,adresse:val("cadr"),tel:val("ctel"),email,btw:val("cbtw"),klantnr:val("cnr"),user:val("cuser"),generate:gen};
   if(EDIT_CLIENT&&EDIT_CLIENT.id)payload.id=EDIT_CLIENT.id;
   const d=await post(payload);
   if(!d)return;
@@ -335,7 +338,7 @@ async function delPrice(id){
 }
 
 function renderBedrijf(p){
-  const c=DATA.config||{};
+  const c=DATA.config||{},s=DATA.status||{};
   const isExample=String(c.iban||"").replace(/\s/g,"").toUpperCase()==="BE68539007547034";
   let h='<div class="b-head"><div><h2>Bedrijfsgegevens</h2><p>Deze gegevens staan op elke leveringsbon en factuur. Ze worden nooit aan klanten getoond behalve op documenten.</p></div></div>';
   if(isExample) h+='<div class="b-note"><b>Let op:</b> het IBAN hieronder is nog het voorbeeldnummer. Facturen dragen dus rekeninggegevens die niet van Famo zijn. Vervang het vóór u een echte factuur verstuurt.</div>';
@@ -355,6 +358,13 @@ function renderBedrijf(p){
     '<div><label>BTW-tarief %</label><input class="staff-field" id="ftar" type="number" min="0" max="100" step="0.1" value="'+esc(c.btwTarief==null?6:c.btwTarief)+'"></div>'+
     '<div class="full"><label>Betalingsvoorwaarden (op factuur)</label><input class="staff-field" id="fbet" value="'+esc(c.betalingsvoorwaarden)+'" placeholder="Betaalbaar binnen 14 dagen na factuurdatum."></div>'+
     '<div class="full"><label>Leveringsvoorwaarden (op leveringsbon)</label><input class="staff-field" id="flev" value="'+esc(c.leveringsvoorwaarden)+'" placeholder="Goederen ontvangen in goede staat en conform. Klachten over verse vis binnen 12u."></div>'+
+    '</div><div class="b-acts"><button class="staff-action" onclick="saveConfig()">Opslaan</button></div></div>'+
+
+    '<div class="b-form"><h3>Bestelmeldingen</h3><p class="hint">Naar welk adres sturen we een melding bij elke nieuwe bestelling? Dit adres komt nooit op documenten en is nooit zichtbaar voor klanten. De klant krijgt zelf een aparte bevestiging, als zijn e-mailadres is ingevuld bij Klanten.</p>'+
+    (s.mailEnabled?'':'<div class="b-note">Verzenden is nog niet geconfigureerd op de server (RESEND_API_KEY ontbreekt). U kunt het adres al invullen, maar er vertrekt voorlopig niets.</div>')+
+    ((s.mailEnabled&&s.klantenZonderEmail)?'<div class="b-note">'+s.klantenZonderEmail+' klant'+(s.klantenZonderEmail>1?'en hebben':' heeft')+' geen e-mailadres en krijgt dus geen bevestiging. <a href="#" onclick="go(\'klanten\');return false">Aanvullen bij Klanten</a></div>':'')+
+    '<div class="b-grid">'+
+    '<div class="full"><label>Bestellingen e-mail</label><input class="staff-field" id="fops" type="email" value="'+esc(c.bestellingenEmail)+'" placeholder="bestellingen@famotrading.be"></div>'+
     '</div><div class="b-acts"><button class="staff-action" onclick="saveConfig()">Opslaan</button></div></div>';
   p.innerHTML=h;
 }
@@ -368,7 +378,8 @@ async function saveConfig(){
   const ok=await post({action:"saveConfig",bedrijfsnaam:nom,adres:val("fadr"),plaats:val("fpl"),btw,
     telefoon:val("ftel"),email:val("fmail"),iban,bic:val("fbic"),
     btwTarief:val("ftar")?tar:undefined,
-    betalingsvoorwaarden:val("fbet"),leveringsvoorwaarden:val("flev")},"Bedrijfsgegevens opgeslagen");
+    betalingsvoorwaarden:val("fbet"),leveringsvoorwaarden:val("flev"),
+    bestellingenEmail:val("fops")},"Bedrijfsgegevens opgeslagen");
   if(ok)render();
 }
 </script>

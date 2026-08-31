@@ -1,5 +1,6 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
+const __mail = require("../lib/ordermail");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -100,7 +101,33 @@ module.exports = async (req, res) => {
 
       const j = await at("Commandes", { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
       if (j.error) return res.status(500).json(j);
-      return res.status(200).json({ ref, id: j.records[0].id, total: order.total });
+
+      // Le client n'est jamais charge dans ce handler : on le lit APRES la
+      // creation, pour qu'un echec de lecture ne puisse jamais bloquer
+      // l'enregistrement de la commande. Le .catch est structurel (cf. order.js).
+      let mail = null;
+      if (__mail.enabled()) {
+        mail = await (async () => {
+          const cli = await at("Clients/" + encodeURIComponent(clientId)).catch(() => null);
+          const cfg = await __mail.loadMailConfig(at);
+          const url = __mail.portalUrl(req);
+          return __mail.notifyNewOrder({
+            ref,
+            date: fields["Date"],
+            dateLivraison,
+            notes: notes || "",
+            lignes: order.lignes,
+            total: order.total,
+            bron: bron || "Handmatig",
+            orderUrl: url ? url + "/order.html?id=" + encodeURIComponent(j.records[0].id) : "",
+            klant: cli && !cli.error ? __mail.clientFrom(cli) : { nom: clientId },
+            opsEmail: cfg.opsEmail,
+            company: cfg
+          });
+        })().catch(() => null);
+      }
+
+      return res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
     }
 
     if (!__auth.adminOk(req)) return res.status(401).json({ error: "Enkel voor beheerders" });
@@ -114,7 +141,8 @@ module.exports = async (req, res) => {
         id: r.id,
         nom: r.fields["Nom"] || "",
         adresse: r.fields["Lieu de livraison"] || "",
-        tel: r.fields["Téléphone"] || ""
+        tel: r.fields["Téléphone"] || "",
+        email: (r.fields["Email"] || "").trim()
       })).sort((a, b) => a.nom.localeCompare(b.nom));
       return res.status(200).json({ clients });
     }
