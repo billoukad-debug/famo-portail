@@ -137,7 +137,7 @@
     return '<label>Bewijslink (https, optioneel)<input id="' + id + '" type="url" placeholder="https://…" autocomplete="off"></label>' +
       '<label style="margin-top:10px">Lokale foto (alleen voorbeeld — wordt niet opgeslagen)<input id="' + fileId + '" type="file" accept="image/*"></label>' +
       '<div id="' + previewId + '" style="display:none;margin-top:8px"><img alt="Voorbeeld bewijs" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid #e0e0e0"></div>' +
-      '<p id="' + noteId + '" class="proof-upload-note" data-proof-blocked="PROOF_UPLOAD_BLOCKED" style="margin:8px 0 0;color:#9a6700;font-size:12px;line-height:1.45">' +
+      '<p id="' + noteId + '" class="proof-upload-note" data-proof-blocked="PROOF_UPLOAD_BLOCKED" style="margin:8px 0 0;color:#8A6110;font-size:12px;line-height:1.45">' +
       'Alleen een https-link wordt bewaard. De lokale foto is een voorbeeld en gaat niet naar Airtable (upload vereist later Blob/opslag).' +
       '</p>';
   }

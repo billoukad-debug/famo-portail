@@ -3,50 +3,52 @@
 <title>Famo Trading — Beheer</title>
 <link rel="stylesheet" href="/staff.css">
 <style>
-.b-tabs{display:flex;gap:4px;background:#f0f0f0;padding:4px;border-radius:11px;margin-top:20px;overflow-x:auto}
-.b-tabs button{min-height:38px;padding:0 15px;border:0;border-radius:8px;background:transparent;color:#666;font-size:13.5px;font-weight:550;cursor:pointer;white-space:nowrap}
-.b-tabs button.active{background:#fff;color:#111;box-shadow:0 1px 2px rgba(0,0,0,.07)}
-.b-tabs button .n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;border-radius:10px;background:#235e86;color:#fff;font-size:11px;font-weight:600}
+.b-tabs{display:flex;gap:4px;background:var(--f-panel);padding:4px;border-radius:12px;margin-top:20px;overflow-x:auto}
+.b-tabs button{min-height:38px;padding:0 15px;border:0;border-radius:8px;background:transparent;color:var(--f-muted);font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap}
+.b-tabs button.active{background:#fff;color:var(--f-ink);box-shadow:0 1px 2px rgba(0,0,0,.07)}
+.b-tabs button .n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;border-radius:12px;background:var(--f-accent);color:#fff;font-size:11px;font-weight:600}
 .b-panel{margin-top:22px}
 .b-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px}
 .b-head h2{margin:0 0 4px;font-size:16px}
-.b-head p{margin:0;color:#777;font-size:13px;max-width:60ch;line-height:1.5}
+.b-head p{margin:0;color:var(--f-quiet);font-size:13px;max-width:60ch;line-height:1.5}
 .b-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:11px}
-.b-card{border:1px solid #e8e8e8;border-radius:12px;background:#fff;padding:15px 16px}
+.b-card{border:1px solid var(--f-line);border-radius:12px;background:#fff;padding:15px 16px}
 .b-card .v{display:block;font:600 25px Geist Mono,ui-monospace,monospace;letter-spacing:-.02em}
-.b-card .l{display:block;font-size:11.5px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-weight:600}
-.b-card.warn{border-color:#e6d4a8;background:#fffdf6}
+.b-card .l{display:block;font-size:11.5px;color:var(--f-quiet);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-weight:600}
+.b-card.warn{border-color:#E7D6A9;background:#FBF3DF}
 .b-card.warn .v{color:#8a6200}
-.b-card.ok .v{color:#2e7d53}
-.b-list{border:1px solid #e8e8e8;border-radius:12px;background:#fff;overflow:hidden}
-.b-row{display:flex;gap:13px;align-items:center;padding:13px 16px;border-bottom:1px solid #f2f2f2;flex-wrap:wrap}
+.b-card.ok .v{color:#1F6D4E}
+.b-list{border:1px solid var(--f-line);border-radius:12px;background:#fff;overflow:hidden}
+.b-row{display:flex;gap:13px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--f-panel);flex-wrap:wrap}
 .b-row:last-child{border-bottom:0}
 .b-row .grow{flex:1;min-width:190px}
 .b-row b{font-size:14px;font-weight:600;display:block}
-.b-row span.sub{font-size:12.5px;color:#777;line-height:1.5}
+.b-row span.sub{font-size:12.5px;color:var(--f-quiet);line-height:1.5}
 .b-row .acts{display:flex;gap:7px;flex-wrap:wrap}
-.b-form{border:1px solid #e8e8e8;border-radius:12px;background:#fff;padding:18px;margin-bottom:16px}
+.b-form{border:1px solid var(--f-line);border-radius:12px;background:#fff;padding:18px;margin-bottom:16px}
 .b-form h3{margin:0 0 3px;font-size:14.5px}
-.b-form .hint{margin:0 0 15px;font-size:12.5px;color:#777;line-height:1.5}
+.b-form .hint{margin:0 0 15px;font-size:12.5px;color:var(--f-quiet);line-height:1.5}
 .b-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
 .b-grid .full{grid-column:1/-1}
-.b-grid label{display:block;font-size:11.5px;font-weight:600;color:#777;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.b-grid label{display:block;font-size:11.5px;font-weight:600;color:var(--f-quiet);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
 .b-grid input,.b-grid select{width:100%}
 .b-acts{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
-.b-check{display:flex;gap:9px;align-items:center;font-size:13.5px;color:#333;font-weight:500}
+.b-check{display:flex;gap:9px;align-items:center;font-size:13.5px;color:var(--f-muted);font-weight:500}
 .b-check input{width:auto}
-.b-creds{margin-top:15px;border:1px solid #cfe0d4;background:#f3f9f5;border-radius:11px;padding:15px}
-.b-creds small{display:block;font-size:11.5px;color:#2b6b48;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+.b-creds{margin-top:15px;border:1px solid #C6DCCB;background:#E6F0E9;border-radius:12px;padding:15px}
+.b-creds small{display:block;font-size:11.5px;color:#1F6D4E;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
 .b-creds .kv{display:flex;gap:10px;align-items:baseline;margin-bottom:5px;font-size:13px}
-.b-creds .kv i{font-style:normal;color:#666;min-width:88px}
-.b-creds code{font:600 13.5px Geist Mono,ui-monospace,monospace;background:#fff;border:1px solid #d8e6dc;border-radius:6px;padding:3px 8px}
-.b-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#111;color:#fff;padding:12px 18px;border-radius:10px;font-size:13.5px;z-index:200;display:none;max-width:min(560px,92vw);line-height:1.5;box-shadow:0 10px 34px rgba(0,0,0,.22)}
+.b-creds .kv i{font-style:normal;color:var(--f-muted);min-width:88px}
+.b-creds code{font:600 13.5px Geist Mono,ui-monospace,monospace;background:#fff;border:1px solid #CFE0D6;border-radius:6px;padding:3px 8px}
+.b-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--f-ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:13.5px;z-index:200;display:none;max-width:min(560px,92vw);line-height:1.5;box-shadow:0 10px 34px rgba(0,0,0,.22)}
 .b-toast.err{background:#a4362a}
-.b-note{border:1px solid #e6d4a8;background:#fffdf6;color:#7a5800;border-radius:11px;padding:13px 15px;font-size:13px;line-height:1.55;margin-bottom:16px}
-.b-note a{color:#111;font-weight:600}
+.b-note{border:1px solid #E7D6A9;background:#FBF3DF;color:#6B4E0B;border-radius:12px;padding:13px 15px;font-size:13px;line-height:1.55;margin-bottom:16px}
+.b-note a{color:var(--f-ink);font-weight:600}
 .b-search{margin-bottom:13px;display:flex;gap:9px;flex-wrap:wrap}
 .b-search input{flex:1;min-width:210px}
 @media(max-width:620px){.b-row .acts{width:100%}.b-row .acts button{flex:1}}
+.b-danger{border:1px solid #E8CFC7;background:#FBF1EE;color:var(--f-danger);min-height:38px;padding:0 14px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer}
+.b-danger:hover{background:#F6E3DD}
 </style></head><body>
 
 <section id="login" class="staff-login"><div>
@@ -63,7 +65,7 @@
   <main class="staff-main"><div class="staff-page">
     <header class="staff-page-head">
       <div><h1>Beheer</h1><p>Alles wat u instelt voor het portaal: klanten, producten, prijzen en bedrijfsgegevens.</p></div>
-      <div><button class="staff-action-secondary" onclick="refresh()">Vernieuwen</button></div>
+      <div><button class="staff-ghost" onclick="refresh()">Vernieuwen</button></div>
     </header>
     <div class="b-tabs" id="tabs"></div>
     <div class="b-panel" id="panel"><div class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div></div>
@@ -326,7 +328,7 @@ function renderPrijzen(p){
   }
   h+='<div class="b-list">'+(prices.length?prices.map(x=>
     '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → '+eur(x.prix)+'</span></div>'+
-    '<div class="acts"><button class="staff-action-secondary" onclick="delPrice(\''+esc(x.id)+'\')">Verwijderen</button></div></div>'
+    '<div class="acts"><button class="b-danger" onclick="delPrice(\''+esc(x.id)+'\')">Verwijderen</button></div></div>'
   ).join(""):'<div class="staff-empty">Nog geen afgesproken prijzen.</div>')+'</div>';
   p.innerHTML=h;
 }
@@ -343,7 +345,7 @@ function renderToegang(p){
   const c=DATA.config||{};
   const box=(titel,which,custom,uitleg)=>
     '<div class="b-form"><h3>'+esc(titel)+'</h3><p class="hint">'+uitleg+'</p>'+
-    '<div class="b-note" style="border-color:'+(custom?'#cfe0d4':'#e6d4a8')+';background:'+(custom?'#f3f9f5':'#fffdf6')+';color:'+(custom?'#2b6b48':'#7a5800')+'">'+
+    '<div class="b-note" style="border-color:'+(custom?'#C6DCCB':'#E7D6A9')+';background:'+(custom?'#E6F0E9':'#FBF3DF')+';color:'+(custom?'#1F6D4E':'#6B4E0B')+'">'+
       (custom
         ? 'Er is een eigen code ingesteld. De code uit Vercel werkt hiervoor <b>niet meer</b>.'
         : 'Nog geen eigen code — de code uit de Vercel-omgeving is nog van kracht.')+

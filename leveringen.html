@@ -8,16 +8,16 @@
 <style>
 .l-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:22px}
 .l-tools input{width:min(310px,100%)}
-.l-list{margin-top:18px;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden}
-.l-card{padding:16px 18px;border-bottom:1px solid #f0f0f0}
+.l-list{margin-top:18px;border:1px solid var(--f-line);border-radius:12px;overflow:hidden}
+.l-card{padding:16px 18px;border-bottom:1px solid var(--f-line);background:var(--f-surface)}
 .l-card:last-child{border:0}
 .l-head,.l-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .l-ref{font:500 12.5px Geist Mono,ui-monospace,monospace}
 .l-client{font-size:14px;font-weight:500}
-.l-address,.l-lines{margin-top:5px;color:#666;font-size:12.5px}
+.l-address,.l-lines{margin-top:5px;color:var(--f-muted);font-size:12.5px}
 .l-actions{margin-top:13px}
-.l-actions a,.l-actions button{min-height:42px;padding:0 12px;border:1px solid #e0e0e0;border-radius:9px;background:#fff;color:#111;font-size:12.5px;text-decoration:none}
-.l-actions button.primary{border-color:#111;background:#111;color:#fff}
+.l-actions a,.l-actions button{min-height:42px;padding:0 12px;border:1px solid var(--f-line);border-radius:8px;background:#fff;color:var(--f-ink);font-size:12.5px;text-decoration:none}
+.l-actions button.primary{border-color:var(--f-accent);background:var(--f-accent);color:#fff}
 @media(max-width:600px){.l-tools>*{width:100%}}
 </style>
 </head>
@@ -44,7 +44,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="staff-action-secondary" href="/entrepot.html" style="display:inline-flex;align-items:center;text-decoration:none">Magazijn</a>
           <a class="staff-action-secondary" href="/documenten.html" style="display:inline-flex;align-items:center;text-decoration:none">Documenten</a>
-          <button class="staff-action-secondary" onclick="load()">Vernieuwen</button>
+          <button class="staff-ghost" onclick="load()">Vernieuwen</button>
         </div>
       </header>
       <div class="l-tools">
@@ -91,7 +91,7 @@ function render(){
     .filter(o=>(o.ref+" "+o.client).toLowerCase().includes(q));
   const box=document.getElementById("list");
   box.className="l-list";
-  box.innerHTML=items.length?items.map(o=>'<article class="l-card"><div class="l-head"><span class="l-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(o.livraisonConfirmee?'#2e7d53':'#3a8a9c')+'">'+(o.livraisonConfirmee?'Geleverd':'Onderweg')+'</span></div><div class="l-client">'+esc(o.client)+'</div><div class="l-address">'+esc((o.klant||{}).adresse||"Adres niet geregistreerd")+'</div><div class="l-lines">'+esc(lines(o))+'</div><div class="l-actions">'+((o.klant||{}).adresse?'<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((o.klant||{}).adresse)+'">Kaart</a>':'')+'<a href="/order.html?id='+encodeURIComponent(o.id)+'">Bestelling</a>'+(o.livraisonConfirmee?'<span class="staff-status" style="--status:#2e7d53">'+esc(o.receptionnePar||"Ontvangen")+'</span>':'<button class="primary" onclick="confirmDelivery(\''+esc(o.id)+'\')">Levering bevestigen</button>')+'</div></article>').join(""):'<div class="staff-empty">Geen leveringen voor deze selectie.</div>';
+  box.innerHTML=items.length?items.map(o=>'<article class="l-card"><div class="l-head"><span class="l-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(o.livraisonConfirmee?'#1F6D4E':'#2C6E7E')+'">'+(o.livraisonConfirmee?'Geleverd':'Onderweg')+'</span></div><div class="l-client">'+esc(o.client)+'</div><div class="l-address">'+esc((o.klant||{}).adresse||"Adres niet geregistreerd")+'</div><div class="l-lines">'+esc(lines(o))+'</div><div class="l-actions">'+((o.klant||{}).adresse?'<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent((o.klant||{}).adresse)+'">Kaart</a>':'')+'<a href="/order.html?id='+encodeURIComponent(o.id)+'">Bestelling</a>'+(o.livraisonConfirmee?'<span class="staff-status" style="--status:#1F6D4E">'+esc(o.receptionnePar||"Ontvangen")+'</span>':'<button class="primary" onclick="confirmDelivery(\''+esc(o.id)+'\')">Levering bevestigen</button>')+'</div></article>').join(""):'<div class="staff-empty">Geen leveringen voor deze selectie.</div>';
 }
 function confirmDelivery(id){
   const order=ORDERS.find(x=>x.id===id);
