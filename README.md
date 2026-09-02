@@ -27,6 +27,12 @@ Overzicht (alertes de configuration, chiffres clés) · Aanvragen (approuver = c
 
 ## Mise en service (Vercel)
 
+Le code est sur GitHub : **billoukad-debug/famo-kade** (privé). Créer le projet Vercel (3 minutes) :
+
+1. vercel.com → **Add New… → Project** → importer `billoukad-debug/famo-kade` (framework « Other », rien à changer).
+2. Avant de cliquer **Deploy**, ouvrir **Environment Variables** et coller les variables ci-dessous (mêmes valeurs que le projet `famo-portail` : Settings → Environment Variables).
+3. Deploy. Le portail est alors sur `famo-kade.vercel.app` (ou le nom choisi). Chaque `git push` sur `main` redéploie.
+
 Variables d'environnement (Production) :
 
 ```text
@@ -40,6 +46,8 @@ SESSION_SECRET     optionnel, renforce le secret des cookies
 ```
 
 Tant que les trois variables obligatoires manquent, chaque page affiche un écran de configuration (NL/FR) et l'API répond 503 proprement. Après modification : **Redeploy**.
+
+**E-mails** : le compte Resend est encore en mode bac à sable (aucun domaine vérifié) — il n'accepte que l'adresse du propriétaire du compte. Pour que clients et équipe reçoivent les e-mails : Resend → Domains → ajouter `famotrading.be` (SPF + DKIM chez le registrar) → puis `MAIL_FROM=Famo Trading <bestellingen@famotrading.be>`. En attendant, tout fonctionne sans e-mail ; Beheer → Overzicht le signale.
 
 Deux champs ont été ajoutés à la table `Configuratie` de la base : `Besteldeadline` (ex. `22:00`) et `Leverdagen` (ex. `ma,di,wo,do,vr,za`). Vides = valeurs par défaut.
 
@@ -63,7 +71,7 @@ Codes locaux : équipe `team-dev-code`, admin `beheer-dev-code` ; client `aloha`
 ## Structure
 
 ```text
-api/[...path].js      une seule fonction serverless, routeur interne
+api/index.js          une seule fonction serverless (rewrites /api/* et /doc/* dans vercel.json), routeur interne
 lib/config.js         schéma Airtable (tous les noms de champs), constantes, env
 lib/airtable.js       client REST (pagination, retry 429, upload de pièces jointes)
 lib/repo.js           enregistrements ⇄ objets métier
