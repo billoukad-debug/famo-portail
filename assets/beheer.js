@@ -8,14 +8,14 @@
 
   function renderLogin(err) {
     who.innerHTML = "";
-    main.innerHTML = '<div class="login-wrap"><div class="card"><h1>Beheer</h1><p class="muted">Meld u aan met de beheerderscode.</p><form id="f" class="stack"><div class="field"><label for="code">Beheerderscode</label><input class="input" id="code" type="password" autocomplete="current-password" required></div>' + (err ? '<div class="notice notice-bad">' + esc(err) + "</div>" : "") + '<button class="btn btn-accent btn-lg btn-block" type="submit">Aanmelden</button></form><p class="small muted" style="margin-top:12px"><a href="/team">Naar het teamportaal</a></p></div></div>';
+    main.innerHTML = '<div class="login-wrap"><div class="card"><h1>Beheer</h1><p class="muted">Meld u aan met de beheerderscode.</p><form id="f" class="stack"><div class="field"><label for="code">Beheerderscode</label><input class="input" id="code" type="password" autocomplete="current-password" required></div>' + (err ? '<div class="notice notice-bad">' + esc(err) + "</div>" : "") + '<button class="btn btn-accent btn-lg btn-block" type="submit">Aanmelden</button></form></div><p class="small muted center" style="margin-top:18px"><a href="/">Klantportaal</a> · <a href="/team">Magazijn en levering</a></p></div>';
     $("#f").onsubmit = async (e) => { e.preventDefault(); await K.busy($("button", e.target), async () => { try { const r = await K.api("team/login", { body: { code: $("#code").value } }); if (r.role !== "admin") { await K.api("team/logout", { body: {} }); return renderLogin("Dit is de teamcode. Beheer vraagt de beheerderscode."); } S.role = "admin"; await load(); render(); } catch (err) { renderLogin(err.message); } }); };
   }
   async function load() { S.d = await K.api("beheer/overzicht"); }
   function go(v) { S.view = v; render(); window.scrollTo(0, 0); }
   function render() {
     if (!S.role) return renderLogin();
-    who.innerHTML = '<a href="/team" style="color:#fff;margin-right:10px">Teamportaal</a><button class="btn btn-sm btn-ghost" id="logout" style="color:#fff">Afmelden</button>';
+    who.innerHTML = '<a href="/" target="_blank" style="color:#fff;margin-right:10px">Klantportaal</a><a href="/team" style="color:#fff;margin-right:10px">Teamportaal</a><button class="btn btn-sm btn-ghost" id="logout" style="color:#fff">Afmelden</button>';
     $("#logout").onclick = async () => { await K.api("team/logout", { body: {} }).catch(() => {}); S.role = null; renderLogin(); };
     const d = S.d;
     main.innerHTML = '<div class="side-layout"><nav class="side">' + SECTIONS.map(([k, l]) => '<button data-v="' + k + '" class="' + (S.view === k ? "on" : "") + '">' + l + (k === "aanvragen" && d.stats.requestsNew ? '<span class="pill pill-accent">' + d.stats.requestsNew + "</span>" : "") + "</button>").join("") + '</nav><div id="panel"></div></div>';
@@ -49,6 +49,7 @@
     const nw = d.requests.filter((r) => r.isNew), done = d.requests.filter((r) => !r.isNew);
     p.innerHTML = '<h1 style="margin-bottom:12px">Aanvragen</h1><div class="card pad-0 flat"><div class="list">' + (nw.length ? nw.map(row).join("") : '<div class="empty">Geen nieuwe aanvragen.</div>') + "</div></div>" + (done.length ? '<h2 style="margin:18px 0 8px">Verwerkt</h2><div class="card pad-0 flat"><div class="list">' + done.map(row).join("") + "</div></div>" : "");
     p.onclick = (e) => { const t = e.target.closest("[data-req]"); if (t) openRequest(d.requests.find((r) => r.id === t.dataset.req)); };
+    if (S.openRequestId) { const r = d.requests.find((x) => x.id === S.openRequestId); S.openRequestId = ""; if (r) openRequest(r); }
   }
   function openRequest(r) {
     if (!r.isNew) return K.sheet({ title: r.company, body: "<p>Deze aanvraag is al verwerkt.</p><p class=\"small\">" + esc(r.notes || "") + "</p>", footer: false });
@@ -61,7 +62,12 @@
         S.d = res.overview; s.close(); showCredentials(res.client, res.password, res.mail); render();
       } catch (err) { K.toast(err.message, "bad"); }
     });
-    $("#close", s.el).onclick = async () => { const n = await K.prompt({ title: "Afhandelen zonder account", label: "Reden (intern)", placeholder: "Bv. geen horeca, buiten leverzone…" }); if (n === null) return; try { const res = await K.api("beheer/aanvragen/" + encodeURIComponent(r.id) + "/afhandelen", { body: { notitie: n } }); S.d = res.overview; s.close(); render(); K.toast("Aanvraag afgehandeld"); } catch (err) { K.toast(err.message, "bad"); } };
+    $("#close", s.el).onclick = () => {
+      const b2 = document.createElement("div");
+      b2.innerHTML = '<div class="stack">' + field("dn", "Reden (intern, niet zichtbaar voor de aanvrager)", "", { ph: "Bv. geen horeca, buiten leverzone" }) + '<label class="check"><input type="checkbox" id="dm" checked> De aanvrager per e-mail verwittigen</label>' + field("dt", "Bericht aan de aanvrager", "Bedankt voor uw interesse. Op dit moment kunnen wij helaas geen account voor u openen.", { multi: true, rows: 3 }) + "</div>";
+      const s2 = K.sheet({ title: "Aanvraag afhandelen zonder account", body: b2, center: true, footer: '<div class="row" style="justify-content:flex-end"><button class="btn btn-outline" data-close>Annuleren</button><button class="btn btn-danger" id="ok2">Afhandelen</button></div>' });
+      $("#ok2", s2.el).onclick = () => K.busy($("#ok2", s2.el), async () => { try { const res = await K.api("beheer/aanvragen/" + encodeURIComponent(r.id) + "/afhandelen", { body: { notitie: $("#dn", b2).value, stuurMail: $("#dm", b2).checked, bericht: $("#dt", b2).value } }); S.d = res.overview; s2.close(); s.close(); render(); K.toast(res.mail && res.mail.ok ? "Aanvraag afgehandeld, aanvrager verwittigd" : "Aanvraag afgehandeld", "ok"); } catch (err) { K.toast(err.message, "bad"); } });
+    };
   }
   function showCredentials(client, password, mail) {
     K.sheet({ title: "Toegang voor " + client.name, center: true, body: '<p>Bewaar deze gegevens: het wachtwoord verschijnt maar één keer.</p><div class="stack"><div class="code-box"><span>Gebruikersnaam</span><b class="mono">' + esc(client.username) + '</b></div><div class="code-box"><span>Wachtwoord</span><b class="mono">' + esc(password) + "</b></div></div>" + (mail ? '<p class="small ' + (mail.ok ? "muted" : "") + '" style="margin-top:10px">' + (mail.ok ? "✅ Per e-mail verzonden naar " + esc(client.email) + "." : "⚠️ E-mail niet verzonden (" + esc(mail.error || mail.skipped || "onbekend") + "). Geef de gegevens zelf door.") + "</p>" : '<p class="small muted" style="margin-top:10px">Niet per e-mail verzonden. Geef de gegevens zelf door.</p>') + '<p class="small muted">Portaal: <b>' + esc(S.d.env.portalUrl || location.origin) + "</b></p>", footer: '<button class="btn btn-accent btn-block" data-close>Gedaan</button>' });
@@ -70,8 +76,11 @@
   // ---- Klanten -----------------------------------------------------------------------------------------
   function klanten(p) {
     const d = S.d;
-    p.innerHTML = '<div class="section-head"><h1>Klanten</h1><button class="btn btn-accent" id="new">' + K.icon("plus") + ' Nieuwe klant</button></div><div class="card pad-0 table-wrap"><table class="table"><thead><tr><th>Klant</th><th>Nr.</th><th>Gebruikersnaam</th><th>E-mail</th><th>Telefoon</th><th class="num">Bestellingen</th><th>Laatste</th></tr></thead><tbody>' +
-      d.clients.map((c) => '<tr data-cl="' + c.id + '" style="cursor:pointer"><td><b>' + esc(c.name) + "</b>" + (!c.hasPassword ? ' <span class="pill pill-warn">geen wachtwoord</span>' : "") + "</td><td>" + esc(c.number) + '</td><td class="mono">' + esc(c.username) + "</td><td>" + (c.email ? esc(c.email) : '<span class="pill pill-warn">geen e-mail</span>') + "</td><td>" + esc(c.phone) + '</td><td class="num">' + c.orderCount + "</td><td>" + esc(c.lastOrder ? K.dateShort(c.lastOrder) : "—") + "</td></tr>").join("") + "</tbody></table>" + (!d.clients.length ? '<div class="empty">Nog geen klanten.</div>' : "") + "</div>";
+    const q = (p.dataset.q || "").toLowerCase();
+    const rows = d.clients.filter((c) => !q || [c.name, c.number, c.username, c.email, c.phone, c.address].join(" ").toLowerCase().includes(q));
+    p.innerHTML = '<div class="section-head"><h1>Klanten</h1><button class="btn btn-accent" id="new">' + K.icon("plus") + ' Nieuwe klant</button></div><div class="searchbox" style="margin-bottom:10px;max-width:420px">' + K.icon("search") + '<input class="input" id="cq" placeholder="Zoek klant…" value="' + esc(p.dataset.q || "") + '"></div><div class="card pad-0 table-wrap"><table class="table"><thead><tr><th>Klant</th><th>Nr.</th><th>Gebruikersnaam</th><th>E-mail</th><th>Telefoon</th><th class="num">Bestellingen</th><th>Laatste</th></tr></thead><tbody>' +
+      rows.map((c) => '<tr data-cl="' + c.id + '" style="cursor:pointer"><td><b>' + esc(c.name) + "</b>" + (!c.hasPassword ? ' <span class="pill pill-warn">geen wachtwoord</span>' : "") + "</td><td>" + esc(c.number) + '</td><td class="mono">' + esc(c.username) + "</td><td>" + (c.email ? esc(c.email) : '<span class="pill pill-warn">geen e-mail</span>') + "</td><td>" + esc(c.phone) + '</td><td class="num">' + c.orderCount + "</td><td>" + esc(c.lastOrder ? K.dateShort(c.lastOrder) : "—") + "</td></tr>").join("") + "</tbody></table>" + (!rows.length ? '<div class="empty">' + (q ? "Geen klant gevonden." : "Nog geen klanten.") + "</div>" : "") + "</div>";
+    $("#cq").oninput = K.debounce(() => { p.dataset.q = $("#cq").value; const pos = $("#cq").selectionStart; klanten(p); $("#cq").focus(); $("#cq").setSelectionRange(pos, pos); }, 150);
     $("#new").onclick = () => editClient(null);
     p.onclick = (e) => { const t = e.target.closest("[data-cl]"); if (t) editClient(d.clients.find((c) => c.id === t.dataset.cl)); };
   }
@@ -97,8 +106,11 @@
   // ---- Artikelen -------------------------------------------------------------------------------------------
   function artikelen(p) {
     const d = S.d;
-    p.innerHTML = '<div class="section-head"><h1>Artikelen</h1><button class="btn btn-accent" id="new">' + K.icon("plus") + ' Nieuw artikel</button></div><div class="card pad-0 table-wrap"><table class="table"><thead><tr><th>Artikel</th><th>Categorie</th><th>Eenheid</th><th class="num">Basisprijs</th><th>Status</th></tr></thead><tbody>' +
-      d.products.map((x) => '<tr data-pr="' + x.id + '" style="cursor:pointer;' + (x.active ? "" : "opacity:.55") + '"><td><b>' + esc(x.name) + "</b></td><td>" + esc(x.categoryLabel) + "</td><td>" + esc(x.unitLabel) + '</td><td class="num">' + K.eur(x.basePriceCents) + "</td><td>" + (x.active ? '<span class="pill pill-ok">Actief</span>' : '<span class="pill">Niet actief</span>') + "</td></tr>").join("") + "</tbody></table></div><p class=\"small muted\" style=\"margin-top:8px\">Prijzen zijn excl. btw. Een niet-actief artikel verdwijnt uit de catalogus maar blijft in oude bestellingen staan.</p>";
+    const q = (p.dataset.q || "").toLowerCase();
+    const rows = d.products.filter((x) => !q || (x.name + " " + x.categoryLabel).toLowerCase().includes(q));
+    p.innerHTML = '<div class="section-head"><h1>Artikelen</h1><button class="btn btn-accent" id="new">' + K.icon("plus") + ' Nieuw artikel</button></div><div class="searchbox" style="margin-bottom:10px;max-width:420px">' + K.icon("search") + '<input class="input" id="pq" placeholder="Zoek artikel…" value="' + esc(p.dataset.q || "") + '"></div><div class="card pad-0 table-wrap"><table class="table"><thead><tr><th>Artikel</th><th>Categorie</th><th>Eenheid</th><th class="num">Basisprijs</th><th>Status</th></tr></thead><tbody>' +
+      rows.map((x) => '<tr data-pr="' + x.id + '" style="cursor:pointer;' + (x.active ? "" : "opacity:.55") + '"><td><b>' + esc(x.name) + "</b></td><td>" + esc(x.categoryLabel) + "</td><td>" + esc(x.unitLabel) + '</td><td class="num">' + K.eur(x.basePriceCents) + "</td><td>" + (x.active ? '<span class="pill pill-ok">Actief</span>' : '<span class="pill">Niet actief</span>') + "</td></tr>").join("") + "</tbody></table></div><p class=\"small muted\" style=\"margin-top:8px\">Prijzen zijn excl. btw. Een niet-actief artikel verdwijnt uit de catalogus maar blijft in oude bestellingen staan.</p>";
+    $("#pq").oninput = K.debounce(() => { p.dataset.q = $("#pq").value; const pos = $("#pq").selectionStart; artikelen(p); $("#pq").focus(); $("#pq").setSelectionRange(pos, pos); }, 150);
     $("#new").onclick = () => editProduct(null);
     p.onclick = (e) => { const t = e.target.closest("[data-pr]"); if (t) editProduct(d.products.find((x) => x.id === t.dataset.pr)); };
   }
@@ -130,8 +142,9 @@
     const list = d.invoices.filter((i) => i.date.startsWith(y) && (!m || i.date.slice(5, 7) === m));
     const months = ["", "januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
     p.innerHTML = '<div class="section-head"><h1>Facturen</h1><a class="btn btn-outline" href="/api/beheer/facturen?formaat=csv&jaar=' + y + (m ? "&maand=" + m : "") + '">' + K.icon("doc") + ' CSV voor de boekhouder</a></div><div class="row wrap" style="margin-bottom:12px"><select class="select" id="fy" style="width:auto">' + years.map((yy) => '<option' + (yy === y ? " selected" : "") + ">" + yy + "</option>").join("") + '</select><select class="select" id="fm" style="width:auto"><option value="">Hele jaar</option>' + months.slice(1).map((mm, i) => '<option value="' + String(i + 1).padStart(2, "0") + '"' + (m === String(i + 1).padStart(2, "0") ? " selected" : "") + ">" + mm + "</option>").join("") + "</select></div>" +
-      '<div class="card pad-0 table-wrap"><table class="table"><thead><tr><th>Factuur</th><th>Datum</th><th>Klant</th><th class="num">Excl. btw</th><th class="num">Btw</th><th class="num">Incl. btw</th><th>Betaling</th></tr></thead><tbody>' + list.map((i) => '<tr><td><a href="/doc/factuur/' + esc(i.id) + '" target="_blank"><b>' + esc(i.invoiceNumber) + "</b></a></td><td>" + esc(K.dateShort(i.date)) + "</td><td>" + esc(i.clientName) + '</td><td class="num">' + K.eur(i.vat.exclCents) + '</td><td class="num">' + K.eur(i.vat.vatCents) + '</td><td class="num"><b>' + K.eur(i.vat.inclCents) + "</b></td><td>" + K.chip(i.paid ? "betaald" : "open", i.paid ? "Betaald" : "Openstaand") + "</td></tr>").join("") + "</tbody></table>" + (!list.length ? '<div class="empty">Geen facturen in deze periode.</div>' : "") + "</div>" +
+      '<div class="card pad-0 table-wrap"><table class="table"><thead><tr><th>Factuur</th><th>Datum</th><th>Klant</th><th class="num">Excl. btw</th><th class="num">Btw</th><th class="num">Incl. btw</th><th>Betaling</th></tr></thead><tbody>' + list.map((i) => '<tr><td><a href="/doc/factuur/' + esc(i.id) + '" target="_blank"><b>' + esc(i.invoiceNumber) + "</b></a></td><td>" + esc(K.dateShort(i.date)) + "</td><td>" + esc(i.clientName) + '</td><td class="num">' + K.eur(i.vat.exclCents) + '</td><td class="num">' + K.eur(i.vat.vatCents) + '</td><td class="num"><b>' + K.eur(i.vat.inclCents) + "</b></td><td>" + K.chip(i.paid ? "betaald" : "open", i.paid ? "Betaald" : "Openstaand") + ' <button class="btn btn-sm btn-ghost" data-paid="' + esc(i.id) + '" data-now="' + (i.paid ? 1 : 0) + '">' + (i.paid ? "Openstaand zetten" : "Betaald zetten") + "</button></td></tr>").join("") + "</tbody></table>" + (!list.length ? '<div class="empty">Geen facturen in deze periode.</div>' : "") + "</div>" +
       '<p class="small muted" style="margin-top:8px">Betaald/openstaand wijzigt het team in het teamportaal bij de bestelling. De wettelijke e-facturatie (Peppol) verloopt via de boekhouder: gebruik daarvoor het CSV-bestand.</p>';
+    K.$$("[data-paid]", p).forEach((btn) => { btn.onclick = () => K.busy(btn, async () => { try { const r = await K.api("beheer/bestellingen/" + encodeURIComponent(btn.dataset.paid) + "/betaald", { body: { betaald: btn.dataset.now !== "1" } }); const inv = S.d.invoices.find((x) => x.id === btn.dataset.paid); if (inv) inv.paid = r.paid; S.d.stats.openCents = S.d.invoices.filter((x) => !x.paid).reduce((s, x) => s + x.vat.inclCents, 0); facturen(p); K.toast(r.paid ? "Gemarkeerd als betaald" : "Gemarkeerd als openstaand", "ok", 1500); } catch (err) { K.toast(err.message, "bad"); } }); });
     $("#fy").onchange = (e) => { p.dataset.y = e.target.value; facturen(p); };
     $("#fm").onchange = (e) => { p.dataset.m = e.target.value; facturen(p); };
   }
@@ -168,7 +181,7 @@
   }
 
   async function boot() {
-    try { const s = await K.api("team/sessie"); if (s.role !== "admin") return renderLogin("U bent aangemeld met de teamcode. Beheer vraagt de beheerderscode."); S.role = "admin"; await load(); const q = K.qs(); if (q.aanvraag) S.view = "aanvragen"; render(); }
+    try { const s = await K.api("team/sessie"); if (s.role !== "admin") return renderLogin("U bent aangemeld met de teamcode. Beheer vraagt de beheerderscode."); S.role = "admin"; await load(); const q = K.qs(); if (q.aanvraag) { S.view = "aanvragen"; S.openRequestId = q.aanvraag; } render(); }
     catch (err) { if (err.status === 401) renderLogin(); else if (err.status !== 503) renderLogin(err.message); }
   }
   boot();

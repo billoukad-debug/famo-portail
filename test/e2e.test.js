@@ -179,7 +179,10 @@ test("team: klaarzetten met aanpassing, onderweg met e-mail, levering met factuu
   const m = box.mails[box.mails.length - 1];
   assert.equal(m.subject, "Uw bestelling " + orderRef + " is onderweg");
   assert.match(m.html, /\/doc\/leveringsbon\//);
-  assert.equal((await post("t", "/api/team/bestellingen/" + orderId + "/lijnen", { lijnen: [{ name: "Saumon frais", qty: 1 }] })).status, 409);
+  // aan de deur mag een lijn nog aangepast worden (geweigerd artikel), tot de factuur
+  const door = await post("t", "/api/team/bestellingen/" + orderId + "/lijnen", { lijnen: [{ name: "Saumon frais", qty: 2, unit: "kg", comment: "in filets" }, { name: "Moules (caisse)", qty: 2, unit: "caisse" }] });
+  assert.equal(door.status, 200);
+  assert.equal(door.body.order.totalCents, 3200 + 5600);
   // leveringsbon via link uit de mail, zonder sessie
   const link = m.html.match(/href="([^"]*\/doc\/leveringsbon\/[^"]+)"/)[1].replace(/&amp;/g, "&");
   const doc = await get("x", link.replace(/^https?:\/\/[^/]+/, ""));
@@ -203,6 +206,8 @@ test("team: klaarzetten met aanpassing, onderweg met e-mail, levering met factuu
   assert.match(inv.html, /€ 93,28/, "incl. btw 6% op 88,00");
   const copy = box.mails.find((x) => x.subject.startsWith("Factuur FA-2026-0003 · Aloha"));
   assert.deepEqual(copy.to, ["bestellingen@famotrading.be"]);
+  // na facturatie liggen de lijnen vast
+  assert.equal((await post("t", "/api/team/bestellingen/" + orderId + "/lijnen", { lijnen: [{ name: "Saumon frais", qty: 1 }] })).status, 409);
   // nogmaals afronden kan niet; stap terug kan niet
   assert.equal((await post("t", "/api/team/bestellingen/" + orderId + "/geleverd", { ontvanger: "X" })).status, 409);
   assert.equal((await post("t", "/api/team/bestellingen/" + orderId + "/terug")).status, 409);
@@ -357,4 +362,74 @@ test("klantprijs 0 telt niet, btw 0% telt wel, sessie sluit na wachtwoordreset, 
   // kapotte cookie geeft 401, geen 500
   const broken = await call("x", "GET", "/api/klant/mij", undefined, { Cookie: "fk_klant=%E0%A4%A; fk_team=%" });
   assert.equal(broken.status, 401);
+});
+
+test("wachtwoord vergeten: link per e-mail, eenmalig, daarna aangemeld", async () => {
+  const before = box.mails.length;
+  const r = await post("x", "/api/klant/wachtwoord-vergeten", { login: "keuken@alohapoke.example" });
+  assert.equal(r.status, 200);
+  assert.equal(box.mails.length - before, 1);
+  const m = box.mails[box.mails.length - 1];
+  assert.deepEqual(m.to, ["keuken@alohapoke.example"]);
+  const token = decodeURIComponent(m.text.match(/\?reset=([^\s]+)/)[1]);
+  // onbekend account: zelfde antwoord, geen mail
+  assert.equal((await post("x", "/api/klant/wachtwoord-vergeten", { login: "niemand" })).status, 200);
+  assert.equal(box.mails.length - before, 1);
+  assert.equal((await post("r", "/api/klant/wachtwoord-reset", { token: "rommel", nieuw: "abcdefgh1" })).status, 400);
+  assert.equal((await post("r", "/api/klant/wachtwoord-reset", { token, nieuw: "kort" })).status, 400);
+  const ok = await post("r", "/api/klant/wachtwoord-reset", { token, nieuw: "nieuwwachtwoord2" });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.client.name, "Aloha Poke Bowls");
+  assert.equal((await get("r", "/api/klant/mij")).status, 200, "meteen aangemeld");
+  assert.equal((await post("r2", "/api/klant/wachtwoord-reset", { token, nieuw: "nogeens12345" })).status, 400, "link is eenmalig");
+  assert.equal((await post("r3", "/api/klant/login", { login: "aloha", wachtwoord: "nieuwwachtwoord2" })).status, 200);
+});
+
+test("klant annuleert eigen bestelling zolang ze op Ontvangen staat; team krijgt e-mail", async () => {
+  const me = await get("r", "/api/klant/mij");
+  const p = me.body.catalogue[0];
+  const o = (await post("r", "/api/klant/bestellen", { items: [{ productId: p.id, qty: 1 }], leverdatum: me.body.deliveryDates[2].iso })).body.order;
+  assert.equal(o.cancelable, true);
+  const before = box.mails.length;
+  const c = await post("r", "/api/klant/bestellingen/" + o.id + "/annuleren", { reden: "Dubbel besteld" });
+  assert.equal(c.status, 200, JSON.stringify(c.body));
+  assert.equal(box.mails.length - before, 1);
+  assert.match(box.mails[box.mails.length - 1].subject, /Geannuleerd door klant/);
+  assert.equal((await get("t", "/api/team/bestellingen/" + o.id)).status, 404);
+  // andermans bestelling: niet
+  const nora = db.data.Clients.find((c) => c.fields["Nom"] === "Vishandel Nora");
+  const other = db.data.Commandes.find((x) => (x.fields["Client"] || [])[0] === nora.id);
+  assert.equal((await post("r", "/api/klant/bestellingen/" + other.id + "/annuleren", {})).status, 404);
+});
+
+test("ronde vertrekt: alles klaar -> onderweg in één keer; bundel leveringsbonnen; contant betaald aan de deur", async () => {
+  const ov = await get("t", "/api/team/overzicht");
+  const today = ov.body.today;
+  const ready = ov.body.orders.filter((o) => o.status === "klaar" && o.deliveryDate <= today);
+  assert.ok(ready.length >= 1, "seed heeft een klaarstaande bestelling voor vandaag");
+  const r = await post("t", "/api/team/onderweg-alles", { dag: today });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.shipped, ready.length);
+  const bundle = await get("t", "/doc/leveringsbonnen?dag=" + today);
+  assert.equal(bundle.status, 200);
+  assert.ok((bundle.body.match(/class="sheet"/g) || []).length >= 1);
+  const id = ready[0].id;
+  const d = await post("t", "/api/team/bestellingen/" + id + "/geleverd", { ontvanger: "Chef", betaald: true });
+  assert.equal(d.status, 200, JSON.stringify(d.body));
+  assert.equal(d.body.order.paid, true);
+  assert.match(d.body.invoiceNumber, /^FA-2026-/);
+});
+
+test("beheer: aanvraag afwijzen met e-mail; factuur betaald zetten", async () => {
+  await post("x", "/api/publiek/aanvraag", { bedrijfsnaam: "Frituur Jos", contactpersoon: "Jos", email: "jos@frituur.example", telefoon: "0400", adres: "Ergens 1" });
+  const ov = await get("a", "/api/beheer/overzicht");
+  const req = ov.body.requests.find((x) => x.company === "Frituur Jos");
+  const before = box.mails.length;
+  const r = await post("a", "/api/beheer/aanvragen/" + req.id + "/afhandelen", { notitie: "Geen horeca", stuurMail: true, bericht: "Wij leveren enkel aan restaurants en vishandels." });
+  assert.equal(r.status, 200);
+  assert.equal(box.mails.length - before, 1);
+  assert.match(box.mails[box.mails.length - 1].html, /enkel aan restaurants/);
+  const inv = ov.body.invoices[0];
+  const p = await post("a", "/api/beheer/bestellingen/" + inv.id + "/betaald", { betaald: !inv.paid });
+  assert.equal(p.body.paid, !inv.paid);
 });
