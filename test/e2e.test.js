@@ -433,3 +433,90 @@ test("beheer: aanvraag afwijzen met e-mail; factuur betaald zetten", async () =>
   const p = await post("a", "/api/beheer/bestellingen/" + inv.id + "/betaald", { betaald: !inv.paid });
   assert.equal(p.body.paid, !inv.paid);
 });
+
+test("team: interne notities, wijzigingslog, leverdatum, ontvanger, niet geleverd, foto, opnieuw mailen", async () => {
+  const cl = await get("t", "/api/team/klanten");
+  const kaai = cl.body.clients.find((c) => c.name === "Brasserie De Kaai");
+  const cat = await get("t", "/api/team/klanten/" + kaai.id + "/catalogus");
+  const p = cat.body.catalogue[0], p2 = cat.body.catalogue[1];
+  const today = cat.body.deliveryDates[0].iso;
+  const o = (await post("t", "/api/team/bestellingen", { klantId: kaai.id, items: [{ productId: p.id, qty: 2 }, { productId: p2.id, qty: 1 }], leverdatum: today, opmerking: "Achteraan leveren", bron: "WhatsApp" })).body.order;
+  assert.equal(o.source, "WhatsApp");
+  assert.equal(o.notes, "Achteraan leveren");
+  // interne notitie raakt de klantopmerking niet
+  const n1 = await post("t", "/api/team/bestellingen/" + o.id + "/interne-notitie", { tekst: "Sleutel onder de mat" });
+  assert.equal(n1.body.order.notes, "Achteraan leveren");
+  assert.deepEqual(n1.body.order.internalNotes, ["Sleutel onder de mat"]);
+  assert.equal(db.data.Commandes.find((x) => x.id === o.id).fields["Notes"], "[WhatsApp] Achteraan leveren\n[intern] Sleutel onder de mat");
+  // klant ziet enkel zijn eigen opmerking
+  await post("kk", "/api/klant/login", { login: "dekaai", wachtwoord: "kaai2026!" });
+  const kv = (await get("kk", "/api/klant/bestellingen/" + o.id)).body.order;
+  assert.equal(kv.notes, "Achteraan leveren");
+  assert.equal(kv.internalNotes, undefined);
+  // lijn aanpassen -> wijzigingslog als interne regel
+  const upd = await post("t", "/api/team/bestellingen/" + o.id + "/lijnen", { lijnen: [{ name: p.name, qty: 1 }, { name: p2.name, qty: 1 }] });
+  assert.equal(upd.body.order.internalNotes.length, 2);
+  assert.match(upd.body.order.internalNotes[1], new RegExp(p.name + ": 2 → 1"));
+  // leverdatum verplaatsen
+  const tomorrow = cat.body.deliveryDates[1].iso;
+  assert.equal((await post("t", "/api/team/bestellingen/" + o.id + "/leverdatum", { datum: tomorrow })).body.order.deliveryDate, tomorrow);
+  assert.equal((await post("t", "/api/team/bestellingen/" + o.id + "/leverdatum", { datum: "2020-01-01" })).status, 400);
+  // niet geleverd: onderweg -> klaar + interne reden
+  await post("t", "/api/team/bestellingen/" + o.id + "/klaar");
+  await post("t", "/api/team/bestellingen/" + o.id + "/onderweg");
+  const ng = await post("t", "/api/team/bestellingen/" + o.id + "/niet-geleverd", { reden: "Gesloten, niemand aanwezig" });
+  assert.equal(ng.body.order.status, "klaar");
+  assert.match(ng.body.order.internalNotes[ng.body.order.internalNotes.length - 1], /Niet geleverd .*Gesloten/);
+  // ontvangers-suggesties + levering + ontvanger corrigeren + foto bij levering + opnieuw mailen
+  await post("t", "/api/team/bestellingen/" + o.id + "/onderweg");
+  const detail = await get("t", "/api/team/bestellingen/" + o.id);
+  assert.ok(Array.isArray(detail.body.receivers));
+  const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  const d = await post("t", "/api/team/bestellingen/" + o.id + "/geleverd", { ontvanger: "Piet", handtekening: png });
+  assert.equal(d.status, 200);
+  assert.equal((await post("t", "/api/team/bestellingen/" + o.id + "/ontvanger", { ontvanger: "Piet Janssens" })).body.order.receivedBy, "Piet Janssens");
+  const f = await post("t", "/api/team/bestellingen/" + o.id + "/foto-levering", { foto: png });
+  assert.equal(f.body.order.proof.length, 2);
+  const before = box.mails.length;
+  const rm = await post("t", "/api/team/bestellingen/" + o.id + "/mail", { type: "factuur" });
+  assert.equal(rm.status, 200, JSON.stringify(rm.body));
+  assert.equal(box.mails.length - before, 1);
+  assert.equal((await post("t", "/api/team/bestellingen/" + o.id + "/mail", { type: "onzin" })).status, 400);
+  // te late bestelling staat op de picklijst van vandaag
+  const late = (await post("t", "/api/team/bestellingen", { klantId: kaai.id, items: [{ productId: p.id, qty: 1 }], leverdatum: today })).body.order;
+  db.update("Commandes", [{ id: late.id, fields: { "Date livraison souhaitée": "2026-01-05" } }]);
+  const pick = await get("t", "/doc/picklijst?dag=" + today);
+  assert.match(pick.body, /TE LAAT/);
+  await post("t", "/api/team/bestellingen/" + late.id + "/verwijderen");
+});
+
+test("beheer: dubbele klant geweigerd, prijzen kopiëren, klant met e-mail bij aanmaak, aanvraag verwijderen", async () => {
+  const dup = await post("a", "/api/beheer/klanten", { naam: "Aloha Poke Bowls" });
+  assert.equal(dup.status, 409);
+  assert.match(dup.body.error, /bestaat al/);
+  const before = box.mails.length;
+  const nw = await post("a", "/api/beheer/klanten", { naam: "Bistro Nieuw", email: "chef@nieuw.example", stuurMail: true });
+  assert.equal(nw.status, 200, JSON.stringify(nw.body));
+  assert.equal(nw.body.mail && nw.body.mail.ok, true);
+  assert.equal(box.mails.length - before, 1);
+  const ov = await get("a", "/api/beheer/overzicht");
+  const aloha = ov.body.clients.find((c) => c.name === "Aloha Poke Bowls");
+  const cp = await post("a", "/api/beheer/prijzen/kopieer", { van: aloha.id, naar: nw.body.client.id });
+  assert.ok(cp.body.copied >= 2);
+  assert.ok(cp.body.prices.filter((p) => p.clientId === nw.body.client.id).length >= 2);
+  assert.equal((await post("a", "/api/beheer/prijzen/kopieer", { van: aloha.id, naar: aloha.id })).status, 400);
+  await post("x", "/api/publiek/aanvraag", { bedrijfsnaam: "Spam BV", contactpersoon: "x", email: "s@spam.example", telefoon: "1" });
+  const req = (await get("a", "/api/beheer/overzicht")).body.requests.find((r) => r.company === "Spam BV");
+  const del = await post("a", "/api/beheer/aanvragen/" + req.id + "/verwijderen");
+  assert.equal(del.status, 200);
+  assert.ok(!del.body.overview.requests.some((r) => r.id === req.id));
+  // waarschuwingen in klare taal met sectie
+  assert.ok(ov.body.warnings.every((w) => w.section && w.action));
+});
+
+test("documenten: nette foutpagina in plaats van JSON", async () => {
+  const r = await get("x", "/doc/factuur/recNietBestaand");
+  assert.equal(r.status, 404);
+  assert.match(r.body, /<html/);
+  assert.match(r.body, /Document niet gevonden/);
+});
