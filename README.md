@@ -25,6 +25,13 @@ Portail B2B complet pour un grossiste en poisson : les clients commandent le soi
 
 Overzicht (alertes de configuration, chiffres clés) · Aanvragen (approuver = créer le client + envoyer les identifiants) · Klanten · Artikelen · Prijzen (grille par client) · Facturen (+ CSV) · Bedrijf (identité, IBAN, TVA, conditions, boîte interne, heure limite, jours de livraison) · Toegang (changer les codes équipe/admin, stockés hachés) · **Systeemcontrole** : parcourt toute la chaîne avec un client et une commande de test, puis les supprime.
 
+## Design et ergonomie (v2)
+
+- **Style** : `assets/ui.css` reprend les principes de Shopify Polaris (canevas gris `#f1f1f1`, cartes blanches, bouton principal sombre `#303030`, badges de statut doux, police Inter, rayons 8/12 px, barre supérieure `#1a1a1a`). Les composants Polaris natifs (`s-*`) ne fonctionnent que dans l'admin Shopify ; les jetons et la grammaire visuelle sont donc réimplémentés en CSS pur. Tout le rendu passe par la couche de composants `K.c` de `assets/ui.js` : changer le style se fait en un seul endroit.
+- **Les trois portails sont reliés** : page de connexion client → lien Team et Beheer ; barre supérieure du Team → Klantportaal (+ Beheer pour l'admin) ; Beheer → Klantportaal, Team ; chaque facture/commande dans Beheer ouvre la commande dans le Team (`/team?bestelling=…`), chaque client ouvre sa grille de prix (`/beheer#/prijzen?klant=…`).
+- **Navigation adressable** : écrans en `#/…` (retour du navigateur, liens partageables, retour au bon écran après une session expirée).
+- **Audit d'utilisabilité** : 178 constats relevés sur la v1 (`.dev-data/audit-ranked.json`, 60 retenus et classés), dont : confirmation avant « Onderweg », lignes « niet geleverd » et articles de remplacement sans casser la facture, montant TTC et paiement comptant à la porte, « volgende stop », en-têtes par jour et filtre « Vandaag + te laat », historique par période, vocabulaire unique Ontvangen / Klaargezet / Onderweg / Geleverd, KPI et alertes cliquables dans Beheer, flux d'approbation avec détection de doublon, identifiants suivis d'étapes suivantes, prix client saisis en ligne, codes d'accès expliqués sans jargon.
+
 ## Mise en service (Vercel)
 
 Le code est sur GitHub : **billoukad-debug/famo-kade** (privé). Créer le projet Vercel (3 minutes) :
