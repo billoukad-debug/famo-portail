@@ -108,7 +108,8 @@ test("klant: bestelling plaatsen met serverprijzen en e-mails", async () => {
   assert.equal(bad.status, 400);
   assert.match(bad.body.error, /hele aantallen/);
   const badDate = await post("k", "/api/klant/bestellen", { items: [{ productId: zalm.id, qty: 1 }], leverdatum: "2020-01-01" });
-  assert.equal(badDate.status, 400);
+  assert.equal(badDate.status, 409);
+  assert.equal((await post("k", "/api/klant/bestellen", { items: [{ productId: zalm.id, qty: 1 }], leverdatum: "2026-02-31" })).status, 400, "onmogelijke datum");
   const before = box.mails.length;
   const r = await post("k", "/api/klant/bestellen", { items: [{ productId: zalm.id, qty: 2.5, comment: "in filets" }, { productId: dozen.id, qty: 2 }], leverdatum: date, opmerking: "Bellen bij aankomst" });
   assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -159,8 +160,12 @@ test("team: klaarzetten met aanpassing, onderweg met e-mail, levering met factuu
   const upd = await post("t", "/api/team/bestellingen/" + orderId + "/lijnen", { lijnen: [{ name: "Saumon frais", qty: 2, unit: "kg", priceCents: 1600, comment: "in filets" }, { name: "Moules (caisse)", qty: 2, unit: "caisse", priceCents: 2800 }] });
   assert.equal(upd.status, 200, JSON.stringify(upd.body));
   assert.equal(upd.body.order.totalCents, 3200 + 5600);
+  // prijzen uit de browser worden genegeerd: bestaande lijn houdt haar prijs
+  const cheat = await post("t", "/api/team/bestellingen/" + orderId + "/lijnen", { lijnen: [{ name: "Saumon frais", qty: 2, unit: "kg", priceCents: 1, comment: "in filets" }, { name: "Moules (caisse)", qty: 2, unit: "caisse", priceCents: 1 }] });
+  assert.equal(cheat.body.order.totalCents, 3200 + 5600, "prijsoverschrijving genegeerd");
   // foto meesturen bij klaar
-  const png = "data:image/png;base64," + Buffer.from("fake-png").toString("base64");
+  const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  assert.equal((await post("t", "/api/team/bestellingen/" + orderId + "/klaar", { foto: "data:image/png;base64," + Buffer.from("fake-png").toString("base64") })).status, 400, "geen echte afbeelding");
   const ready = await post("t", "/api/team/bestellingen/" + orderId + "/klaar", { foto: png });
   assert.equal(ready.status, 200, JSON.stringify(ready.body));
   assert.equal(ready.body.order.status, "klaar");
@@ -324,4 +329,32 @@ test("niet-geconfigureerd: nette 503 en status blijft bereikbaar", async () => {
   const s = await get("x", "/api/status");
   assert.equal(s.body.configured, false);
   process.env.AIRTABLE_TOKEN = saved;
+});
+
+test("klantprijs 0 telt niet, btw 0% telt wel, sessie sluit na wachtwoordreset, kapotte cookie", async () => {
+  // prijs 0 in Prix négociés -> basisprijs
+  const ov = await get("a", "/api/beheer/overzicht");
+  const aloha = ov.body.clients.find((c) => c.name === "Aloha Poke Bowls");
+  const cab = ov.body.products.find((p) => p.name === "Cabillaud");
+  db.create("Prix négociés", [{ "Client": [aloha.id], "Produit": [cab.id], "Prix négocié": 0 }]);
+  const me = await get("k", "/api/klant/mij");
+  assert.equal(me.body.catalogue.find((p) => p.id === cab.id).priceCents, 2200, "nulprijs = basisprijs");
+  // btw 0%
+  const cfgRec = db.data.Configuratie[0];
+  db.update("Configuratie", [{ id: cfgRec.id, fields: { "BTW-tarief": 0 } }]);
+  require("../lib/repo").invalidateConfigCache();
+  const inv = await get("a", "/doc/factuur/" + orderId + "?x=" + Date.now());
+  assert.match(inv.body, /Btw 0%/);
+  db.update("Configuratie", [{ id: cfgRec.id, fields: { "BTW-tarief": 6 } }]);
+  require("../lib/repo").invalidateConfigCache();
+  // wachtwoordreset door beheer sluit de klantsessie
+  const r = await post("a", "/api/beheer/klanten/" + aloha.id + "/wachtwoord", { wachtwoord: "nieuwnieuw1" });
+  assert.equal(r.status, 200);
+  const after = await get("k", "/api/klant/mij");
+  assert.equal(after.status, 401);
+  assert.equal((await post("k", "/api/klant/login", { login: "aloha", wachtwoord: "nieuwnieuw1" })).status, 200);
+  assert.equal((await get("k", "/api/klant/mij")).status, 200);
+  // kapotte cookie geeft 401, geen 500
+  const broken = await call("x", "GET", "/api/klant/mij", undefined, { Cookie: "fk_klant=%E0%A4%A; fk_team=%" });
+  assert.equal(broken.status, 401);
 });

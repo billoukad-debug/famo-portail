@@ -78,7 +78,7 @@
     const cats = {};
     me.catalogue.filter((p) => !q || p.name.toLowerCase().includes(q) || p.categoryLabel.toLowerCase().includes(q)).forEach((p) => { (cats[p.categoryLabel] = cats[p.categoryLabel] || []).push(p); });
     let html = '<div class="hero"><h1>' + greeting() + ", " + esc(me.client.name) + "</h1><p>" +
-      (first ? "Bestel vóór " + esc(me.cutoff) + " en wij leveren " + esc(first.relative === "Morgen" ? "morgen" : first.label) + "." : "Momenteel geen leverdag beschikbaar.") +
+      (first ? "Bestel vóór " + esc(me.cutoff) + " en wij leveren " + esc(first.relative === "Morgen" ? "morgen" : "op " + K.dateNl(first.iso, true).replace(/ \d{4}$/, "")) + "." : "Momenteel geen leverdag beschikbaar.") +
       '</p><span class="cut">' + K.icon("clock") + " Besteldeadline " + esc(me.cutoff) + "</span></div>";
     if (sugg.length && !q) {
       html += '<div class="section"><div class="section-head"><h2>Uw vaste bestelling</h2><button class="btn btn-sm btn-outline" id="addAll">Alles toevoegen</button></div><div class="card pad-0 flat"><div class="list">' +
@@ -157,7 +157,13 @@
           sheet.close();
           renderConfirm(r);
           renderChrome();
-        } catch (err) { K.toast(err.message, "bad"); if (err.status === 401) { S.me = null; renderLogin("Uw sessie is verlopen. Meld u opnieuw aan."); } }
+        } catch (err) {
+          K.toast(err.message, "bad", 6000);
+          if (err.status === 401) { S.me = null; sheet.close(); renderLogin("Uw sessie is verlopen. Meld u opnieuw aan."); return; }
+          if (err.status === 409) { // leverdatum verlopen: verse data ophalen en de eerste geldige dag kiezen
+            try { S.me = await K.api("klant/mij"); S.date = S.me.deliveryDates[0] ? S.me.deliveryDates[0].iso : ""; saveCart(); draw(); } catch (_) { /* melding staat er al */ }
+          }
+        }
       });
     }
   }
@@ -196,7 +202,7 @@
     const body = '<div class="row spread" style="margin-bottom:6px"><span class="muted">' + esc(o.ref) + " · besteld op " + esc(K.dateShort(o.date)) + "</span>" + K.chip(o.status, o.statusLabel) + "</div>" + K.timeline(idx) +
       '<p class="strong" style="margin-top:10px">Levering ' + esc(K.dateNl(o.deliveryDate, true)) + (o.deliveredAt ? " · ontvangen door " + esc(o.receivedBy) + " om " + esc(K.time(o.deliveredAt)) : "") + "</p>" +
       '<div class="card pad-0 flat"><div class="list">' + o.lines.map((l) => '<div class="item" style="cursor:default"><div class="body"><div class="title">' + esc(l.name) + '</div><div class="sub">' + K.qty(l.qty) + " " + esc(l.unitLabel) + (l.priceCents != null ? " × " + K.eur(l.priceCents) : "") + (l.comment ? " · " + esc(l.comment) : "") + '</div></div><div class="end num">' + (l.priceCents != null ? K.eur(Math.round(l.priceCents * l.qty)) : "") + "</div></div>").join("") + '</div><div class="row spread" style="padding:12px 16px"><span class="muted">Totaal excl. btw</span><b class="num">' + K.eur(o.totalCents) + "</b></div></div>" +
-      (o.notes ? '<p class="small muted" style="margin-top:10px"><b>Uw opmerking:</b> ' + esc(o.notes) + "</p>" : "") +
+      (o.notes ? '<p class="small muted" style="margin-top:10px"><b>Opmerking:</b> ' + esc(o.notes) + "</p>" : "") +
       (o.invoiceNumber ? '<p style="margin-top:10px">Factuur <b>' + esc(o.invoiceNumber) + "</b> · " + K.chip(o.paid ? "betaald" : "open", o.paymentLabel) + "</p>" : "");
     const foot = '<div class="row wrap">' + (o.docs.invoice ? '<a class="btn btn-outline" target="_blank" rel="noopener" href="' + esc(o.docs.invoice) + '">' + K.icon("doc") + " Factuur</a>" : "") + (o.docs.deliveryNote ? '<a class="btn btn-outline" target="_blank" rel="noopener" href="' + esc(o.docs.deliveryNote) + '">' + K.icon("doc") + " Leveringsbon</a>" : "") + '<button class="btn btn-accent" id="reorder" style="margin-left:auto">Opnieuw bestellen</button></div>';
     const s = K.sheet({ title: "Bestelling " + o.deliveryLabel, body, footer: foot });
@@ -204,7 +210,7 @@
       let n = 0, miss = [];
       o.lines.forEach((l) => { const p = S.me.catalogue.find((x) => x.name.toLowerCase() === l.name.toLowerCase()); if (p) { setQty(p.id, l.qty, l.comment); n++; } else miss.push(l.name); });
       s.close();
-      K.toast(n ? n + " artikelen in uw bestelling gezet" + (miss.length ? " (" + miss.length + " niet meer beschikbaar)" : "") : "Deze artikelen zijn niet meer beschikbaar.", n ? "ok" : "bad");
+      K.toast(n ? K.plural(n, "artikel", "artikelen") + " in uw bestelling gezet" + (miss.length ? " (" + K.plural(miss.length, "artikel", "artikelen") + " niet meer beschikbaar)" : "") : "Deze artikelen zijn niet meer beschikbaar.", n ? "ok" : "bad");
       go("bestellen");
     };
   }

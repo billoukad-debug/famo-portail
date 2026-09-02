@@ -40,6 +40,9 @@
   K.addDays = function (iso, n) { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   K.relDay = function (iso) { const t = K.todayISO(); if (iso === t) return "Vandaag"; if (iso === K.addDays(t, 1)) return "Morgen"; if (iso === K.addDays(t, -1)) return "Gisteren"; return K.dateNl(iso); };
   K.unit = function (u, q) { const m = { kg: "kg", "pièce": "stuk", piece: "stuk", caisse: "doos", stuk: "stuk", doos: "doos" }; const l = m[String(u || "").toLowerCase()] || u || ""; if (Number(q) === 1 || !q) return l; if (l === "stuk") return "stuks"; if (l === "doos") return "dozen"; return l; };
+  K.plural = function (n, one, many) { return n + " " + (Number(n) === 1 ? one : many); };
+  K.inputNum = function (cents) { return (Number(cents || 0) / 100).toFixed(2).replace(".", ","); };
+  K.parseNum = function (str) { const s = String(str == null ? "" : str).trim().replace(/\s|€/g, ""); if (!s) return NaN; const norm = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s; return Number(norm); };
   K.chip = function (key, label) { return '<span class="chip chip-' + K.esc(key) + '">' + K.esc(label) + "</span>"; };
   K.timeline = function (idx) {
     const steps = ["Ontvangen", "Klaar", "Onderweg", "Geleverd"];

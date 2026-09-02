@@ -3,7 +3,7 @@
   "use strict";
   const $ = K.$, esc = K.esc;
   const main = $("#main"), nav = $("#nav"), tabbar = $("#tabbar"), who = $("#who");
-  const S = { role: null, view: "board", data: null, filter: "alle", hist: null, histQ: "", timer: null };
+  const S = { role: null, view: "board", data: null, filter: "alle", hist: null, histQ: "", timer: null, histSeq: 0 };
   const STATUS_IDX = { ontvangen: 0, klaar: 1, onderweg: 2, geleverd: 3 };
 
   // ---- Chrome ------------------------------------------------------------------------------
@@ -56,7 +56,7 @@
       return '<div class="col"><div class="col-head"><span>' + title + '</span><span class="n">' + list.length + "</span></div>" + (list.length ? list.map(card).join("") : '<div class="empty small">Niets</div>') + "</div>";
     };
     const delivered = S.data.orders.filter((o) => o.status === "geleverd" && (o.deliveredAt || "").slice(0, 10) === new Date().toISOString().slice(0, 10) || (o.status === "geleverd" && o.deliveryDate === today));
-    main.innerHTML = '<div class="section-head"><div><h1>' + esc(K.dateNl(today, true)) + '</h1><div class="muted small">' + S.data.orders.filter((o) => o.status !== "geleverd").length + ' open bestellingen</div></div><div class="row"><a class="btn btn-outline" target="_blank" href="/doc/picklijst?dag=' + today + '">' + K.icon("print") + ' <span class="hide-sm">Picklijst</span></a><button class="iconbtn" id="refresh" aria-label="Vernieuwen">' + K.icon("refresh") + "</button></div></div>" +
+    main.innerHTML = '<div class="section-head"><div><h1>' + esc(K.dateNl(today, true)) + '</h1><div class="muted small">' + K.plural(S.data.orders.filter((o) => o.status !== "geleverd").length, "open bestelling", "open bestellingen") + '</div></div><div class="row"><a class="btn btn-outline" target="_blank" href="/doc/picklijst?dag=' + today + '">' + K.icon("print") + ' <span class="hide-sm">Picklijst</span></a><button class="iconbtn" id="refresh" aria-label="Vernieuwen">' + K.icon("refresh") + "</button></div></div>" +
       '<div class="segmented" style="margin-bottom:12px"><button data-f="alle" class="' + (S.filter === "alle" ? "on" : "") + '">Alle leverdagen</button><button data-f="vandaag" class="' + (S.filter === "vandaag" ? "on" : "") + '">Vandaag</button><button data-f="morgen" class="' + (S.filter === "morgen" ? "on" : "") + '">Morgen</button></div>' +
       '<div class="board">' + col("ontvangen", "Klaar te zetten") + col("klaar", "Klaar voor vertrek") + col("onderweg", "Onderweg") + "</div>" +
       '<div class="section" style="margin-top:20px"><h2 style="margin-bottom:8px">Vandaag geleverd</h2><div class="card pad-0 flat"><div class="list">' + (delivered.length ? delivered.map((o) => '<button class="item" data-open="' + o.id + '"><div class="body"><div class="title">' + esc((o.client || {}).name || "—") + ' <span class="muted small">· ' + esc(o.invoiceNumber || o.ref) + '</div><div class="sub">' + esc(o.receivedBy ? "ontvangen door " + o.receivedBy + " om " + K.time(o.deliveredAt) : "") + '</div></div><div class="end">' + K.chip(o.paid ? "betaald" : "open", o.paymentLabel) + '<div class="num small">' + K.eur(o.totalCents) + "</div></div></button>").join("") : '<div class="empty small">Nog geen leveringen vandaag.</div>') + "</div></div></div>";
@@ -65,7 +65,7 @@
   }
   function card(o) {
     const late = o.status !== "geleverd" && o.deliveryDate < S.data.today;
-    return '<div class="ocard' + (late ? " late" : "") + '" data-open="' + o.id + '"><div class="t"><b>' + esc((o.client || {}).name || "Onbekende klant") + '</b><span class="' + (late ? "pill pill-warn" : "muted small") + '">' + esc(late ? "Te laat · " + K.relDay(o.deliveryDate) : o.deliveryLabel) + '</span></div><div class="lines">' + o.lines.map((l) => K.qty(l.qty) + " " + esc(K.unit(l.unit, l.qty)) + " " + esc(l.name)).join(" · ") + '</div><div class="f"><span>' + o.lines.length + " lijnen · " + K.eur(o.totalCents) + (o.source !== "Klantportaal" ? ' · <span class="pill">' + esc(o.source) + "</span>" : "") + "</span>" + (o.notes ? '<span class="pill pill-warn">Opmerking</span>' : "") + "</div></div>";
+    return '<div class="ocard' + (late ? " late" : "") + '" data-open="' + o.id + '"><div class="t"><b>' + esc((o.client || {}).name || "Onbekende klant") + '</b><span class="' + (late ? "pill pill-warn" : "muted small") + '">' + esc(late ? "Te laat · " + K.relDay(o.deliveryDate) : o.deliveryLabel) + '</span></div><div class="lines">' + o.lines.map((l) => K.qty(l.qty) + " " + esc(K.unit(l.unit, l.qty)) + " " + esc(l.name)).join(" · ") + '</div><div class="f"><span>' + K.plural(o.lines.length, "artikel", "artikelen") + " · " + K.eur(o.totalCents) + (o.source !== "Klantportaal" ? ' · <span class="pill">' + esc(o.source) + "</span>" : "") + "</span>" + (o.notes ? '<span class="pill pill-warn">Opmerking</span>' : "") + "</div></div>";
   }
   K.on(document, "click", "[data-open]", (e, t) => openOrder(t.dataset.open));
 
@@ -76,6 +76,7 @@
     let o = order(id);
     if (!o) { try { o = (await K.api("team/bestellingen/" + encodeURIComponent(id))).order; replaceOrder(o); } catch (err) { return K.toast(err.message, "bad"); } }
     const body = document.createElement("div"), foot = document.createElement("div");
+    let photo = null; // foto blijft bewaard terwijl er lijnen worden afgevinkt
     const sheet = K.sheet({ title: (o.client || {}).name || "Bestelling", body, footer: foot, wide: true, focus: false, onClose: () => { current = null; if (S.view === "board") renderBoard(); if (S.view === "historiek") renderHistoriek(); } });
     current = { id, sheet, body, foot };
     drawOrder();
@@ -102,7 +103,7 @@
       if (o.status === "ontvangen") {
         const ck = checks.get(id);
         lines = '<div class="card pad-0 flat">' + o.lines.map((l, i) => '<div class="checkline' + (ck[i] ? " done" : "") + '" data-ck="' + i + '"><div class="box">' + (ck[i] ? K.icon("check") : "") + '</div><div class="q">' + K.qty(l.qty) + " " + esc(K.unit(l.unit, l.qty)) + '</div><div class="n">' + esc(l.name) + (l.comment ? '<div class="c">' + esc(l.comment) + "</div>" : "") + '</div><button class="btn btn-sm btn-outline" data-edit="' + i + '">Wijzig</button></div>').join("") + "</div>" +
-          '<div class="row wrap" style="margin-top:10px"><button class="btn btn-sm btn-outline" id="addLine">' + K.icon("plus") + ' Artikel toevoegen</button><button class="btn btn-sm btn-ghost" id="editNote">Opmerking</button><label class="btn btn-sm btn-ghost" style="cursor:pointer">' + K.icon("box") + ' Foto <input type="file" accept="image/*" capture="environment" id="photo" hidden></label><span class="muted small" id="photoName"></span></div>';
+          '<div class="row wrap" style="margin-top:10px"><button class="btn btn-sm btn-outline" id="addLine">' + K.icon("plus") + ' Artikel toevoegen</button><button class="btn btn-sm btn-ghost" id="editNote">Opmerking</button><label class="btn btn-sm btn-ghost" style="cursor:pointer">' + K.icon("box") + ' Foto <input type="file" accept="image/*" capture="environment" id="photo" hidden></label><span class="muted small" id="photoName">' + (photo ? "Foto klaar om mee te sturen" : "") + '</span></div>';
       } else {
         lines = '<div class="card pad-0 flat"><table class="table"><tbody>' + o.lines.map((l) => '<tr><td class="num strong" style="width:110px">' + K.qty(l.qty) + " " + esc(K.unit(l.unit, l.qty)) + "</td><td>" + esc(l.name) + (l.comment ? '<div class="small" style="color:var(--accent-2)">' + esc(l.comment) + "</div>" : "") + '</td><td class="num muted">' + (l.priceCents != null ? K.eur(Math.round(l.priceCents * l.qty)) : "") + "</td></tr>").join("") + '</tbody></table><div class="row spread" style="padding:10px 12px;border-top:1px solid var(--line-2)"><span class="muted">Totaal excl. btw</span><b class="num">' + K.eur(o.totalCents) + "</b></div></div>";
       }
@@ -123,8 +124,7 @@
       K.$$("[data-ck]", body).forEach((el) => { el.onclick = (e) => { if (e.target.closest("[data-edit]")) return; const ck = checks.get(id); ck[el.dataset.ck] = !ck[el.dataset.ck]; checks.set(id, ck); drawOrder(); }; });
       K.$$("[data-edit]", body).forEach((b) => { b.onclick = () => editLine(Number(b.dataset.edit)); });
       if ($("#addLine", body)) $("#addLine", body).onclick = addLine;
-      if ($("#editNote", body)) $("#editNote", body).onclick = async () => { const v = await K.prompt({ title: "Opmerking", label: "Interne of klantopmerking", value: o.notes, multiline: true }); if (v !== null) act("notitie", { notities: v }, null, "Opmerking bewaard"); };
-      let photo = null;
+      if ($("#editNote", body)) $("#editNote", body).onclick = async () => { const v = await K.prompt({ title: "Opmerking", label: "Opmerking bij de bestelling (zichtbaar voor de klant)", value: o.notes, multiline: true }); if (v !== null) act("notitie", { notities: v }, null, "Opmerking bewaard"); };
       if ($("#photo", body)) $("#photo", body).onchange = async (e) => { const f = e.target.files[0]; if (!f) return; photo = await shrinkImage(f, 1280, 0.8); $("#photoName", body).textContent = "Foto klaar om mee te sturen"; };
       if ($("#ready", foot)) $("#ready", foot).onclick = async () => {
         const ck = checks.get(id); const all = o.lines.every((l, i) => ck[i]);
@@ -132,7 +132,7 @@
         const r = await act("klaar", { foto: photo }, $("#ready", foot), "Bestelling staat klaar");
         if (r) checks.set(id, {});
       };
-      if ($("#ship", foot)) $("#ship", foot).onclick = async () => { const r = await act("onderweg", {}, $("#ship", foot), "Onderweg — de klant is verwittigd"); if (r && r.mail && r.mail.client && !r.mail.client.ok && !r.mail.client.skipped) K.toast("E-mail aan klant mislukt: " + (r.mail.client.error || ""), "bad", 6000); };
+      if ($("#ship", foot)) $("#ship", foot).onclick = async () => { const r = await act("onderweg", {}, $("#ship", foot), null); if (!r) return; const m = r.mail && r.mail.client; if (m && m.ok) K.toast("Onderweg — de klant is per e-mail verwittigd", "ok"); else if (!m || m.skipped) K.toast("Onderweg. De klant heeft geen e-mailadres: verwittig hem zelf.", "", 5000); else K.toast("Onderweg, maar de e-mail aan de klant mislukte: " + (m.error || "").slice(0, 80), "bad", 7000); };
       if ($("#deliver", foot)) $("#deliver", foot).onclick = () => deliverSheet();
       if ($("#paid", foot)) $("#paid", foot).onclick = () => act("betaald", { betaald: !o.paid }, $("#paid", foot), o.paid ? "Gemarkeerd als openstaand" : "Gemarkeerd als betaald");
       if ($("#back", foot)) $("#back", foot).onclick = () => act("terug", {}, $("#back", foot), "Een stap terug");
@@ -159,7 +159,7 @@
     }
     function deliverSheet() {
       const b = document.createElement("div");
-      b.innerHTML = '<div class="field"><label for="recv">Ontvangen door (naam)</label><input class="input" id="recv" autocomplete="off" placeholder="Bv. Kenji (keuken)" style="font-size:1.2rem"></div><div class="field" style="margin-top:12px"><label>Handtekening van de klant</label><canvas class="sigpad" id="sig"></canvas><div class="row spread"><span class="help">Teken met de vinger op de tablet.</span><button class="btn btn-sm btn-ghost" id="clear">Wissen</button></div></div><p class="small muted" style="margin-top:10px">Bij bevestiging krijgt deze levering een factuurnummer en ontvangt de klant de factuur per e-mail.</p>';
+      b.innerHTML = '<div class="field"><label for="recv">Ontvangen door (naam)</label><input class="input" id="recv" autocomplete="off" placeholder="Bv. Kenji (keuken)" style="font-size:1.2rem"></div><div class="field" style="margin-top:12px"><label>Handtekening van de klant</label><canvas class="sigpad" id="sig"></canvas><div class="row spread"><span class="help">Teken met de vinger op de tablet.</span><button class="btn btn-sm btn-ghost" id="clear">Wissen</button></div></div><p class="small muted" style="margin-top:10px">Bij bevestiging krijgt deze levering een factuurnummer' + ((o.client || {}).email ? ' en ontvangt de klant de factuur per e-mail.' : '. Deze klant heeft geen e-mailadres: geef de factuur zelf mee.') + '</p>';
       const s = K.sheet({ title: "Levering afronden", body: b, footer: '<button class="btn btn-ok btn-lg btn-block" id="ok">' + K.icon("check") + " Bevestigen en factureren</button>" });
       const pad = sigPad($("#sig", b));
       $("#clear", b).onclick = pad.clear;
@@ -168,7 +168,7 @@
         if (!name) { K.toast("Vul in wie de levering ontvangen heeft.", "bad"); $("#recv", b).focus(); return; }
         if (pad.isEmpty() && !(await K.confirm({ title: "Geen handtekening", text: "Er is geen handtekening gezet. Toch afronden?", yes: "Ja, afronden" }))) return;
         const r = await act("geleverd", { ontvanger: name, handtekening: pad.isEmpty() ? null : pad.dataUrl() }, $("#ok", s.el), "Levering afgerond");
-        if (r) { s.close(); if (r.invoiceNumber) K.toast("Factuur " + r.invoiceNumber + " aangemaakt", "ok", 4000); }
+        if (r) { s.close(); if (r.invoiceNumber) K.toast("Factuur " + r.invoiceNumber + " aangemaakt", "ok", 4000); const m = r.mail && r.mail.client; if (m && !m.ok && !m.skipped) K.toast("E-mail met factuur aan klant mislukte: " + (m.error || "").slice(0, 80), "bad", 7000); }
       };
     }
   }
@@ -224,7 +224,7 @@
       (sugg.length && !q ? '<div class="card"><div class="row spread"><b>Laatste bestellingen</b><button class="btn btn-sm btn-outline" id="all">Alles toevoegen</button></div><div class="row wrap" style="margin-top:8px">' + sugg.map((s) => '<button class="btn btn-sm btn-outline" data-sugg="' + s.p.id + '" data-qty="' + s.qty + '">' + K.qty(s.qty) + " " + esc(K.unit(s.p.unit, s.qty)) + " " + esc(s.p.name) + "</button>").join("") + "</div></div>" : "") +
       '<div class="searchbox">' + K.icon("search") + '<input class="input" id="pq" placeholder="Zoek artikel…" value="' + esc(N.q) + '"></div>' +
       '<div id="plist">' + cat.filter((p) => !q || p.name.toLowerCase().includes(q)).map((p) => '<div class="product' + (N.cart[p.id] ? " in" : "") + '"><div><div class="name">' + esc(p.name) + '</div><div class="price"><b>' + K.eur(p.priceCents) + "</b> / " + esc(K.unit(p.unit, 1)) + (p.negotiated ? '<span class="neg">klantprijs</span>' : "") + '</div></div><div class="stepper"><button data-nd="' + p.id + '">−</button><input data-nq="' + p.id + '" inputmode="' + (p.decimals ? "decimal" : "numeric") + '" value="' + (N.cart[p.id] ? K.qty(N.cart[p.id]) : "") + '" placeholder="0"><button data-ni="' + p.id + '">+</button></div></div>').join("") + "</div>" +
-      '<div class="card"><div class="field"><label for="nn">Opmerking</label><textarea class="textarea" id="nn" style="min-height:64px">' + esc(N.note) + '</textarea></div><div class="row spread" style="margin-top:10px"><span class="muted">' + lines().length + ' artikelen · totaal excl. btw</span><b class="num" style="font-size:1.3rem" id="ntot">' + K.eur(total()) + '</b></div><button class="btn btn-accent btn-lg btn-block" id="save" style="margin-top:10px"' + (lines().length ? "" : " disabled") + ">Bestelling opslaan</button></div></div>";
+      '<div class="card"><div class="field"><label for="nn">Opmerking</label><textarea class="textarea" id="nn" style="min-height:64px">' + esc(N.note) + '</textarea></div><div class="row spread" style="margin-top:10px"><span class="muted">' + K.plural(lines().length, "artikel", "artikelen") + ' · totaal excl. btw</span><b class="num" style="font-size:1.3rem" id="ntot">' + K.eur(total()) + '</b></div><button class="btn btn-accent btn-lg btn-block" id="save" style="margin-top:10px"' + (lines().length ? "" : " disabled") + ">Bestelling opslaan</button></div></div>";
     const setQ = (id, v) => { const p = cat.find((x) => x.id === id); let n = Number(String(v).replace(",", ".")) || 0; if (!p.decimals) n = Math.round(n); n = Math.max(0, n); if (n) N.cart[id] = n; else delete N.cart[id]; };
     const refresh = () => { const pos = $("#pq") === document.activeElement ? $("#pq").selectionStart : null; renderNieuw(); if (pos !== null) { $("#pq").focus(); $("#pq").setSelectionRange(pos, pos); } };
     $("#other").onclick = () => { N.client = null; renderNieuw(); };
@@ -253,10 +253,10 @@
     if (!S.hist) await fetchHist();
     drawHist();
   }
-  async function fetchHist() { try { S.hist = (await K.api("team/bestellingen?q=" + encodeURIComponent(S.histQ))).orders; } catch (err) { K.toast(err.message, "bad"); S.hist = []; } }
+  async function fetchHist() { const seq = ++S.histSeq; try { const r = await K.api("team/bestellingen?q=" + encodeURIComponent(S.histQ)); if (seq !== S.histSeq) return; S.hist = r.orders; } catch (err) { if (seq !== S.histSeq) return; K.toast(err.message, "bad"); S.hist = []; } }
   function drawHist() {
     const el = $("#hl"); if (!el) return;
-    el.innerHTML = (S.hist || []).length ? S.hist.map((o) => '<button class="item" data-open="' + o.id + '"><div class="body"><div class="title">' + esc((o.client || {}).name || "—") + ' <span class="muted small">· ' + esc(o.ref) + '</span></div><div class="sub">Levering ' + esc(K.dateShort(o.deliveryDate)) + " · " + o.lines.length + " lijnen · " + K.eur(o.totalCents) + (o.invoiceNumber ? " · " + esc(o.invoiceNumber) : "") + '</div></div><div class="end">' + K.chip(o.status, o.statusLabel) + "</div></button>").join("") : '<div class="empty">Niets gevonden.</div>';
+    el.innerHTML = (S.hist || []).length ? S.hist.map((o) => '<button class="item" data-open="' + o.id + '"><div class="body"><div class="title">' + esc((o.client || {}).name || "—") + ' <span class="muted small">· ' + esc(o.ref) + '</span></div><div class="sub">Levering ' + esc(K.dateShort(o.deliveryDate)) + " · " + K.plural(o.lines.length, "artikel", "artikelen") + " · " + K.eur(o.totalCents) + (o.invoiceNumber ? " · " + esc(o.invoiceNumber) : "") + '</div></div><div class="end">' + K.chip(o.status, o.statusLabel) + "</div></button>").join("") : '<div class="empty">Niets gevonden.</div>';
   }
 
   // ---- Render ----------------------------------------------------------------------------------------------
