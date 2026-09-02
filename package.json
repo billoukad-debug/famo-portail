@@ -1,0 +1,12 @@
+{
+  "name": "famo-kade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bestelportaal Famo Trading BV — klanten bestellen, het team bereidt voor en levert, de beheerder beheert.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "test": "node --test test/*.test.js",
+    "check": "node scripts/check.js"
+  }
+}

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E2A47">
+<title>Toegang aanvragen · Famo Trading</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23F26A21'/%3E%3Ctext x='32' y='44' font-family='Helvetica,Arial' font-weight='900' font-size='36' fill='white' text-anchor='middle'%3EF%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/assets/ui.css">
+</head>
+<body>
+<header class="topbar"><div class="topbar-in"><a class="brand" href="/"><span class="mark">F</span><span>FAMO TRADING<small>Bestelportaal</small></span></a><span class="spacer"></span><a class="btn btn-sm btn-outline" href="/">Aanmelden</a></div></header>
+<main class="main">
+  <div class="login-wrap" style="max-width:560px">
+    <div class="card" id="box">
+      <h1>Toegang aanvragen</h1>
+      <p class="muted">Bent u een restaurant, traiteur of vishandel? Vraag hier een account aan. Wij nemen binnen één werkdag contact met u op en u ontvangt uw inloggegevens per e-mail.</p>
+      <form id="f" class="stack" autocomplete="on">
+        <div class="field"><label for="bedrijf">Bedrijfsnaam *</label><input class="input" id="bedrijf" name="organization" required maxlength="120"></div>
+        <div class="field"><label for="contact">Contactpersoon *</label><input class="input" id="contact" name="name" required maxlength="120"></div>
+        <div class="form-row">
+          <div class="field"><label for="email">E-mailadres *</label><input class="input" id="email" name="email" type="email" required maxlength="120"></div>
+          <div class="field"><label for="tel">Telefoon *</label><input class="input" id="tel" name="tel" type="tel" required maxlength="40"></div>
+        </div>
+        <div class="field"><label for="adres">Leveradres</label><textarea class="textarea" id="adres" name="street-address" maxlength="300" style="min-height:72px"></textarea></div>
+        <div class="field"><label for="bericht">Wat mogen wij voor u leveren?</label><textarea class="textarea" id="bericht" maxlength="600" placeholder="Bv. verse zalm en garnalen, 3 keer per week…"></textarea></div>
+        <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Website<input id="website" tabindex="-1" autocomplete="off"></label></div>
+        <button class="btn btn-accent btn-lg btn-block" type="submit">Aanvraag versturen</button>
+        <p class="small muted">Uw gegevens gebruiken wij enkel om uw account aan te maken en u te contacteren.</p>
+      </form>
+    </div>
+    <p class="small muted center" id="contactline"></p>
+  </div>
+</main>
+<script src="/assets/ui.js"></script>
+<script>
+(function () {
+  const $ = K.$;
+  K.api("publiek/config").then((c) => { $("#contactline").textContent = [c.company.companyName, c.company.phone, c.company.email].filter(Boolean).join(" · "); }).catch(() => {});
+  $("#f").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $("button[type=submit]");
+    await K.busy(btn, async () => {
+      try {
+        await K.api("publiek/aanvraag", { body: { bedrijfsnaam: $("#bedrijf").value, contactpersoon: $("#contact").value, email: $("#email").value, telefoon: $("#tel").value, adres: $("#adres").value, bericht: $("#bericht").value, website: $("#website").value } });
+        $("#box").innerHTML = '<div class="center"><div style="font-size:3rem">📬</div><h1>Bedankt voor uw aanvraag</h1><p>Wij bekijken uw aanvraag en nemen binnen één werkdag contact met u op. Zodra uw account klaar is, ontvangt u uw inloggegevens per e-mail.</p><a class="btn btn-outline" href="/">Terug naar het portaal</a></div>';
+        window.scrollTo(0, 0);
+      } catch (err) { K.toast(err.message, "bad"); }
+    });
+  };
+})();
+</script>
+</body>
+</html>
