@@ -7,21 +7,23 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
-/* Filtres */
-.orders-tools{display:grid;grid-template-columns:minmax(210px,1fr) repeat(6,max-content);gap:8px;align-items:center;margin-top:22px}.orders-tools input{width:100%}
-/* Rangée de compteurs du matin — chiffres 22px tabular, libellés capitales .62 */
-.m-pulse{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:22px}
-.m-pulse button{padding:14px 16px;text-align:left;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);cursor:pointer}
-.m-pulse button:hover{background:var(--f-panel)}
-.m-pulse b{display:block;font-size:22px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--f-ink)}
-.m-pulse span{display:block;margin-top:4px;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+/* Filtres : recherche + bouton « Filters » (badge du nombre actif) + tri.
+   Les six listes deroulantes vivent dans un panneau replie — plus de mur de
+   selects sur telephone. */
+.orders-tools{display:flex;gap:8px;align-items:center;margin-top:18px}
+.orders-tools input{flex:1;min-width:0}
+.orders-tools .staff-select{flex:none;max-width:44vw}
+.filters-panel{display:none;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:10px;padding:12px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-panel)}
+.filters-panel.open{display:grid}
+.filters-panel label{display:block}
+.filters-panel span{display:block;margin:0 0 4px 2px;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.filters-panel select{width:100%}
 /* Board du matin — 4 colonnes de statut, teinte panel + filet (règle 5h du matin) */
 .m-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px;align-items:start}
 .m-col{display:flex;flex-direction:column;gap:9px;padding:10px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-panel)}
 .m-col-head{display:flex;align-items:center;gap:7px;padding:5px 5px 0;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
 .m-col-head::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--col,#77706A)}
 .m-col-head b{margin-left:auto;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--f-muted)}
-.m-col-flash{outline:2px solid var(--f-accent);outline-offset:2px}
 .m-card{display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
 .m-card-top{display:flex;align-items:baseline;gap:8px}
 .m-card-date{margin-left:auto;color:var(--f-quiet);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -49,8 +51,7 @@
 .staff-attention-client{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .staff-attention-item .staff-status{margin-left:auto}
 @media(max-width:1120px){.m-board{grid-template-columns:1fr 1fr}}
-@media(max-width:980px){.orders-tools{grid-template-columns:1fr 1fr 1fr}.orders-tools input{grid-column:1/-1}}
-@media(max-width:620px){.orders-tools{grid-template-columns:1fr 1fr}.orders-tools select{min-width:0}.m-pulse{grid-template-columns:1fr 1fr;gap:8px}.m-pulse button{padding:12px 13px}.m-board{grid-template-columns:1fr}}
+@media(max-width:620px){.orders-tools{flex-wrap:wrap}.orders-tools input{flex:1 1 100%}.orders-tools .staff-select{flex:1;max-width:none}.filters-panel{grid-template-columns:1fr 1fr}.m-board{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -62,24 +63,23 @@
   <aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
   <nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
   <main class="staff-main"><div class="staff-page">
-    <header class="staff-page-head"><div><h1>Bestellingen</h1><p>Alle bestellingen, met actuele status en operationele aandachtspunten.</p></div><div><button class="staff-ghost" onclick="load()">Vernieuwen</button></div></header>
+    <header class="staff-page-head"><div><h1>Bestellingen</h1><p>Alle bestellingen, met actuele status en aandachtspunten.</p></div>
+      <div class="staff-head-tools"><button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button></div>
+    </header>
     <section id="chips" class="staff-chips" aria-label="Snelle filters"></section>
-    <nav class="staff-quick" aria-label="Snelle acties">
-      <a href="/invoer.html">Invoeren</a>
-      <a href="/entrepot.html">Magazijn</a>
-      <a href="/leveringen.html">Leveringen</a>
-    </nav>
     <section id="attentionBox" class="staff-attention hidden" aria-label="Aandacht vereist"></section>
     <section class="orders-tools" aria-label="Bestellingen filteren">
       <input id="search" class="staff-field" type="search" placeholder="Zoek referentie, klant, artikel of factuur…" oninput="render()">
-      <select id="status" class="staff-select" onchange="onFilterChange()"><option value="all">Alle statussen</option><option value="open">Open (niet gefactureerd)</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select>
-      <select id="payment" class="staff-select" onchange="onFilterChange()"><option value="all">Alle betalingen</option><option value="En attente">Openstaand</option><option value="Payé">Betaald</option></select>
-      <select id="source" class="staff-select" onchange="onFilterChange()"><option value="all">Alle bronnen</option><option value="Klantportaal">Klantportaal</option><option value="WhatsApp">WhatsApp</option><option value="Telefoon">Telefoon</option><option value="E-mail">E-mail</option><option value="Ter plaatse">Ter plaatse</option></select>
-      <select id="dateFilter" class="staff-select" onchange="onFilterChange()"><option value="all">Alle datums</option><option value="today">Levering vandaag</option><option value="tomorrow">Levering morgen</option><option value="overdue">Te laat</option><option value="undated">Zonder leverdatum</option></select>
-      <select id="attention" class="staff-select" onchange="onFilterChange()"><option value="all">Alle aandacht</option><option value="required">Aandacht vereist</option></select>
-      <select id="sort" class="staff-select" onchange="onFilterChange()"><option value="recent">Nieuwste eerst</option><option value="delivery">Leverdatum</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
+      <button id="filtersBtn" type="button" class="staff-filterbtn" onclick="toggleFilters()" aria-expanded="false" aria-controls="filtersPanel">Filters<span class="n" id="filtersCount"></span></button>
+      <select id="sort" class="staff-select" onchange="onFilterChange()" aria-label="Sorteren"><option value="recent">Nieuwste eerst</option><option value="delivery">Leverdatum</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
     </section>
-    <section id="summary" class="m-pulse" aria-label="Bestellingstellers"></section>
+    <div id="filtersPanel" class="filters-panel">
+      <label><span>Status</span><select id="status" class="staff-select" onchange="onFilterChange()"><option value="all">Alle statussen</option><option value="open">Open (niet gefactureerd)</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select></label>
+      <label><span>Betaling</span><select id="payment" class="staff-select" onchange="onFilterChange()"><option value="all">Alle betalingen</option><option value="En attente">Openstaand</option><option value="Payé">Betaald</option></select></label>
+      <label><span>Bron</span><select id="source" class="staff-select" onchange="onFilterChange()"><option value="all">Alle bronnen</option><option value="Klantportaal">Klantportaal</option><option value="WhatsApp">WhatsApp</option><option value="Telefoon">Telefoon</option><option value="E-mail">E-mail</option><option value="Ter plaatse">Ter plaatse</option></select></label>
+      <label><span>Leverdatum</span><select id="dateFilter" class="staff-select" onchange="onFilterChange()"><option value="all">Alle datums</option><option value="today">Levering vandaag</option><option value="tomorrow">Levering morgen</option><option value="overdue">Te laat</option><option value="undated">Zonder leverdatum</option></select></label>
+      <label><span>Aandacht</span><select id="attention" class="staff-select" onchange="onFilterChange()"><option value="all">Alle aandacht</option><option value="required">Aandacht vereist</option></select></label>
+    </div>
     <div id="state" class="orders-state"></div>
     <section id="board" class="m-board" aria-label="Bestellingen per status"></section>
     <p class="orders-note">Prijzen worden op de server berekend en bij het aanmaken vastgezet. Open een bestelling voor voorbereiding, levering en documenten.</p>
@@ -109,11 +109,6 @@ function localDay(offset=0){
   base.setDate(base.getDate()+offset);
   return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(base);
 }
-function weekStartDay(){
-  const d=new Date(localDay()+"T12:00:00");
-  d.setDate(d.getDate()-((d.getDay()+6)%7));
-  return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(d);
-}
 function matchesDate(o,filter){const day=String(o.dateLiv||"").slice(0,10);if(filter==="all")return true;if(filter==="undated")return !day;if(filter==="today")return day===localDay();if(filter==="tomorrow")return day===localDay(1);return Boolean(day&&day<localDay()&&o.statut!=="Facturée")}
 function dayKey(v){return String(v||"").slice(0,10)}
 const loginCtl=famoStaff.bindLogin({
@@ -124,6 +119,7 @@ const loginCtl=famoStaff.bindLogin({
       const field=document.getElementById(name),value=params.get(name);
       if(field&&value&&[...field.options].some(option=>option.value===value))field.value=value;
     });
+    syncFiltersBadge();
   },
   onReady:load
 });
@@ -164,13 +160,26 @@ function syncUrlFromFilters(){
   const cur=location.pathname+location.search+location.hash;
   if(next!==cur) history.replaceState(null,"",next);
 }
-function onFilterChange(){syncUrlFromFilters();render()}
-function focusColumn(key){
-  const el=document.querySelector('.m-col[data-col="'+key+'"]');
-  if(!el)return;
-  el.scrollIntoView({behavior:"smooth",block:"start"});
-  el.classList.add("m-col-flash");
-  setTimeout(()=>el.classList.remove("m-col-flash"),1200);
+function onFilterChange(){syncUrlFromFilters();syncFiltersBadge();render()}
+function activeFilterCount(){
+  let n=0;
+  ["status","payment","source","dateFilter","attention"].forEach(name=>{
+    const field=document.getElementById(name);
+    if(field&&field.value&&field.value!=="all")n++;
+  });
+  return n;
+}
+function syncFiltersBadge(){
+  const n=activeFilterCount();
+  document.getElementById("filtersCount").textContent=n?String(n):"";
+  /* Un filtre pose via l'URL (chips, liens) doit etre visible : on deplie. */
+  if(n&&!document.getElementById("filtersPanel").classList.contains("open"))toggleFilters(true);
+}
+function toggleFilters(forceOpen){
+  const panel=document.getElementById("filtersPanel"),btn=document.getElementById("filtersBtn");
+  const open=forceOpen===true?true:!panel.classList.contains("open");
+  panel.classList.toggle("open",open);
+  btn.setAttribute("aria-expanded",open?"true":"false");
 }
 function chipActive(href){
   const u=new URL(href,location.origin),p=u.searchParams;
@@ -220,18 +229,6 @@ function renderAttention(){
     '</a>'
   ).join("")+'</div>'+more;
 }
-function renderSummary(){
-  const t=localDay(),ws=weekStartDay();
-  const counters=[
-    {n:ORDERS.filter(o=>dayKey(o.date)===t).length,label:"Nieuw vandaag",col:"Reçue"},
-    {n:ORDERS.filter(o=>o.statut==="Reçue").length,label:"Klaar te zetten",col:"Reçue"},
-    {n:ORDERS.filter(o=>o.statut==="Sortie en livraison").length,label:"Onderweg",col:"Sortie en livraison"},
-    {n:ORDERS.filter(o=>o.statut==="Facturée"&&dayKey(o.livreeLe||o.date)>=ws).length,label:"Gefactureerd deze week",col:"Facturée"}
-  ];
-  document.getElementById("summary").innerHTML=counters.map(c=>
-    '<button type="button" onclick="focusColumn(\''+c.col+'\')"><b>'+c.n+'</b><span>'+esc(c.label)+'</span></button>'
-  ).join("");
-}
 function orderCard(o){
   const day=dayKey(o.dateLiv);
   const late=Boolean(day&&day<localDay()&&o.statut!=="Facturée");
@@ -246,16 +243,15 @@ function orderCard(o){
     '</a>';
 }
 function render(){
-  const summary=document.getElementById("summary"),state=document.getElementById("state"),board=document.getElementById("board");
+  const state=document.getElementById("state"),board=document.getElementById("board");
   renderChips();
   if(LAST_ERROR){
-    summary.innerHTML="";board.innerHTML="";
+    board.innerHTML="";
     document.getElementById("attentionBox").classList.add("hidden");
     state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
     return;
   }
   renderAttention();
-  renderSummary();
   if(!ORDERS.length){
     board.innerHTML="";
     state.innerHTML='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5 12 3.5l8.5 5v7L12 20.5l-8.5-5z"/><path d="M3.5 8.5 12 13.5l8.5-5M12 13.5v7"/></svg><b>Geen bestellingen vandaag</b><p>Zodra een klant bestelt of u er zelf één invoert, verschijnt de bestelling hier.</p><a class="staff-action-secondary" href="/invoer.html">Bestelling invoeren</a></div>';
@@ -277,7 +273,7 @@ function render(){
       '<header class="m-col-head" style="--col:'+c.color+'">'+esc(famoNL.status(c.key))+'<b>'+colList.length+'</b></header>'+
       body+'</section>';
   }).join("");
-  if(FIRST_PAINT){FIRST_PAINT=false;summary.classList.add("f-enter");board.classList.add("f-enter")}
+  if(FIRST_PAINT){FIRST_PAINT=false;board.classList.add("f-enter")}
 }
 async function logout(){await loginCtl.logout()}
 </script>
