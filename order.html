@@ -5,7 +5,7 @@
 .o-back:hover{color:var(--f-ink)}
 /* Tête de dossier — le nom du client est LE moment serif de l'écran */
 .o-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
-.o-ref{margin:0 0 5px;font:500 12.5px Geist Mono,ui-monospace,monospace;color:var(--f-quiet)}
+.o-ref{margin:0 0 5px;font:500 12.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--f-quiet)}
 .o-head h1{margin:0;font:500 26px/1.2 var(--f-serif);letter-spacing:-.012em;color:var(--f-ink)}
 /* Stepper grand format, posé sur carte */
 .o-stage{margin-top:20px;padding:18px 18px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface)}
@@ -38,11 +38,12 @@
 .o-doc{display:flex;gap:10px;align-items:center;padding:11px 18px;border-top:1px solid var(--f-panel);font-size:12.5px}
 .o-doc button,.o-doc a{margin-left:auto;text-decoration:none}
 .o-wait{margin-left:auto;color:var(--f-quiet);font-size:12px}
-.o-notice{margin:15px 0;padding:11px 13px;border-radius:8px;background:#E6F0E9;border:1px solid #CFE0D6;color:#1F6D4E;font-size:12.5px}
-.o-notice.err{background:#FBF1EE;border-color:#E8CFC7;color:var(--f-danger)}
+/* Washes dérivés des jetons statut — succès #1F6D4E sur son wash : 4,6:1, danger #A8371F : 5,9:1 (calculé) */
+.o-notice{margin:15px 0;padding:11px 13px;border-radius:8px;background:color-mix(in srgb,var(--f-success) 9%,var(--f-surface));border:1px solid color-mix(in srgb,var(--f-success) 22%,var(--f-surface));color:var(--f-success);font-size:12.5px}
+.o-notice.err{background:color-mix(in srgb,var(--f-danger) 6%,var(--f-surface));border-color:color-mix(in srgb,var(--f-danger) 24%,var(--f-surface));color:var(--f-danger)}
 @media(max-width:800px){.o-grid{grid-template-columns:1fr}.o-head>div:last-child{width:100%;display:flex}.o-head>div:last-child button{flex:1}}
 @media(max-width:560px){.o-table th,.o-table td{padding-left:14px;padding-right:14px}.o-total{padding:14px}.o-actionbar{padding:12px}.o-actionbar .staff-action,.o-actionbar .staff-action-secondary{flex:1;justify-content:center;text-align:center}.o-meta{gap:16px 22px}}
-</style></head><body><section id="login" class="staff-login"><div><h1>Bestelling openen</h1><p>Meld u aan om de echte bestelling te laden.</p><input id="code" type="password" autocomplete="current-password" placeholder="Toegangscode (personeel of beheerder)"><button onclick="enter()">Aanmelden</button><div id="err" class="staff-login-error" role="alert"></div></div></section><div id="app" class="hidden staff-shell"><aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside><nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav><main class="staff-main"><div class="staff-page"><a class="o-back" href="/bestellingen.html">← Alle bestellingen</a><div id="view" class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div></div></main></div>
+</style></head><body><section id="login" class="staff-login"><div><h1>Bestelling openen</h1><p>Meld u aan om de bestelling te openen.</p><input id="code" type="password" autocomplete="current-password" placeholder="Toegangscode (personeel of beheerder)"><button onclick="enter()">Aanmelden</button><div id="err" class="staff-login-error" role="alert"></div></div></section><div id="app" class="hidden staff-shell"><aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside><nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav><main class="staff-main"><div class="staff-page"><a class="o-back" href="/bestellingen.html">← Alle bestellingen</a><div id="view" class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div></div></main></div>
 <div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong>Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:var(--f-muted);line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 <script src="/staff-session.js"></script>
 <script src="/staff-delivery.js"></script>
@@ -83,7 +84,7 @@ function render(){const o=ORDER,l=parse(o.lignes),v=document.getElementById("vie
   '<div class="o-grid"><section class="o-panel"><h2>Artikelen</h2><table class="o-table"><thead><tr><th>Artikel</th><th class="num">Aantal</th><th class="num">Bedrag</th></tr></thead><tbody>'+rows+'</tbody></table><div class="o-total"><span>Totaal</span><b>'+eur(o.total)+'</b></div><div class="o-actionbar">'+action+'</div></section>'+
   '<aside><section class="o-panel"><h2>Levering</h2><dl class="o-dl"><dt>Voorraad</dt><dd>'+ (o.stockAf?'Afgeboekt bij vertrek':'Nog niet afgeboekt')+'</dd><dt>Ontvangen door</dt><dd>'+esc(o.receptionnePar||"—")+'</dd><dt>Geleverd</dt><dd>'+date(o.livreeLe)+'</dd></dl></section>'+
   '<section class="o-panel" style="margin-top:14px"><h2>Documenten</h2><div class="o-doc"><span>Leveringsbon</span>'+(lbAvail?'<a class="staff-action-secondary" href="'+docLink('lb')+'">Open</a>':'<span class="o-wait">Na voorbereiding</span>')+'</div><div class="o-doc"><span>Factuur</span>'+(faAvail?'<a class="staff-action-secondary" href="'+docLink('facture')+'">Open</a>':'<span class="o-wait">Na levering</span>')+'</div><div class="o-doc"><span>Creditnota (intern)</span>'+(cnAvail?'<a class="staff-action-secondary" href="'+docLink('credit')+'">Open</a>':'<span class="o-wait">Na factuur</span>')+'</div></section></aside></div>'}
-function notice(m,error){document.getElementById("notice").innerHTML='<div class="o-notice'+(error?' err':'')+'">'+esc(m)+'</div>'}
+function notice(m,error){let n=document.getElementById("notice");if(!n){const v=document.getElementById("view");if(!v)return;n=document.createElement("div");n.id="notice";v.prepend(n)}n.innerHTML='<div class="o-notice'+(error?' err':'')+'">'+esc(m)+'</div>'}
 async function update(p){
   if(BUSY)return;BUSY=true;
   document.querySelectorAll("button").forEach(b=>b.disabled=true);

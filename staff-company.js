@@ -1,10 +1,10 @@
 // Shared company helpers for staff docs. Example IBAN/BIC unlock daily invoice flow
-// until real bank details are saved via Aan de slag.
+// until real bank details are saved via Beheer.
 (function (global) {
   const EXAMPLE = {
     iban: "BE68 5390 0754 7034",
     bic: "GKCCBEBB",
-    label: "Voorbeeld bankgegevens — vervang via Aan de slag vóór echte facturatie."
+    label: "Voorbeeldbankgegevens — vervang het IBAN via Beheer vóór u echt factureert."
   };
 
   function normalize(cfg) {

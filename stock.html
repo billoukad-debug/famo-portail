@@ -16,8 +16,10 @@
 .stock-low{color:var(--f-warning)}
 .stock-edit{display:grid;grid-template-columns:88px 72px minmax(120px,1fr) minmax(120px,1.2fr) auto;gap:6px;align-items:center}
 .stock-edit input,.stock-edit select{height:36px;min-width:0;padding:0 8px;font-size:12px}
-.stock-edit button{height:36px;padding:0 10px;border:1px solid var(--f-ink);border-radius:8px;background:var(--f-ink);color:#fff;font-size:12px}
-.stock-edit .hist-btn{background:#fff;color:var(--f-ink);border-color:var(--f-line)}
+.stock-edit button{height:36px;padding:0 10px;border:1px solid var(--f-accent);border-radius:8px;background:var(--f-accent);color:#fff;font-size:12px;cursor:pointer}
+.stock-edit button:hover{border-color:var(--f-accent-2);background:var(--f-accent-2)}
+.stock-edit .hist-btn,.stock-edit .hist-btn:hover{background:#fff;color:var(--f-ink);border-color:var(--f-line)}
+.stock-edit .hist-btn:hover{background:var(--f-panel)}
 .stock-msg{margin-top:5px;font-size:11px;color:var(--f-success)}
 .stock-msg.error{color:var(--f-danger)}
 .stock-history{margin-top:8px;padding:8px 10px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-panel);font-size:11.5px;line-height:1.4;max-height:180px;overflow:auto}
@@ -31,13 +33,15 @@
 .stock-card-form{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}
 .stock-card-form input,.stock-card-form select{height:38px;padding:0 9px}
 .stock-card-form input.note{grid-column:1/-1}
-.stock-card-form button{height:40px;border:1px solid var(--f-ink);border-radius:8px;background:var(--f-ink);color:#fff}
-.stock-card-form .hist-btn{background:#fff;color:var(--f-ink);border-color:var(--f-line)}
+.stock-card-form button{height:40px;border:1px solid var(--f-accent);border-radius:8px;background:var(--f-accent);color:#fff;cursor:pointer}
+.stock-card-form button:hover{border-color:var(--f-accent-2);background:var(--f-accent-2)}
+.stock-card-form .hist-btn,.stock-card-form .hist-btn:hover{background:#fff;color:var(--f-ink);border-color:var(--f-line)}
+.stock-card-form .hist-btn:hover{background:var(--f-panel)}
 @media(max-width:1100px){.stock-edit{grid-template-columns:1fr 1fr;}.stock-edit .note{grid-column:1/-1}.stock-edit button{grid-column:span 1}}
 @media(max-width:900px){.stock-table{display:none}.stock-cards{display:block}.stock-tools input{width:100%;flex:auto}}
 @media(max-width:520px){.stock-tools>*{width:100%}.stock-filters{width:max-content}}
 </style></head><body>
-<section id="login" class="staff-login"><div><h1>Voorraad</h1><p>Werk voorraad alleen bij na telling, ontvangst of retour.</p><input id="code" type="password" placeholder="Toegangscode (personeel of beheerder)" autocomplete="current-password"><button type="button" onclick="enter()">Aanmelden</button><div id="err" class="staff-login-error" role="alert"></div></div></section>
+<section id="login" class="staff-login"><div><h1>Voorraad</h1><p>Werk voorraad alleen bij na telling, ontvangst of retour.</p><input id="code" type="password" placeholder="Toegangscode (beheerder)" autocomplete="current-password"><button type="button" onclick="enter()">Aanmelden</button><div id="err" class="staff-login-error" role="alert"></div></div></section>
 <div id="app" class="hidden staff-shell"><aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside><nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav><main class="staff-main"><div class="staff-page">
 <header class="staff-page-head"><div><h1>Voorraad</h1><p>Beschikbare hoeveelheid, minimumgrens en traceerbare correcties.</p></div><div><button class="staff-ghost" onclick="load()">Vernieuwen</button></div></header>
 <p class="stock-note">Indicatieve voorraad — dit overzicht stuurt het klantportaal niet aan. Werk alleen bij na telling, ontvangst of retour.</p>
@@ -112,7 +116,7 @@ function render(){
   table.innerHTML='<table><thead><tr><th>Product</th><th>Beschikbaar</th><th>Grens</th><th>Voorraadbeweging (absoluut · grens · type · reden)</th></tr></thead><tbody>'+
     rows.map(x=>'<tr><td class="stock-product">'+esc(x.product)+'</td><td class="stock-qty '+(low(x)?"stock-low":"")+'">'+x.quantity+'</td><td>'+(x.lowThreshold||"—")+'</td><td>'+form(x)+'</td></tr>').join("")+
     '</tbody></table>';
-  cards.innerHTML=rows.map(x=>'<article class="stock-card"><div class="stock-card-head"><b>'+esc(x.product)+'</b><span class="stock-qty '+(low(x)?"stock-low":"")+'">'+x.quantity+'</span></div><div class="staff-count">Laagste grens: '+(x.lowThreshold||"—")+'</div>'+form(x,true)+'</article>').join("");
+  cards.innerHTML=rows.map(x=>'<article class="stock-card"><div class="stock-card-head"><b>'+esc(x.product)+'</b><span class="stock-qty '+(low(x)?"stock-low":"")+'">'+x.quantity+'</span></div><div class="staff-count">Ondergrens: '+(x.lowThreshold||"—")+'</div>'+form(x,true)+'</article>').join("");
   rows.forEach(x=>{if(HIST[x.id]) fillHistory(x.id,HIST[x.id]);});
 }
 function message(id,text,error){

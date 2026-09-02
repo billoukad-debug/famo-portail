@@ -43,7 +43,7 @@
       return "Famo-Creditnota-" + sanitizeFilePart(opts.number || opts.ref || "CN") + ".pdf";
     }
     if (kind === "picking" || kind === "prep" || kind === "voorbereiding") {
-      return "Famo-Picking-" + sanitizeFilePart(opts.date || todayBrussels()) + ".pdf";
+      return "Famo-Verzamellijst-" + sanitizeFilePart(opts.date || todayBrussels()) + ".pdf";
     }
     return "Famo-Document-" + sanitizeFilePart(opts.name || todayBrussels()) + ".pdf";
   }
@@ -73,7 +73,7 @@
             '<button type="button" class="famo-doc-btn" data-famo-doc="close" aria-label="Sluiten">×</button>' +
             '<button type="button" class="famo-doc-btn" data-famo-doc="cancel">Annuleren</button>' +
             '<button type="button" class="famo-doc-btn" data-famo-doc="print">Afdrukken</button>' +
-            '<button type="button" class="famo-doc-btn primary" data-famo-doc="download">Download PDF</button>' +
+            '<button type="button" class="famo-doc-btn primary" data-famo-doc="download">PDF downloaden</button>' +
           "</div>" +
         "</header>" +
         '<div id="famoDocStatus" class="famo-doc-status hidden" role="status" aria-live="polite"></div>' +

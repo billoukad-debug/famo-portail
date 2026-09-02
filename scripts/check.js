@@ -363,7 +363,7 @@ for (const page of OPERATIONAL) {
         const pk = api.filenameFor("picking", { date: "2026-07-23" });
         if (lb !== "Famo-Leveringsbon-CMD-123.pdf") fail("staff-doc-preview.js", "filename leveringsbon incorrect: " + lb);
         else if (fa !== "Famo-Factuur-FA-9.pdf") fail("staff-doc-preview.js", "filename factuur incorrect: " + fa);
-        else if (pk !== "Famo-Picking-2026-07-23.pdf") fail("staff-doc-preview.js", "filename picking incorrect: " + pk);
+        else if (pk !== "Famo-Verzamellijst-2026-07-23.pdf") fail("staff-doc-preview.js", "filename picking incorrect: " + pk);
         else if (!/blobLooksLikePdf|%PDF|0x25/.test(src)) fail("staff-doc-preview.js", "doit vérifier la magie %PDF (pas de HTML renommé)");
         else pass("staff-doc-preview.js", "preview + PDF filenames");
       }

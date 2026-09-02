@@ -99,7 +99,7 @@ window.FamoDocuments=(()=>{
         ? 'Betaalstatus: '+esc(payLabel)+'.'+(COMPANY.betalingsvoorwaarden?' '+esc(COMPANY.betalingsvoorwaarden):'')+' Intern document — geen automatische Peppol/Billtobox-verzending.'
         : 'Handtekening klant: ______________________________<br><br>'+esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
     const banners=(credit?'<div class="banner"><b>Voorbeeld — niet geboekt.</b> Creditnota (intern) zonder Airtable-nummer; niet automatisch verzonden.</div>':'')+
-      (invoice&&COMPANY.exampleBank?'<div class="banner"><b>Voorbeeld bankgegevens.</b> '+(window.famoCompany?esc(famoCompany.EXAMPLE.label):'Vervang IBAN/BIC via Aan de slag vóór echte facturatie.')+'</div>':'');
+      (invoice&&COMPANY.exampleBank?'<div class="banner"><b>Voorbeeld bankgegevens.</b> '+(window.famoCompany?esc(famoCompany.EXAMPLE.label):'Vervang IBAN/BIC via Beheer vóór echte facturatie.')+'</div>':'');
     // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
     const mark='<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="#0C6157" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25V1.75h9.5"/><path d="M3.75 8h3.05c1.5 0 1.85-1.4 3.35-1.4s1.6 1.4 3.1 1.4"/></g></svg>';
     const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?"BTW "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
@@ -119,11 +119,11 @@ window.FamoDocuments=(()=>{
       (klant.btw?'<div class="partymeta">BTW '+esc(klant.btw)+'</div>':'')+
       '</section>';
     const table='<table><thead><tr><th>Beschrijving</th><th class="num">Aantal</th><th>Eenheid</th>'+
-      (priced?'<th class="num">Tarief</th><th class="num">Subtotaal</th>':'')+
+      (priced?'<th class="num">Eenheidsprijs</th><th class="num">Subtotaal</th>':'')+
       '</tr></thead><tbody>'+lineRows+'</tbody></table>';
     const totals='<div class="totals">'+
       '<div class="trow"><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div>'+
-      '<div class="trow"><span>BTW '+esc(String(pct).replace(".",","))+'%</span><span>'+eur(tva)+'</span></div>'+
+      '<div class="trow"><span>btw '+esc(String(pct).replace(".",","))+'%</span><span>'+eur(tva)+'</span></div>'+
       '<div class="trow grand"><span>Totaal</span><span>'+eur(total)+'</span></div>'+
       '</div>';
     const css='*{box-sizing:border-box}'+
@@ -143,11 +143,11 @@ window.FamoDocuments=(()=>{
       '.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}'+
       '.banner{margin-top:14px;padding:10px 13px;border:1px solid #E5DDD3;border-radius:12px;background:#FAF6F0;color:#8A6110;font-size:11px;line-height:1.5}'+
       '.party{margin-top:24px}'+
-      'h2{margin:0 0 6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:#5F574E}'+
+      'h2{margin:0 0 6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
       '.partyname{font-size:14px;font-weight:600}'+
       '.partymeta{margin-top:3px;font-size:11.5px;line-height:1.55;color:rgba(25,21,18,.70)}'+
       'table{width:100%;border-collapse:collapse;margin-top:26px}'+
-      'thead th{padding:8px 10px;background:#F2ECE3;border-bottom:1px solid #E5DDD3;text-align:left;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:#5F574E}'+
+      'thead th{padding:8px 10px;background:#F2ECE3;border-bottom:1px solid #E5DDD3;text-align:left;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
       'td{padding:10px;border-bottom:1px solid #E5DDD3;text-align:left;vertical-align:top;font-size:12px}'+
       'td small{display:block;margin-top:2px;font-size:10.5px;color:rgba(25,21,18,.62)}'+
       '.num{text-align:right;white-space:nowrap}'+
@@ -156,7 +156,7 @@ window.FamoDocuments=(()=>{
       '.trow span:last-child{color:#191512}'+
       '.grand{margin-top:4px;border-top:2px solid #191512;padding-top:10px;font-size:18px;font-weight:600;color:#191512}'+
       '.bank{margin-top:24px;padding:13px 16px;border:1px solid #E5DDD3;border-radius:12px;background:#FAF6F0;font-size:11.5px;page-break-inside:avoid}'+
-      '.banklabel{margin-bottom:6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:#5F574E}'+
+      '.banklabel{margin-bottom:6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
       '.bankrow{display:flex;gap:14px;padding:2px 0}'+
       '.bankrow span{flex:none;width:92px;color:rgba(25,21,18,.62)}'+
       '.bankrow b{font-weight:600}'+

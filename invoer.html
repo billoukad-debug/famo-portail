@@ -28,20 +28,22 @@
 .qty button:hover{background:var(--f-panel)}
 .qty input{width:56px;height:44px;text-align:center;border:1px solid var(--f-line);border-radius:8px;font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
 .cmt-in{width:100%;min-height:44px;margin-top:6px;padding:8px 10px;border:1px solid var(--f-line);border-radius:8px;font-size:13px;background:var(--f-panel)}
-.cline{padding:8px 0;border-bottom:1px solid #f2f5f7;font-size:13.5px}.cline .r1{display:flex;justify-content:space-between;gap:10px}.cline .cm{font-size:12px;color:var(--f-muted);font-style:italic}
+.cline{padding:8px 0;border-bottom:1px solid var(--f-panel);font-size:13.5px}.cline .r1{display:flex;justify-content:space-between;gap:10px}.cline .cm{font-size:12px;color:var(--f-muted);font-style:italic}
 .total-row{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:12px;border-top:1px solid var(--f-line)}
 .total-row .val{font-weight:600;font-size:17px;font-variant-numeric:tabular-nums;color:var(--f-ink)}
-#totalBox .total-row .val{font-family:Georgia,"Iowan Old Style",serif;font-weight:500;font-size:26px;letter-spacing:-.012em;line-height:1.1}
+#totalBox .total-row .val{font-weight:500;font-size:26px;letter-spacing:-.012em;line-height:1.1;font-variant-numeric:tabular-nums}
 .empty{color:var(--f-quiet);font-size:13px;padding:12px 0;text-align:center}
 .ok-box{background:#E6F0E9;border:1px solid #C6DCCB;border-left:3px solid #1F6D4E;border-left-color:#1F6D4E!important;color:#1F6D4E;padding:13px 14px;border-radius:8px;margin-top:12px;font-size:13.5px;line-height:1.5;display:none}
 .ok-box.is-error{background:#FBF1EE!important;border-color:#E8CFC7!important;border-left-color:var(--f-danger)!important;color:var(--f-danger)!important}
 .ok-box svg{width:15px;height:15px;vertical-align:-2px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .review-box{margin-top:14px;padding:14px;border:1px solid var(--f-line);border-radius:8px;background:var(--f-panel)}
-.review-box h3{font-size:13px;margin:0 0 8px}.review-line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #e7ecef;font-size:13px}
+.review-box h3{font-size:13px;margin:0 0 8px}.review-line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--f-line);font-size:13px}
 .review-line:last-of-type{border-bottom:0}.review-meta{font-size:12px;color:var(--f-muted);line-height:1.6;margin-bottom:10px}
 .review-actions{display:flex;gap:8px;margin-top:12px}.review-actions button{flex:1;min-height:44px;border-radius:8px;border:1px solid var(--f-line);font-weight:600;cursor:pointer;background:#fff}
-.review-actions .confirm{border-color:var(--f-ink);background:var(--f-ink);color:#fff}
-.btn-p{width:100%;min-height:44px;margin-top:14px;border:1px solid var(--f-ink);border-radius:8px;background:var(--f-ink);color:#fff;font-weight:600;cursor:pointer}
+.review-actions .confirm{border-color:var(--f-accent);background:var(--f-accent);color:#fff}
+.review-actions .confirm:hover{border-color:var(--f-accent-2);background:var(--f-accent-2)}
+.btn-p{width:100%;min-height:44px;margin-top:14px;border:1px solid var(--f-accent);border-radius:8px;background:var(--f-accent);color:#fff;font-weight:600;cursor:pointer}
+.btn-p:hover:not(:disabled){border-color:var(--f-accent-2);background:var(--f-accent-2)}
 .btn-p:disabled{opacity:.55;cursor:default}
 @media(max-width:880px){.invoer-grid{grid-template-columns:1fr}.invoer-card.sticky{position:static;order:-1}}
 @media(max-width:560px){.prow{align-items:flex-start;flex-wrap:wrap}.pinfo{min-width:100%}.qty{width:100%;justify-content:flex-end}}
@@ -53,7 +55,7 @@
   <div>
     <h1>Bestelling invoeren</h1>
     <p>Voor telefoon- en WhatsApp-bestellingen</p>
-    <input id="code" type="password" placeholder="Toegangscode (personeel of beheerder)" autocomplete="current-password">
+    <input id="code" type="password" placeholder="Toegangscode (beheerder)" autocomplete="current-password">
     <button type="button" onclick="enter()">Aanmelden</button>
     <div id="err" class="staff-login-error" role="alert"></div>
   </div>
@@ -75,7 +77,7 @@
         <h2 style="margin-top:18px">Artikelen</h2>
         <div id="catalogue"></div>
       </div>
-      <div id="noClient" class="empty">Kies eerst een klant om de artikelen en zijn prijzen te zien.</div>
+      <div id="noClient" class="empty">Kies eerst een klant om de artikelen en de klantprijzen te zien.</div>
     </div>
 
     <div class="invoer-card sticky">
@@ -112,14 +114,29 @@ let CLIENTS=[], PRODUCTS=[], panier={}, comments={}, SRC="WhatsApp", CID="";
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 
-async function showAppAfterSession(){
-  const r=await famoStaff.api("/api/staff"),d=await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error||"Sessie ongeldig");
-  CLIENTS=d.clients||[];
-  document.getElementById("clientSel").innerHTML='<option value="">— Kies een klant —</option>'+
-    CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(c.nom)+'</option>').join("");
-  const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); const p=n=>String(n).padStart(2,"0"); document.getElementById("dateLiv").value=tomorrow.getFullYear()+"-"+p(tomorrow.getMonth()+1)+"-"+p(tomorrow.getDate());
+function showLoadError(msg,retryName){
+  document.getElementById("catBox").classList.add("hidden");
+  const box=document.getElementById("noClient");
+  box.classList.remove("hidden");
+  box.innerHTML='<div class="staff-error">'+esc(msg)+'<br><button type="button" class="staff-action-secondary" style="margin-top:10px" onclick="'+esc(retryName)+'()">Opnieuw proberen</button></div>';
 }
+async function showAppAfterSession(){
+  try{
+    const r=await famoStaff.api("/api/staff"),d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(famoStaff.translateError(d.error||"De klantenlijst kon niet worden geladen."));
+    CLIENTS=d.clients||[];
+    document.getElementById("clientSel").innerHTML='<option value="">— Kies een klant —</option>'+
+      CLIENTS.map(c=>'<option value="'+c.id+'">'+esc(c.nom)+'</option>').join("");
+    const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1); const p=n=>String(n).padStart(2,"0"); document.getElementById("dateLiv").value=tomorrow.getFullYear()+"-"+p(tomorrow.getMonth()+1)+"-"+p(tomorrow.getDate());
+    const box=document.getElementById("noClient");
+    box.textContent="Kies eerst een klant om de artikelen en de klantprijzen te zien.";
+    if(CID) box.classList.add("hidden");
+  }catch(e){
+    if(e&&e.sessionExpired) return;
+    showLoadError(famoStaff.translateError(e.message||"De klantenlijst kon niet worden geladen."),"retryBoot");
+  }
+}
+function retryBoot(){showAppAfterSession()}
 
 const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"loginView",appView:"app",requireAdmin:true,onReady:showAppAfterSession});
 function enter(){loginCtl.enter()}
@@ -128,15 +145,22 @@ async function logout(){await loginCtl.logout()}
 async function loadClient(){
   CID=document.getElementById("clientSel").value;
   panier={}; comments={}; renderCart();
-  if(!CID){ document.getElementById("catBox").classList.add("hidden"); document.getElementById("noClient").classList.remove("hidden"); return; }
-  const r=await famoStaff.api("/api/staff?client="+encodeURIComponent(CID));
-  const d=await r.json();
-  PRODUCTS=d.products||[];
-  document.getElementById("noClient").classList.add("hidden");
-  const catBox=document.getElementById("catBox");
-  catBox.classList.remove("hidden");
-  catBox.classList.remove("f-enter"); void catBox.offsetWidth; catBox.classList.add("f-enter");
-  renderCatalogue();
+  const noClient=document.getElementById("noClient");
+  if(!CID){ document.getElementById("catBox").classList.add("hidden"); noClient.textContent="Kies eerst een klant om de artikelen en de klantprijzen te zien."; noClient.classList.remove("hidden"); return; }
+  try{
+    const r=await famoStaff.api("/api/staff?client="+encodeURIComponent(CID));
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(famoStaff.translateError(d.error||"De artikelen konden niet worden geladen."));
+    PRODUCTS=d.products||[];
+    noClient.classList.add("hidden");
+    const catBox=document.getElementById("catBox");
+    catBox.classList.remove("hidden");
+    catBox.classList.remove("f-enter"); void catBox.offsetWidth; catBox.classList.add("f-enter");
+    renderCatalogue();
+  }catch(e){
+    if(e&&e.sessionExpired) return;
+    showLoadError(famoStaff.translateError(e.message||"De artikelen konden niet worden geladen."),"loadClient");
+  }
 }
 
 function renderCatalogue(){
@@ -202,7 +226,7 @@ async function send(){
     box.classList.remove("is-error");
     box.classList.remove("f-enter"); void box.offsetWidth; box.classList.add("f-enter");
     box.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg> <b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+
-      '<br>Ze staat nu in het magazijn onder « Ontvangen ».'+
+      '<br>De bestelling staat nu in het magazijn onder ‘Ontvangen’.'+
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
       (d.id?'<a class="staff-action" href="/entrepot.html?id='+encodeURIComponent(d.id)+'">Open in Magazijn</a>':'<a class="staff-action" href="/entrepot.html">Open Magazijn</a>')+
       (d.id?'<a class="staff-action-secondary" href="/order.html?id='+encodeURIComponent(d.id)+'">Open bestelling</a>':'')+

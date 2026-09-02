@@ -87,7 +87,7 @@
       if (codeEl) {
         try { codeEl.focus(); } catch (e) { /* ignore */ }
       }
-      const errEl = document.getElementById("err");
+      const errEl = document.getElementById("err") || document.getElementById("loginError");
       if (errEl) errEl.textContent = "Sessie verlopen. Meld u opnieuw aan.";
       return true;
     }
@@ -104,7 +104,7 @@
     if (r.status === 401) {
       saveReturn();
       try {
-        document.dispatchEvent(new CustomEvent("famo:session-expired", { detail: { url: clean } }));
+        document.dispatchEvent(new CustomEvent("famo:session-expired", { bubbles: true, detail: { url: clean } }));
       } catch (e) { /* ignore */ }
       showLoginAfterExpiry();
       const err = new Error("Sessie verlopen. Meld u opnieuw aan.");
@@ -237,7 +237,7 @@
         box = document.createElement("div");
         box.id = "famoAdminDenied";
         box.setAttribute("role", "alert");
-        box.style.cssText = "max-width:420px;margin:15vh auto;padding:24px;text-align:center;font-family:Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#333";
+        box.style.cssText = "max-width:420px;margin:15vh auto;padding:24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#191512";
         box.innerHTML = '<h2 style="margin:0 0 10px;font-size:18px">Enkel voor beheerders</h2>' +
           '<p style="color:#666;margin:0 0 18px;line-height:1.5">Deze pagina is beperkt tot de beheerder. Neem contact op als u hier toegang toe nodig hebt.</p>' +
           '<a href="/bestellingen.html" style="color:#111;font-weight:600">Terug naar Bestellingen</a>';

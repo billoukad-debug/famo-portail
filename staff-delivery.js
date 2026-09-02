@@ -62,6 +62,7 @@
     const recipient = recipientEl ? recipientEl.value.trim() : "";
     const proofUrl = proofEl ? proofEl.value.trim() : "";
     if (!recipient) {
+      toast("Vul de naam van de ontvanger in.", true);
       if (recipientEl) recipientEl.focus();
       return;
     }

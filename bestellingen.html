@@ -25,22 +25,22 @@
 .m-card{display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
 .m-card-top{display:flex;align-items:baseline;gap:8px}
 .m-card-date{margin-left:auto;color:var(--f-quiet);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.m-card-date.m-late{color:#A8371F} /* brique sur blanc : 6,5:1 (calculé) */
+.m-card-date.m-late{color:var(--f-danger)} /* brique #A8371F sur blanc : 6,5:1 (calculé) */
 .m-card-client{margin-top:5px;font-size:14px;font-weight:500;letter-spacing:-.005em}
 .m-card-lines{margin-top:3px;color:var(--f-quiet);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .m-card-foot{display:flex;align-items:center;gap:8px;margin-top:9px}
 .m-pay{color:var(--f-quiet);font-size:11.5px}
-.m-pay.open{color:#8A6110} /* ambre sur blanc : 5,5:1 (calculé) */
+.m-pay.open{color:var(--f-warning)} /* ambre #8A6110 sur blanc : 5,5:1 (calculé) */
 .m-card-total{margin-left:auto;font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums}
 .m-col .staff-empty.f-empty{padding:26px 12px;gap:4px}
 .m-col .f-empty p{font-size:12.5px}
 /* Références et alertes */
-.order-ref{font:500 12.5px Geist Mono,ui-monospace,monospace}
-.order-alert{display:inline-flex;align-items:center;gap:5px;color:#8A6110;font-size:11.5px}
-.order-alert:before{content:"!";display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#fff2d5;font-weight:600}
+.order-ref{font:500 12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.order-alert{display:inline-flex;align-items:center;gap:5px;color:var(--f-warning);font-size:11.5px}
+.order-alert:before{content:"!";display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--f-warning-wash,#FBF3DF);font-weight:600}
 .orders-note{margin-top:16px;color:var(--f-quiet);font-size:12px}
 .orders-state{margin-top:20px}
-.staff-attention{margin-top:18px;padding:14px 16px;border:1px solid var(--f-line);border-radius:12px;background:#fff}
+.staff-attention{margin-top:18px;padding:14px 16px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface)}
 .staff-attention h2{margin:0 0 10px;font-size:14px;font-weight:600}
 .staff-attention-list{display:flex;flex-direction:column;gap:0}
 .staff-attention-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--f-panel);text-decoration:none;color:var(--f-ink)}
@@ -82,7 +82,7 @@
     <section id="summary" class="m-pulse" aria-label="Bestellingstellers"></section>
     <div id="state" class="orders-state"></div>
     <section id="board" class="m-board" aria-label="Bestellingen per status"></section>
-    <p class="orders-note">Prijzen worden server-side berekend en bij het aanmaken bevroren. Open een bestelling voor voorbereiding, levering en documenten.</p>
+    <p class="orders-note">Prijzen worden op de server berekend en bij het aanmaken vastgezet. Open een bestelling voor voorbereiding, levering en documenten.</p>
   </div></main>
 </div>
 <script src="/staff-session.js"></script>
@@ -132,11 +132,17 @@ async function load(){
   const state=document.getElementById("state");
   state.innerHTML='<div class="staff-loading"><div class="staff-skeleton" style="max-width:220px;margin:0 auto"></div><div class="staff-skeleton" style="max-width:380px;margin:12px auto 0"></div></div>';
   try{
-    const [a,b]=await Promise.all([famoStaff.api("/api/allorders"),famoStaff.api("/api/stock")]);
-    const ad=await a.json().catch(()=>({})),bd=await b.json().catch(()=>({}));
+    /* /api/stock is enkel voor beheerders : personeel vraagt het niet op (anders 401-lus) en een mislukte stockcall mag de pagina nooit breken. */
+    const wantStock=famoStaff.getRole()==="admin";
+    const [a,b]=await Promise.all([
+      famoStaff.api("/api/allorders"),
+      wantStock?famoStaff.api("/api/stock").catch(()=>null):Promise.resolve(null)
+    ]);
+    const ad=await a.json().catch(()=>({}));
     if(!a.ok)throw new Error(ad.error||"Bestellingen konden niet worden geladen.");
     ORDERS=ad.orders||[];
-    STOCK=b.ok?(bd.items||[]):[];
+    STOCK=[];
+    if(b&&b.ok){const bd=await b.json().catch(()=>({}));STOCK=bd.items||[]}
     LAST_ERROR="";
     render();
   }catch(error){LAST_ERROR=famoStaff.translateError(error.message||"Netwerkfout.");render()}
@@ -185,7 +191,6 @@ function renderChips(){
   const open=ORDERS.filter(o=>o.statut!=="Facturée").length;
   const confirm=ORDERS.filter(o=>o.statut==="Sortie en livraison").length;
   const unpaid=ORDERS.filter(o=>o.paiement==="En attente").length;
-  const low=STOCK.filter(x=>x.lowThreshold>0&&x.quantity<=x.lowThreshold).length;
   const late=ORDERS.filter(o=>dayKey(o.dateLiv)&&dayKey(o.dateLiv)<t&&o.statut!=="Facturée").length;
   const attn=ORDERS.filter(isAttention).length;
   const chips=[

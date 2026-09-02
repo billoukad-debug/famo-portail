@@ -71,9 +71,18 @@
       '><span class="staff-nav-icon ' + item.icon + '">' + iconSvg(item.icon) + "</span>" + item.label + "</a>";
   }
 
+  // Uitloggen via une fonction nommée globale : scripts/check.js ne comprend
+  // pas les appels chaînés (a.b()) dans les onclick inline.
+  global.famoNavLogout = function () {
+    const staff = global.famoStaff;
+    if (staff && typeof staff.logout === "function") {
+      staff.logout().then(function () { location.reload(); });
+    }
+    return false;
+  };
+
   function sidebarHtml(active, isAdmin) {
     active = active || detectActive();
-    const logout = "famoStaff.logout().then(function(){location.reload()})";
     // Zone administration : uniquement pour l'admin (le serveur refuse de toute façon).
     const adminBlock = isAdmin
       ? '<div class="staff-nav-label meer-label">Beheer</div>' +
@@ -88,7 +97,7 @@
       '<div class="staff-nav-foot"><a class="staff-setup-link" href="/" target="_blank" rel="noopener">Klantportaal bekijken ↗</a></div>' +
       '<div class="staff-session"><span class="staff-session-avatar">' + (isAdmin ? "BH" : "PM") + '</span>' +
       '<div><b>' + (isAdmin ? "Beheerder" : "Personeel") + '</b><small>Famo Trading</small></div>' +
-      '<a href="#" onclick="' + logout + ';return false">Uitloggen</a></div>';
+      '<a href="#" onclick="famoNavLogout();return false">Uitloggen</a></div>';
   }
 
   function mobileHtml(active, isAdmin) {
@@ -171,7 +180,7 @@
       const banner = document.createElement("div");
       banner.className = "staff-setup-banner";
       banner.setAttribute("role", "status");
-      banner.innerHTML = "Setup nog niet afgerond (" + gaps.join(", ") + ") — ga naar <a href=\"/beheer.html\">Beheer</a>.";
+      banner.innerHTML = "De configuratie is nog niet afgerond (" + gaps.join(", ") + ") — ga naar <a href=\"/beheer.html\">Beheer</a>.";
       main.insertBefore(banner, main.firstChild);
     }).catch(() => {});
   }

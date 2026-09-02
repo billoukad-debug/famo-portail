@@ -23,9 +23,9 @@
 .d-id{display:flex;align-items:center;gap:10px;min-width:0}
 .d-ico{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--f-panel);color:var(--f-quiet)}
 .d-ico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.d-num{display:block;font:500 12px Geist Mono,ui-monospace,monospace;color:var(--f-ink)}
+.d-num{display:block;font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--f-ink)}
 .d-type{display:block;margin-top:2px;color:var(--f-quiet);font-size:11px}
-.d-ref{font:500 12px Geist Mono,ui-monospace,monospace;color:var(--f-accent);text-decoration:none}
+.d-ref{font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--f-accent);text-decoration:none}
 .d-ref:hover{text-decoration:underline}
 .d-amt{text-align:right;font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap}
 .d-act{text-align:right}
@@ -47,7 +47,7 @@
 <section id="login" class="staff-login">
   <div>
     <h1>Documenten</h1>
-    <p>Zoek leveringsbonnen en facturen uit de echte bestellingen.</p>
+    <p>Zoek leveringsbonnen en facturen uit de bestellingen.</p>
     <input id="code" type="password" autocomplete="current-password" placeholder="Toegangscode (personeel of beheerder)">
     <button onclick="enter()">Aanmelden</button>
     <div id="err" class="staff-login-error" role="alert"></div>
@@ -128,7 +128,7 @@ function makeDocs(){
     DOCS.push({order:o,type:"credit",label:"Creditnota (voorbeeld)",number:FamoDocuments.number(o,"credit"),available:hasFa,reason:hasFa?"Voorbeeld — niet geboekt in Airtable":"Beschikbaar na factuur",date:o.factureeLe||"",amount:hasFa?-Math.abs(Number(o.total||0)):null});
   });
 }
-const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"login",appView:"app",requireAdmin:true,onReady:load});
+const loginCtl=famoStaff.bindLogin({code:"code",error:"err",loginView:"login",appView:"app",onReady:load});
 function enter(){loginCtl.enter()}
 async function loadCompany(){
   try{
@@ -170,7 +170,7 @@ function icoPaths(t){
   return '<path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14.5 3.5V8H19"/><path d="M9.5 12.5h5M9.5 16h5"/>';
 }
 function ico(t){return '<span class="d-ico" aria-hidden="true"><svg viewBox="0 0 24 24">'+icoPaths(t)+'</svg></span>'}
-function act(d){return d.available?'<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Voorbeeld</button>':(d.type==="invoice"?'<a class="staff-action-secondary" href="/beheer.html">Vul IBAN in</a>':'')}
+function act(d){return d.available?'<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Bekijken</button>':(d.type==="invoice"?'<a class="staff-action-secondary" href="/beheer.html">Vul IBAN in</a>':'')}
 function row(d){
   return '<tr'+(d.available?'':' class="d-blocked"')+'><td><div class="d-id">'+ico(d.type)+'<div><span class="d-num">'+esc(d.number)+'</span><span class="d-type">'+d.label+'</span></div></div></td>'
     +'<td><a class="d-ref" href="/order.html?id='+encodeURIComponent(d.order.id)+'">'+esc(d.order.ref)+'</a></td>'
@@ -207,7 +207,7 @@ function preview(type,id){
       title:"Factuur geblokkeerd",
       meta:order.ref||"",
       filename:"geblokkeerd.txt",
-      html:"<!doctype html><html><body style='font-family:sans-serif;padding:32px'><h1>Factuur geblokkeerd</h1><p>"+FamoDocuments.esc(msg)+"</p><p><a href='/aan-de-slag.html'>Open Aan de slag</a></p></body></html>"
+      html:"<!doctype html><html><body style='font-family:sans-serif;padding:32px'><h1>Factuur geblokkeerd</h1><p>"+FamoDocuments.esc(msg)+"</p><p><a href='/beheer.html'>Open Beheer</a></p></body></html>"
     });
     return;
   }

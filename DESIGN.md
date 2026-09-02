@@ -43,9 +43,15 @@ Les deux références disent la même chose sous deux costumes. Ce qu'on en gard
 --f-accent:      #0C6157   /* action unique, lien, état actif */
 --f-accent-2:    #084A42   /* survol / pressé */
 --f-accent-wash: #E0EDE8   /* fond d'un état sélectionné */
---f-gold:        #C79A2F   /* favori actif, et rien d'autre */
+--f-gold:        #A87D1B   /* favori actif, et rien d'autre — 3,47:1 sur canvas (#C79A2F tombait à 2,41:1) */
 --f-danger:      #A8371F   /* erreur, suppression */
+--f-warning-wash:#FBF3DF   /* fond de bandeau d'avertissement — texte #6B4E0B dessus : 6,9:1 */
+--f-warning-line:#E7D6A9   /* filet assorti au lavis d'avertissement */
+--f-success-wash:#E6F0E9   /* fond d'état de succès — texte #1F6D4E dessus : 5,2:1 */
+--f-success-line:#C6DCCB   /* filet assorti au lavis de succès */
 ```
+
+Les quatre lavis d'état sont déclarés une seule fois dans le `:root` de `staff.css` ; `beheer.html` les consomme avec des replis (`var(--f-warning-wash, #FBF3DF)`).
 
 **Hiérarchie de l'encre** : 100 % titres · 70 % corps · **58 %** titres de section · 28 % inactif.
 
@@ -86,6 +92,11 @@ Zéro ombre sur le contenu. Ombre uniquement pour une vraie élévation (panier 
 Le couple prix négocié / prix public barré est l'objet le plus chargé de tout le portail : c'est la relation commerciale rendue visible. Il doit devenir **le moment typographique de l'écran** — chiffre grand et serré, prix public petit et barré au-dessus, « uw prijs » traité comme une annotation et non comme une étiquette.
 
 Ce dispositif n'apparaît **nulle part ailleurs**. Sur un produit sans prix négocié, l'espace reste vide — ce qui le rend plus fort quand il apparaît.
+
+## Amendements de charte — décidés, ne pas « corriger » dans l'autre sens
+
+1. **Répétition de l'accent sur les boards et listes.** La règle « une seule action accent par écran » se lit : **un seul *type* d'action accent par écran**. Sur un board ou une liste, le même type d'action accent peut se répéter sur chaque carte (p. ex. « Bevestigen » sur chaque commande) — c'est une seule action, multipliée par les cartes, pas plusieurs actions concurrentes.
+2. **L'annotation « uw prijs » du prijzenpaar** reste en **Georgia italique 12px**, sous le seuil des 22px réservé au serif. Exception signature assumée : c'est le seul endroit du portail où le serif descend sous le seuil, précisément parce que le prijzenpaar est le moment typographique de l'écran.
 
 ---
 

@@ -13,7 +13,7 @@
 .b-tabs button.active{color:var(--f-ink)}
 .b-tabs button.active::after{transform:scaleX(1);animation:b-tab-in .15s cubic-bezier(.2,.7,.3,1)}
 @keyframes b-tab-in{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-.b-tabs button .n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;border-radius:12px;background:var(--f-accent);color:#fff;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+.b-tabs button .n{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:7px;border-radius:9999px;background:var(--f-accent);color:#fff;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
 .b-panel{margin-top:24px}
 /* Tete de section : capitales suivies en .62, phrase d'aide en .62. */
 .b-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:14px}
@@ -26,9 +26,9 @@
 .b-card{border:1px solid var(--f-line);border-radius:12px;background:#fff;padding:15px 16px}
 .b-card .v{display:block;font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .b-card .l{display:block;font-size:11.5px;color:var(--f-quiet);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-weight:600}
-.b-card.warn{border-color:#E7D6A9;background:#FBF3DF}
-.b-card.warn .v{color:#8A6110}
-.b-card.ok .v{color:#1F6D4E}
+.b-card.warn{border-color:var(--f-warning-line,#E7D6A9);background:var(--f-warning-wash,#FBF3DF)}
+.b-card.warn .v{color:var(--f-warning)}
+.b-card.ok .v{color:var(--f-success)}
 /* Checklist de completude : coche accent = fait, cercle vide = a faire. */
 .b-checklist{border:1px solid var(--f-line);border-radius:12px;background:#fff;overflow:hidden}
 .b-meter{height:2px;background:var(--f-panel)}
@@ -70,20 +70,20 @@
 .b-acts{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
 .b-check{display:flex;gap:9px;align-items:center;font-size:13.5px;color:var(--f-muted);font-weight:500}
 .b-check input{width:auto}
-.b-creds{margin-top:15px;border:1px solid #C6DCCB;background:#E6F0E9;border-radius:12px;padding:15px}
-.b-creds small{display:block;font-size:11.5px;color:#1F6D4E;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+.b-creds{margin-top:15px;border:1px solid var(--f-success-line,#C6DCCB);background:var(--f-success-wash,#E6F0E9);border-radius:12px;padding:15px}
+.b-creds small{display:block;font-size:11.5px;color:var(--f-success);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
 .b-creds .kv{display:flex;gap:10px;align-items:baseline;margin-bottom:5px;font-size:13px}
 .b-creds .kv i{font-style:normal;color:var(--f-muted);min-width:88px}
-.b-creds code{font:600 13.5px Geist Mono,ui-monospace,monospace;background:#fff;border:1px solid #CFE0D6;border-radius:6px;padding:3px 8px}
+.b-creds code{font:600 13.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;border:1px solid var(--f-success-line,#C6DCCB);border-radius:6px;padding:3px 8px}
 .b-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--f-ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:13.5px;z-index:200;display:none;max-width:min(560px,92vw);line-height:1.5;box-shadow:0 10px 34px rgba(60,45,30,.22)}
-.b-toast.err{background:#a4362a}
-.b-note{border:1px solid #E7D6A9;background:#FBF3DF;color:#6B4E0B;border-radius:12px;padding:13px 15px;font-size:13px;line-height:1.55;margin-bottom:16px}
+.b-toast.err{background:var(--f-danger)}
+.b-note{border:1px solid var(--f-warning-line,#E7D6A9);background:var(--f-warning-wash,#FBF3DF);color:var(--f-warning);border-radius:12px;padding:13px 15px;font-size:13px;line-height:1.55;margin-bottom:16px}
 .b-note a{color:var(--f-ink);font-weight:600}
 .b-search{margin-bottom:13px;display:flex;gap:9px;flex-wrap:wrap}
 .b-search input{flex:1;min-width:210px}
 @media(max-width:620px){.b-row .acts{width:100%}.b-row .acts button{flex:1}}
-.b-danger{border:1px solid #E8CFC7;background:#FBF1EE;color:var(--f-danger);min-height:38px;padding:0 14px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer}
-.b-danger:hover{background:#F6E3DD}
+.b-danger{border:1px solid rgba(168,55,31,.25);background:rgba(168,55,31,.06);color:var(--f-danger);min-height:38px;padding:0 14px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer}
+.b-danger:hover{background:rgba(168,55,31,.12)}
 /* Toegang : deux roles en cartes surface, badge d'etat de code, formulaire sous filet.
    Contrastes calcules : #1F6D4E sur #E6F0E9 = 5,4:1 · #8A6110 sur #FBF3DF = 5,0:1. */
 .b-roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}
@@ -96,8 +96,8 @@
 .b-role p.b-role-hint{margin-bottom:14px;color:var(--f-quiet);font-size:12.5px}
 .b-role-form{border-top:1px solid var(--f-line);padding-top:14px}
 .b-badge{display:inline-flex;align-items:center;margin-left:auto;min-height:22px;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
-.b-badge.ok{background:#E6F0E9;border:1px solid #C6DCCB;color:#1F6D4E}
-.b-badge.env{background:#FBF3DF;border:1px solid #E7D6A9;color:#8A6110}
+.b-badge.ok{background:var(--f-success-wash,#E6F0E9);border:1px solid var(--f-success-line,#C6DCCB);color:var(--f-success)}
+.b-badge.env{background:var(--f-warning-wash,#FBF3DF);border:1px solid var(--f-warning-line,#E7D6A9);color:var(--f-warning)}
 .b-footnote{margin:0 0 16px;color:var(--f-quiet);font-size:13px;line-height:1.5}
 .b-footnote a{color:var(--f-accent);font-weight:500}
 </style></head><body>
@@ -224,7 +224,7 @@ function renderOverzicht(p,s){
     {done:(s.clients||0)>0&&!(s.klantenZonderEmail||0),label:"Elke klant heeft een e-mailadres",tab:"klanten",go:"Klanten",
       hint:(s.klantenZonderEmail?s.klantenZonderEmail+" klant"+(s.klantenZonderEmail>1?"en":"")+" zonder adres krijgt geen bestelbevestiging.":"Nodig voor de bestelbevestiging.")},
     {done:!!s.mailReady,label:"Bestelmeldingen ingesteld",tab:"bedrijf",go:"Bedrijfsgegevens",
-      hint:(s.mailEnabled?"Een melding per nieuwe bestelling in uw eigen postbus.":"Verzenden is nog niet geconfigureerd op de server.")},
+      hint:(s.mailEnabled?"Bij elke nieuwe bestelling ontvangt u een e-mail op dit adres.":"Verzenden is nog niet geconfigureerd op de server.")},
     {done:!!(c.adminCodeCustom&&c.staffCodeCustom),label:"Eigen toegangscodes ingesteld",tab:"toegang",go:"Toegang",
       hint:"Vervang de codes uit de Vercel-omgeving door eigen codes."},
     {done:!nA,label:"Geen openstaande aanvragen",tab:"aanvragen",go:"Aanvragen",
@@ -237,7 +237,7 @@ function renderOverzicht(p,s){
   p.innerHTML=warn+
     '<div class="b-head"><div><h2>In cijfers</h2><p>De stand van het portaal op dit moment.</p></div></div>'+
     '<div class="b-cards">'+cards.map(c2=>'<div class="b-card '+c2[2]+'"><span class="v">'+c2[0]+'</span><span class="l">'+esc(c2[1])+'</span></div>').join("")+'</div>'+
-    '<div class="b-head" style="margin-top:30px"><div><h2>Klaar om te verkopen</h2><p>Alles aangevinkt? Dan staat het portaal volledig op punt. Klik op een punt om het meteen te regelen.</p></div><span class="b-progress">'+done+'<i> / '+items.length+'</i></span></div>'+
+    '<div class="b-head" style="margin-top:30px"><div><h2>Klaar om te verkopen</h2><p>Alles aangevinkt? Dan is het portaal helemaal klaar voor gebruik. Klik op een punt om het meteen te regelen.</p></div><span class="b-progress">'+done+'<i> / '+items.length+'</i></span></div>'+
     '<div class="b-checklist"><div class="b-meter"><i style="width:'+pct+'%"></i></div>'+
       items.map(i=>
         '<button type="button" class="b-check-item'+(i.done?' is-done':'')+'" onclick="go(\''+i.tab+'\')">'+
@@ -292,7 +292,7 @@ function renderKlanten(p){
   let h='<div class="b-head"><div><h2>Klanten</h2><p>Elke klant heeft een eigen login voor het bestelportaal. Het wachtwoord is maar één keer zichtbaar: geef het meteen door.</p></div></div>';
 
   h+='<div class="b-form"><h3>'+(e?"Klant bewerken":"Nieuwe klant")+'</h3>'+
-    '<p class="hint">'+(e?'U bewerkt <b>'+esc(e.nom)+'</b>. Laat “nieuw wachtwoord” uit om het huidige te behouden.':(pf?'Vooringevuld vanuit de aanvraag van <b>'+esc(pf.nom)+'</b>.':'Gebruikersnaam en wachtwoord worden automatisch gegenereerd.'))+'</p>'+
+    '<p class="hint">'+(e?'U bewerkt <b>'+esc(e.nom)+'</b>. Vink “Nieuw wachtwoord genereren” alleen aan als u een nieuw wachtwoord wilt — anders blijft het huidige behouden.':(pf?'Vooringevuld vanuit de aanvraag van <b>'+esc(pf.nom)+'</b>.':'Gebruikersnaam en wachtwoord worden automatisch gegenereerd.'))+'</p>'+
     '<div class="b-grid">'+
     '<div class="full"><label>Bedrijfsnaam *</label><input class="staff-field" id="cnom" value="'+esc(e?e.nom:(pf?pf.nom:""))+'"></div>'+
     '<div class="full"><label>Leveradres</label><input class="staff-field" id="cadr" value="'+esc(e?e.adresse:(pf?pf.adresse:""))+'"></div>'+
@@ -351,7 +351,7 @@ async function saveClient(){
   }
   CREDS=creds;EDIT_CLIENT=null;PREFILL=null;
   render();
-  toast((payload.id?"Klant bijgewerkt":"Klant aangemaakt")+(warn?" — let op: de aanvraag kon niet als behandeld worden gemarkeerd, controleer dit om dubbels te vermijden.":""),warn);
+  toast((payload.id?"Klant bijgewerkt":"Klant aangemaakt")+(warn?" — let op: de aanvraag kon niet als behandeld worden gemarkeerd, controleer dit om dubbele klanten te vermijden.":""),warn);
 }
 async function resetPw(id){
   const d=await post({action:"resetPassword",id});
@@ -499,7 +499,7 @@ function renderBedrijf(p){
   const c=DATA.config||{},s=DATA.status||{};
   const isExample=String(c.iban||"").replace(/\s/g,"").toUpperCase()==="BE68539007547034";
   let h='<div class="b-head"><div><h2>Bedrijfsgegevens</h2><p>Deze gegevens staan op elke leveringsbon en factuur. Ze worden nooit aan klanten getoond behalve op documenten.</p></div></div>';
-  if(isExample) h+='<div class="b-note"><b>Let op:</b> het IBAN hieronder is nog het voorbeeldnummer. Facturen dragen dus rekeninggegevens die niet van Famo zijn. Vervang het vóór u een echte factuur verstuurt.</div>';
+  if(isExample) h+='<div class="b-note"><b>Let op:</b> het IBAN hieronder is nog het voorbeeldnummer. Facturen vermelden dan rekeninggegevens die niet van Famo zijn. Vervang het vóór u een echte factuur verstuurt.</div>';
   h+='<div class="b-form"><h3>Identiteit</h3><p class="hint">Naam, adres en nummers zoals ze bovenaan elk document verschijnen.</p><div class="b-grid">'+
     '<div class="full"><label>Bedrijfsnaam *</label><input class="staff-field" id="fnom" value="'+esc(c.bedrijfsnaam)+'"></div>'+
     '<div class="full"><label>Adres</label><input class="staff-field" id="fadr" value="'+esc(c.adres)+'"></div>'+
