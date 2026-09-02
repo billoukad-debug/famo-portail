@@ -117,14 +117,14 @@ test("klant: bestelling plaatsen met serverprijzen en e-mails", async () => {
   assert.equal(r.body.order.totalCents, 1600 * 2.5 + 2800 * 2);
   assert.equal(r.body.order.status, "ontvangen");
   assert.equal(box.mails.length - before, 2);
-  const team = box.mails.find((m) => m.subject.startsWith("Nieuwe bestelling " + orderRef));
+  const team = box.mails.find((m) => m.subject.endsWith(orderRef) && m.subject.startsWith("Bestelling voor"));
   assert.ok(team, "teammail");
   assert.deepEqual(team.to, ["bestellingen@famotrading.be"]);
   assert.match(team.html, /Bellen bij aankomst/);
   assert.match(team.html, /2,5 kg/);
   assert.match(team.html, /2 dozen/, "eenheden in het Nederlands");
   assert.ok(!/\d\s+(caisse|pièce|kassa)\b/.test(team.html), "geen Franse eenheden in e-mail");
-  const klant = box.mails.find((m) => m.subject === "Bevestiging van uw bestelling " + orderRef);
+  const klant = box.mails.find((m) => m.subject.includes("is ontvangen (" + orderRef + ")"));
   assert.deepEqual(klant.to, ["keuken@alohapoke.example"]);
   assert.ok(!klant.html.includes("bestellingen@famotrading.be"), "interne postbus lekt niet naar klant");
   assert.match(klant.html, /geen factuur/);
@@ -519,4 +519,48 @@ test("documenten: nette foutpagina in plaats van JSON", async () => {
   assert.equal(r.status, 404);
   assert.match(r.body, /<html/);
   assert.match(r.body, /Document niet gevonden/);
+});
+
+test("contant betaald: factuurmail en factuur zeggen niet 'overschrijven'; niet-geleverde lijn; sleutel tegen dubbele bestelling", async () => {
+  const cl = await get("t", "/api/team/klanten");
+  const aloha = cl.body.clients.find((x) => x.name === "Aloha Poke Bowls");
+  const cat = await get("t", "/api/team/klanten/" + aloha.id + "/catalogus");
+  const p = cat.body.catalogue[0], p2 = cat.body.catalogue[1];
+  const o = (await post("t", "/api/team/bestellingen", { klantId: aloha.id, items: [{ productId: p.id, qty: 2 }, { productId: p2.id, qty: 1 }], leverdatum: cat.body.deliveryDates[0].iso })).body.order;
+  // niet beschikbaar: lijn blijft staan met 0 en telt niet mee
+  const u = await post("t", "/api/team/bestellingen/" + o.id + "/lijnen", { lijnen: [{ name: p.name, qty: 2, unit: p.unit }, { name: p2.name, qty: 1, unit: p2.unit, unavailable: true, reason: "op" }], basis: o.linesText });
+  assert.equal(u.status, 200, JSON.stringify(u.body));
+  assert.equal(u.body.order.lines[1].unavailable, true);
+  assert.equal(u.body.order.totalCents, p.priceCents * 2);
+  assert.match(db.data.Commandes.find((x) => x.id === o.id).fields["Lignes (produits / quantités)"], /× 0 .*\(NIET GELEVERD — op\)/);
+  // verouderde basis -> 409
+  assert.equal((await post("t", "/api/team/bestellingen/" + o.id + "/lijnen", { lijnen: [{ name: p.name, qty: 3, unit: p.unit }], basis: o.linesText })).status, 409);
+  await post("t", "/api/team/bestellingen/" + o.id + "/klaar");
+  await post("t", "/api/team/bestellingen/" + o.id + "/onderweg");
+  const before = box.mails.length;
+  const d = await post("t", "/api/team/bestellingen/" + o.id + "/geleverd", { ontvanger: "Kenji", betaald: true });
+  assert.equal(d.status, 200);
+  assert.equal(d.body.order.paid, true);
+  const inv = box.mails.slice(before).find((m) => m.subject.startsWith("Factuur") && m.to[0] === "keuken@alohapoke.example");
+  assert.ok(inv, "factuurmail");
+  assert.match(inv.html, /contant betaald/);
+  assert.ok(!/over te schrijven op/.test(inv.html));
+  assert.match(inv.html, /NIET GELEVERD/);
+  const doc = await get("t", "/doc/factuur/" + o.id);
+  assert.match(doc.body, /contant bij levering/);
+  assert.ok(!/Over te schrijven/.test(doc.body));
+  assert.match(doc.body, /NIET GELEVERD/);
+  // sleutel: dezelfde bestelling twee keer sturen geeft dezelfde bestelling terug
+  assert.equal((await post("k3", "/api/klant/login", { login: "aloha", wachtwoord: "nieuwwachtwoord2" })).status, 200);
+  const me = await get("k3", "/api/klant/mij");
+  assert.equal(me.status, 200, JSON.stringify(me.body));
+  const body = { items: [{ productId: me.body.catalogue[0].id, qty: 1 }], leverdatum: me.body.deliveryDates[3].iso, sleutel: "abc-123-xyz" };
+  const a = await post("k3", "/api/klant/bestellen", body);
+  const b = await post("k3", "/api/klant/bestellen", body);
+  assert.equal(a.body.order.id, b.body.order.id);
+  assert.equal(b.body.duplicate, true);
+  // beheer-login met teamcode: 403 zonder cookie
+  const wrong = await post("z", "/api/team/login", { code: "team-test-code", rol: "admin" });
+  assert.equal(wrong.status, 403);
+  assert.equal((await get("z", "/api/team/sessie")).status, 401);
 });

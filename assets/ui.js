@@ -14,6 +14,7 @@
     try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { error: "Onverwacht antwoord van de server." }; }
     if (!res.ok) {
       if (res.status === 503 && data.notConfigured) K.showSetup(data.missing || []);
+      if (res.status === 401 && !/\/(login|wachtwoord-reset|wachtwoord-vergeten)$/.test(path)) document.dispatchEvent(new CustomEvent("kade:unauthorized", { detail: { path, message: data.error || "" } }));
       throw K.err(data.error || ("Fout " + res.status), res.status, data);
     }
     return data;
@@ -40,13 +41,16 @@
   K.addDays = function (iso, n) { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   K.relDay = function (iso) { const t = K.todayISO(); if (iso === t) return "Vandaag"; if (iso === K.addDays(t, 1)) return "Morgen"; if (iso === K.addDays(t, -1)) return "Gisteren"; return K.dateNl(iso); };
   K.unit = function (u, q) { const m = { kg: "kg", "pièce": "stuk", piece: "stuk", caisse: "doos", stuk: "stuk", doos: "doos" }; const l = m[String(u || "").toLowerCase()] || u || ""; if (Number(q) === 1 || !q) return l; if (l === "stuk") return "stuks"; if (l === "doos") return "dozen"; return l; };
+  K.humanDays = function (text) { const names = { ma: "maandag", di: "dinsdag", wo: "woensdag", do: "donderdag", vr: "vrijdag", za: "zaterdag", zo: "zondag" }; const order = ["ma", "di", "wo", "do", "vr", "za", "zo"]; const set = String(text || "").toLowerCase().split(/[\s,;]+/).filter((d) => names[d]); const idx = set.map((d) => order.indexOf(d)).sort((a, b) => a - b); if (!idx.length) return ""; const contiguous = idx.every((v, i) => i === 0 || v === idx[i - 1] + 1); if (contiguous && idx.length >= 3) return names[order[idx[0]]] + " tot en met " + names[order[idx[idx.length - 1]]]; const list = idx.map((i) => names[order[i]]); return list.length > 1 ? list.slice(0, -1).join(", ") + " en " + list[list.length - 1] : list[0]; };
+  K.share = async function (o) { if (navigator.share) { try { await navigator.share({ title: o.title || "", text: o.text || "", url: o.url }); return true; } catch (_) { return false; } } if (navigator.clipboard) { try { await navigator.clipboard.writeText(o.url); K.toast("Link gekopieerd", "ok"); return true; } catch (_) { /* niets */ } } window.prompt("Kopieer deze link:", o.url); return true; };
+  K.uuid = function () { try { return crypto.randomUUID(); } catch (_) { return "k" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); } };
   K.mapsUrl = function (address) { return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(String(address || "").replace(/\n/g, ", ")); };
   K.plural = function (n, one, many) { return n + " " + (Number(n) === 1 ? one : many); };
   K.inputNum = function (cents) { return (Number(cents || 0) / 100).toFixed(2).replace(".", ","); };
   K.parseNum = function (str) { const s = String(str == null ? "" : str).trim().replace(/\s|€/g, ""); if (!s) return NaN; const norm = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s; return Number(norm); };
   K.chip = function (key, label) { return '<span class="chip chip-' + K.esc(key) + '">' + K.esc(label) + "</span>"; };
   K.timeline = function (idx) {
-    const steps = ["Ontvangen", "Klaar", "Onderweg", "Geleverd"];
+    const steps = ["Ontvangen", "Klaargezet", "Onderweg", "Geleverd"];
     return '<div class="timeline">' + steps.map((s, i) => '<div class="step ' + (i < idx ? "done" : i === idx ? "now" : "") + '">' + s + "</div>").join("") + "</div>";
   };
 
@@ -87,6 +91,11 @@
   };
 
   // ---- Meldingen ------------------------------------------------------------------
+  K.renderFatal = function (container, message, retry) {
+    container.innerHTML = '<div class="login-wrap"><div class="card center"><div style="font-size:2.4rem">⚠️</div><h1>Even geen verbinding</h1><p class="muted">' + K.esc(message || "De server antwoordt niet. Probeer het opnieuw.") + '</p><button class="btn btn-primary btn-lg" id="fatalRetry">Opnieuw proberen</button></div></div>';
+    K.$("#fatalRetry", container).onclick = () => { container.innerHTML = '<div class="skeleton" style="height:120px"></div>'; retry(); };
+  };
+  K.closeSheets = function () { while (sheets.length) sheets[sheets.length - 1].close(); };
   K.toast = function (msg, kind, ms) {
     let box = K.$(".toasts");
     if (!box) { box = K.el('<div class="toasts" aria-live="polite"></div>'); document.body.appendChild(box); }
@@ -97,6 +106,8 @@
 
   // ---- Bladen (sheet) ---------------------------------------------------------------
   const sheets = [];
+  let sheetSeq = 0;
+  window.addEventListener("popstate", () => { const top = sheets[sheets.length - 1]; if (top && top.pushed && history.state && history.state.sheet !== top.id) { top.pushed = false; top.close(); } else if (top && top.pushed && !history.state) { top.pushed = false; top.close(); } });
   K.sheet = function (opts) {
     const o = opts || {};
     const back = K.el('<div class="sheet-back' + (o.center ? " center" : "") + '" role="dialog" aria-modal="true"><div class="sheet' + (o.wide ? " wide" : "") + '">' +
@@ -105,13 +116,23 @@
     const body = K.$(".sheet-body", back), foot = K.$(".sheet-foot", back);
     if (typeof o.body === "string") body.innerHTML = o.body; else if (o.body) body.appendChild(o.body);
     if (foot) { if (typeof o.footer === "string") foot.innerHTML = o.footer; else if (o.footer) foot.appendChild(o.footer); else foot.remove(); }
-    const close = () => { back.remove(); sheets.splice(sheets.indexOf(api), 1); if (o.onClose) o.onClose(); document.body.style.overflow = sheets.length ? "hidden" : ""; };
+    let closed = false;
+    const close = () => {
+      if (closed) return; closed = true;
+      back.remove(); const i = sheets.indexOf(api); if (i >= 0) sheets.splice(i, 1);
+      document.removeEventListener("keydown", esc);
+      if (api.pushed) { api.pushed = false; history.back(); }
+      if (o.onClose) o.onClose();
+      document.body.style.overflow = sheets.length ? "hidden" : "";
+    };
     back.addEventListener("click", (e) => { if (e.target === back || e.target.closest("[data-close]")) close(); });
-    const esc = (e) => { if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); } };
+    const esc = (e) => { if (e.key === "Escape") close(); };
     document.addEventListener("keydown", esc);
     document.body.appendChild(back);
     document.body.style.overflow = "hidden";
-    const api = { el: back, body, foot, close };
+    const api = { el: back, body, foot, close, id: ++sheetSeq, pushed: false };
+    // Terugknop of veeg-terug sluit het blad in plaats van de app te verlaten.
+    try { history.pushState({ sheet: api.id }, ""); api.pushed = true; } catch (_) { /* geen historiek */ }
     sheets.push(api);
     const first = K.$("input,select,textarea,button:not([data-close])", body);
     if (first && o.focus !== false) setTimeout(() => first.focus(), 50);
@@ -122,7 +143,7 @@
       const s = K.sheet({
         title: o.title || "Bent u zeker?", center: true,
         body: '<p>' + K.esc(o.text || "") + "</p>",
-        footer: '<div class="row" style="justify-content:flex-end"><button class="btn btn-outline" data-no>' + K.esc(o.no || "Annuleren") + '</button><button class="btn ' + (o.danger ? "btn-danger" : "btn-accent") + '" data-yes>' + K.esc(o.yes || "Bevestigen") + "</button></div>",
+        footer: '<div class="row" style="justify-content:flex-end"><button class="btn btn-outline" data-no>' + K.esc(o.no || "Terug") + '</button><button class="btn ' + (o.danger ? "btn-danger" : "btn-primary") + '" data-yes>' + K.esc(o.yes || "Bevestigen") + "</button></div>",
         onClose: () => resolve(false)
       });
       K.$("[data-no]", s.el).onclick = () => s.close();
@@ -133,12 +154,12 @@
     return new Promise((resolve) => {
       const s = K.sheet({
         title: o.title || "", center: true,
-        body: '<div class="field"><label>' + K.esc(o.label || "") + '</label><' + (o.multiline ? 'textarea class="textarea"' : 'input class="input" type="' + (o.type || "text") + '"') + ' data-v placeholder="' + K.esc(o.placeholder || "") + '">' + (o.multiline ? K.esc(o.value || "") : "") + (o.multiline ? "</textarea>" : "") + "</div>" + (o.help ? '<div class="help" style="margin-top:6px">' + K.esc(o.help) + "</div>" : ""),
-        footer: '<div class="row" style="justify-content:flex-end"><button class="btn btn-outline" data-no>Annuleren</button><button class="btn btn-accent" data-yes>' + K.esc(o.yes || "Bevestigen") + "</button></div>",
+        body: '<div class="field"><label>' + K.esc(o.label || "") + '</label><' + (o.multiline ? 'textarea class="textarea"' : 'input class="input" type="' + (o.type || "text") + '"' + (o.inputmode ? ' inputmode="' + o.inputmode + '"' : "")) + ' data-v placeholder="' + K.esc(o.placeholder || "") + '">' + (o.multiline ? K.esc(o.value || "") : "") + (o.multiline ? "</textarea>" : "") + "</div>" + (o.help ? '<div class="help" style="margin-top:6px">' + K.esc(o.help) + "</div>" : ""),
+        footer: '<div class="row" style="justify-content:flex-end"><button class="btn btn-outline" data-no>' + K.esc(o.no || "Terug") + '</button><button class="btn btn-primary" data-yes>' + K.esc(o.yes || "Bevestigen") + "</button></div>",
         onClose: () => resolve(null)
       });
       const inp = K.$("[data-v]", s.el);
-      if (!o.multiline && o.value) inp.value = o.value;
+      if (!o.multiline && o.value) { inp.value = o.value; setTimeout(() => inp.select(), 60); }
       K.$("[data-no]", s.el).onclick = () => s.close();
       const ok = () => { const v = inp.value; const c = s.close; s.close = () => {}; c(); resolve(v); };
       K.$("[data-yes]", s.el).onclick = ok;
@@ -146,6 +167,24 @@
     });
   };
 
+  /** Oogje naast een wachtwoordveld: tonen/verbergen. */
+  K.pwToggle = function (input) {
+    if (!input || input.dataset.toggled) return;
+    input.dataset.toggled = "1";
+    const wrap = document.createElement("div"); wrap.style.position = "relative";
+    input.parentNode.insertBefore(wrap, input); wrap.appendChild(input);
+    input.style.paddingRight = "52px";
+    const b = K.el('<button type="button" class="btn-ghost" aria-label="Wachtwoord tonen" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;min-height:36px;padding:0 8px;color:var(--muted);font-weight:700;cursor:pointer">Toon</button>');
+    b.onclick = () => { const show = input.type === "password"; input.type = show ? "text" : "password"; b.textContent = show ? "Verberg" : "Toon"; input.focus(); };
+    wrap.appendChild(b);
+  };
+  // ---- Adresseerbare schermen via #hash --------------------------------------------------
+  K.route = {
+    get() { const h = location.hash.replace(/^#\/?/, ""); const [view, q] = h.split("?"); const params = {}; new URLSearchParams(q || "").forEach((v, k) => { params[k] = v; }); return { view: view || "", params }; },
+    set(view, params, replace) { const q = params && Object.keys(params).length ? "?" + new URLSearchParams(params).toString() : ""; const hash = "#/" + view + q; if (location.hash === hash) return; if (replace) history.replaceState(history.state, "", hash); else history.pushState(null, "", hash); },
+    onChange(fn) { window.addEventListener("hashchange", () => fn(K.route.get())); }
+  };
+  K.stripQuery = function () { if (location.search) history.replaceState(history.state, "", location.pathname + location.hash); };
   // ---- Opslag (best-effort) ------------------------------------------------------------
   K.store = {
     get(k, d) { try { const v = localStorage.getItem("kade:" + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
@@ -165,5 +204,37 @@
       '<hr style="border:0;border-top:1px solid var(--line);margin:16px 0"><p class="small muted"><b>FR</b> — Le portail est déployé mais les clés secrètes manquent sur Vercel. Copiez les variables ci-dessus depuis le projet <b>famo-portail</b> vers ce projet (Settings → Environment Variables), puis <b>Redeploy</b>.</p></div></div>';
   };
 
+  // ---- Componenten (één plaats om het uiterlijk te veranderen) --------------------------
+  const c = {};
+  c.btn = function (o) {
+    const cls = ["btn", o.kind ? "btn-" + o.kind : "", o.size ? "btn-" + o.size : "", o.block ? "btn-block" : "", o.cls || ""].filter(Boolean).join(" ");
+    const inner = (o.icon ? K.icon(o.icon) + " " : "") + K.esc(o.label || "");
+    if (o.href) return '<a class="' + cls + '" href="' + K.esc(o.href) + '"' + (o.blank ? ' target="_blank" rel="noopener"' : "") + (o.id ? ' id="' + o.id + '"' : "") + (o.attrs || "") + ">" + inner + "</a>";
+    return '<button type="' + (o.type || "button") + '" class="' + cls + '"' + (o.id ? ' id="' + o.id + '"' : "") + (o.disabled ? " disabled" : "") + (o.attrs || "") + ">" + inner + "</button>";
+  };
+  c.field = function (o) {
+    const id = o.id, label = o.label ? '<label for="' + id + '">' + K.esc(o.label) + "</label>" : "";
+    const input = o.multiline ? '<textarea class="textarea" id="' + id + '"' + (o.rows ? ' style="min-height:' + o.rows * 24 + 'px"' : "") + (o.attrs || "") + ">" + K.esc(o.value || "") + "</textarea>"
+      : o.select ? '<select class="select" id="' + id + '"' + (o.attrs || "") + ">" + (o.options || []).map((x) => '<option value="' + K.esc(x.value) + '"' + (String(x.value) === String(o.value) ? " selected" : "") + ">" + K.esc(x.label) + "</option>").join("") + "</select>"
+      : '<input class="input" id="' + id + '" type="' + (o.type || "text") + '" value="' + K.esc(o.value == null ? "" : o.value) + '"' + (o.placeholder ? ' placeholder="' + K.esc(o.placeholder) + '"' : "") + (o.attrs || "") + ">";
+    return '<div class="field">' + label + input + (o.help ? '<div class="help">' + K.esc(o.help) + "</div>" : "") + "</div>";
+  };
+  c.card = function (inner, o) { const x = o || {}; return '<div class="card' + (x.flat ? " flat" : "") + (x.pad0 ? " pad-0" : "") + '"' + (x.attrs || "") + ">" + (x.title ? '<div class="card-head"><h2>' + K.esc(x.title) + "</h2>" + (x.actions || "") + "</div>" : "") + inner + "</div>"; };
+  c.notice = function (kind, html, icon) { return '<div class="notice notice-' + kind + '">' + K.icon(icon || (kind === "ok" ? "check" : kind === "info" ? "clock" : "warn")) + "<div>" + html + "</div></div>"; };
+  c.empty = function (o) { return '<div class="empty">' + (o.icon ? '<div class="big">' + o.icon + "</div>" : "") + K.esc(o.text || "") + (o.action ? "<div style=\"margin-top:12px\">" + o.action + "</div>" : "") + "</div>"; };
+  c.item = function (o) { return "<" + (o.button === false ? "div" : "button") + ' class="item' + (o.cls ? " " + o.cls : "") + '"' + (o.attrs || "") + (o.button === false ? ' style="cursor:default"' : "") + '><div class="body"><div class="title">' + (o.title || "") + '</div>' + (o.sub ? '<div class="sub">' + o.sub + "</div>" : "") + "</div>" + (o.end ? '<div class="end">' + o.end + "</div>" : "") + (o.chevron ? '<span class="chev">' + K.icon("back").replace("M15 5l-7 7 7 7", "M9 5l7 7-7 7") + "</span>" : "") + "</" + (o.button === false ? "div" : "button") + ">"; };
+  c.kpi = function (value, label, attrs) { return '<div class="card kpi"' + (attrs || "") + '><div class="v">' + K.esc(value) + '</div><div class="l">' + K.esc(label) + "</div></div>"; };
+  c.tel = function (phone) { return phone ? '<a href="tel:' + K.esc(String(phone).replace(/\s/g, "")) + '">' + K.esc(phone) + "</a>" : ""; };
+  c.mail = function (email) { return email ? '<a href="mailto:' + K.esc(email) + '">' + K.esc(email) + "</a>" : ""; };
+  K.c = c;
+  // Na aanmelden terug naar waar men naartoe wilde.
+  K.pending = { set(v) { try { sessionStorage.setItem("kade:na-login", JSON.stringify(v)); } catch (_) { /* niets */ } }, take() { try { const v = sessionStorage.getItem("kade:na-login"); sessionStorage.removeItem("kade:na-login"); return v ? JSON.parse(v) : null; } catch (_) { return null; } } };
+  // Zoeken met Nederlandse namen op een (deels Franse) catalogus.
+  const ALIASES = { zalm: ["saumon", "salmon", "zalm"], kabeljauw: ["cabillaud", "kabeljauw", "cod"], garnalen: ["crevette", "garnaal", "garnalen", "vannamei", "gamba", "scampi"], garnaal: ["crevette", "garnaal", "garnalen"], mosselen: ["moule", "mossel", "mosselen"], oesters: ["huître", "huitre", "oester", "oesters"], tonijn: ["thon", "tonijn", "tuna"], zeebaars: ["bar ", "loup", "zeebaars"], inktvis: ["calamar", "seiche", "inktvis", "pijlinktvis"], kreeft: ["homard", "kreeft"], krab: ["crabe", "krab"], sint: ["coquille", "sint-jakobs", "jakobs"], "sint-jakobsschelp": ["coquille", "jakobs"], "zeeduivel": ["lotte", "zeeduivel"], tong: ["sole", "tong"], tarbot: ["turbot", "tarbot"], rog: ["raie", "rog"], forel: ["truite", "forel"], makreel: ["maquereau", "makreel"], heilbot: ["flétan", "fletan", "heilbot"], vis: ["poisson", "vis"] };
+  K.matches = function (text, query) {
+    const t = String(text || "").toLowerCase(), q = String(query || "").trim().toLowerCase();
+    if (!q) return true;
+    return q.split(/\s+/).every((word) => t.includes(word) || Object.keys(ALIASES).some((k) => k.startsWith(word) && ALIASES[k].some((a) => t.includes(a))) || Object.values(ALIASES).some((arr) => arr.some((a) => a.startsWith(word)) && arr.some((a) => t.includes(a))));
+  };
   window.K = K;
 })();
