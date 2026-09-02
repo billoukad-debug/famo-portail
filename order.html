@@ -77,7 +77,7 @@ function render(){const o=ORDER,l=parse(o.lignes),v=document.getElementById("vie
   else action='<button class="staff-action-secondary" onclick="paid()">'+(o.paiement==="Payé"?'Markeer openstaand':'Markeer betaald')+'</button>';
   const lbAvail=o.statut!=="Reçue",faAvail=!!o.factuurnummer,cnAvail=!!o.factuurnummer;
   const rows=l.length?l.map(x=>'<tr><td><b>'+esc(x.name)+'</b>'+(x.comment?'<br><small>'+esc(x.comment)+'</small>':'')+'</td><td class="num">'+esc(x.qty)+' '+esc(famoNL.unit(x.unit)||x.unit)+'</td><td class="num">'+(x.price==null?'—':eur(x.price))+'</td></tr>').join(""):'<tr><td colspan="3"><small>Geen artikelen geregistreerd.</small></td></tr>';
-  v.innerHTML='<header class="o-head"><div><p class="o-ref">'+esc(o.ref)+'</p><h1>'+esc(o.client)+'</h1></div><div><button class="staff-ghost" onclick="load()">Vernieuwen</button></div></header>'+
+  v.innerHTML='<header class="o-head"><div><p class="o-ref">'+esc(o.ref)+'</p><h1>'+esc(o.client)+'</h1></div><div class="staff-head-tools"><button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button></div></header>'+
   '<div id="notice"></div>'+
   '<section class="o-stage">'+stepperHtml(o.statut)+'</section>'+
   '<div class="o-meta"><div><b>Leverdatum</b>'+date(o.dateLiv)+'</div><div><b>Betaling</b>'+esc(famoNL.pay(o.paiement||"En attente"))+'</div><div><b>Factuur</b>'+esc(o.factuurnummer||"Nog niet beschikbaar")+'</div><div><b>Bron</b>'+esc((String(o.notes||"").match(/^\[([^\]]+)\]/)||[])[1]||"Klantportaal")+'</div></div>'+

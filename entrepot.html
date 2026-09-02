@@ -101,14 +101,14 @@
         <h1>Magazijn</h1>
         <p>Voorbereiding en levering · <span id="stamp"></span></p>
       </div>
-      <div class="page-actions">
+      <div class="page-actions staff-head-tools">
         <div class="staff-viewtabs" role="tablist" aria-label="Magazijn weergave">
           <button type="button" id="tabBord" class="active" onclick="setView('bord')">Bord</button>
           <button type="button" id="tabDag" onclick="setView('dag')">Dag</button>
         </div>
         <button class="staff-action-secondary" id="btnPrintBord" onclick="printPicklist()">Voorbereidingslijst</button>
         <button class="staff-action" id="btnPrintDag" onclick="printConsolidatedPicklist()" style="display:none">Geconsolideerd afdrukken</button>
-        <button class="staff-action-secondary" onclick="load()">Vernieuwen</button>
+        <button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button>
       </div>
     </header>
     <div class="wh-stats" aria-label="Dagstatistieken">
