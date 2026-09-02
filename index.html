@@ -306,7 +306,7 @@ user.addEventListener('keydown',e=>{if(e.key==='Enter')pw.focus()});pw.addEventL
 loadPublicCompany();
 tryRestoreSession();
 </script>
-<div id="nlToast" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:#111;color:#fff;padding:11px 16px;border-radius:10px;font-size:13.5px;z-index:400;display:none"></div>
+<div id="nlToast" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:#191512;color:#fff;padding:11px 16px;border-radius:10px;font-size:13.5px;z-index:400;display:none"></div>
 <div id="nlConfirmWrap" style="position:fixed;inset:0;background:#0007;z-index:401;display:none;align-items:center;justify-content:center;padding:20px"><div style="background:#fff;border-radius:12px;padding:22px;max-width:340px;width:100%"><p id="nlConfirmMsg" style="margin:0 0 16px;font-size:14.5px"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="nlConfirmNo" style="height:40px;padding:0 14px;border:1px solid #E5DDD3;border-radius:8px;background:#fff;cursor:pointer">Annuleren</button><button id="nlConfirmYes" style="height:40px;padding:0 14px;border:0;border-radius:8px;background:#A8371F;color:#fff;cursor:pointer">Wissen</button></div></div></div>
 <script>
 let _toastT=null;function nlToast(msg,warn){const t=document.getElementById('nlToast');t.textContent=msg;t.style.background=warn?'#8A6110':'#191512';t.style.display='block';clearTimeout(_toastT);_toastT=setTimeout(()=>t.style.display='none',4200)}
