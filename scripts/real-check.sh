@@ -27,7 +27,7 @@ step "Beheer overzicht"
 call GET /api/beheer/overzicht | j 'JSON.stringify({clients:o.clients.length,products:o.products.length,prices:o.prices.length,requests:o.requests.length,invoices:o.invoices.length,warnings:o.warnings.map(w=>w.key),config:{cutoff:o.config.cutoff,days:o.config.deliveryDays,ops:o.config.opsEmail,iban:!!o.config.iban},env:o.env})'
 
 step "Testklant aanmaken"
-CL=$(call POST /api/beheer/klanten "{\"naam\":\"ZZ Kade-test (verwijderen)\",\"email\":\"$TEST_EMAIL\",\"telefoon\":\"+32 400 00 00 00\",\"adres\":\"Testkaai 1\\n2000 Antwerpen\",\"btw\":\"BE0999999999\",\"gebruikersnaam\":\"kadetest\",\"notities\":\"Aangemaakt door de ketentest van Famo Kade.\"}")
+CL=$(call POST /api/beheer/klanten "{\"naam\":\"ZZ Kade-test (verwijderen)\",\"email\":\"$TEST_EMAIL\",\"telefoon\":\"+32 400 00 00 00\",\"adres\":\"Testkaai 1\\n2000 Antwerpen\",\"btw\":\"BE0999999999\",\"gebruikersnaam\":\"kadetest\",\"notities\":\"Aangemaakt door de ketentest van Famo Kade.\",\"force\":true}")
 echo "$CL" | j 'JSON.stringify({ok:o.ok,id:o.client&&o.client.id,user:o.client&&o.client.username,number:o.client&&o.client.number,pw:!!o.password,error:o.error})'
 CLIENT_ID=$(echo "$CL" | j 'o.client&&o.client.id')
 PASSWORD=$(echo "$CL" | j 'o.password')
