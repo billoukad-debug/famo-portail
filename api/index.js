@@ -1,6 +1,6 @@
 "use strict";
-// Eén serverless functie voor de hele API: /api/<pad>. De router in lib/http.js
-// verdeelt naar de handlers. Documenten (/doc/…) komen hier via een rewrite.
+// Eén serverless functie voor de hele API. vercel.json herschrijft /api/<pad> en
+// /doc/<pad> naar /api/index?path=<pad>; de router in lib/http.js verdeelt verder.
 const { createRouter, guard, json, pathSegments } = require("../lib/http");
 const cfg = require("../lib/config");
 

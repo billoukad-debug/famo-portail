@@ -39,7 +39,7 @@ test.before(async () => {
   process.env.AIRTABLE_API_URL = at.url; process.env.AIRTABLE_CONTENT_URL = at.url; process.env.AIRTABLE_TOKEN = "dev-token";
   process.env.RESEND_API_URL = rs.url; process.env.RESEND_API_KEY = "dev-resend"; process.env.MAIL_FROM = "Famo Trading <test@famotrading.be>";
   process.env.ADMIN_CODE = "beheer-test-code"; process.env.STAFF_CODE = "team-test-code"; process.env.FAMO_INSECURE_COOKIES = "1"; process.env.PORTAL_URL = "";
-  const api = require(path.join(__dirname, "..", "api", "[...path].js"));
+  const api = require(path.join(__dirname, "..", "api", "index.js"));
   srv = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://x");
     const segs = (url.pathname.startsWith("/api/") ? url.pathname.slice(5) : url.pathname.slice(1)).split("/").filter(Boolean).map(decodeURIComponent);
