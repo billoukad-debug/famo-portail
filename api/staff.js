@@ -1,6 +1,7 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/ordermail");
+const __prices = require("../lib/prices");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -40,12 +41,7 @@ async function buildOrderLines(clientId, items){
   if (!Array.isArray(items) || !items.length) throw new Error("Klant en artikelen vereist");
   const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
   const negotiated = await atAll(`${encodeURIComponent("Prix négociés")}`);
-  const prices = new Map();
-  (negotiated.records || []).forEach(record => {
-    const clients = record.fields["Client"] || [];
-    const products = record.fields["Produit"] || [];
-    if (clients.includes(clientId) && products[0]) prices.set(products[0], numberOf(record.fields["Prix négocié"]));
-  });
+  const prices = __prices.negotiatedFor(negotiated.records, clientId);
   const products = new Map((cat.records || []).map(record => [record.id, record]));
   const merged = new Map();
   for (const item of items) {
@@ -64,7 +60,7 @@ async function buildOrderLines(clientId, items){
   const lines = [];
   for (const [productId, item] of merged) {
     const fields = products.get(productId).fields;
-    const price = prices.has(productId) ? prices.get(productId) : numberOf(fields["Prix de base"]);
+    const price = __prices.unitPrice(products.get(productId), prices);
     total += price * item.quantity;
     lines.push(`${fields["Produit"] || "Artikel"} × ${item.quantity}${fields["Unité"] ? " " + fields["Unité"] : ""} [€${price.toFixed(2)}]${item.comment ? " (" + item.comment + ")" : ""}`);
   }
@@ -151,19 +147,14 @@ module.exports = async (req, res) => {
     const clientId = q.client;
     const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
     const neg = await atAll(`${encodeURIComponent("Prix négociés")}`);
-    const negMap = {};
-    (neg.records || []).forEach(r => {
-      const cli = r.fields["Client"] || [];
-      const prod = r.fields["Produit"] || [];
-      if (cli.includes(clientId) && prod.length) negMap[prod[0]] = r.fields["Prix négocié"];
-    });
+    const negMap = __prices.negotiatedFor(neg.records, clientId);
     const products = (cat.records || []).map(r => ({
       id: r.id,
       nom: r.fields["Produit"],
       cat: r.fields["Catégorie"] || "",
       unite: r.fields["Unité"] || "",
       base: r.fields["Prix de base"] || 0,
-      prix: (negMap[r.id] != null ? negMap[r.id] : (r.fields["Prix de base"] || 0))
+      prix: __prices.unitPrice(r, negMap)
     }));
     return res.status(200).json({ products });
   } catch (e) {

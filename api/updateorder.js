@@ -1,5 +1,6 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
+const __prices = require("../lib/prices");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -85,22 +86,16 @@ async function computeTotal(txt, clientId){
   if (catalogue.error) throw new Error(catalogue.error.message || "Catalogus kon niet worden gelezen");
   const normalize = value => String(value || "").toLowerCase().trim();
   const byName = new Map((catalogue.records || []).map(record => [normalize(record.fields["Produit"]), record]));
-  const negByProduct = new Map();
+  let negByProduct = new Map();
   if (clientId) {
     const neg = await atAll(encodeURIComponent("Prix négociés"));
-    if (!neg.error) {
-      (neg.records || []).forEach(record => {
-        const clients = record.fields["Client"] || [];
-        const products = record.fields["Produit"] || [];
-        if (clients.includes(clientId) && products[0]) negByProduct.set(products[0], numberOf(record.fields["Prix négocié"]));
-      });
-    }
+    if (!neg.error) negByProduct = __prices.negotiatedFor(neg.records, clientId);
   }
   let total = 0;
   for (const line of lines) {
     const product = byName.get(normalize(line.nom));
     if (!product) continue;
-    const price = negByProduct.has(product.id) ? negByProduct.get(product.id) : numberOf(product.fields["Prix de base"]);
+    const price = __prices.unitPrice(product, negByProduct);
     total += price * line.qty;
   }
   return Math.round(total * 100) / 100;

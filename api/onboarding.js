@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
+const __prices = require("../lib/prices");
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path, opts) {
@@ -142,7 +143,7 @@ async function statusPayload() {
     id: r.id,
     clientId: (r.fields["Client"] || [])[0] || "",
     productId: (r.fields["Produit"] || [])[0] || "",
-    prix: Number(r.fields["Prix négocié"] || 0)
+    prix: __prices.negotiatedValue(r.fields["Prix négocié"])
   }));
 
   const stockList = (stock.records || []).map(r => ({
@@ -425,9 +426,11 @@ module.exports = async (req, res) => {
     if (action === "savePrice") {
       const clientId = clean(body.clientId, 40);
       const productId = clean(body.productId, 40);
-      const prix = Number(body.prix);
+      // Champ laissé vide : enregistré vide (le client paie le prix de base), jamais 0.
+      const prixVide = body.prix === null || body.prix === undefined || String(body.prix).trim() === "";
+      const prix = __prices.negotiatedValue(body.prix);
       if (!clientId || !productId) return res.status(400).json({ error: "Klant en product zijn verplicht" });
-      if (!Number.isFinite(prix) || prix < 0) return res.status(400).json({ error: "Ongeldige prijs" });
+      if (!prixVide && prix === null) return res.status(400).json({ error: "Ongeldige prijs" });
 
       const all = await atAll(encodeURIComponent("Prix négociés"));
       if (all.error) return res.status(500).json(all);
@@ -439,7 +442,7 @@ module.exports = async (req, res) => {
       const fields = {
         "Client": [clientId],
         "Produit": [productId],
-        "Prix négocié": Math.round(prix * 100) / 100
+        "Prix négocié": prix === null ? null : Math.round(prix * 100) / 100
       };
       let saved;
       if (existing) {

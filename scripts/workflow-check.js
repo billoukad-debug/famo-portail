@@ -807,6 +807,126 @@ async function main() {
   }
   console.log("✓ O. Gestructureerde mededeling (FA-nummer → +++…+++, mod 97)");
 
+  // --- P. Prix négocié : vide → prix de base, 0 saisi → 0, identique partout ----
+  {
+    const pricesLib = require(path.join(ROOT, "lib", "prices.js"));
+
+    // P1 — la règle elle-même.
+    [undefined, null, "", "  ", "abc", -1].forEach(v => {
+      assert.strictEqual(pricesLib.negotiatedValue(v), null, "P1 aucun prix négocié pour : " + JSON.stringify(v));
+    });
+    assert.strictEqual(pricesLib.negotiatedValue(0), 0, "P1 0 saisi reste 0");
+    assert.strictEqual(pricesLib.negotiatedValue("0"), 0, "P1 \"0\" saisi reste 0");
+    assert.strictEqual(pricesLib.negotiatedValue(9.5), 9.5, "P1 prix saisi");
+
+    const CLIENT_P = { records: [{ id: "clientPrix", fields: { "Nom": "Resto Prijs", "Wachtwoord": "pass" } }] };
+    const CAT_P = { records: [
+      { id: "pZero", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 12.5 } },
+      { id: "pVide", fields: { "Produit": "Mosselen", "Unité": "caisse", "Prix de base": 28 } },
+      { id: "pSans", fields: { "Produit": "Kabeljauw", "Unité": "kg", "Prix de base": 20 } }
+    ] };
+    // Zalm : 0 saisi · Mosselen : ligne au prix vide (champ absent de l'API) · Kabeljauw : accord d'un autre client seulement
+    const NEG_P = { records: [
+      { id: "neg0", fields: { "Client": ["clientPrix"], "Produit": ["pZero"], "Prix négocié": 0 } },
+      { id: "negVide", fields: { "Client": ["clientPrix"], "Produit": ["pVide"] } },
+      { id: "negAutre", fields: { "Client": ["autreKlant"], "Produit": ["pSans"], "Prix négocié": 1 } }
+    ] };
+    const EXPECTED = { Zalm: 0, Mosselen: 28, Kabeljauw: 20 };
+    const EXPECTED_TOTAL = 48; // 2 × 0 + 1 × 28 + 1 × 20
+    const ITEMS = [{ productId: "pZero", quantity: 2 }, { productId: "pVide", quantity: 1 }, { productId: "pSans", quantity: 1 }];
+    const linePrices = lignes => Object.fromEntries(String(lignes).split("\n").map(l => [l.split(" × ")[0], Number(/\[€([\d.]+)\]/.exec(l)[1])]));
+    const shownPrices = products => Object.fromEntries(products.map(p => [p.nom, p.prix]));
+
+    // P2 — ce que le client voit au catalogue.
+    const catalogueP = require(path.join(ROOT, "api", "catalogue.js"));
+    let r = await call(catalogueP, { user: "prijs", pw: "pass" }, [CLIENT_P, CAT_P, NEG_P, { records: [] }]);
+    assert.equal(r.res.statusCode, 200, "P2 login catalogue");
+    assert.deepEqual(shownPrices(r.res.payload.products), EXPECTED, "P2 catalogue : vide → base, 0 → 0");
+
+    // P3 — ce qu'il paie en commandant : identique au catalogue, ligne par ligne.
+    r = await call(createOrder, { user: "prijs", pw: "pass", items: ITEMS }, [CLIENT_P, CAT_P, NEG_P, { records: [{ id: "orderPrix" }] }]);
+    assert.equal(r.res.statusCode, 200, "P3 commande client");
+    const orderFields = JSON.parse(r.calls[3].options.body).records[0].fields;
+    assert.deepEqual(linePrices(orderFields["Lignes (produits / quantités)"]), EXPECTED, "P3 commande = catalogue");
+    assert.equal(orderFields.Total, EXPECTED_TOTAL, "P3 total commande");
+
+    // P4 — saisie staff (Invoeren) : même prix, à l'écran comme à l'enregistrement.
+    const staffP = require(path.join(ROOT, "api", "staff.js"));
+    r = await call(staffP, null, [CAT_P, NEG_P], { method: "GET", query: { client: "clientPrix" }, headers: adminCookieHdr });
+    assert.deepEqual(shownPrices(r.res.payload.products), EXPECTED, "P4 catalogue de la saisie staff");
+    r = await call(staffP, { clientId: "clientPrix", items: ITEMS }, [CAT_P, NEG_P, { records: [{ id: "orderStaff" }] }], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 200, "P4 saisie staff");
+    const staffFields = JSON.parse(r.calls[2].options.body).records[0].fields;
+    assert.deepEqual(linePrices(staffFields["Lignes (produits / quantités)"]), EXPECTED, "P4 saisie staff = catalogue");
+    assert.equal(staffFields.Total, EXPECTED_TOTAL, "P4 total saisie staff");
+
+    // P5 — recalcul quand le personnel modifie les lignes.
+    r = await call(updateOrder2, { id: "recPrix", lignes: "Zalm × 2 kg\nMosselen × 1 caisse\nKabeljauw × 1 kg", total: 9999 }, [
+      { fields: { Statut: "Reçue", Client: ["clientPrix"] } },
+      CAT_P, CAT_P, NEG_P,
+      { fields: {} }
+    ], { headers: cookieHdr });
+    assert.equal(r.res.statusCode, 200, "P5 modification des lignes");
+    const patchP = r.calls.find(c => (c.options.method || "").toUpperCase() === "PATCH");
+    assert.equal(JSON.parse(patchP.options.body).fields["Total"], EXPECTED_TOTAL, "P5 recalcul = catalogue");
+
+    // P6 — Beheer (API) : un prix vide est enregistré vide, un 0 saisi est enregistré 0.
+    const onboardingP = require(path.join(ROOT, "api", "onboarding.js"));
+    const originalFetch = global.fetch;
+    const written = [];
+    global.fetch = async (url, options) => {
+      const u = decodeURIComponent(String(url));
+      const method = (options && options.method) || "GET";
+      if (/Prix négociés/.test(u) && (method === "POST" || method === "PATCH")) {
+        const b = JSON.parse(options.body);
+        written.push(method === "POST" ? b.records[0].fields : b.fields);
+      }
+      return json(/Prix négociés/.test(u) ? NEG_P : { records: [] });
+    };
+    try {
+      const save = async prix => {
+        const res = mkRes();
+        await onboardingP({ method: "POST", body: { action: "savePrice", clientId: "clientPrix", productId: "pNieuw", prix }, headers: adminCookieHdr }, res);
+        return res;
+      };
+      assert.equal((await save("")).statusCode, 200, "P6 champ vide accepté");
+      assert.strictEqual(written.pop()["Prix négocié"], null, "P6 champ vide enregistré vide, pas 0");
+      assert.equal((await save(null)).statusCode, 200, "P6 prix null accepté");
+      assert.strictEqual(written.pop()["Prix négocié"], null, "P6 prix null enregistré vide");
+      assert.equal((await save(0)).statusCode, 200, "P6 0 accepté");
+      assert.strictEqual(written.pop()["Prix négocié"], 0, "P6 0 saisi enregistré 0");
+      assert.equal((await save("abc")).statusCode, 400, "P6 prix illisible refusé");
+      assert.equal((await save(-2)).statusCode, 400, "P6 prix négatif refusé");
+      assert.equal(written.length, 0, "P6 rien enregistré sur refus");
+
+      // La liste de Beheer distingue « vide » (null) de 0.
+      const g = mkRes();
+      await onboardingP({ method: "GET", headers: adminCookieHdr, query: {} }, g);
+      const listed = Object.fromEntries(g.payload.prices.map(p => [p.productId, p.prix]));
+      assert.strictEqual(listed.pVide, null, "P6 ligne vide listée vide");
+      assert.strictEqual(listed.pZero, 0, "P6 ligne à 0 listée 0");
+    } finally {
+      global.fetch = originalFetch;
+    }
+
+    // P7 — Beheer (page) : le champ vide part vide (null), un 0 tapé part 0.
+    const beheerSrc = fs.readFileSync(path.join(ROOT, "beheer.html"), "utf8");
+    const savePriceSrc = /async function savePrice\(\)\{[\s\S]*?\n\}/.exec(beheerSrc);
+    assert.ok(savePriceSrc, "P7 savePrice introuvable dans beheer.html");
+    const typeAndSave = async typed => {
+      const sent = [];
+      const ctx = { val: id => (id === "prv" ? typed : "x"), toast: () => {}, render: () => {}, post: async body => { sent.push(body); return false; } };
+      vm.runInNewContext(savePriceSrc[0], ctx);
+      await ctx.savePrice();
+      return sent;
+    };
+    assert.strictEqual((await typeAndSave(""))[0].prix, null, "P7 champ vide → envoyé vide");
+    assert.strictEqual((await typeAndSave("0"))[0].prix, 0, "P7 0 tapé → envoyé 0");
+    assert.strictEqual((await typeAndSave("12.5"))[0].prix, 12.5, "P7 prix tapé");
+    assert.equal((await typeAndSave("-1")).length, 0, "P7 prix négatif bloqué");
+  }
+  console.log("✓ P. Prix négocié (vide → prix de base, 0 saisi → 0, catalogue = commande = staff = recalcul)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

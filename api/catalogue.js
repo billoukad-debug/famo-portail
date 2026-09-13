@@ -1,4 +1,5 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
+const __prices = require("../lib/prices");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -60,19 +61,14 @@ module.exports = async (req, res) => {
 
     const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
     const neg = await atAll(`${encodeURIComponent("Prix négociés")}`);
-    const negMap = {};
-    (neg.records || []).forEach(r => {
-      const cli = r.fields["Client"] || [];
-      const prod = r.fields["Produit"] || [];
-      if (cli.includes(clientId) && prod.length) negMap[prod[0]] = r.fields["Prix négocié"];
-    });
+    const negMap = __prices.negotiatedFor(neg.records, clientId);
     const products = (cat.records || []).map(r => ({
       id: r.id,
       nom: r.fields["Produit"],
       cat: r.fields["Catégorie"] || "",
       unite: r.fields["Unité"] || "",
       base: r.fields["Prix de base"] || 0,
-      prix: (negMap[r.id] != null ? negMap[r.id] : (r.fields["Prix de base"] || 0))
+      prix: __prices.unitPrice(r, negMap)
     }));
 
     res.status(200).json({

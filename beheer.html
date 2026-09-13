@@ -437,7 +437,7 @@ function renderPrijzen(p){
   }
   if(prices.length){
     h+='<div class="b-list"><div class="b-list-head"><span class="grow">Afspraak</span><span>Actie</span></div>'+prices.map(x=>
-      '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → <span class="b-amt">'+eur(x.prix)+'</span></span></div>'+
+      '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → <span class="b-amt">'+(x.prix==null?'basisprijs':eur(x.prix))+'</span></span></div>'+
       '<div class="acts"><button class="b-danger" onclick="delPrice(\''+esc(x.id)+'\')">Verwijderen</button></div></div>'
     ).join("")+'</div>';
   }else{
@@ -448,8 +448,9 @@ function renderPrijzen(p){
   p.innerHTML=h;
 }
 async function savePrice(){
-  const prix=Number(val("prv"));
-  if(!Number.isFinite(prix)||prix<0){toast("Vul een geldige prijs in.",true);return}
+  // Champ vide = aucun prix saisi (le client paie le prix de base), jamais 0. Un 0 tapé reste 0.
+  const raw=val("prv"),prix=raw===""?null:Number(raw);
+  if(prix!==null&&(!Number.isFinite(prix)||prix<0)){toast("Vul een geldige prijs in.",true);return}
   if(await post({action:"savePrice",clientId:val("prc"),productId:val("prp"),prix},"Prijs opgeslagen"))render();
 }
 async function delPrice(id){
