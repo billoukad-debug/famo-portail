@@ -1069,6 +1069,93 @@ async function main() {
   }
   console.log("✓ R. Bestellingen : leverdatum en avant, référence secondaire, tri par leverdatum par défaut");
 
+  // --- S. Catalogue : photos (Foto) et calibres (Kaliber) ------------------------
+  {
+    // S1 — API catalogue client : Kaliber et Foto exposés proprement.
+    const catalogueS = require(path.join(ROOT, "api", "catalogue.js"));
+    const AT = "https://v5.airtableusercontent.com/";
+    const CLIENT_S = { records: [{ id: "clientFoto", fields: { "Nom": "Resto Foto", "Wachtwoord": "pass" } }] };
+    const CAT_S = { records: [
+      { id: "s1", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 12.5, "Kaliber": "  3–4 kg  ",
+        "Foto": [{ url: AT + "zalm.jpg", type: "image/jpeg", thumbnails: { small: { url: AT + "zalm-s.jpg" }, large: { url: AT + "zalm-l.jpg" } } }] } },
+      { id: "s2", fields: { "Produit": "Mosselen", "Unité": "caisse", "Prix de base": 28,
+        "Foto": [{ url: AT + "fiche.pdf", type: "application/pdf", thumbnails: { large: { url: AT + "fiche-l.png" } } }, { url: AT + "mossel.png", type: "image/png" }] } },
+      { id: "s3", fields: { "Produit": "Kabeljauw", "Unité": "kg", "Prix de base": 20, "Foto": [{ url: "http://insecure.test/k.jpg", type: "image/jpeg" }] } },
+      { id: "s4", fields: { "Produit": "Tong", "Unité": "kg", "Prix de base": 30 } }
+    ] };
+    const rS = await call(catalogueS, { user: "foto", pw: "pass" }, [CLIENT_S, CAT_S, { records: [] }, { records: [] }]);
+    assert.equal(rS.res.statusCode, 200, "S1 login catalogue");
+    const byName = Object.fromEntries(rS.res.payload.products.map(p => [p.nom, p]));
+    assert.equal(byName.Zalm.foto, AT + "zalm-l.jpg", "S1 vignette large préférée");
+    assert.equal(byName.Zalm.kaliber, "3–4 kg", "S1 kaliber nettoyé");
+    assert.equal(byName.Mosselen.foto, AT + "mossel.png", "S1 pièce jointe non image (PDF) ignorée");
+    assert.equal(byName.Kabeljauw.foto, "", "S1 lien non https refusé");
+    assert.equal(byName.Tong.foto, "", "S1 sans photo : vide");
+    assert.equal(byName.Tong.kaliber, "", "S1 sans kaliber : vide");
+
+    // S2 — Beheer (API) : kaliber enregistré, vidé si demandé, jamais effacé par « Uit catalogus ».
+    const onboardingS = require(path.join(ROOT, "api", "onboarding.js"));
+    const originalFetch = global.fetch;
+    const writes = [];
+    global.fetch = async (url, options) => {
+      const u = decodeURIComponent(String(url));
+      const method = (options && options.method) || "GET";
+      if (/\/Catalogue/.test(u) && (method === "POST" || method === "PATCH")) {
+        const b = JSON.parse(options.body);
+        writes.push(method === "POST" ? b.records[0].fields : b.fields);
+      }
+      if (/\/Catalogue\?/.test(u) && method === "GET") {
+        return json({ records: [{ id: "s1", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 12.5, "Kaliber": "3–4 kg", "Actif": true } }] });
+      }
+      return json({ records: [] });
+    };
+    try {
+      const save = async body => {
+        const res = mkRes();
+        await onboardingS({ method: "POST", body: Object.assign({ action: "saveProduct", id: "s1", nom: "Zalm", base: 12.5, unite: "kg", cat: "Vis" }, body), headers: adminCookieHdr }, res);
+        return res;
+      };
+      let s = await save({ kaliber: " 3–4 kg ", actif: true });
+      assert.equal(s.statusCode, 200, "S2 produit enregistré");
+      assert.equal(writes.pop()["Kaliber"], "3–4 kg", "S2 kaliber enregistré");
+      assert.equal(s.payload.products[0].kaliber, "3–4 kg", "S2 Beheer relit le kaliber (pré-remplissage)");
+      s = await save({ kaliber: "" });
+      assert.strictEqual(writes.pop()["Kaliber"], "", "S2 kaliber vidé volontairement");
+      s = await save({ actif: false });
+      assert.ok(!("Kaliber" in writes.pop()), "S2 « Uit catalogus » n'efface pas le kaliber");
+    } finally {
+      global.fetch = originalFetch;
+    }
+
+    // S3 — Beheer (page) : le champ Kaliber part avec le produit.
+    const beheerS = fs.readFileSync(path.join(ROOT, "beheer.html"), "utf8");
+    assert.match(beheerS, /id="pkal"/, "S3 champ Kaliber présent dans le formulaire produit");
+    const saveProductSrc = /async function saveProduct\(\)\{[\s\S]*?\n\}/.exec(beheerS);
+    const sentS = [];
+    const ctxB = { val: id => ({ pnom: "Zalm", pprix: "12.5", punit: "kg", pcat: "Vis", pkal: "3–4 kg" })[id] || "", toast: () => {}, render: () => {}, EDIT_PRODUCT: null, post: async body => { sentS.push(body); return false; } };
+    vm.runInNewContext(saveProductSrc[0], ctxB);
+    await ctxB.saveProduct();
+    assert.equal(sentS[0].kaliber, "3–4 kg", "S3 kaliber envoyé à l'API");
+
+    // S4 — portail client : photo et kaliber sur la carte produit, échappés.
+    const indexSrc = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+    const escSrc = /const esc=s=>[^\n]*/.exec(indexSrc)[0];
+    const cardSrc = /function productCard\(\{p,i\}\)\{[^\n]*/.exec(indexSrc)[0];
+    const ctxC = { panier: {}, comments: {}, favs: {}, stepFor: () => 1, eur: n => "€ " + n, unitLabel: u => u, icon: () => "" };
+    vm.createContext(ctxC);
+    vm.runInContext(escSrc + "\n" + cardSrc, ctxC);
+    const withPhoto = ctxC.productCard({ p: { id: "s1", nom: "Zalm", prix: 12.5, base: 12.5, unite: "kg", kaliber: "3–4 kg", foto: AT + "zalm-l.jpg?a=1&b=2" }, i: 0 });
+    assert.match(withPhoto, /<img class="product-photo" src="https:\/\/v5\.airtableusercontent\.com\/zalm-l\.jpg\?a=1&amp;b=2"/, "S4 photo affichée, URL échappée");
+    assert.match(withPhoto, /loading="lazy"/, "S4 photo chargée à la demande");
+    assert.match(withPhoto, /class="product-row has-photo"/, "S4 carte avec photo : mise en page adaptable");
+    assert.match(withPhoto, /class="product-kaliber">Kaliber 3–4 kg</, "S4 kaliber affiché");
+    const bare = ctxC.productCard({ p: { id: "s4", nom: "Tong", prix: 30, base: 30, unite: "kg", kaliber: "", foto: "" }, i: 1 });
+    assert.ok(!/<img/.test(bare) && !/Kaliber/.test(bare) && !/has-photo/.test(bare), "S4 sans photo ni kaliber : carte inchangée");
+    const evil = ctxC.productCard({ p: { id: "x", nom: "X", prix: 1, base: 1, unite: "kg", kaliber: "<img src=x onerror=alert(1)>", foto: 'https://x.test/a.jpg" onerror="alert(1)' }, i: 2 });
+    assert.ok(!/<img src=x/.test(evil) && !/" onerror="alert/.test(evil), "S4 kaliber et adresse photo échappés");
+  }
+  console.log("✓ S. Catalogue : photos et kalibers (API, Beheer, carte client)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

@@ -385,6 +385,7 @@ function renderProducten(p){
     '<div><label>Eenheid</label><select class="staff-select" id="punit">'+units.map(u=>'<option value="'+u+'"'+(e&&e.unite===u?" selected":"")+'>'+esc(famoNL.unit(u)||u)+'</option>').join("")+'</select></div>'+
     '<div><label>Categorie</label><input class="staff-field" id="pcat" list="catlist" value="'+esc(e?e.cat:"")+'" placeholder="Algemeen">'+
     '<datalist id="catlist">'+CATS.map(c=>'<option value="'+esc(c)+'"></option>').join("")+'</datalist></div>'+
+    '<div><label>Kaliber</label><input class="staff-field" id="pkal" maxlength="60" value="'+esc(e&&e.kaliber?e.kaliber:"")+'" placeholder="bv. 300–400 g"></div>'+
     '</div>'+
     '<div class="b-acts"><button class="staff-action" onclick="saveProduct()">'+(e?"Wijzigingen opslaan":"Product toevoegen")+'</button>'+
     (e?'<button class="staff-action-secondary" onclick="cancelProduct()">Annuleren</button>':'')+'</div></div>';
@@ -411,7 +412,7 @@ async function saveProduct(){
   const nom=val("pnom"),base=Number(val("pprix"));
   if(!nom){toast("Productnaam is verplicht.",true);return}
   if(!Number.isFinite(base)||base<0){toast("Vul een geldige basisprijs in.",true);return}
-  const payload={action:"saveProduct",nom,base,unite:val("punit"),cat:val("pcat")||"Algemeen",actif:true};
+  const payload={action:"saveProduct",nom,base,unite:val("punit"),cat:val("pcat")||"Algemeen",kaliber:val("pkal"),actif:true};
   if(EDIT_PRODUCT&&EDIT_PRODUCT.id)payload.id=EDIT_PRODUCT.id;
   if(await post(payload,EDIT_PRODUCT?"Product bijgewerkt":"Product toegevoegd")){EDIT_PRODUCT=null;render()}
 }

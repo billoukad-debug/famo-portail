@@ -42,6 +42,18 @@ async function authClient(user, pw){
 }
 module.exports.authClient = authClient;
 
+// Photo du produit (champ pièce jointe « Foto ») : première image, en vignette
+// « large » d'Airtable si elle existe (plus légère), sinon le fichier. Uniquement
+// des liens https. Les liens Airtable expirent après quelques heures : ils sont
+// relus à chaque ouverture du catalogue, jamais stockés.
+function photoOf(attachments) {
+  const image = (Array.isArray(attachments) ? attachments : [])
+    .find(a => a && /^image\//i.test(String(a.type || "")));
+  if (!image) return "";
+  const url = (image.thumbnails && image.thumbnails.large && image.thumbnails.large.url) || image.url || "";
+  return /^https:\/\//i.test(String(url)) ? String(url) : "";
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Gebruik POST. Wachtwoorden horen niet in een URL." });
@@ -68,7 +80,9 @@ module.exports = async (req, res) => {
       cat: r.fields["Catégorie"] || "",
       unite: r.fields["Unité"] || "",
       base: r.fields["Prix de base"] || 0,
-      prix: __prices.unitPrice(r, negMap)
+      prix: __prices.unitPrice(r, negMap),
+      kaliber: String(r.fields["Kaliber"] || "").trim(),
+      foto: photoOf(r.fields["Foto"])
     }));
 
     res.status(200).json({

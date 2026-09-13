@@ -124,6 +124,7 @@ async function statusPayload() {
     cat: r.fields["Catégorie"] || "",
     unite: r.fields["Unité"] || "",
     base: Number(r.fields["Prix de base"] || 0),
+    kaliber: String(r.fields["Kaliber"] || "").trim(),
     actif: !!r.fields["Actif"]
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
@@ -270,6 +271,8 @@ module.exports = async (req, res) => {
         "Prix de base": Math.round(base * 100) / 100,
         "Actif": body.actif === false ? false : true
       };
+      // Kaliber : écrit seulement s'il est envoyé, pour que « Uit catalogus » ne l'efface pas.
+      if (body.kaliber !== undefined) fields["Kaliber"] = clean(body.kaliber, 60);
       let saved;
       if (body.id) {
         saved = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
