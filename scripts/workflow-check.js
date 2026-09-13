@@ -1650,6 +1650,21 @@ async function main() {
   }
   console.log("✓ Y. Magazijn : validation lisible (nom et « Besteld » sur deux lignes, quantités dessous si étroit)");
 
+  // --- Z. Portail client : menu latéral utilisable au doigt sur téléphone ----------------
+  {
+    const idxZ = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+    const scrimZ = /\.scrim\{display:block;position:fixed;inset:0;background:rgba\(0,0,0,\.28\);z-index:(\d+)\}/.exec(idxZ);
+    const sidebarZ = /@media\(max-width:720px\)\{\.sidebar\{z-index:(\d+)\}\}/.exec(idxZ);
+    assert.ok(scrimZ, "Z0 fond du menu (.scrim) introuvable");
+    assert.ok(sidebarZ, "Z1 niveau du menu latéral sur téléphone non défini");
+    assert.ok(Number(sidebarZ[1]) > Number(scrimZ[1]), "Z1 le menu est au-dessus de son fond (sinon toute touche tombe sur le fond)");
+    const sheetZ = /\.sheet\{display:flex;position:fixed;z-index:(\d+)/.exec(idxZ);
+    assert.ok(sheetZ && Number(sidebarZ[1]) < Number(sheetZ[1]), "Z1 la feuille panier reste au-dessus du menu");
+    assert.match(idxZ, /@media\(max-width:980px\)\{\.main\{isolation:isolate\}\.scrim\{cursor:pointer\}\}/, "Z2 contenu isolé sous les couches fixes + fond cliquable sur Safari iOS");
+    assert.match(idxZ, /id="drawerScrim" class="scrim hidden" onclick="closeDrawer\(\)"/, "Z3 toucher à côté du menu le referme");
+  }
+  console.log("✓ Z. Portail client : menu latéral au-dessus de son fond, fond cliquable, contenu isolé");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

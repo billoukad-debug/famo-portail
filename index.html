@@ -87,6 +87,14 @@
   .staff-portals-side{flex-direction:column;align-items:stretch;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:12px}
   .staff-portals-side .sp-label{margin:0 0 2px}
 
+  /* Menu latéral sur téléphone. Défaut d'origine : le fond sombre (z-index 80) recouvrait le menu
+     (60), toute touche sur une entrée tombait sur le fond. Le menu passe au-dessus de son fond et
+     sous la feuille panier (90) ; le contenu est isolé sous les couches fixes (Safari iOS peignait
+     les +/- par-dessus le menu) ; le fond est « cliquable » pour que Safari iOS accepte la touche
+     qui referme le menu (il ignore sinon un clic sur un simple bloc). */
+  @media(max-width:720px){.sidebar{z-index:85}}
+  @media(max-width:980px){.main{isolation:isolate}.scrim{cursor:pointer}}
+
   /* ===== Stepper de statut (socle staff.css, adapte aux variables locales) == */
   .f-stepper{display:flex;align-items:flex-start;margin:0;padding:0;list-style:none;min-height:44px}
   .f-step{--step:var(--brand);position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:5px;color:rgba(25,21,18,.28);font-size:11.5px;line-height:1.2;text-align:center}
