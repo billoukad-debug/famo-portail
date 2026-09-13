@@ -1634,6 +1634,22 @@ async function main() {
   }
   console.log("✓ X. PDF des documents (styles emportés, cadrage dans la fenêtre réelle, A4 pleine largeur)");
 
+  // --- Y. Magazijn : écran de validation lisible sur carte étroite --------------------
+  {
+    const entSrc = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    const rule = sel => {
+      const m = new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{([^}]*)\\}").exec(entSrc);
+      return m ? m[1] : "";
+    };
+    assert.match(entSrc, /class="pn">[\s\S]{0,40}<\/span><span class="pm">Besteld:/, "Y0 structure attendue : nom puis « Besteld »");
+    assert.match(rule(".pick-row .pn"), /display:block/, "Y1 le nom occupe sa propre ligne");
+    assert.match(rule(".pick-row .pm"), /display:block/, "Y1 « Besteld » sur une ligne distincte, jamais collé au nom");
+    assert.match(rule(".pick-row"), /flex-wrap:wrap/, "Y2 les quantités passent dessous quand la place manque");
+    assert.ok(!/grid-template-columns:40px minmax\(0,1fr\) 158px/.test(entSrc), "Y2 plus de colonne fixe de 158 px qui écrasait le nom");
+    assert.match(rule(".pick-row .pn"), /overflow-wrap:break-word/, "Y2 un nom très long se coupe au lieu de déborder sous les boutons");
+  }
+  console.log("✓ Y. Magazijn : validation lisible (nom et « Besteld » sur deux lignes, quantités dessous si étroit)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

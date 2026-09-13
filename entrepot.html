@@ -44,9 +44,14 @@
   .tin{width:100px;min-height:44px;padding:8px 10px;border:1.5px solid var(--f-line);border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums}
   .ehint{font-size:11px;color:var(--f-quiet);margin-top:5px}
   .pick-editor{margin-top:10px;border:1px solid var(--f-line);border-radius:8px;overflow:hidden;background:#fff}
-  .pick-row{display:grid;grid-template-columns:40px minmax(0,1fr) 158px;gap:9px;align-items:center;min-height:44px;padding:10px 12px 10px 8px;border-bottom:1px solid var(--f-line);cursor:pointer}
-  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{width:24px;height:24px;margin:10px 8px;accent-color:#1F6D4E;cursor:pointer}
-  .pick-row .pn{font-size:14px;font-weight:600}.pick-row .pm{font-size:11.5px;color:var(--f-quiet);margin-top:2px;font-variant-numeric:tabular-nums}.pick-row.done{background:#E6F0E9}
+  /* Ligne de validation : nom et « Besteld » sur deux lignes ; quand la place manque (carte
+     étroite : téléphone, tablette, bord à plusieurs colonnes), les quantités passent dessous
+     au lieu de recouvrir le nom. Défaut d'origine (colonne fixe de 158 px + libellés en ligne). */
+  .pick-row{display:flex;flex-wrap:wrap;gap:6px 9px;align-items:center;min-height:44px;padding:10px 12px 10px 8px;border-bottom:1px solid var(--f-line);cursor:pointer}
+  .pick-row>span:not(.actual){flex:1 1 150px;min-width:0}
+  .pick-row .actual{margin-left:auto}
+  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{flex:none;width:24px;height:24px;margin:10px 8px;accent-color:#1F6D4E;cursor:pointer}
+  .pick-row .pn{display:block;font-size:14px;font-weight:600;overflow-wrap:break-word}.pick-row .pm{display:block;font-size:11.5px;color:var(--f-quiet);margin-top:2px;font-variant-numeric:tabular-nums}.pick-row.done{background:#E6F0E9}
   .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:44px;min-height:44px;padding:0;background:var(--f-panel);color:var(--f-ink);font-size:20px}.actual input{width:56px;min-height:44px;text-align:center;border:1px solid var(--f-line);border-radius:5px;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
   .edit-head{font-size:12px;font-weight:700;color:var(--f-ink);margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
   .empty{color:var(--f-quiet);font-size:12.5px;padding:8px;text-align:center}
