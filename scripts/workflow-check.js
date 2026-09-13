@@ -927,6 +927,60 @@ async function main() {
   }
   console.log("✓ P. Prix négocié (vide → prix de base, 0 saisi → 0, catalogue = commande = staff = recalcul)");
 
+  // --- Q. Documenten : filtre par client -----------------------------------------
+  {
+    // Le vrai script de la page, avec un DOM minimal et une API simulée.
+    const pageSrc = fs.readFileSync(path.join(ROOT, "documenten.html"), "utf8");
+    const inline = [...pageSrc.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]).join("\n");
+    const ORDERS_Q = [
+      { id: "o1", ref: "CMD-1", client: "Resto Noord", statut: "Facturée", factuurnummer: "FA-2026-0001", total: 50 },
+      { id: "o2", ref: "CMD-2", client: "Brasserie Zuid", statut: "Prête", total: 30 },
+      { id: "o3", ref: "CMD-3", client: "Resto Noord", statut: "Reçue", total: 20 }
+    ];
+    const els = {};
+    const el = id => els[id] || (els[id] = { id, value: "", innerHTML: "", textContent: "", className: "", classList: { add() {}, remove() {}, toggle() {} } });
+    const ctx = {
+      console, setTimeout, URLSearchParams,
+      location: { search: "" },
+      document: { getElementById: el },
+      famoStaff: {
+        bindLogin: () => ({ enter() {}, logout() {} }),
+        translateError: m => m,
+        api: async url => ({ ok: true, json: async () => (/\/api\/config/.test(url) ? { config: { bedrijfsnaam: "Famo", iban: "BE68539007547034", bic: "GKCCBEBB" } } : { orders: ORDERS_Q }) })
+      }
+    };
+    ctx.window = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "documents.js"), "utf8"), ctx);
+    vm.runInContext(inline, ctx);
+
+    await ctx.load();
+    const options = el("klant").innerHTML;
+    assert.match(options, /^<option value="">Alle klanten<\/option>/, "Q1 option « Alle klanten » en premier");
+    assert.ok(options.indexOf("Brasserie Zuid") < options.indexOf("Resto Noord"), "Q1 clients triés A–Z");
+    assert.equal((options.match(/Resto Noord/g) || []).length, 2, "Q1 chaque client une seule fois (valeur + libellé)");
+    assert.equal(el("count").textContent, "9 documenten", "Q2 sans filtre : 3 commandes × 3 documents");
+
+    el("klant").value = "Resto Noord";
+    ctx.render();
+    assert.equal(el("count").textContent, "6 documenten", "Q3 filtre client : seulement ses documents");
+    assert.ok(el("table").innerHTML.includes("CMD-1") && el("table").innerHTML.includes("CMD-3"), "Q3 ses commandes sont listées");
+    assert.ok(!el("table").innerHTML.includes("CMD-2"), "Q3 les autres clients sont exclus");
+
+    ctx.setType("invoice");
+    assert.equal(el("count").textContent, "2 documenten", "Q4 client + type se combinent");
+    ctx.setType("all");
+
+    await ctx.load();
+    assert.equal(el("klant").value, "Resto Noord", "Q5 la sélection survit à Vernieuwen");
+    assert.equal(el("count").textContent, "6 documenten", "Q5 filtre toujours appliqué après rechargement");
+
+    el("klant").value = "";
+    ctx.render();
+    assert.equal(el("count").textContent, "9 documenten", "Q6 « Alle klanten » retire le filtre");
+  }
+  console.log("✓ Q. Documenten : filtre par client (liste, filtre, combinaison, rechargement)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 
