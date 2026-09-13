@@ -49,6 +49,15 @@ window.FamoDocuments=(()=>{
       (COMPANY.tva?"<br>BTW "+esc(COMPANY.tva):"")+
       (COMPANY.tel?"<br>"+esc(COMPANY.tel):"");
   }
+  // Gestructureerde mededeling (OGM) afgeleid van het factuurnummer : FA-2026-0001 → +++202/6000/00192+++.
+  // Basis = jaar + volgnummer op 6 cijfers, controle = basis mod 97 (0 → 97). Onbekend formaat → leeg.
+  const structuredRef=invoiceNumber=>{
+    const m=String(invoiceNumber||"").trim().match(/^FA-(\d{4})-(\d{1,6})$/i);
+    if(!m)return"";
+    const base=m[1]+m[2].padStart(6,"0");
+    const digits=base+String(Number(base)%97||97).padStart(2,"0");
+    return"+++"+digits.slice(0,3)+"/"+digits.slice(3,7)+"/"+digits.slice(7)+"+++";
+  };
   const number=(order,type)=>{
     if(type==="invoice") return order.factuurnummer||"—";
     if(type==="credit") return "CN-"+String(order.factuurnummer||order.ref||"").replace(/^FA-/i,"").replace(/^CMD-/i,"");
@@ -80,6 +89,7 @@ window.FamoDocuments=(()=>{
     // Rendu uniquement à partir d'ici — parse/calculs inchangés (parité M6).
     const nlUnit=value=>(typeof window!=="undefined"&&window.famoNL)?famoNL.unit(value):value;
     const ibanFmt=value=>String(value||"").replace(/\s+/g,"").replace(/(.{4})/g,"$1 ").trim();
+    const ogm=invoice?structuredRef(order.factuurnummer):"";
     const lineRows=rows.map(row=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
@@ -90,6 +100,7 @@ window.FamoDocuments=(()=>{
       '<div class="bankrow"><span>Begunstigde</span><b>'+esc(COMPANY.nom)+'</b></div>'+
       '<div class="bankrow"><span>IBAN</span><b class="mono">'+esc(ibanFmt(COMPANY.iban))+'</b></div>'+
       (COMPANY.bic?'<div class="bankrow"><span>BIC</span><b class="mono">'+esc(COMPANY.bic)+'</b></div>':'')+
+      (ogm?'<div class="bankrow"><span>Mededeling</span><b class="mono">'+esc(ogm)+'</b></div>':'')+
       (COMPANY.exampleBank?'<div class="bankexample"><em>Voorbeeld — nog niet definitief</em></div>':'')+
       '</div>';
     const payLabel=(typeof window!=="undefined"&&window.famoNL)?famoNL.pay(order.paiement||"En attente"):(order.paiement||"Openstaand");
@@ -168,5 +179,5 @@ window.FamoDocuments=(()=>{
       (priced?totals+(invoice?bank:''):'')+
       '<div class="foot">'+foot+'</div></body></html>';
   }
-  return{build,number,filename,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
+  return{build,number,structuredRef,filename,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
 })();

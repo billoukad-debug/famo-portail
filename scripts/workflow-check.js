@@ -772,6 +772,41 @@ async function main() {
   }
   console.log("✓ N. Codes d'accès (remplacent l'environnement, hachés, jamais exposés)");
 
+  // --- O. Gestructureerde mededeling op de factuur ---------------------------
+  {
+    const docsSrc = fs.readFileSync(path.join(ROOT, "documents.js"), "utf8");
+    const sandbox = { window: {}, console };
+    vm.runInNewContext(docsSrc, sandbox);
+    const FamoDocs = sandbox.window.FamoDocuments;
+    const ref = FamoDocs.structuredRef;
+
+    // O1 — valeurs connues, dont le cas reste 0 → 97.
+    assert.equal(ref("FA-2026-0001"), "+++202/6000/00192+++", "O1 FA-2026-0001");
+    assert.equal(ref("FA-2026-0006"), "+++202/6000/00697+++", "O1 reste 0 → contrôle 97");
+    assert.equal(ref("FA-2027-12345"), "+++202/7012/34547+++", "O1 volgnummer au-delà de 9999");
+
+    // O2 — toujours 12 chiffres et contrôle modulo 97 valide.
+    ["FA-2026-0001", "FA-2026-0042", "FA-2026-9999", "FA-2030-123456"].forEach(n => {
+      const digits = ref(n).replace(/\D/g, "");
+      assert.equal(digits.length, 12, "O2 12 chiffres : " + n);
+      assert.equal(Number(digits.slice(0, 10)) % 97 || 97, Number(digits.slice(10)), "O2 modulo 97 : " + n);
+    });
+
+    // O3 — format inconnu : rien plutôt qu'une communication fausse.
+    ["", null, "CMD-1789309163572", "FA-26-1", "FA-2026-1234567"].forEach(n => {
+      assert.equal(ref(n), "", "O3 aucun code pour : " + n);
+    });
+
+    // O4 — la ligne apparaît sur la facture, pas sur le bon de livraison.
+    FamoDocs.setCompany({ bedrijfsnaam: "Famo", iban: "BE68539007547034", bic: "GKCCBEBB" });
+    const order = { ref: "CMD-1", client: "Resto Test", factuurnummer: "FA-2026-0001", lignes: "Zalm × 2 kg [€12.50]", total: 25 };
+    const invoiceHtml = FamoDocs.build(order, "invoice");
+    assert.match(invoiceHtml, /<span>Mededeling<\/span><b class="mono">\+\+\+202\/6000\/00192\+\+\+<\/b>/, "O4 Mededeling sur la facture");
+    assert.ok(!/Mededeling/.test(FamoDocs.build(order, "delivery")), "O4 pas de Mededeling sur le bon de livraison");
+    assert.ok(!/Mededeling/.test(FamoDocs.build({ ...order, factuurnummer: "OUD-7" }, "invoice")), "O4 pas de ligne si numéro hors format");
+  }
+  console.log("✓ O. Gestructureerde mededeling (FA-nummer → +++…+++, mod 97)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

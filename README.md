@@ -24,6 +24,7 @@ Hors menu : `/stock.html` reste accessible par URL directe mais n'est plus propo
 3. Départ en livraison. La commande est alors **verrouillée** : lignes et total ne sont plus modifiables (verrou basé sur le statut, pas sur le stock).
 4. Réception confirmée dans **Leveringen** — le nom du réceptionnaire est obligatoire.
 5. Le numéro de facture est attribué une seule fois, au format `FA-2026-0001`.
+5b. La facture porte la communication structurée belge (**Mededeling**), calculée depuis ce numéro : `FA-2026-0001` → `+++202/6000/00192+++`. Rien n'est stocké : même numéro, même communication (`documents.js`, `structuredRef`).
 
 Le total est recalculé côté serveur à chaque modification de lignes (`api/updateorder.js`), jamais accepté tel quel depuis le navigateur.
 
