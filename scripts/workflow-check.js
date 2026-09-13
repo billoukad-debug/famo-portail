@@ -1147,10 +1147,10 @@ async function main() {
     const withPhoto = ctxC.productCard({ p: { id: "s1", nom: "Zalm", prix: 12.5, base: 12.5, unite: "kg", kaliber: "3–4 kg", foto: AT + "zalm-l.jpg?a=1&b=2" }, i: 0 });
     assert.match(withPhoto, /<img class="product-photo" src="https:\/\/v5\.airtableusercontent\.com\/zalm-l\.jpg\?a=1&amp;b=2"/, "S4 photo affichée, URL échappée");
     assert.match(withPhoto, /loading="lazy"/, "S4 photo chargée à la demande");
-    assert.match(withPhoto, /class="product-row has-photo"/, "S4 carte avec photo : mise en page adaptable");
+    assert.match(indexSrc, /\n\s*\.product-row\{flex-wrap:wrap;row-gap:8px\}/, "S4 toutes les cartes passent sur deux lignes si la place manque");
     assert.match(withPhoto, /class="product-kaliber">Kaliber 3–4 kg</, "S4 kaliber affiché");
     const bare = ctxC.productCard({ p: { id: "s4", nom: "Tong", prix: 30, base: 30, unite: "kg", kaliber: "", foto: "" }, i: 1 });
-    assert.ok(!/<img/.test(bare) && !/Kaliber/.test(bare) && !/has-photo/.test(bare), "S4 sans photo ni kaliber : carte inchangée");
+    assert.ok(!/<img/.test(bare) && !/Kaliber/.test(bare), "S4 sans photo ni kaliber : rien d'ajouté");
     const evil = ctxC.productCard({ p: { id: "x", nom: "X", prix: 1, base: 1, unite: "kg", kaliber: "<img src=x onerror=alert(1)>", foto: 'https://x.test/a.jpg" onerror="alert(1)' }, i: 2 });
     assert.ok(!/<img src=x/.test(evil) && !/" onerror="alert/.test(evil), "S4 kaliber et adresse photo échappés");
   }
