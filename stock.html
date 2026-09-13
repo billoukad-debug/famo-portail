@@ -40,7 +40,9 @@
 @media(max-width:1100px){.stock-edit{grid-template-columns:1fr 1fr;}.stock-edit .note{grid-column:1/-1}.stock-edit button{grid-column:span 1}}
 @media(max-width:900px){.stock-table{display:none}.stock-cards{display:block}.stock-tools input{width:100%;flex:auto}}
 @media(max-width:520px){.stock-tools>*{width:100%}.stock-filters{width:max-content}}
-</style></head><body>
+</style>
+<script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+</head><body>
 <section id="login" class="staff-login"><div><h1>Voorraad</h1><p>Werk voorraad alleen bij na telling, ontvangst of retour.</p><input id="code" type="password" placeholder="Toegangscode (beheerder)" autocomplete="current-password"><button type="button" onclick="enter()">Aanmelden</button><div id="err" class="staff-login-error" role="alert"></div></div></section>
 <div id="app" class="hidden staff-shell"><aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside><nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav><main class="staff-main"><div class="staff-page">
 <header class="staff-page-head"><div><h1>Voorraad</h1><p>Beschikbare hoeveelheid, minimumgrens en traceerbare correcties.</p></div><div class="staff-head-tools"><button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button></div></header>
