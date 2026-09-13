@@ -79,6 +79,14 @@
   .product-info{flex:1 1 160px}
   .product-row .qty{margin-left:auto}
 
+  /* Portaalwissel : visible uniquement avec une session personnel/beheerder ouverte. */
+  .staff-portals{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:8px 18px;background:var(--soft);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+  .staff-portals.hidden{display:none}
+  .staff-portals .sp-label{margin-right:auto}
+  .staff-portals .sp-link{display:inline-flex;align-items:center;min-height:44px;padding:0 13px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-weight:500;text-decoration:none}
+  .staff-portals-side{flex-direction:column;align-items:stretch;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:12px}
+  .staff-portals-side .sp-label{margin:0 0 2px}
+
   /* ===== Stepper de statut (socle staff.css, adapte aux variables locales) == */
   .f-stepper{display:flex;align-items:flex-start;margin:0;padding:0;list-style:none;min-height:44px}
   .f-step{--step:var(--brand);position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:5px;color:rgba(25,21,18,.28);font-size:11.5px;line-height:1.2;text-align:center}
@@ -111,6 +119,7 @@
 </head>
 <body>
 <div id="loginView" class="site">
+<div id="staffPortalsLanding" class="staff-portals hidden" aria-label="Portaal wisselen"></div>
   <header class="site-head">
     <div class="site-brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><g fill="none" stroke="#fff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13.5V2.5h8"/><path d="M4 8h2.8c1.4 0 1.7-1.3 3.1-1.3s1.5 1.3 2.9 1.3"/></g></svg></span><span>Famo Trading <span class="place">· Antwerpen</span></span></div>
     <a class="head-link" href="/aanvraag.html">Toegang aanvragen</a>
@@ -172,6 +181,7 @@
     <button class="nav-btn" data-view="favs" onclick="showView('favs')"><span data-icon="star"></span>Favorieten</button>
     <button class="nav-btn" data-view="help" onclick="showView('help')"><span data-icon="help"></span>Hulp</button>
     <div class="sidebar-spacer"></div>
+    <div id="staffPortalsApp" class="staff-portals staff-portals-side hidden" aria-label="Portaal wisselen"></div>
     <div class="account"><div id="accountMenu" class="account-menu hidden"><div id="accountMeta" class="account-meta"></div><button class="nav-btn" onclick="logout()"><span data-icon="logout"></span>Afmelden</button></div><button class="nav-btn account-btn" onclick="toggleAccount()"><span id="avatar" class="avatar">—</span><span class="account-copy"><b id="clientName">Klant</b><small id="clientAddress"></small></span><span data-icon="chevron"></span></button></div>
   </aside>
   <header class="mobile-head"><button class="icon-btn" aria-label="Menu openen" onclick="openDrawer()"><span data-icon="menu"></span></button><div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><g fill="none" stroke="#fff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13.5V2.5h8"/><path d="M4 8h2.8c1.4 0 1.7-1.3 3.1-1.3s1.5 1.3 2.9 1.3"/></g></svg></span>Famo Trading</div><button class="icon-btn" aria-label="Bestelling openen" onclick="openSheet()"><span data-icon="bag"></span></button></header>
@@ -263,6 +273,26 @@ async function enterApp(u,p,d){
   renderCatalogue();renderCart();
 }
 async function login(){const u=user.value.trim(),p=pw.value,err=loginErr,btn=loginBtn;if(!u||!p){err.textContent="Vul gebruikersnaam en wachtwoord in.";return}btn.disabled=true;btn.innerHTML=icon('spinner')+' Aanmelden…';err.textContent="";try{const r=await fetch('/api/catalogue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pw:p})}),d=await r.json();if(!r.ok)throw new Error(d.error||'Aanmelden mislukt');await enterApp(u,p,d);btn.disabled=false;btn.textContent='Aanmelden'}catch(e){err.textContent=e.message||'Netwerkfout — probeer opnieuw';btn.disabled=false;btn.textContent='Aanmelden'}}
+/* ====== Portaalwissel (personeel / beheer) ======
+   Seulement si une session du personnel est ouverte dans ce navigateur (cookie
+   HttpOnly lu par /api/session) : un client n'en a jamais, il ne voit rien.
+   « Beheer » n'est proposé qu'au rôle admin confirmé par le serveur. */
+function staffPortalsHtml(role){
+  if(role!=="staff"&&role!=="admin")return "";
+  return '<span class="sp-label">U bekijkt het klantportaal als '+(role==="admin"?'beheerder':'personeel')+'</span>'+
+    '<a class="sp-link" href="/bestellingen.html">Terug naar personeel</a>'+
+    (role==="admin"?'<a class="sp-link" href="/beheer.html">Beheer</a>':'');
+}
+async function loadStaffPortals(){
+  let role=null;
+  try{
+    const r=await fetch("/api/session",{method:"GET",credentials:"include",cache:"no-store"});
+    if(r.ok){const d=await r.json().catch(()=>({}));role=d.role||null}
+  }catch(_){}
+  const html=staffPortalsHtml(role);
+  ["staffPortalsLanding","staffPortalsApp"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=html;el.classList.toggle("hidden",!html)});
+}
+/* ====== einde portaalwissel ====== */
 async function tryRestoreSession(){
   const s=readSession();
   if(!s||!s.user||!s.pw) return;
@@ -315,6 +345,7 @@ async function loadOrders(force=false){const box=ordList;box.innerHTML='<div cla
 user.addEventListener('keydown',e=>{if(e.key==='Enter')pw.focus()});pw.addEventListener('keydown',e=>{if(e.key==='Enter')login()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDrawer()}});
 loadPublicCompany();
 tryRestoreSession();
+loadStaffPortals();
 </script>
 <div id="nlToast" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:#191512;color:#fff;padding:11px 16px;border-radius:10px;font-size:13.5px;z-index:400;display:none"></div>
 <div id="nlConfirmWrap" style="position:fixed;inset:0;background:#0007;z-index:401;display:none;align-items:center;justify-content:center;padding:20px"><div style="background:#fff;border-radius:12px;padding:22px;max-width:340px;width:100%"><p id="nlConfirmMsg" style="margin:0 0 16px;font-size:14.5px"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="nlConfirmNo" style="height:40px;padding:0 14px;border:1px solid #E5DDD3;border-radius:8px;background:#fff;cursor:pointer">Annuleren</button><button id="nlConfirmYes" style="height:40px;padding:0 14px;border:0;border-radius:8px;background:#A8371F;color:#fff;cursor:pointer">Wissen</button></div></div></div>

@@ -54,7 +54,8 @@ module.exports = async (req, res) => {
     if (rateLimited(rlKey, 5, 30000)) {
       return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
     }
-    const role = auth.roleForCode(body.code, await storedCodes());
+    // want : rôle demandé par la page (Beheer = admin). N'agit que si le code ouvre les deux rôles.
+    const role = auth.roleForCode(body.code, await storedCodes(), body.want === "admin" ? "admin" : "staff");
     if (!role) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });
     }

@@ -950,6 +950,7 @@ async function main() {
       document: { getElementById: el },
       famoStaff: {
         bindLogin: () => ({ enter() {}, logout() {} }),
+        getRole: () => "staff",
         translateError: m => m,
         api: async url => ({ ok: true, json: async () => (/\/api\/config/.test(url) ? { config: { bedrijfsnaam: "Famo", iban: "BE68539007547034", bic: "GKCCBEBB" } } : { orders: ORDERS_Q }) })
       }
@@ -1458,6 +1459,147 @@ async function main() {
     assert.deepEqual(inputOf(ctxV.clientPricesHtml({ id: "clientV" }), "pZalm"), ["11", "10"], "V8 saisie conservée pour réessayer");
   }
   console.log("✓ V. Beheer : prix négociés depuis la fiche client (API par produit, page, échec partiel)");
+
+  // --- W. Bascule entre portails : Beheer réservé au rôle admin, partout ------------
+  {
+    // W1 — codes distincts : le rôle suit le code, quelle que soit la page de connexion.
+    const authW = require(path.join(ROOT, "lib", "staffauth.js"));
+    assert.equal(authW.roleForCode(process.env.ADMIN_CODE, {}, "staff"), "admin", "W1 code beheerder = admin, même depuis une page personnel");
+    assert.equal(authW.roleForCode(process.env.STAFF_CODE, {}, "admin"), "staff", "W1 code personnel = staff, même depuis Beheer");
+    assert.equal(authW.roleForCode("fout", {}, "admin"), null, "W1 code inconnu refusé");
+
+    // W2 — codes identiques : le rôle suit la page de connexion, « staff » par défaut.
+    const savedStaff = process.env.STAFF_CODE, savedAdmin = process.env.ADMIN_CODE;
+    process.env.STAFF_CODE = "GedeeldeCode2026";
+    process.env.ADMIN_CODE = "GedeeldeCode2026";
+    clearModule("lib/staffauth.js");
+    clearModule("api/session.js");
+    try {
+      const authSame = require(path.join(ROOT, "lib", "staffauth.js"));
+      assert.equal(authSame.roleForCode("GedeeldeCode2026", {}, "staff"), "staff", "W2 codes identiques : connexion depuis une page personnel = staff");
+      assert.equal(authSame.roleForCode("GedeeldeCode2026", {}), "staff", "W2 sans indication : staff, jamais admin par défaut");
+      assert.equal(authSame.roleForCode("GedeeldeCode2026", {}, "admin"), "admin", "W2 connexion depuis Beheer = admin");
+      const same = { adminHash: authSame.hashCode("ZelfdeCode2026"), staffHash: authSame.hashCode("ZelfdeCode2026") };
+      assert.equal(authSame.roleForCode("ZelfdeCode2026", same, "staff"), "staff", "W2 codes enregistrés identiques : même règle");
+      assert.equal(authSame.roleForCode("ZelfdeCode2026", same, "admin"), "admin", "W2 codes enregistrés identiques depuis Beheer = admin");
+
+      const sessionSame = require(path.join(ROOT, "api", "session.js"));
+      const originalFetch = global.fetch;
+      global.fetch = async () => json({ records: [] });
+      try {
+        const loginAs = async (want, ip) => {
+          const r = mkRes();
+          await sessionSame({ method: "POST", body: { code: "GedeeldeCode2026", want }, headers: { "x-forwarded-for": ip } }, r);
+          return r.payload.role;
+        };
+        assert.equal(await loginAs("staff", "10.7.0.1"), "staff", "W2 API : page personnel → staff");
+        assert.equal(await loginAs("admin", "10.7.0.2"), "admin", "W2 API : page Beheer → admin");
+        assert.equal(await loginAs("super", "10.7.0.3"), "staff", "W2 API : valeur inconnue → staff");
+      } finally {
+        global.fetch = originalFetch;
+      }
+    } finally {
+      process.env.STAFF_CODE = savedStaff;
+      process.env.ADMIN_CODE = savedAdmin;
+      clearModule("lib/staffauth.js");
+      clearModule("api/session.js");
+      require(path.join(ROOT, "lib", "staffauth.js"));
+      require(path.join(ROOT, "api", "session.js"));
+    }
+
+    // W3 — menu : aucun lien Beheer/Invoeren/Documenten pour le personnel, sur bureau comme sur mobile.
+    const navSrcW = fs.readFileSync(path.join(ROOT, "staff-nav.js"), "utf8");
+    const navBox = { window: {}, document: { readyState: "complete", querySelectorAll: () => [], addEventListener: () => {} }, location: { pathname: "/bestellingen.html" }, console };
+    navBox.global = navBox;
+    vm.runInNewContext(navSrcW, navBox);
+    const navW = navBox.window.famoNav || navBox.global.famoNav;
+    const adminLinks = html => (html.match(/href="\/(beheer|invoer|documenten)\.html"/g) || []).length;
+    assert.equal(adminLinks(navW.sidebarHtml("bestellingen", false)), 0, "W3 barre latérale personnel : aucun lien d'administration");
+    assert.equal(adminLinks(navW.sheetHtml("bestellingen", false, 3)), 0, "W3 feuille « Meer » personnel : aucun lien d'administration, même avec un badge");
+    assert.equal(adminLinks(navW.mobileHtml("bestellingen", false, 3)), 0, "W3 onglets mobiles : aucun lien d'administration");
+    assert.ok(/href="\/beheer\.html"/.test(navW.sidebarHtml("bestellingen", true)) && /href="\/beheer\.html"/.test(navW.sheetHtml("bestellingen", true, 0)), "W3 beheerder : Beheer présent");
+    assert.ok(/href="\/"/.test(navW.sidebarHtml("bestellingen", false)) && /href="\/"/.test(navW.sheetHtml("bestellingen", false, 0)), "W3 lien vers le klantportaal pour tous");
+
+    // W4 — écrans de connexion : aucun lien vers Beheer ; la page indique le rôle demandé ;
+    //      une session personnel sur Beheer reçoit une invite, pas une impasse.
+    const sessSrcW = fs.readFileSync(path.join(ROOT, "staff-session.js"), "utf8");
+    const loadSession = (pathname, serverRole) => {
+      const out = { exits: "", bodies: [] };
+      const box = { querySelector: () => null, appendChild: n => { out.exits = n.innerHTML; } };
+      out.loginView = { style: {}, querySelector: () => box, classList: { hidden: true, add() { this.hidden = true; }, remove() { this.hidden = false; } } };
+      out.appView = { classList: { hidden: false, add() { this.hidden = true; }, remove() { this.hidden = false; } } };
+      out.errEl = { textContent: "" };
+      out.codeEl = { value: "EenCode", focus() {}, addEventListener() {} };
+      const byId = { login: out.loginView, app: out.appView, err: out.errEl, code: out.codeEl };
+      const sb = {
+        console,
+        location: { pathname, search: "", hash: "", origin: "https://famo.test" },
+        sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+        document: { getElementById: id => byId[id] || null, createElement: () => ({ innerHTML: "" }) },
+        addEventListener() {},
+        fetch: async (url, opts) => { out.bodies.push(JSON.parse((opts && opts.body) || "{}")); return { ok: true, json: async () => ({ ok: true, role: serverRole }) }; }
+      };
+      sb.window = sb;
+      vm.runInNewContext(sessSrcW, sb);
+      out.famoStaff = sb.famoStaff;
+      return out;
+    };
+    ["bestellingen.html", "entrepot.html", "leveringen.html", "documenten.html", "invoer.html", "order.html"].forEach(p => {
+      const s = loadSession("/" + p, "staff");
+      s.famoStaff.bindLogin({ code: "code", error: "err", loginView: "login", appView: "app" });
+      assert.ok(!/beheer\.html/.test(s.exits), "W4 écran de connexion " + p + " : aucun lien vers Beheer");
+      assert.match(s.exits, /href="\/"/, "W4 écran de connexion " + p + " : retour au klantportaal");
+    });
+    const sB = loadSession("/beheer.html", "staff");
+    const ctlB = sB.famoStaff.bindLogin({ code: "code", error: "err", loginView: "login", appView: "app", requireAdmin: true });
+    assert.match(sB.exits, /href="\/bestellingen\.html"/, "W4 connexion Beheer : retour vers le personnel");
+    await ctlB.enter();
+    assert.equal(sB.bodies[0].want, "admin", "W4 Beheer demande le rôle admin");
+    assert.equal(sB.loginView.classList.hidden, false, "W4 session personnel sur Beheer : le formulaire reste proposé");
+    assert.equal(sB.appView.classList.hidden, true, "W4 session personnel sur Beheer : Beheer reste fermé");
+    assert.match(sB.errEl.textContent, /enkel voor beheerders/i, "W4 message clair : code beheerder requis");
+    const sP = loadSession("/bestellingen.html", "staff");
+    await sP.famoStaff.bindLogin({ code: "code", error: "err", loginView: "login", appView: "app" }).enter();
+    assert.equal(sP.bodies[0].want, "staff", "W4 pages personnel : rôle staff demandé");
+
+    // W5 — Documenten : les liens vers Beheer n'existent que pour le beheerder.
+    const docSrcW = fs.readFileSync(path.join(ROOT, "documenten.html"), "utf8");
+    const actSrc = /function act\(d\)\{[^\n]*/.exec(docSrcW)[0];
+    const actFor = role => {
+      const c = { esc: s => String(s), famoStaff: { getRole: () => role } };
+      vm.runInNewContext(actSrc, c);
+      return c.act({ available: false, type: "invoice", order: { id: "o1" } });
+    };
+    assert.ok(!/beheer\.html/.test(actFor("staff")), "W5 Documenten personnel : pas de « Vul IBAN in » vers Beheer");
+    assert.match(actFor("admin"), /href="\/beheer\.html"/, "W5 Documenten beheerder : lien vers Beheer");
+    assert.ok(/getRole\(\)==="admin"\?"<p><a href='\/beheer\.html'>Open Beheer<\/a><\/p>":/.test(docSrcW), "W5 facture bloquée : « Open Beheer » réservé au beheerder");
+
+    // W6 — portail client : bascule seulement avec une session du personnel ; Beheer seulement pour l'admin.
+    const idxSrcW = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+    const portalsBlock = /\/\* ====== Portaalwissel[\s\S]*?\/\* ====== einde portaalwissel ====== \*\//.exec(idxSrcW);
+    assert.ok(portalsBlock, "W6 bloc portaalwissel introuvable dans index.html");
+    assert.match(idxSrcW, /\ntryRestoreSession\(\);\nloadStaffPortals\(\);/, "W6 bascule chargée à l'ouverture du portail");
+    const portalEls = {};
+    const portalEl = id => portalEls[id] || (portalEls[id] = { innerHTML: "", classList: { hidden: true, toggle(c, on) { this.hidden = on; } } });
+    const runPortals = async fetchImpl => {
+      Object.keys(portalEls).forEach(k => delete portalEls[k]);
+      const c = { console, document: { getElementById: portalEl }, fetch: fetchImpl };
+      vm.createContext(c);
+      vm.runInContext(portalsBlock[0], c);
+      await c.loadStaffPortals();
+      return portalEls;
+    };
+    let p6 = await runPortals(async () => ({ ok: false, json: async () => ({ error: "Sessie verlopen" }) }));
+    assert.ok(p6.staffPortalsLanding.classList.hidden && p6.staffPortalsApp.classList.hidden && !p6.staffPortalsApp.innerHTML, "W6 client sans session du personnel : aucune bascule");
+    p6 = await runPortals(async () => ({ ok: true, json: async () => ({ ok: true, role: "staff" }) }));
+    assert.ok(!p6.staffPortalsApp.classList.hidden && /href="\/bestellingen\.html"/.test(p6.staffPortalsApp.innerHTML), "W6 personnel : retour vers le personnel");
+    assert.ok(!/beheer\.html/.test(p6.staffPortalsLanding.innerHTML + p6.staffPortalsApp.innerHTML), "W6 personnel : aucun lien vers Beheer");
+    p6 = await runPortals(async () => ({ ok: true, json: async () => ({ ok: true, role: "admin" }) }));
+    assert.ok(/href="\/beheer\.html"/.test(p6.staffPortalsLanding.innerHTML) && /href="\/bestellingen\.html"/.test(p6.staffPortalsLanding.innerHTML), "W6 beheerder : personnel et Beheer");
+    p6 = await runPortals(async () => { throw new Error("netwerk"); });
+    assert.ok(p6.staffPortalsLanding.classList.hidden, "W6 réseau en panne : rien n'est affiché");
+  }
+  console.log("✓ W. Bascule entre portails (rôles, codes identiques, menu, connexion, Documenten, portail client)");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());

@@ -10,7 +10,7 @@ Portail B2B de Famo Trading : le client commande en ligne, le personnel prépare
 | **Personnel** — *Dagelijks* | `/bestellingen.html`, `/entrepot.html`, `/leveringen.html`, `/order.html` | `STAFF_CODE` ou `ADMIN_CODE` |
 | **Administration** — *Beheer* | `/beheer.html`, `/invoer.html`, `/documenten.html` | `ADMIN_CODE` uniquement |
 
-Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
+Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. En sens inverse, le portail client affiche **« Terug naar personeel »** (et **« Beheer »** pour un beheerder) uniquement quand une session du personnel est ouverte dans le navigateur — un client n'en voit jamais rien. Aucun lien vers Beheer n'est montré au personnel : ni dans le menu, ni sur les écrans de connexion, ni dans Documenten. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
 
 Redirections conservées : `/overzicht.html` → Bestellingen, `/dagprep.html` → Magazijn (vue jour), `/aan-de-slag.html` → Beheer.
 
@@ -58,6 +58,13 @@ lisibles nulle part, pas même dans la base.
 
 Dès qu'un code est enregistré pour un rôle, il **remplace** celui de l'environnement —
 sinon changer un code ne servirait à rien, l'ancien continuerait d'ouvrir la porte.
+
+**Même code pour les deux rôles** (au démarrage, ou codes enregistrés identiques) : le serveur
+ne peut pas savoir qui le tape. Le rôle suit alors la **page de connexion** — Beheer, Invoeren
+ou Voorraad ouvrent une session beheerder, toute autre page une session personnel (jamais
+beheerder par défaut). Un membre du personnel qui se connecte depuis Bestellingen ne voit donc
+pas Beheer. Le beheerder, lui, se connecte depuis `/beheer.html`. Pour une vraie séparation,
+choisissez deux codes différents dans Beheer → Toegang.
 
 **Si un code est perdu** : videz le champ `Beheerderscode hash` ou `Personeelscode hash`
 dans Airtable ; le code de la variable Vercel redevient valable.
