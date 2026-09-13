@@ -78,6 +78,28 @@
   .oc-progress span{display:block;height:100%;width:0;border-radius:999px;background:var(--f-accent);transition:width .18s ease}
   @media(prefers-reduced-motion:reduce){.oc-progress span{transition:none}}
   .col .f-empty{padding:26px 10px}
+  /* Groepsactie : sélection multiple et résultat commande par commande */
+  .wh-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:8px 10px 8px 14px;border:1px solid var(--f-line);border-radius:12px;background:#fff}
+  #bulkCount{margin-right:auto;font-size:13px;font-weight:600;color:var(--f-ink);font-variant-numeric:tabular-nums}
+  .oc-select{display:flex;align-items:center;gap:8px;min-height:44px;margin:-10px 0 0 -4px;padding-left:4px;font-size:13px;font-weight:600;color:var(--f-muted);cursor:pointer}
+  .oc-select input{width:24px;height:24px;margin:0;accent-color:var(--f-accent);cursor:pointer}
+  .oc.oc-selected{border-color:var(--f-accent)!important;background:var(--f-wash)!important} /* staff.css force .oc en !important */
+  .wh-bulk-result{margin-top:12px;border:1px solid var(--f-line);border-radius:12px;background:#fff;overflow:hidden}
+  .br-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:8px 10px 8px 14px;background:var(--f-panel);font-size:13.5px}
+  .br-head button{margin-left:auto}
+  .br-sum{font-size:12.5px;color:var(--f-muted)}
+  .br-sum-fail{color:var(--f-danger);font-weight:600}
+  .br-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;padding:10px 14px;border-top:1px solid var(--f-line);font-size:13px}
+  .br-state{min-width:112px;font-weight:600}
+  .br-ok .br-state{color:var(--f-success)}
+  .br-fail{background:#FBF1EE}
+  .br-fail .br-state{color:var(--f-danger)}
+  .br-skipped .br-state{color:var(--f-warning)}
+  .br-ref{font:500 12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+  .br-client{font-weight:500}
+  .br-msg{flex-basis:100%;padding-left:124px;color:var(--f-muted)}
+  .br-hint{margin:0;padding:10px 14px;border-top:1px solid var(--f-line);color:var(--f-quiet);font-size:12px}
+  @media(max-width:620px){.br-msg{padding-left:0}#bulkCount{width:100%}}
 </style>
 <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
 </head>
@@ -132,6 +154,13 @@
         <button type="button" class="staff-action-secondary" onclick="clearOrderFilters()">Wissen</button>
         <span id="boardSummary" role="status"></span>
       </section>
+      <section id="bulkBar" class="wh-bulk hidden" aria-label="Groepsactie">
+        <span id="bulkCount" role="status"></span>
+        <button type="button" class="staff-action-secondary" id="bulkAll" onclick="selectAllEligible()">Alles selecteren</button>
+        <button type="button" class="staff-action-secondary" id="bulkClear" onclick="clearSelection()">Selectie wissen</button>
+        <button type="button" class="staff-action" id="bulkGo" onclick="confirmBulkAdvance()">→ Onderweg</button>
+      </section>
+      <section id="bulkResult" class="wh-bulk-result hidden" aria-live="polite" aria-label="Resultaat groepsactie"></section>
       <div class="board">
         <div class="col c0"><h3>Ontvangen <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
         <div class="col c1"><h3>Klaar <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
@@ -267,6 +296,7 @@ async function load(){
 
 function render(){
   for(let i=0;i<4;i++) document.getElementById("c"+i).innerHTML="";
+  SELECTED=new Set([...SELECTED].filter(id=>advanceTarget(ORDERS.find(o=>o.id===id))));
   const counts=[0,0,0,0];
   const visible=orderView();
   visible.forEach(({o,idx})=>{
@@ -274,7 +304,7 @@ function render(){
     const next=si<3?STATUS[si+1]:null;
     const paid=o.paiement==="Payé";
     const focusId=new URLSearchParams(location.search).get("id")||"";
-    const el=document.createElement("div"); el.className="oc"+(focusId&&(o.id===focusId||o.ref===focusId)?" oc-focus":"");
+    const el=document.createElement("div"); el.className="oc"+(focusId&&(o.id===focusId||o.ref===focusId)?" oc-focus":"")+(SELECTED.has(o.id)?" oc-selected":"");
     el.dataset.orderId=o.id;
     const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
     const primary=canValidate
@@ -282,7 +312,8 @@ function render(){
       : (next==="Facturée"
           ? '<a class="adv" href="/leveringen.html" style="display:block;text-align:center;text-decoration:none">Open Leveringen</a>'
           : (next?'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''));
-    el.innerHTML='<div class="ref">'+esc(o.ref)+'</div>'+
+    el.innerHTML=(advanceTarget(o)?'<label class="oc-select"><input type="checkbox" data-id="'+esc(o.id)+'"'+(SELECTED.has(o.id)?' checked':'')+' onchange="toggleSelect(this.dataset.id,this.checked)"> Selecteren</label>':'')+
+      '<div class="ref">'+esc(o.ref)+'</div>'+
       '<div class="cl">'+esc(o.client)+'</div>'+
       renderLines(o.lignes)+
       '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
@@ -309,6 +340,7 @@ function render(){
   document.getElementById("statTodo").textContent=counts[0]+counts[1]; document.getElementById("statOnway").textContent=counts[2]; document.getElementById("statOpen").textContent=counts[0]+counts[1]+counts[2];
   const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
+  renderBulkBar();
   if(CURRENT_VIEW==="dag") renderDayView();
   else highlightFocusedOrder();
 }
@@ -516,6 +548,105 @@ function confirmAdvance(id,statut,index){
   document.getElementById("advanceModal").classList.remove("hidden");
 }
 function closeAdvanceModal(){document.getElementById("advanceModal").classList.add("hidden")}
+
+/* ====== Groepsactie : meerdere bestellingen samen een stap verder ======
+   Même règle que le bouton de la carte : depuis le Magazijn, seule une commande
+   Klaar dont les articles sont validés avance (vers Onderweg). Ontvangen passe par
+   la validation article par article, Onderweg par Leveringen.
+   L'API ne traite pas de lot : un appel par commande, l'un après l'autre, et un
+   résultat par commande — un échec n'empêche jamais les autres de passer. */
+let SELECTED=new Set(), BULK_RESULT=null;
+function advanceTarget(o){
+  if(!o) return null;
+  const si=STATUS.indexOf(o.statut), next=si>=0&&si<3?STATUS[si+1]:null;
+  const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
+  return !canValidate&&next&&next!=="Facturée"?next:null;
+}
+function eligibleVisible(){return orderView().map(r=>r.o).filter(advanceTarget)}
+function selectedOrders(){return [...SELECTED].map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean)}
+// Cocher ne redessine pas le bord : un contrôle d'articles ouvert sur une autre carte reste intact.
+function syncSelectionDom(){
+  document.querySelectorAll(".oc-select input").forEach(input=>{
+    const on=SELECTED.has(input.dataset.id);
+    input.checked=on;
+    const card=input.closest(".oc"); if(card) card.classList.toggle("oc-selected",on);
+  });
+  renderBulkBar();
+}
+function toggleSelect(id,on){if(on)SELECTED.add(id);else SELECTED.delete(id);syncSelectionDom()}
+function selectAllEligible(){eligibleVisible().forEach(o=>SELECTED.add(o.id));syncSelectionDom()}
+function clearSelection(){SELECTED.clear();syncSelectionDom()}
+function renderBulkBar(){
+  const bar=document.getElementById("bulkBar"); if(!bar) return;
+  const eligible=eligibleVisible().length, orders=selectedOrders(), n=orders.length;
+  bar.classList.toggle("hidden",!eligible&&!n);
+  document.getElementById("bulkCount").textContent=n?n+" geselecteerd":eligible+(eligible===1?" bestelling":" bestellingen")+" klaar om te vertrekken";
+  const targets=[...new Set(orders.map(advanceTarget).filter(Boolean))];
+  const go=document.getElementById("bulkGo");
+  go.textContent=(targets.length>1?"Volgende stap":NEXTLBL[targets[0]||"Sortie en livraison"])+(n?" ("+n+")":"");
+  go.disabled=UPDATING||!n;
+  document.getElementById("bulkClear").disabled=UPDATING||!n;
+  document.getElementById("bulkAll").disabled=UPDATING||!eligible;
+}
+function confirmBulkAdvance(){
+  const orders=selectedOrders().filter(advanceTarget);
+  if(UPDATING||!orders.length) return;
+  const targets=[...new Set(orders.map(advanceTarget))];
+  let message=orders.length+(orders.length===1?" bestelling":" bestellingen")+" naar ‘"+(targets.length===1?famoNL.status(targets[0]):"de volgende stap")+"’ verplaatsen: "+orders.map(o=>o.ref).join(", ")+".";
+  if(targets.includes("Sortie en livraison")) message+=" Voorraad wordt niet automatisch bijgewerkt (nog handmatig beheerd). Controleer voorbereiding en leveringsbonnen eerst.";
+  message+=" Elke bestelling wordt afzonderlijk bijgewerkt: mislukt er één, dan gaan de andere gewoon door.";
+  document.getElementById("advanceText").textContent=message;
+  document.getElementById("advanceConfirm").onclick=async()=>{closeAdvanceModal();await runBulkAdvance(orders.map(o=>o.id))};
+  document.getElementById("advanceModal").classList.remove("hidden");
+}
+function setBulkBusy(on){document.querySelectorAll("button, .oc-select input").forEach(el=>{el.disabled=on})}
+async function runBulkAdvance(ids){
+  if(UPDATING) return;
+  UPDATING=true; setBulkBusy(true);
+  const results=[];
+  let stopped="";
+  try{
+    for(let i=0;i<ids.length;i++){
+      const o=ORDERS.find(x=>x.id===ids[i]), target=advanceTarget(o);
+      const row={id:ids[i],ref:o?o.ref:ids[i],client:o?o.client:""};
+      if(stopped){results.push(Object.assign(row,{state:"skipped",message:stopped}));continue}
+      if(!target){results.push(Object.assign(row,{state:"skipped",message:"Niet meer klaar om te vertrekken — ververs het bord."}));continue}
+      document.getElementById("bulkCount").textContent="Bezig: "+(i+1)+" van "+ids.length+" ("+row.ref+")…";
+      try{
+        const patch={id:o.id,statut:target}; if(target==="Sortie en livraison") patch.skipStock=true;
+        const r=await famoStaff.api("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(patch)});
+        const d=await r.json().catch(()=>({}));
+        if(r.ok) results.push(Object.assign(row,{state:"ok",message:"→ "+famoNL.status(target)}));
+        else results.push(Object.assign(row,{state:"fail",message:famoStaff.translateError(d.error||"Fout bij bijwerken")}));
+      }catch(error){
+        results.push(Object.assign(row,{state:"fail",message:famoStaff.translateError(error.message||"Verbinding mislukt. Probeer opnieuw.")}));
+        if(error.sessionExpired) stopped="Niet uitgevoerd — sessie verlopen. Meld u opnieuw aan en probeer opnieuw.";
+      }
+    }
+  }finally{
+    results.filter(x=>x.state==="ok").forEach(x=>SELECTED.delete(x.id));
+    BULK_RESULT=results;
+    UPDATING=false; setBulkBusy(false);
+    renderBulkResult();
+  }
+  await load();
+  renderBulkBar();
+}
+function renderBulkResult(){
+  const box=document.getElementById("bulkResult"); if(!box) return;
+  if(!BULK_RESULT){box.classList.add("hidden");box.innerHTML="";return}
+  const count=s=>BULK_RESULT.filter(x=>x.state===s).length, ok=count("ok"), fail=count("fail"), skipped=count("skipped");
+  const label={ok:"Gelukt",fail:"Mislukt",skipped:"Niet uitgevoerd"};
+  box.classList.remove("hidden");
+  box.innerHTML='<div class="br-head"><b>Groepsactie: '+ok+' van '+BULK_RESULT.length+' gelukt</b>'+
+    (fail?'<span class="br-sum br-sum-fail">'+fail+' mislukt</span>':'')+
+    (skipped?'<span class="br-sum">'+skipped+' niet uitgevoerd</span>':'')+
+    '<button type="button" class="staff-action-secondary" onclick="closeBulkResult()">Sluiten</button></div>'+
+    BULK_RESULT.map(x=>'<div class="br-row br-'+x.state+'"><span class="br-state">'+label[x.state]+'</span><span class="br-ref">'+esc(x.ref)+'</span><span class="br-client">'+esc(x.client)+'</span><span class="br-msg">'+esc(x.message)+'</span></div>').join("")+
+    (fail?'<p class="br-hint">Mislukte bestellingen blijven geselecteerd zolang ze klaar zijn: los het probleem op en probeer opnieuw.</p>':'');
+}
+function closeBulkResult(){BULK_RESULT=null;renderBulkResult()}
+/* ====== einde groepsactie ====== */
 async function togglePay(id,paiement){ await upd({id,paiement}); }
 async function upd(patch){
   if(UPDATING)return;

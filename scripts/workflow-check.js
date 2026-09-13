@@ -1222,6 +1222,105 @@ async function main() {
   }
   console.log("✓ T. Numérotation des commandes (CMD-<année>-NNNN, séquence, repli sûr)");
 
+  // --- U. Magazijn : groepsactie (sélection multiple, un appel par commande) -------
+  {
+    const pageSrc = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    const block = /\/\* ====== Groepsactie[\s\S]*?\/\* ====== einde groepsactie ====== \*\//.exec(pageSrc);
+    assert.ok(block, "U0 bloc groepsactie introuvable dans entrepot.html");
+    assert.match(pageSrc, /id="bulkBar"/, "U0 barre de groepsactie présente");
+    assert.match(pageSrc, /onchange="toggleSelect\(this\.dataset\.id,this\.checked\)"/, "U0 case à cocher sur les cartes");
+
+    const ORDERS_U = [
+      { id: "a", ref: "CMD-2026-0001", client: "Resto A", statut: "Prête", preparationValidee: true },
+      { id: "b", ref: "CMD-2026-0002", client: "Resto B", statut: "Prête", preparationValidee: true },
+      { id: "c", ref: "CMD-2026-0003", client: "Resto C", statut: "Prête", preparationValidee: false },
+      { id: "d", ref: "CMD-2026-0004", client: "Resto D", statut: "Reçue", preparationValidee: true },
+      { id: "e", ref: "CMD-2026-0005", client: "Resto E", statut: "Sortie en livraison", preparationValidee: true },
+      { id: "f", ref: "CMD-2026-0006", client: "Resto F", statut: "Facturée", preparationValidee: true }
+    ];
+    const els = {};
+    const el = id => els[id] || (els[id] = { id, textContent: "", innerHTML: "", disabled: false, onclick: null, classList: { add() {}, remove() {}, toggle() {} } });
+    const apiCalls = [];
+    let inflight = 0, maxInflight = 0, loads = 0;
+    let respond = () => ({ ok: true, body: {} });
+    const ctx = {
+      console,
+      STATUS: ["Reçue", "Prête", "Sortie en livraison", "Facturée"],
+      NEXTLBL: { "Prête": "→ Klaar", "Sortie en livraison": "→ Onderweg", "Facturée": "→ Gefactureerd" },
+      ORDERS: ORDERS_U,
+      UPDATING: false,
+      esc: s => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;"),
+      orderView: () => ORDERS_U.map((o, idx) => ({ o, idx })),
+      load: async () => { loads++; },
+      closeAdvanceModal: () => {},
+      document: { getElementById: el, querySelectorAll: () => [] },
+      famoStaff: {
+        translateError: m => m,
+        api: async (url, opts) => {
+          inflight++;
+          maxInflight = Math.max(maxInflight, inflight);
+          const patch = JSON.parse(opts.body);
+          apiCalls.push({ url, patch });
+          await new Promise(resolve => setTimeout(resolve, 5));
+          inflight--;
+          const out = respond(patch);
+          if (out.throw) throw out.throw;
+          return { ok: out.ok, json: async () => out.body };
+        }
+      }
+    };
+    ctx.window = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctx);
+    vm.runInContext(block[0], ctx);
+
+    // U1 — même règle que le bouton de la carte : seule une commande Klaar validée avance.
+    assert.deepEqual(ORDERS_U.map(o => ctx.advanceTarget(o)), ["Sortie en livraison", "Sortie en livraison", null, null, null, null], "U1 seules les commandes Klaar validées sont éligibles");
+
+    // U2 — « Alles selecteren » ne prend que les éligibles ; la confirmation maison liste les commandes.
+    ctx.selectAllEligible();
+    assert.equal(el("bulkCount").textContent, "2 geselecteerd", "U2 deux commandes sélectionnées");
+    assert.equal(el("bulkGo").textContent, "→ Onderweg (2)", "U2 libellé de l'action groupée");
+    ctx.confirmBulkAdvance();
+    assert.match(el("advanceText").textContent, /^2 bestellingen naar ‘Onderweg’ verplaatsen: CMD-2026-0001, CMD-2026-0002\./, "U2 la confirmation liste les commandes");
+    assert.match(el("advanceText").textContent, /afzonderlijk bijgewerkt/, "U2 la confirmation annonce le traitement commande par commande");
+
+    // U3 — une passe, une échoue : un appel par commande, l'un après l'autre, résultat nommé.
+    respond = patch => patch.id === "b" ? { ok: false, body: { error: "Valideer eerst alle artikelen van deze bestelling" } } : { ok: true, body: {} };
+    await el("advanceConfirm").onclick();
+    assert.equal(apiCalls.length, 2, "U3 un appel par commande");
+    assert.equal(maxInflight, 1, "U3 appels l'un après l'autre, jamais en parallèle");
+    apiCalls.forEach(c => {
+      assert.equal(c.url, "/api/updateorder", "U3 API existante, sans lot");
+      assert.equal(c.patch.statut, "Sortie en livraison", "U3 statut cible");
+      assert.strictEqual(c.patch.skipStock, true, "U3 même règle de stock que la carte");
+    });
+    const res3 = el("bulkResult").innerHTML;
+    assert.match(res3, /Groepsactie: 1 van 2 gelukt/, "U3 résumé lisible");
+    assert.match(res3, /br-ok"><span class="br-state">Gelukt<\/span><span class="br-ref">CMD-2026-0001<\/span>/, "U3 la commande réussie est nommée");
+    assert.match(res3, /br-fail"><span class="br-state">Mislukt<\/span><span class="br-ref">CMD-2026-0002<\/span><span class="br-client">Resto B<\/span><span class="br-msg">Valideer eerst alle artikelen van deze bestelling<\/span>/, "U3 la commande en échec est nommée, avec la raison du serveur");
+    assert.equal(loads, 1, "U3 le bord est rechargé une fois, à la fin");
+    assert.equal(el("bulkCount").textContent, "1 geselecteerd", "U3 la commande en échec reste sélectionnée");
+    assert.strictEqual(ctx.UPDATING, false, "U3 écran débloqué après le lot");
+
+    // U4 — commande plus éligible entre-temps : non exécutée, sans appel, raison affichée.
+    apiCalls.length = 0;
+    respond = () => ({ ok: true, body: {} });
+    await ctx.runBulkAdvance(["c", "a"]);
+    assert.deepEqual(apiCalls.map(c => c.patch.id), ["a"], "U4 seule la commande éligible est envoyée");
+    assert.match(el("bulkResult").innerHTML, /br-skipped"><span class="br-state">Niet uitgevoerd<\/span><span class="br-ref">CMD-2026-0003<\/span>/, "U4 commande non éligible signalée");
+
+    // U5 — session expirée : arrêt immédiat, les suivantes sont marquées non exécutées.
+    apiCalls.length = 0;
+    respond = () => ({ throw: Object.assign(new Error("Sessie verlopen. Meld u opnieuw aan."), { sessionExpired: true }) });
+    await ctx.runBulkAdvance(["a", "b"]);
+    assert.equal(apiCalls.length, 1, "U5 arrêt après une session expirée");
+    const res5 = el("bulkResult").innerHTML;
+    assert.match(res5, /Groepsactie: 0 van 2 gelukt/, "U5 résumé");
+    assert.match(res5, /br-skipped"><span class="br-state">Niet uitgevoerd<\/span><span class="br-ref">CMD-2026-0002<\/span>[\s\S]*sessie verlopen/, "U5 la suivante n'est pas exécutée, raison claire");
+  }
+  console.log("✓ U. Magazijn : groepsactie (éligibilité, un appel par commande, résultat par commande)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 
