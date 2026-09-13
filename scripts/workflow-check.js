@@ -981,6 +981,80 @@ async function main() {
   }
   console.log("✓ Q. Documenten : filtre par client (liste, filtre, combinaison, rechargement)");
 
+  // --- R. Bestellingen (kanban) : leverdatum en avant, tri par leverdatum par défaut ---
+  {
+    const pageSrc = fs.readFileSync(path.join(ROOT, "bestellingen.html"), "utf8");
+
+    // R1 — le tri par défaut est la date de livraison (première option, rien de forcé).
+    const sortSelect = /<select id="sort"[^>]*>([\s\S]*?)<\/select>/.exec(pageSrc);
+    assert.ok(sortSelect, "R1 select de tri introuvable");
+    assert.equal(/<option value="([^"]+)"/.exec(sortSelect[1])[1], "delivery", "R1 première option (défaut) = Leverdatum");
+    assert.ok(!/<option[^>]*\bselected\b/.test(sortSelect[1]), "R1 aucune option forcée par selected");
+
+    // R2 — la date est plus grande que la référence.
+    const px = re => Number((re.exec(pageSrc) || [])[1]);
+    assert.ok(px(/\.m-card-date\{[^}]*font-size:([\d.]+)px/) > px(/\.m-card-ref\{[^}]*font:\s*\d+\s+([\d.]+)px/), "R2 leverdatum plus grande que la référence");
+
+    // Le vrai script de la page, avec un DOM minimal et une API simulée.
+    const inline = [...pageSrc.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]).join("\n");
+    const brussels = d => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(d);
+    const shift = n => { const d = new Date(brussels(new Date()) + "T12:00:00"); d.setDate(d.getDate() + n); return brussels(d); };
+    const ORDERS_R = [
+      { id: "a", ref: "CMD-A", client: "Resto A", statut: "Reçue", date: shift(0), dateLiv: shift(2), total: 10, paiement: "En attente", lignes: "" },
+      { id: "b", ref: "CMD-B", client: "Resto B", statut: "Reçue", date: shift(-1), dateLiv: "", total: 10, paiement: "En attente", lignes: "" },
+      { id: "c", ref: "CMD-C", client: "Resto C", statut: "Reçue", date: shift(-3), dateLiv: shift(0), total: 10, paiement: "En attente", lignes: "" },
+      { id: "d", ref: "CMD-D", client: "Resto D", statut: "Reçue", date: shift(-5), dateLiv: shift(-1), total: 10, paiement: "En attente", lignes: "" }
+    ];
+    const els = {};
+    const el = id => els[id] || (els[id] = {
+      id, value: "", innerHTML: "", textContent: "",
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+      setAttribute() {}
+    });
+    ["status", "payment", "source", "dateFilter", "attention"].forEach(id => { el(id).value = "all"; });
+    el("sort").value = "delivery";
+    const ctx = {
+      console, URL, URLSearchParams, Intl,
+      location: { pathname: "/bestellingen.html", search: "", hash: "", origin: "https://famo.test" },
+      history: { replaceState: (s, t, url) => { ctx.location.search = new URL(url, "https://famo.test").search; } },
+      document: { getElementById: el },
+      famoStaff: {
+        bindLogin: () => ({ enter() {}, logout() {} }),
+        getRole: () => "staff",
+        translateError: m => m,
+        api: async () => ({ ok: true, json: async () => ({ orders: ORDERS_R }) })
+      }
+    };
+    ctx.window = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctx);
+    vm.runInContext(inline, ctx);
+    const refs = () => [...el("board").innerHTML.matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]);
+
+    // R3 — tri par défaut : en retard, aujourd'hui, plus tard, sans date en dernier.
+    await ctx.load();
+    assert.deepEqual(refs(), ["CMD-D", "CMD-C", "CMD-A", "CMD-B"], "R3 tri par leverdatum par défaut");
+
+    // R4 — sur chaque carte, la date vient avant la référence.
+    const tops = [...el("board").innerHTML.matchAll(/<div class="m-card-top"><span class="m-card-date([^"]*)">([^<]+)<\/span><span class="m-card-ref">([^<]+)<\/span><\/div>/g)];
+    assert.equal(tops.length, 4, "R4 date puis référence sur les 4 cartes");
+    const byRef = Object.fromEntries(tops.map(m => [m[3], { cls: m[1], label: m[2] }]));
+    assert.match(byRef["CMD-D"].cls, /m-late/, "R4 livraison en retard signalée");
+    assert.equal(byRef["CMD-C"].label, "Vandaag", "R4 livraison du jour");
+    assert.equal(byRef["CMD-B"].label, "Geen leverdatum", "R4 sans date : libellé explicite");
+    assert.match(byRef["CMD-B"].cls, /m-nodate/, "R4 sans date : style discret");
+
+    // R5 — les autres tris restent disponibles ; seul le défaut est absent de l'URL.
+    el("sort").value = "recent";
+    ctx.onFilterChange();
+    assert.deepEqual(refs(), ["CMD-A", "CMD-B", "CMD-C", "CMD-D"], "R5 Nieuwste eerst toujours disponible");
+    assert.equal(ctx.location.search, "?sort=recent", "R5 tri non défaut conservé dans l'URL");
+    el("sort").value = "delivery";
+    ctx.onFilterChange();
+    assert.equal(ctx.location.search, "", "R5 tri par défaut absent de l'URL");
+  }
+  console.log("✓ R. Bestellingen : leverdatum en avant, référence secondaire, tri par leverdatum par défaut");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

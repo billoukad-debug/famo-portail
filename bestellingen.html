@@ -25,9 +25,12 @@
 .m-col-head::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--col,#77706A)}
 .m-col-head b{margin-left:auto;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--f-muted)}
 .m-card{display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
-.m-card-top{display:flex;align-items:baseline;gap:8px}
-.m-card-date{margin-left:auto;color:var(--f-quiet);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.m-card-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+/* Leverdatum = première lecture de la carte ; la référence passe en secondaire (mono, discrète). */
+.m-card-date{color:var(--f-ink);font-size:15px;font-weight:600;letter-spacing:-.005em;white-space:nowrap;font-variant-numeric:tabular-nums}
 .m-card-date.m-late{color:var(--f-danger)} /* brique #A8371F sur blanc : 6,5:1 (calculé) */
+.m-card-date.m-nodate{color:var(--f-quiet);font-size:13px;font-weight:500}
+.m-card-ref{margin-left:auto;color:var(--f-quiet);font:500 11.5px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
 .m-card-client{margin-top:5px;font-size:14px;font-weight:500;letter-spacing:-.005em}
 .m-card-lines{margin-top:3px;color:var(--f-quiet);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .m-card-foot{display:flex;align-items:center;gap:8px;margin-top:9px}
@@ -72,7 +75,7 @@
     <section class="orders-tools" aria-label="Bestellingen filteren">
       <input id="search" class="staff-field" type="search" placeholder="Zoek referentie, klant, artikel of factuur…" oninput="render()">
       <button id="filtersBtn" type="button" class="staff-filterbtn" onclick="toggleFilters()" aria-expanded="false" aria-controls="filtersPanel">Filters<span class="n" id="filtersCount"></span></button>
-      <select id="sort" class="staff-select" onchange="onFilterChange()" aria-label="Sorteren"><option value="recent">Nieuwste eerst</option><option value="delivery">Leverdatum</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
+      <select id="sort" class="staff-select" onchange="onFilterChange()" aria-label="Sorteren"><option value="delivery">Leverdatum</option><option value="recent">Nieuwste eerst</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
     </section>
     <div id="filtersPanel" class="filters-panel">
       <label><span>Status</span><select id="status" class="staff-select" onchange="onFilterChange()"><option value="all">Alle statussen</option><option value="open">Open (niet gefactureerd)</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select></label>
@@ -153,7 +156,7 @@ function syncUrlFromFilters(){
     if(!field)return;
     const v=field.value;
     if(!v||v==="all")return;
-    if(name==="sort"&&v==="recent")return;
+    if(name==="sort"&&v==="delivery")return;
     params.set(name,v);
   });
   const q=params.toString();
@@ -237,7 +240,7 @@ function orderCard(o){
     ?'<span class="order-alert">Aandacht</span>'
     :'<span class="m-pay'+(o.paiement==="Payé"?'':' open')+'">'+esc(famoNL.pay(o.paiement||"En attente"))+'</span>';
   return '<a class="m-card f-lift" href="/order.html?id='+encodeURIComponent(o.id)+'">'+
-    '<div class="m-card-top"><span class="order-ref">'+esc(o.ref)+'</span><span class="m-card-date'+(late?' m-late':'')+'">'+esc(shortDate(o.dateLiv))+'</span></div>'+
+    '<div class="m-card-top"><span class="m-card-date'+(late?' m-late':'')+(day?'':' m-nodate')+'">'+esc(day?shortDate(o.dateLiv):"Geen leverdatum")+'</span><span class="m-card-ref">'+esc(o.ref)+'</span></div>'+
     '<div class="m-card-client">'+esc(o.client)+'</div>'+
     '<div class="m-card-lines">'+esc(shortLines(o.lignes))+'</div>'+
     '<div class="m-card-foot">'+foot+'<span class="m-card-total">'+eur(o.total)+'</span></div>'+
