@@ -53,6 +53,10 @@ async function call(handler, body, replies, opts) {
   }
 }
 
+// Réponse Airtable à la requête de numérotation (lib/ordernumber.js), juste avant
+// l'enregistrement d'une commande : aucune référence CMD-<année>-NNNN encore.
+const NO_ORDER_REFS = { records: [] };
+
 async function main() {
   const updateOrder = require(path.join(ROOT, "api", "updateorder.js"));
   const createOrder = require(path.join(ROOT, "api", "order.js"));
@@ -102,11 +106,12 @@ async function main() {
     { records: [{ id: "client1", fields: { "Wachtwoord": "pass" } }] },
     { records: [{ id: "prod1", fields: { "Produit": "Zalm", "Prix de base": 12.5, "Unité": "kg" } }] },
     { records: [] },
+    NO_ORDER_REFS,
     { records: [{ id: "order1" }] }
   ]);
   assert.equal(result.res.statusCode, 200);
   assert.equal(result.res.payload.total, 25);
-  const created = JSON.parse(result.calls[3].options.body).records[0].fields;
+  const created = JSON.parse(result.calls[4].options.body).records[0].fields;
   assert.equal(created.Total, 25);
   assert.match(created["Lignes (produits / quantités)"], /\[€12\.50\]/);
 
@@ -566,9 +571,9 @@ async function main() {
     delete process.env.RESEND_API_KEY;
     reloadMail();
     let createOrderM = require(path.join(ROOT, "api", "order.js"));
-    let r1 = await call(createOrderM, ORDER_BODY, [CLIENT_OK, CAT, { records: [] }, { records: [{ id: "order1" }] }]);
+    let r1 = await call(createOrderM, ORDER_BODY, [CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }]);
     assert.equal(r1.res.statusCode, 200, "M1 commande OK sans cle");
-    assert.equal(r1.calls.length, 4, "M1 aucun appel supplementaire sans cle");
+    assert.equal(r1.calls.length, 5, "M1 aucun appel supplementaire sans cle (client, catalogue, prix, numérotation, commande)");
     assert.equal(resendCalls(r1.calls).length, 0, "M1 aucun appel Resend sans cle");
 
     // M2 — avec cle : deux mails, destinataires disjoints, secret non fuite.
@@ -576,7 +581,7 @@ async function main() {
     reloadMail();
     createOrderM = require(path.join(ROOT, "api", "order.js"));
     const r2 = await call(createOrderM, ORDER_BODY, [
-      CLIENT_OK, CAT, { records: [] }, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
+      CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
     ]);
     assert.equal(r2.res.statusCode, 200, "M2 commande OK avec cle");
     const mails = resendCalls(r2.calls);
@@ -608,7 +613,7 @@ async function main() {
     // M2d — echappement (nom client hostile) + traduction des unites.
     const XSS = { records: [{ id: "client1", fields: { "Wachtwoord": "pass", "Nom": "<img src=x onerror=alert(1)>", "Email": "chef@resto.test" } }] };
     const rX = await call(createOrderM, ORDER_BODY, [
-      XSS, CAT, { records: [] }, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
+      XSS, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
     ]);
     resendCalls(rX.calls).map(bodyOf).forEach(m => {
       assert.ok(!/<img/i.test(m.html), "M2d nom client echappe");
@@ -619,7 +624,7 @@ async function main() {
     // M3 — Resend en echec : la commande reste un succes.
     for (const failMode of ["throw", "422"]) {
       const originalFetch = global.fetch;
-      const replies = [CLIENT_OK, CAT, { records: [] }, { records: [{ id: "order1" }] }, CFG];
+      const replies = [CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG];
       global.fetch = async url => {
         if (/api\.resend\.com/.test(String(url))) {
           if (failMode === "throw") throw new Error("reseau indisponible");
@@ -641,7 +646,7 @@ async function main() {
     // M4 — client sans e-mail : seule l'equipe est prevenue.
     const NO_MAIL = { records: [{ id: "client1", fields: { "Wachtwoord": "pass", "Nom": "Resto Test" } }] };
     const r4 = await call(createOrderM, ORDER_BODY, [
-      NO_MAIL, CAT, { records: [] }, { records: [{ id: "order1" }] }, CFG, { id: "m1" }
+      NO_MAIL, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }
     ]);
     assert.equal(resendCalls(r4.calls).length, 1, "M4 un seul envoi sans e-mail client");
     assert.ok(bodyOf(resendCalls(r4.calls)[0]).to.includes("ops@famo.test"), "M4 c'est l'equipe qui recoit");
@@ -650,7 +655,7 @@ async function main() {
     // M5 — pas de boite ops : seul le client est prevenu.
     const NO_OPS = { records: [{ fields: { "Bedrijfsnaam": "Famo Trading BV", "E-mail": "info@famotrading.be" } }] };
     const r5 = await call(createOrderM, ORDER_BODY, [
-      CLIENT_OK, CAT, { records: [] }, { records: [{ id: "order1" }] }, NO_OPS, { id: "m1" }
+      CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, NO_OPS, { id: "m1" }
     ]);
     assert.equal(resendCalls(r5.calls).length, 1, "M5 un seul envoi sans boite ops");
     assert.ok(bodyOf(resendCalls(r5.calls)[0]).to.includes("chef@resto.test"), "M5 c'est le client qui recoit");
@@ -682,7 +687,7 @@ async function main() {
     let staffM = require(path.join(ROOT, "api", "staff.js"));
     const STAFF_BODY = { clientId: "recABC", items: [{ productId: "prod1", quantity: 2 }], bron: "WhatsApp" };
     const r7 = await call(staffM, STAFF_BODY, [
-      CAT, { records: [] }, { records: [{ id: "order1" }] },
+      CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] },
       { id: "recABC", fields: { "Nom": "Resto Test", "Email": "chef@resto.test" } },
       CFG, { id: "m1" }, { id: "m2" }
     ], { headers: adminCookieHdr });
@@ -695,7 +700,7 @@ async function main() {
     reloadMail();
     staffM = require(path.join(ROOT, "api", "staff.js"));
     const r7b = await call(staffM, STAFF_BODY, [
-      CAT, { records: [] }, { records: [{ id: "order1" }] }
+      CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }
     ], { headers: adminCookieHdr });
     assert.equal(r7b.res.statusCode, 200, "M7 saisie manuelle OK sans cle");
     assert.ok(!r7b.calls.some(c => /Clients\/recABC/.test(c.url)), "M7 aucune lecture client inutile sans cle");
@@ -844,9 +849,9 @@ async function main() {
     assert.deepEqual(shownPrices(r.res.payload.products), EXPECTED, "P2 catalogue : vide → base, 0 → 0");
 
     // P3 — ce qu'il paie en commandant : identique au catalogue, ligne par ligne.
-    r = await call(createOrder, { user: "prijs", pw: "pass", items: ITEMS }, [CLIENT_P, CAT_P, NEG_P, { records: [{ id: "orderPrix" }] }]);
+    r = await call(createOrder, { user: "prijs", pw: "pass", items: ITEMS }, [CLIENT_P, CAT_P, NEG_P, NO_ORDER_REFS, { records: [{ id: "orderPrix" }] }]);
     assert.equal(r.res.statusCode, 200, "P3 commande client");
-    const orderFields = JSON.parse(r.calls[3].options.body).records[0].fields;
+    const orderFields = JSON.parse(r.calls[4].options.body).records[0].fields;
     assert.deepEqual(linePrices(orderFields["Lignes (produits / quantités)"]), EXPECTED, "P3 commande = catalogue");
     assert.equal(orderFields.Total, EXPECTED_TOTAL, "P3 total commande");
 
@@ -854,9 +859,9 @@ async function main() {
     const staffP = require(path.join(ROOT, "api", "staff.js"));
     r = await call(staffP, null, [CAT_P, NEG_P], { method: "GET", query: { client: "clientPrix" }, headers: adminCookieHdr });
     assert.deepEqual(shownPrices(r.res.payload.products), EXPECTED, "P4 catalogue de la saisie staff");
-    r = await call(staffP, { clientId: "clientPrix", items: ITEMS }, [CAT_P, NEG_P, { records: [{ id: "orderStaff" }] }], { headers: adminCookieHdr });
+    r = await call(staffP, { clientId: "clientPrix", items: ITEMS }, [CAT_P, NEG_P, NO_ORDER_REFS, { records: [{ id: "orderStaff" }] }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "P4 saisie staff");
-    const staffFields = JSON.parse(r.calls[2].options.body).records[0].fields;
+    const staffFields = JSON.parse(r.calls[3].options.body).records[0].fields;
     assert.deepEqual(linePrices(staffFields["Lignes (produits / quantités)"]), EXPECTED, "P4 saisie staff = catalogue");
     assert.equal(staffFields.Total, EXPECTED_TOTAL, "P4 total saisie staff");
 
@@ -1155,6 +1160,67 @@ async function main() {
     assert.ok(!/<img src=x/.test(evil) && !/" onerror="alert/.test(evil), "S4 kaliber et adresse photo échappés");
   }
   console.log("✓ S. Catalogue : photos et kalibers (API, Beheer, carte client)");
+
+  // --- T. Numérotation lisible des commandes : CMD-<année>-NNNN ------------------
+  {
+    const orderNumber = require(path.join(ROOT, "lib", "ordernumber.js"));
+    const year = orderNumber.brusselsYear();
+    const fakeAt = pages => {
+      const seen = [];
+      return { seen, at: async p => { seen.push(decodeURIComponent(p)); return pages.shift(); } };
+    };
+    const refRecord = ref => ({ records: [{ fields: { "Référence": ref } }] });
+
+    // T1 — première commande de l'année, puis numéro suivant ; une seule requête ciblée.
+    let f = fakeAt([{ records: [] }]);
+    assert.equal(await orderNumber.nextOrderRef(f.at), `CMD-${year}-0001`, "T1 première commande de l'année");
+    assert.equal(f.seen.length, 1, "T1 une seule requête Airtable");
+    assert.ok(f.seen[0].includes(`REGEX_MATCH({Référence}, "^CMD-${year}-[0-9]{4}$")`), "T1 filtre : année en cours, 4 chiffres");
+    assert.ok(f.seen[0].includes("sort[0][field]=Référence&sort[0][direction]=desc&maxRecords=1"), "T1 tri décroissant, un seul enregistrement");
+    f = fakeAt([refRecord(`CMD-${year}-0041`)]);
+    assert.equal(await orderNumber.nextOrderRef(f.at), `CMD-${year}-0042`, "T1 numéro suivant");
+
+    // T2 — les anciennes références horodatées ne comptent jamais.
+    f = fakeAt([refRecord("CMD-1789309163572")]);
+    assert.equal(await orderNumber.nextOrderRef(f.at), `CMD-${year}-0001`, "T2 référence horodatée ignorée");
+
+    // T3 — au-delà de 9999 : lecture des numéros à 5 chiffres et plus.
+    f = fakeAt([refRecord(`CMD-${year}-9999`), refRecord(`CMD-${year}-10007`)]);
+    assert.equal(await orderNumber.nextOrderRef(f.at), `CMD-${year}-10008`, "T3 séquence au-delà de 9999");
+    assert.ok(f.seen[1].includes("[0-9]{5,}"), "T3 seconde requête sur 5 chiffres et plus");
+    f = fakeAt([refRecord(`CMD-${year}-9999`), { records: [] }]);
+    assert.equal(await orderNumber.nextOrderRef(f.at), `CMD-${year}-10000`, "T3 passage de 9999 à 10000");
+
+    // T4 — année civile à l'heure de Bruxelles : nouvelle année, nouvelle séquence.
+    assert.equal(orderNumber.brusselsYear(new Date("2026-12-31T23:30:00Z")), 2027, "T4 31/12 23:30 UTC = déjà 2027 à Bruxelles");
+    f = fakeAt([{ records: [] }]);
+    assert.equal(await orderNumber.nextOrderRef(f.at, new Date("2026-12-31T23:30:00Z")), "CMD-2027-0001", "T4 première commande de 2027");
+
+    // T5 — Airtable en erreur ou réseau coupé : la commande n'est jamais bloquée.
+    const originalError = console.error;
+    console.error = () => {};
+    try {
+      f = fakeAt([{ error: { message: "rate limit" } }]);
+      assert.match(await orderNumber.nextOrderRef(f.at), /^CMD-\d{13}$/, "T5 repli horodaté si Airtable répond en erreur");
+      assert.match(await orderNumber.nextOrderRef(async () => { throw new Error("réseau"); }), /^CMD-\d{13}$/, "T5 repli horodaté si le réseau tombe");
+    } finally {
+      console.error = originalError;
+    }
+
+    // T6 — portail client et saisie staff partagent la même séquence.
+    const CLIENT_T = { records: [{ id: "clientT", fields: { "Nom": "Resto T", "Wachtwoord": "pass" } }] };
+    const CAT_T = { records: [{ id: "pT", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 10 } }] };
+    const ITEMS_T = [{ productId: "pT", quantity: 1 }];
+    let rT = await call(createOrder, { user: "tnum", pw: "pass", items: ITEMS_T }, [CLIENT_T, CAT_T, { records: [] }, refRecord(`CMD-${year}-0007`), { records: [{ id: "orderT" }] }]);
+    assert.equal(rT.res.statusCode, 200, "T6 commande client");
+    assert.equal(rT.res.payload.ref, `CMD-${year}-0008`, "T6 référence renvoyée au client");
+    assert.equal(JSON.parse(rT.calls[4].options.body).records[0].fields["Référence"], `CMD-${year}-0008`, "T6 référence enregistrée dans Airtable");
+    const staffT = require(path.join(ROOT, "api", "staff.js"));
+    rT = await call(staffT, { clientId: "clientT", items: ITEMS_T }, [CAT_T, { records: [] }, refRecord(`CMD-${year}-0008`), { records: [{ id: "orderT2" }] }], { headers: adminCookieHdr });
+    assert.equal(rT.res.statusCode, 200, "T6 saisie staff");
+    assert.equal(rT.res.payload.ref, `CMD-${year}-0009`, "T6 saisie staff dans la même séquence");
+  }
+  console.log("✓ T. Numérotation des commandes (CMD-<année>-NNNN, séquence, repli sûr)");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());

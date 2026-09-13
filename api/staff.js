@@ -2,6 +2,7 @@ const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
+const __orderNumber = require("../lib/ordernumber");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -82,7 +83,7 @@ module.exports = async (req, res) => {
       try { order = await buildOrderLines(clientId, body.items); }
       catch (e) { return res.status(400).json({ error: String(e.message || e) }); }
 
-      const ref = "CMD-" + Date.now();
+      const ref = await __orderNumber.nextOrderRef(at);
       const fields = {
         "Référence": ref,
         "Date": new Date().toISOString().slice(0, 10),

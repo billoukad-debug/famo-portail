@@ -20,6 +20,7 @@ Hors menu : `/stock.html` reste accessible par URL directe mais n'est plus propo
 
 1. Le client commande. **Le serveur relit le catalogue et recalcule le prix** : le navigateur ne décide jamais du montant (`api/order.js`).
 1b. Deux e-mails partent aussitôt : un pour l'équipe (boîte interne) et une confirmation pour le client, si son adresse est renseignée. Voir « E-mails transactionnels ».
+1c. La commande reçoit un numéro lisible au format `CMD-2026-0001`, séquentiel par année comme les factures (`lib/ordernumber.js`). Les anciennes références horodatées (`CMD-1789…`) restent inchangées. Si Airtable ne répond pas au moment de numéroter, la commande est quand même enregistrée, avec une référence horodatée.
 2. Le personnel prépare : validation article par article dans Magazijn, ou raccourci **Snel voorbereiden** depuis la fiche commande.
 3. Départ en livraison. La commande est alors **verrouillée** : lignes et total ne sont plus modifiables (verrou basé sur le statut, pas sur le stock).
 4. Réception confirmée dans **Leveringen** — le nom du réceptionnaire est obligatoire.
@@ -118,4 +119,4 @@ Vérifie la syntaxe, les fonctions appelées depuis le HTML, l'échappement XSS,
   Vercel (`[mail] …`), nulle part ailleurs.
 - Les factures sont des **documents internes**. L'émission légale B2B belge (Peppol) doit passer par le prestataire comptable.
 - La preuve de livraison accepte un lien HTTPS ; aucun fichier n'est stocké.
-- La numérotation de facture est séquentielle mais pas atomique : deux facturations simultanées pourraient entrer en conflit.
+- La numérotation des factures et des commandes est séquentielle mais pas atomique : deux facturations, ou deux commandes, créées au même instant pourraient recevoir le même numéro.

@@ -1,6 +1,7 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
+const __orderNumber = require("../lib/ordernumber");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -138,7 +139,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: String(e.message || e) });
     }
 
-    const ref = "CMD-" + Date.now();
+    const ref = await __orderNumber.nextOrderRef(at);
     const today = new Date().toISOString().slice(0, 10);
     const fields = {
       "Référence": ref,
