@@ -1321,6 +1321,144 @@ async function main() {
   }
   console.log("✓ U. Magazijn : groepsactie (éligibilité, un appel par commande, résultat par commande)");
 
+  // --- V. Beheer : prix négociés depuis la fiche client --------------------------
+  {
+    const onboardingV = require(path.join(ROOT, "api", "onboarding.js"));
+    const NEG_V = { records: [
+      { id: "nv1", fields: { "Client": ["clientV"], "Produit": ["pBestaand"], "Prix négocié": 11 } },
+      { id: "nv2", fields: { "Client": ["clientV"], "Produit": ["pLeeg"], "Prix négocié": 9 } },
+      { id: "nv3", fields: { "Client": ["andereKlant"], "Produit": ["pNieuw"], "Prix négocié": 5 } }
+    ] };
+    const originalFetch = global.fetch;
+    const writes = [];
+    let failProduct = "";
+    global.fetch = async (url, options) => {
+      const u = decodeURIComponent(String(url));
+      const method = (options && options.method) || "GET";
+      if (/Prix négociés/.test(u) && (method === "POST" || method === "PATCH")) {
+        const b = JSON.parse(options.body);
+        const fields = method === "POST" ? b.records[0].fields : b.fields;
+        if (fields["Produit"][0] === failProduct) throw new Error("netwerk weg");
+        writes.push({ method, url: u, fields });
+        return json(method === "POST" ? { records: [{ id: "nieuw" }] } : { id: "x" });
+      }
+      return json(/Prix négociés/.test(u) ? NEG_V : { records: [] });
+    };
+    try {
+      const send = async (prices, headers) => {
+        const res = mkRes();
+        await onboardingV({ method: "POST", body: { action: "saveClientPrices", clientId: "clientV", prices }, headers: headers || adminCookieHdr }, res);
+        return res;
+      };
+
+      // V1 — réservé à l'admin.
+      assert.equal((await send([{ productId: "pNieuw", prix: 7 }], cookieHdr)).statusCode, 401, "V1 personnel refusé");
+      assert.equal(writes.length, 0, "V1 rien écrit");
+
+      // V2 — plusieurs produits en un envoi : création, mise à jour, vidage, 0.
+      let r = await send([
+        { productId: "pNieuw", prix: 7.456 },
+        { productId: "pBestaand", prix: 12 },
+        { productId: "pLeeg", prix: null },
+        { productId: "pNul", prix: 0 }
+      ]);
+      assert.equal(r.statusCode, 200, "V2 envoi accepté");
+      assert.deepEqual(r.payload.results.map(x => [x.productId, x.ok]), [["pNieuw", true], ["pBestaand", true], ["pLeeg", true], ["pNul", true]], "V2 un résultat par produit");
+      const byProd = Object.fromEntries(writes.map(w => [w.fields["Produit"][0], w]));
+      assert.equal(byProd.pNieuw.method, "POST", "V2 nouveau prix créé (l'accord d'un autre client n'est pas touché)");
+      assert.equal(byProd.pNieuw.fields["Prix négocié"], 7.46, "V2 arrondi au cent");
+      assert.ok(byProd.pBestaand.method === "PATCH" && /nv1$/.test(byProd.pBestaand.url), "V2 accord existant mis à jour");
+      assert.strictEqual(byProd.pLeeg.fields["Prix négocié"], null, "V2 champ vidé → enregistré vide (prix de base)");
+      assert.strictEqual(byProd.pNul.fields["Prix négocié"], 0, "V2 0 saisi → 0");
+      assert.ok(Array.isArray(r.payload.prices), "V2 Beheer reçoit les données à jour");
+
+      // V3 — un prix refusé ou une écriture en échec n'empêche pas les autres.
+      writes.length = 0;
+      failProduct = "pBestaand";
+      r = await send([
+        { productId: "pNieuw", prix: "abc" },
+        { productId: "pBestaand", prix: 13 },
+        { productId: "pNul", prix: 4 }
+      ]);
+      assert.equal(r.statusCode, 200, "V3 réponse lisible même en échec partiel");
+      assert.strictEqual(r.payload.ok, false, "V3 échec partiel signalé");
+      const res3 = Object.fromEntries(r.payload.results.map(x => [x.productId, x]));
+      assert.ok(!res3.pNieuw.ok && /Ongeldige prijs/.test(res3.pNieuw.error), "V3 prix illisible refusé, avec raison");
+      assert.ok(!res3.pBestaand.ok && res3.pBestaand.error, "V3 écriture en échec nommée");
+      assert.ok(res3.pNul.ok, "V3 les autres produits sont enregistrés");
+      assert.deepEqual(writes.map(w => w.fields["Produit"][0]), ["pNul"], "V3 seule l'écriture valide est passée");
+
+      // V4 — envoi vide refusé proprement.
+      assert.equal((await send([])).statusCode, 400, "V4 liste vide refusée");
+    } finally {
+      global.fetch = originalFetch;
+    }
+
+    // V5 — page : section dans la fiche, champs pré-remplis, vide = basisprijs, échappement.
+    const beheerV = fs.readFileSync(path.join(ROOT, "beheer.html"), "utf8");
+    const blockV = /\/\* ====== Prijzen in de klantfiche[\s\S]*?\/\* ====== einde prijzen klantfiche ====== \*\//.exec(beheerV);
+    assert.ok(blockV, "V5 bloc prijzen klantfiche introuvable");
+    assert.match(beheerV, /\(e\?clientPricesHtml\(e\):''\)/, "V5 la fiche client affiche les prix");
+    const saveClientSrc = /async function saveClient\(\)\{[\s\S]*?\n\}/.exec(beheerV)[0];
+    assert.ok(/changedClientPrices\(\)/.test(saveClientSrc) && /saveFichePrices\(/.test(saveClientSrc), "V5 « Wijzigingen opslaan » enregistre aussi les prix modifiés");
+    const inputs = [];
+    const ctxV = {
+      console,
+      DATA: {
+        products: [
+          { id: "pZalm", nom: "Zalm", base: 12.5, unite: "kg" },
+          { id: "pMossel", nom: "Mosselen <script>", base: 28, unite: "caisse" },
+          { id: "pTong", nom: "Tong", base: 30, unite: "kg" }
+        ],
+        prices: [
+          { clientId: "clientV", productId: "pZalm", prix: 11 },
+          { clientId: "clientV", productId: "pTong", prix: null },
+          { clientId: "andere", productId: "pMossel", prix: 20 }
+        ],
+        clients: [{ id: "clientV", nom: "Resto V" }]
+      },
+      famoNL: { unit: u => (u === "caisse" ? "kassa" : u) },
+      famoStaff: { translateError: m => m },
+      document: { querySelectorAll: () => inputs },
+      post: async () => false
+    };
+    vm.createContext(ctxV);
+    vm.runInContext(/const esc=s=>[^\n]*/.exec(beheerV)[0] + "\n" + /const eur=n=>[^\n]*/.exec(beheerV)[0] + "\n" + blockV[0], ctxV);
+    const html5 = ctxV.clientPricesHtml({ id: "clientV" });
+    const inputOf = (html, id) => new RegExp('data-product="' + id + '" data-initial="([^"]*)" value="([^"]*)"').exec(html).slice(1);
+    assert.deepEqual(inputOf(html5, "pZalm"), ["11", "11"], "V5 accord existant pré-rempli");
+    assert.deepEqual(inputOf(html5, "pTong"), ["", ""], "V5 prix vide : champ vide (basisprijs)");
+    assert.deepEqual(inputOf(html5, "pMossel"), ["", ""], "V5 accord d'un autre client ignoré");
+    assert.match(html5, /basisprijs <span class="b-amt">€ 12,50<\/span> \/ kg/, "V5 prix de base affiché");
+    assert.match(html5, /\/ kassa/, "V5 unité traduite");
+    assert.ok(!/<script>/.test(html5), "V5 nom de produit échappé");
+
+    // V6 — seuls les champs modifiés partent ; une saisie illisible bloque avant tout envoi.
+    const fakeInput = (id, initial, value, badInput) => ({ value, dataset: { product: id, initial }, validity: { badInput: !!badInput } });
+    inputs.push(fakeInput("pZalm", "11", "11.00"), fakeInput("pTong", "", "0"), fakeInput("pMossel", "", ""), fakeInput("pX", "9", ""));
+    let edit = JSON.parse(JSON.stringify(ctxV.changedClientPrices()));
+    assert.deepEqual(edit, { changes: [{ productId: "pTong", prix: 0 }, { productId: "pX", prix: null }], bad: [] }, "V6 11,00 = 11 inchangé ; 0 tapé ; champ vidé");
+    inputs.push(fakeInput("pBad", "", "", true));
+    edit = JSON.parse(JSON.stringify(ctxV.changedClientPrices()));
+    assert.deepEqual(edit.bad, ["pBad"], "V6 saisie illisible bloquée");
+
+    // V7 — échec partiel : la raison s'affiche sur la ligne, la saisie est conservée.
+    ctxV.post = async () => ({ ok: false, results: [{ productId: "pZalm", ok: true }, { productId: "pTong", ok: false, error: "Ongeldige prijs" }] });
+    const out7 = JSON.parse(JSON.stringify(await ctxV.saveFichePrices("clientV", [{ productId: "pZalm", prix: 10 }, { productId: "pTong", prix: 44 }])));
+    assert.deepEqual(out7, { saved: 1, failed: 1 }, "V7 décompte par produit");
+    const html7 = ctxV.clientPricesHtml({ id: "clientV" });
+    assert.deepEqual(inputOf(html7, "pTong"), ["", "44"], "V7 saisie en échec conservée");
+    assert.match(html7, /b-price-err" role="alert">Ongeldige prijs</, "V7 raison affichée sur la ligne");
+    assert.deepEqual(inputOf(html7, "pZalm"), ["11", "11"], "V7 ligne réussie reprise depuis les données du serveur");
+
+    // V8 — envoi entièrement en échec : rien n'est compté comme enregistré, les saisies restent.
+    ctxV.post = async () => false;
+    const out8 = JSON.parse(JSON.stringify(await ctxV.saveFichePrices("clientV", [{ productId: "pZalm", prix: 10 }])));
+    assert.deepEqual(out8, { saved: 0, failed: 1 }, "V8 échec total signalé");
+    assert.deepEqual(inputOf(ctxV.clientPricesHtml({ id: "clientV" }), "pZalm"), ["11", "10"], "V8 saisie conservée pour réessayer");
+  }
+  console.log("✓ V. Beheer : prix négociés depuis la fiche client (API par produit, page, échec partiel)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

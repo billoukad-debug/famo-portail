@@ -43,7 +43,7 @@ Tout se règle ici, sans passer par Airtable :
 
 - **Overzicht** — compteurs et alertes actionnables
 - **Aanvragen** — demandes du site public ; « Klant aanmaken » pré-remplit et clôture la demande
-- **Klanten** — création, édition, identifiants (affichés une seule fois, bouton copier)
+- **Klanten** — création, édition, identifiants (affichés une seule fois, bouton copier), et **prix négociés du client directement dans sa fiche** (vide = prix de base ; un résultat par produit si un enregistrement échoue)
 - **Producten** — catalogue, prix de base, unité, catégorie, retrait
 - **Prijzen** — prix négociés par client
 - **Bedrijfsgegevens** — identité, IBAN/BIC, **taux de TVA**, conditions de paiement et de livraison,

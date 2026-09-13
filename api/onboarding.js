@@ -471,6 +471,49 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // ---- Prix négociés d'un client, depuis sa fiche : plusieurs produits en un envoi ----
+    // Même règle que savePrice (vide → enregistré vide, 0 → 0). Une seule lecture des
+    // accords, puis une écriture par produit, avec un résultat par produit : un prix
+    // refusé ou une écriture en échec n'empêche pas les autres d'être enregistrés.
+    if (action === "saveClientPrices") {
+      const clientId = clean(body.clientId, 40);
+      const rows = Array.isArray(body.prices) ? body.prices.slice(0, 200) : [];
+      if (!clientId) return res.status(400).json({ error: "Klant is verplicht" });
+      if (!rows.length) return res.status(400).json({ error: "Geen prijzen om op te slaan" });
+
+      const all = await atAll(encodeURIComponent("Prix négociés"));
+      if (all.error) return res.status(500).json(all);
+      const results = [];
+      for (const row of rows) {
+        const productId = clean(row && row.productId, 40);
+        const raw = row ? row.prix : undefined;
+        const prixVide = raw === null || raw === undefined || String(raw).trim() === "";
+        const prix = __prices.negotiatedValue(raw);
+        if (!productId) { results.push({ productId: "", ok: false, error: "Product ontbreekt" }); continue; }
+        if (!prixVide && prix === null) { results.push({ productId, ok: false, error: "Ongeldige prijs" }); continue; }
+        const existing = (all.records || []).find(r => {
+          const c = r.fields["Client"] || [];
+          const p = r.fields["Produit"] || [];
+          return c.includes(clientId) && p.includes(productId);
+        });
+        const fields = {
+          "Client": [clientId],
+          "Produit": [productId],
+          "Prix négocié": prix === null ? null : Math.round(prix * 100) / 100
+        };
+        try {
+          const saved = existing
+            ? await at(`${encodeURIComponent("Prix négociés")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields }) })
+            : await at(encodeURIComponent("Prix négociés"), { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
+          if (saved && saved.error) results.push({ productId, ok: false, error: saved.error.message || "Prijs opslaan mislukt" });
+          else results.push({ productId, ok: true });
+        } catch (e) {
+          results.push({ productId, ok: false, error: "Prijs opslaan mislukt" });
+        }
+      }
+      return res.status(200).json({ ok: results.every(r => r.ok), results, ...(await statusPayload()) });
+    }
+
     // ---- Stock ----
     if (action === "saveStock") {
       const product = clean(body.product, 120);
