@@ -1601,6 +1601,39 @@ async function main() {
   }
   console.log("✓ W. Bascule entre portails (rôles, codes identiques, menu, connexion, Documenten, portail client)");
 
+  // --- X. PDF des documents : styles emportés, cadrage dans la fenêtre réelle ---------
+  {
+    const previewSrc = fs.readFileSync(path.join(ROOT, "staff-doc-preview.js"), "utf8");
+    const sbX = { console, location: { pathname: "/documenten.html" }, document: { createElement: () => ({}), body: {}, head: {}, addEventListener() {}, removeEventListener() {} } };
+    sbX.window = sbX;
+    sbX.global = sbX;
+    vm.runInNewContext(previewSrc, sbX);
+    const { scopeSelector, scopedCss } = sbX.famoDocPreview;
+
+    // X1 — les règles du document ne visent que la copie destinée au PDF.
+    assert.equal(scopeSelector("body", ".r"), ".r", "X1 body → racine de la copie");
+    assert.equal(scopeSelector("*", ".r"), ".r *", "X1 *");
+    assert.equal(scopeSelector("td small", ".r"), ".r td small", "X1 descendants");
+    assert.equal(scopeSelector("h1, h2", ".r"), ".r h1,.r h2", "X1 listes de sélecteurs");
+    assert.equal(scopeSelector("body.print", ".r"), ".r.print", "X1 body.classe");
+    assert.equal(scopeSelector("body > .mast", ".r"), ".r > .mast", "X1 body > enfant");
+    assert.equal(scopeSelector(".trow span:last-child", ".r"), ".r .trow span:last-child", "X1 pseudo-classes");
+    const fakeDoc = { styleSheets: [{ cssRules: [
+      { type: 1, selectorText: "body", style: { cssText: "padding: 38px 42px;" } },
+      { type: 4, media: { mediaText: "print" }, cssRules: [{ type: 1, selectorText: "thead", style: { cssText: "display: table-header-group;" } }] },
+      { type: 1, selectorText: "h1", style: { cssText: "font-size: 26px;" } }
+    ] }] };
+    assert.equal(scopedCss(fakeDoc, ".r"), ".r{padding: 38px 42px;}\n.r h1{font-size: 26px;}", "X1 styles emportés, @media print ignoré");
+
+    // X2 — plus de fenêtre forcée à 794 px (cause de la coupure à gauche) ; marges portées par le document.
+    assert.ok(!/windowWidth\s*:/.test(previewSrc.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "")), "X2 aucune largeur de fenêtre forcée pour la capture");
+    assert.match(previewSrc, /margin:\s*\[10,\s*0,\s*10,\s*0\]/, "X2 A4 pleine largeur, marges latérales du document");
+    assert.match(previewSrc, /const source = pdfSource\(frame\.contentDocument\);/, "X2 le PDF part d'une copie qui emporte les styles");
+    assert.match(previewSrc, /scrollX:\s*0,\s*scrollY:\s*0/, "X2 capture indépendante du défilement de la page (sinon PDF blanc)");
+    assert.match(previewSrc, /avoid:\s*\["tr",[^\]]*"\.totals"[^\]]*"\.bank"/, "X2 aucune ligne ni bloc coupé entre deux pages");
+  }
+  console.log("✓ X. PDF des documents (styles emportés, cadrage dans la fenêtre réelle, A4 pleine largeur)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 
