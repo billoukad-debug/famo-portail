@@ -261,10 +261,12 @@ function render(){
     state.innerHTML='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5 12 3.5l8.5 5v7L12 20.5l-8.5-5z"/><path d="M3.5 8.5 12 13.5l8.5-5M12 13.5v7"/></svg><b>Geen bestellingen vandaag</b><p>Zodra een klant bestelt of u er zelf één invoert, verschijnt de bestelling hier.</p><a class="staff-action-secondary" href="/invoer.html">Bestelling invoeren</a></div>';
     return;
   }
-  const list=filtered();
+  const list=filtered(),sort=document.getElementById("sort").value;
   state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen</div>';
   board.innerHTML=COLS.map(c=>{
-    const colList=list.filter(o=>o.statut===c.key);
+    let colList=list.filter(o=>o.statut===c.key);
+    /* Gefactureerd ne fait que grandir : triée par leverdatum, les plus récentes en haut. */
+    if(c.key==="Facturée"&&sort==="delivery")colList=colList.sort((a,b)=>String(b.dateLiv||"").localeCompare(String(a.dateLiv||"")));
     let body;
     if(colList.length){
       body=colList.map(orderCard).join("");

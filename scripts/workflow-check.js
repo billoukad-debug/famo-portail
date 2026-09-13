@@ -1052,6 +1052,20 @@ async function main() {
     el("sort").value = "delivery";
     ctx.onFilterChange();
     assert.equal(ctx.location.search, "", "R5 tri par défaut absent de l'URL");
+
+    // R6 — colonne Gefactureerd : les plus récentes en haut ; les autres colonnes restent croissantes.
+    ORDERS_R.push(
+      { id: "f1", ref: "CMD-F1", client: "Resto E", statut: "Facturée", date: shift(-9), dateLiv: shift(-8), total: 10, paiement: "Payé", lignes: "" },
+      { id: "f2", ref: "CMD-F2", client: "Resto F", statut: "Facturée", date: shift(-3), dateLiv: shift(-2), total: 10, paiement: "Payé", lignes: "" },
+      { id: "f3", ref: "CMD-F3", client: "Resto G", statut: "Facturée", date: shift(-6), dateLiv: shift(-5), total: 10, paiement: "Payé", lignes: "" }
+    );
+    await ctx.load();
+    const colRefs = key => {
+      const section = new RegExp('data-col="' + key + '">([\\s\\S]*?)</section>').exec(el("board").innerHTML);
+      return [...section[1].matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]);
+    };
+    assert.deepEqual(colRefs("Facturée"), ["CMD-F2", "CMD-F3", "CMD-F1"], "R6 Gefactureerd : plus récentes en haut");
+    assert.deepEqual(colRefs("Reçue"), ["CMD-D", "CMD-C", "CMD-A", "CMD-B"], "R6 Ontvangen reste par leverdatum croissante");
   }
   console.log("✓ R. Bestellingen : leverdatum en avant, référence secondaire, tri par leverdatum par défaut");
 
