@@ -541,7 +541,7 @@ function editLines(idx){
       '<span class="pick-text" title="Besteld: '+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+'"><span class="pm">'+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+'</span> <span class="pn">'+esc(line.name)+'</span>'+(line.comment?' <span class="pc">'+esc(line.comment)+'</span>':'')+'</span>'+
       '<span class="actual"><button type="button" onclick="changeActual('+idx+','+i+',-1)">−</button><input id="aq'+idx+'_'+i+'" type="number" min="0" step="'+(/kg/i.test(String(line.unit||""))?"0.1":"1")+'" value="'+line.quantity+'" oninput="refreshActualTotal('+idx+')"><button type="button" onclick="changeActual('+idx+','+i+',1)">+</button></span>'+
       '</label>').join('')+'</div>'+
-    '<div class="edit-total">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+
+    '<div class="edit-total">Werkelijk totaal (excl. btw): <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+
     '<div class="ehint">Gedeeltelijke levering: pas de aantallen hierboven aan vóór het vertrek.</div>'+
     '<div class="ehint">De aantallen en het totaal worden vastgezet zodra de goederen vertrekken.</div>';
   const card=box.closest(".oc");

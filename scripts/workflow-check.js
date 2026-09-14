@@ -2142,6 +2142,31 @@ async function main() {
   }
   console.log("✓ AJ. Documenten : « Vul IBAN in » seulement si l'IBAN manque ; blocage livraison → Leveringen");
 
+  // --- AK. Montants hors TVA signalés partout où le client ou l'équipe voit un total ---------
+  {
+    const srcAK = f => fs.readFileSync(path.join(ROOT, f), "utf8");
+    const idxAK = srcAK("index.html");
+    assert.match(idxAK, /<div class="total"><span>Totaal excl\. btw<\/span>/, "AK1 panier : total excl. btw");
+    assert.match(idxAK, /<div class="conf-row"><span>Totaal excl\. btw<\/span>/, "AK1 confirmation : total excl. btw");
+    assert.match(idxAK, /<div class="grand"><span>Totaal excl\. btw<\/span>/, "AK1 bevestiging afdrukken : total excl. btw");
+    assert.match(idxAK, /order-total tnum">'\+eur\(o\.total\)\+' <small>excl\. btw<\/small>/, "AK1 historique : excl. btw");
+    assert.match(idxAK, /mobileCount\.textContent=[^;]*' · excl\. btw'/, "AK1 barre mobile : excl. btw");
+    assert.match(srcAK("invoer.html"), /TOTAAL excl\. btw[\s\S]*TOTAAL excl\. btw[\s\S]*Totaal excl\. btw: <b>/, "AK2 Invoeren : totaux excl. btw");
+    assert.match(srcAK("order.html"), /<div class="o-total"><span>Totaal excl\. btw<\/span>/, "AK2 fiche commande : excl. btw");
+    assert.match(srcAK("entrepot.html"), /Werkelijk totaal \(excl\. btw\): <input/, "AK2 Magazijn : total réel excl. btw");
+    assert.match(srcAK("bestellingen.html"), /<p class="orders-note">Bedragen excl\. btw\./, "AK2 Bestellingen : bedragen excl. btw");
+    assert.match(srcAK("documenten.html"), /<th class="r">Bedrag excl\. btw<\/th>/, "AK2 Documenten : bedrag excl. btw");
+    delete require.cache[require.resolve(path.join(ROOT, "lib", "ordermail.js"))];
+    const mailAK = require(path.join(ROOT, "lib", "ordermail.js"));
+    const ctxMailAK = { ref: "CMD-2026-0600", date: "2026-09-14", dateLivraison: "2026-09-15", lignes: "Zalm × 2 kg [€12.50]", total: 25,
+      klant: { nom: "Resto Test", email: "chef@resto.test" }, company: { bedrijfsnaam: "Famo Trading BV" }, opsEmail: "ops@famo.test" };
+    for (const m of [mailAK.buildCustomerMail(ctxMailAK), mailAK.buildTeamMail(ctxMailAK)]) {
+      assert.match(m.html, />Totaal excl\. btw<\/td>/, "AK3 e-mail HTML : total excl. btw");
+      assert.match(m.text, /Totaal excl\. btw: € 25,00/, "AK3 e-mail texte : total excl. btw");
+    }
+  }
+  console.log("✓ AK. Totaux signalés hors TVA (portail, e-mails, Invoeren, fiche, Magazijn, Bestellingen, Documenten)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

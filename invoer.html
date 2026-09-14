@@ -84,7 +84,7 @@
     <div class="invoer-card sticky">
       <h2>Bestelling</h2>
       <div id="cart"><div class="empty">Nog niets gekozen.</div></div>
-      <div id="totalBox" class="hidden"><div class="total-row"><span style="font-size:13px;color:var(--f-muted);font-weight:600">TOTAAL</span><span class="val" id="totalVal">€ 0,00</span></div></div>
+      <div id="totalBox" class="hidden"><div class="total-row"><span style="font-size:13px;color:var(--f-muted);font-weight:600">TOTAAL excl. btw</span><span class="val" id="totalVal">€ 0,00</span></div></div>
 
       <label class="fld-l">Bron van de bestelling</label>
       <div class="src">
@@ -206,7 +206,7 @@ function reviewOrder(){
   const keys=Object.keys(panier); if(!keys.length||!CID) return;
   const total=keys.reduce((sum,i)=>sum+PRODUCTS[i].prix*panier[i],0), client=(CLIENTS.find(c=>c.id===CID)||{}).nom||"—";
   const box=document.getElementById("reviewBox");
-  box.innerHTML='<h3>Controleer de bestelling</h3><div class="review-meta"><b>'+esc(client)+'</b><br>Levering: '+esc(document.getElementById("dateLiv").value||"Niet opgegeven")+' · Bron: '+esc(SRC)+'</div>'+keys.map(i=>'<div class="review-line"><span>'+esc(PRODUCTS[i].nom)+' × '+panier[i]+' '+esc(famoNL.unit(PRODUCTS[i].unite)||PRODUCTS[i].unite)+'</span><strong>'+eur(PRODUCTS[i].prix*panier[i])+'</strong></div>').join("")+'<div class="total-row"><span>TOTAAL</span><span class="val">'+eur(total)+'</span></div><div class="review-actions"><button type="button" onclick="hideReview()">Aanpassen</button><button type="button" class="confirm" onclick="send()">Definitief opslaan</button></div>';
+  box.innerHTML='<h3>Controleer de bestelling</h3><div class="review-meta"><b>'+esc(client)+'</b><br>Levering: '+esc(document.getElementById("dateLiv").value||"Niet opgegeven")+' · Bron: '+esc(SRC)+'</div>'+keys.map(i=>'<div class="review-line"><span>'+esc(PRODUCTS[i].nom)+' × '+panier[i]+' '+esc(famoNL.unit(PRODUCTS[i].unite)||PRODUCTS[i].unite)+'</span><strong>'+eur(PRODUCTS[i].prix*panier[i])+'</strong></div>').join("")+'<div class="total-row"><span>TOTAAL excl. btw</span><span class="val">'+eur(total)+'</span></div><div class="review-actions"><button type="button" onclick="hideReview()">Aanpassen</button><button type="button" class="confirm" onclick="send()">Definitief opslaan</button></div>';
   box.classList.remove("hidden"); box.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 
@@ -226,7 +226,7 @@ async function send(){
     box.style.display="block";
     box.classList.remove("is-error");
     box.classList.remove("f-enter"); void box.offsetWidth; box.classList.add("f-enter");
-    box.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg> <b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+
+    box.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg> <b>Bestelling '+esc(d.ref)+' opgeslagen</b><br>Totaal excl. btw: <b>'+eur(total)+'</b> · Bron: '+esc(SRC)+
       '<br>De bestelling staat nu in het magazijn onder ‘Ontvangen’.'+
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'+
       (d.id?'<a class="staff-action" href="/entrepot.html?id='+encodeURIComponent(d.id)+'">Open in Magazijn</a>':'<a class="staff-action" href="/entrepot.html">Open Magazijn</a>')+
