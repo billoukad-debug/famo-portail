@@ -83,6 +83,10 @@
   .oc-progress span{display:block;height:100%;width:0;border-radius:999px;background:var(--f-accent);transition:width .18s ease}
   @media(prefers-reduced-motion:reduce){.oc-progress span{transition:none}}
   .col .f-empty{padding:26px 10px}
+  /* Afgehandeld (gefactureerd én betaald) : hors du bord par défaut ; bouton de la barre et ligne discrète pour les montrer. */
+  .staff-filterbtn[aria-pressed="true"]{border-color:var(--f-accent);background:var(--f-wash);color:var(--f-accent-2)}
+  .wh-hidden{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;padding:0 4px;color:var(--f-quiet);font-size:12.5px}
+  .wh-hidden button{margin-left:auto}
   /* Groepsactie : sélection multiple et résultat commande par commande */
   .wh-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:8px 10px 8px 14px;border:1px solid var(--f-line);border-radius:12px;background:#fff}
   #bulkCount{margin-right:auto;font-size:13px;font-weight:600;color:var(--f-ink);font-variant-numeric:tabular-nums}
@@ -157,6 +161,7 @@
           <option value="total">Totaal: hoog naar laag</option>
         </select>
         <button type="button" class="staff-action-secondary" onclick="clearOrderFilters()">Wissen</button>
+        <button type="button" id="afgehandeldBtn" class="staff-filterbtn" aria-pressed="false" onclick="toggleAfgehandeld()">Toon afgehandelde<b class="n" id="afgehandeldCount"></b></button>
         <span id="boardSummary" role="status"></span>
       </section>
       <section id="bulkBar" class="wh-bulk hidden" aria-label="Groepsactie">
@@ -342,10 +347,17 @@ function render(){
     '<div class="staff-empty f-empty"><p>Geen leveringen onderweg</p></div>',
     '<div class="staff-empty f-empty"><p>Nog niets gefactureerd</p></div>'];
   for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML=emptyCols[i]; }
+  const hidden=SHOW_AFGEHANDELD?0:AFGEHANDELD_MATCH;
+  if(hidden){
+    const c3=document.getElementById("c3");
+    if(!counts[3]) c3.innerHTML='<div class="staff-empty f-empty"><b>Alles betaald</b><p>Gefactureerde en betaalde bestellingen staan niet meer op het bord.</p></div>';
+    c3.insertAdjacentHTML("beforeend",'<div class="wh-hidden"><span>'+hidden+(hidden===1?' afgehandelde bestelling':' afgehandelde bestellingen')+' verborgen</span><button type="button" class="staff-action-secondary" onclick="toggleAfgehandeld(true)">Tonen</button></div>');
+  }
   document.getElementById("statTodo").textContent=counts[0]+counts[1]; document.getElementById("statOnway").textContent=counts[2]; document.getElementById("statOpen").textContent=counts[0]+counts[1]+counts[2];
-  const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
+  const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen"+(hidden?" · "+hidden+" afgehandeld verborgen":"");
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
   renderBulkBar();
+  renderAfgehandeldBtn();
   if(CURRENT_VIEW==="dag") renderDayView();
   else highlightFocusedOrder();
 }
@@ -354,6 +366,7 @@ function highlightFocusedOrder(){
   if(!focusId||CURRENT_VIEW!=="bord") return;
   const idx=ORDERS.findIndex(o=>o.id===focusId||o.ref===focusId);
   if(idx<0){ showNotice("Bestelling niet gevonden op het bord.","error"); return; }
+  if(isAfgehandeld(ORDERS[idx])&&!SHOW_AFGEHANDELD&&!FOCUS_REVEALED){ FOCUS_REVEALED=true; toggleAfgehandeld(true); return; }
   const card=document.querySelector('.oc[data-order-id="'+ORDERS[idx].id+'"]');
   if(!card) return;
   try{ card.scrollIntoView({behavior:"smooth",block:"center"}); }catch(err){ card.scrollIntoView(); }
@@ -361,9 +374,25 @@ function highlightFocusedOrder(){
   const box=document.getElementById("e"+idx);
   if(needsEdit&&box&&!box.innerHTML) editLines(idx);
 }
+/* ====== Afgehandeld : gefactureerd én betaald ======
+   Filtre d'affichage seulement : la commande quitte le bord mais reste dans Airtable,
+   dans Documenten et sur sa fiche. Cachée à chaque chargement de la page ; « Toon afgehandelde »
+   ou la ligne de la colonne Gefactureerd la remontre, « Wissen » la recache.
+   Gefactureerd mais impayée reste sur le bord : c'est de l'argent à récupérer. */
+let SHOW_AFGEHANDELD=false, AFGEHANDELD_MATCH=0, FOCUS_REVEALED=false;
+function isAfgehandeld(o){return !!o&&o.statut==="Facturée"&&o.paiement==="Payé"}
+function toggleAfgehandeld(on){SHOW_AFGEHANDELD=typeof on==="boolean"?on:!SHOW_AFGEHANDELD;render()}
+function renderAfgehandeldBtn(){
+  const btn=document.getElementById("afgehandeldBtn"); if(!btn) return;
+  btn.setAttribute("aria-pressed",SHOW_AFGEHANDELD?"true":"false");
+  document.getElementById("afgehandeldCount").textContent=AFGEHANDELD_MATCH?String(AFGEHANDELD_MATCH):"";
+}
+/* ====== einde afgehandeld ====== */
 function orderView(){
   const q=ORDER_QUERY.trim().toLocaleLowerCase("nl-BE");
-  const rows=ORDERS.map((o,idx)=>({o,idx})).filter(({o})=>!q||[o.ref,o.client,o.lignes,o.notes].join(" ").toLocaleLowerCase("nl-BE").includes(q));
+  const found=ORDERS.map((o,idx)=>({o,idx})).filter(({o})=>!q||[o.ref,o.client,o.lignes,o.notes].join(" ").toLocaleLowerCase("nl-BE").includes(q));
+  AFGEHANDELD_MATCH=found.filter(r=>isAfgehandeld(r.o)).length;
+  const rows=SHOW_AFGEHANDELD?found:found.filter(r=>!isAfgehandeld(r.o));
   const delivery=o=>String(o.dateLiv||"9999-12-31"), recent=o=>String(o.date||"");
   return rows.sort((a,b)=>{
     if(ORDER_SORT==="client") return String(a.o.client).localeCompare(String(b.o.client),"nl");
@@ -374,7 +403,7 @@ function orderView(){
 }
 function setOrderQuery(value){ORDER_QUERY=value;render()}
 function setOrderSort(value){ORDER_SORT=value;render()}
-function clearOrderFilters(){ORDER_QUERY="";ORDER_SORT="delivery";document.getElementById("orderSearch").value="";document.getElementById("orderSort").value="delivery";render()}
+function clearOrderFilters(){ORDER_QUERY="";ORDER_SORT="delivery";SHOW_AFGEHANDELD=false;document.getElementById("orderSearch").value="";document.getElementById("orderSort").value="delivery";render()}
 
 function dayKey(offset=0){
   const base=new Date(new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(new Date())+"T12:00:00");
@@ -652,7 +681,11 @@ function renderBulkResult(){
 }
 function closeBulkResult(){BULK_RESULT=null;renderBulkResult()}
 /* ====== einde groepsactie ====== */
-async function togglePay(id,paiement){ await upd({id,paiement}); }
+async function togglePay(id,paiement){
+  await upd({id,paiement});
+  const o=ORDERS.find(x=>x.id===id);
+  if(paiement==="Payé"&&!SHOW_AFGEHANDELD&&isAfgehandeld(o)) showNotice((o.ref||"Bestelling")+" is betaald en afgehandeld — van het bord gehaald. Terug te vinden via ‘Toon afgehandelde’ of in Documenten.","info");
+}
 async function upd(patch){
   if(UPDATING)return;
   UPDATING=true;document.querySelectorAll("button").forEach(b=>b.disabled=true);

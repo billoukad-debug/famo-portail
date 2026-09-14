@@ -1060,10 +1060,11 @@ async function main() {
     assert.equal(ctx.location.search, "", "R5 tri par défaut absent de l'URL");
 
     // R6 — colonne Gefactureerd : les plus récentes en haut ; les autres colonnes restent croissantes.
+    // (Impayées : une commande facturée ET payée quitte le bord, voir AA.)
     ORDERS_R.push(
-      { id: "f1", ref: "CMD-F1", client: "Resto E", statut: "Facturée", date: shift(-9), dateLiv: shift(-8), total: 10, paiement: "Payé", lignes: "" },
-      { id: "f2", ref: "CMD-F2", client: "Resto F", statut: "Facturée", date: shift(-3), dateLiv: shift(-2), total: 10, paiement: "Payé", lignes: "" },
-      { id: "f3", ref: "CMD-F3", client: "Resto G", statut: "Facturée", date: shift(-6), dateLiv: shift(-5), total: 10, paiement: "Payé", lignes: "" }
+      { id: "f1", ref: "CMD-F1", client: "Resto E", statut: "Facturée", date: shift(-9), dateLiv: shift(-8), total: 10, paiement: "En attente", lignes: "" },
+      { id: "f2", ref: "CMD-F2", client: "Resto F", statut: "Facturée", date: shift(-3), dateLiv: shift(-2), total: 10, paiement: "En attente", lignes: "" },
+      { id: "f3", ref: "CMD-F3", client: "Resto G", statut: "Facturée", date: shift(-6), dateLiv: shift(-5), total: 10, paiement: "En attente", lignes: "" }
     );
     await ctx.load();
     const colRefs = key => {
@@ -1664,6 +1665,191 @@ async function main() {
     assert.match(idxZ, /id="drawerScrim" class="scrim hidden" onclick="closeDrawer\(\)"/, "Z3 toucher à côté du menu le referme");
   }
   console.log("✓ Z. Portail client : menu latéral au-dessus de son fond, fond cliquable, contenu isolé");
+
+  // --- AA. Fin de vie des commandes : afgehandeld (facturée ET payée) hors du bord -----
+  {
+    const todayAA = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(new Date());
+    const makeOrdersAA = () => [
+      { id: "r1", ref: "CMD-2026-0101", client: "Resto Open", statut: "Reçue", date: todayAA, dateLiv: todayAA, total: 10, paiement: "En attente", lignes: "", notes: "", factuurnummer: "" },
+      { id: "u1", ref: "CMD-2026-0102", client: "Resto Schuld", statut: "Facturée", date: todayAA, dateLiv: todayAA, total: 20, paiement: "En attente", lignes: "", notes: "", factuurnummer: "FA-2026-0101" },
+      { id: "p1", ref: "CMD-2026-0103", client: "Resto Betaald", statut: "Facturée", date: todayAA, dateLiv: todayAA, total: 30, paiement: "Payé", lignes: "", notes: "", factuurnummer: "FA-2026-0102" },
+      { id: "p2", ref: "CMD-2026-0104", client: "Resto Oud", statut: "Facturée", date: todayAA, dateLiv: todayAA, total: 40, paiement: "Payé", lignes: "", notes: "", factuurnummer: "FA-2026-0103" }
+    ];
+    const inlineOf = src => [...src.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]).join("\n");
+
+    // Bestellingen : le vrai script, DOM minimal.
+    const ORDERS_B = makeOrdersAA();
+    const elsB = {};
+    const elB = id => elsB[id] || (elsB[id] = { id, value: "", innerHTML: "", textContent: "", options: [], classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, setAttribute() {} });
+    ["status", "payment", "source", "dateFilter", "attention"].forEach(id => { elB(id).value = "all"; });
+    elB("sort").value = "delivery";
+    elB("afgehandeld").value = "verbergen";
+    elB("afgehandeld").options = [{ value: "verbergen" }, { value: "tonen" }];
+    let cfgB = null;
+    const ctxB = {
+      console, URL, URLSearchParams, Intl,
+      location: { pathname: "/bestellingen.html", search: "", hash: "", origin: "https://famo.test" },
+      history: { replaceState: (s, t, url) => { ctxB.location.search = new URL(url, "https://famo.test").search; } },
+      document: { getElementById: elB },
+      famoStaff: {
+        bindLogin: cfg => { cfgB = cfg; return { enter() {}, logout() {} }; },
+        getRole: () => "staff",
+        translateError: m => m,
+        api: async () => ({ ok: true, json: async () => ({ orders: ORDERS_B }) })
+      }
+    };
+    ctxB.window = ctxB;
+    vm.createContext(ctxB);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctxB);
+    vm.runInContext(inlineOf(fs.readFileSync(path.join(ROOT, "bestellingen.html"), "utf8")), ctxB);
+    const colB = key => (new RegExp('data-col="' + key + '">([\\s\\S]*?)</section>').exec(elB("board").innerHTML) || [])[1] || "";
+    const refsB = key => [...colB(key).matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]).sort();
+
+    // AA1 — par défaut : la facturée impayée reste, les facturées payées quittent le bord.
+    await ctxB.load();
+    assert.deepEqual(refsB("Facturée"), ["CMD-2026-0102"], "AA1 Bestellingen : facturée impayée visible, facturées payées hors du bord");
+    assert.deepEqual(refsB("Reçue"), ["CMD-2026-0101"], "AA1 les autres colonnes ne changent pas");
+    assert.match(colB("Facturée"), /<b>1<\/b><\/header>/, "AA1 compteur de colonne = cartes visibles");
+    assert.match(colB("Facturée"), /<div class="m-hidden"><span>2 afgehandelde bestellingen verborgen<\/span><button type="button" class="staff-action-secondary" onclick="showAfgehandeld\(\)">Tonen<\/button><\/div>/, "AA1 ligne discrète : combien sont cachées, et Tonen");
+    assert.equal(elB("state").innerHTML, '<div class="staff-count">2 van 4 bestellingen · 2 afgehandeld verborgen</div>', "AA1 compteur du haut");
+
+    // AA2 — Te betalen : facturées ET impayées seulement ; son lien montre exactement ce qu'il compte.
+    const chipB = /<a class="staff-chip[^"]*" href="([^"]+)"><b>(\d+)<\/b> Te betalen<\/a>/.exec(elB("chips").innerHTML);
+    assert.ok(chipB, "AA2 chip Te betalen introuvable");
+    assert.equal(chipB[2], "1", "AA2 Te betalen ne compte plus les commandes pas encore facturées");
+    assert.equal(chipB[1], "/bestellingen.html?status=Factur%C3%A9e&payment=En%20attente", "AA2 lien Te betalen = facturées impayées");
+    elB("status").value = "Facturée"; elB("payment").value = "En attente"; ctxB.onFilterChange();
+    assert.equal(elB("state").innerHTML, '<div class="staff-count">1 van 4 bestellingen</div>', "AA2 le filtre du chip donne le même nombre");
+    assert.match(elB("chips").innerHTML, /class="staff-chip active" href="[^"]+"><b>1<\/b> Te betalen/, "AA2 chip actif sur son propre filtre");
+    elB("status").value = "all"; elB("payment").value = "all"; ctxB.onFilterChange();
+
+    // AA3 — filtre explicite « Afgehandeld: Tonen », gardé dans l'URL et compté comme filtre.
+    ctxB.showAfgehandeld();
+    assert.deepEqual(refsB("Facturée"), ["CMD-2026-0102", "CMD-2026-0103", "CMD-2026-0104"], "AA3 Tonen remontre les commandes afgehandeld");
+    assert.equal(ctxB.location.search, "?afgehandeld=tonen", "AA3 filtre gardé dans l'URL");
+    assert.equal(elB("filtersCount").textContent, "1", "AA3 compté dans le badge Filters");
+    assert.ok(!/m-hidden/.test(elB("board").innerHTML), "AA3 plus de ligne « verborgen » quand tout est montré");
+    assert.equal(elB("state").innerHTML, '<div class="staff-count">4 van 4 bestellingen</div>', "AA3 compteur du haut");
+
+    // AA4 — retour au défaut : absent de l'URL, pas compté.
+    elB("afgehandeld").value = "verbergen"; ctxB.onFilterChange();
+    assert.equal(ctxB.location.search, "", "AA4 défaut (Verbergen) absent de l'URL");
+    assert.equal(elB("filtersCount").textContent, "", "AA4 défaut non compté comme filtre");
+
+    // AA5 — un lien ?afgehandeld=tonen rouvre la page avec le filtre.
+    ctxB.location.search = "?afgehandeld=tonen";
+    cfgB.onDom();
+    ctxB.render();
+    assert.equal(elB("afgehandeld").value, "tonen", "AA5 filtre relu depuis l'URL");
+    assert.deepEqual(refsB("Facturée"), ["CMD-2026-0102", "CMD-2026-0103", "CMD-2026-0104"], "AA5 commandes afgehandeld visibles");
+    elB("afgehandeld").value = "verbergen"; ctxB.onFilterChange();
+
+    // AA6 — recherche d'une facture payée : rien de perdu, la ligne dit qu'elle est cachée.
+    elB("search").value = "FA-2026-0103";
+    ctxB.render();
+    assert.equal(elB("state").innerHTML, '<div class="staff-count">0 van 4 bestellingen · 1 afgehandeld verborgen</div>', "AA6 recherche : commande trouvée mais cachée, dit clairement");
+    assert.match(colB("Facturée"), /<b>Alles betaald<\/b>[\s\S]*1 afgehandelde bestelling verborgen/, "AA6 colonne : Alles betaald + 1 verborgen");
+    elB("search").value = "";
+
+    // Magazijn : le vrai script, DOM minimal.
+    const pageM = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    const ORDERS_M = makeOrdersAA();
+    const updCalls = [];
+    const elsM = {};
+    const stubM = id => {
+      const node = {
+        id, value: "", innerHTML: "", textContent: "", className: "", dataset: {}, style: {}, disabled: false, onclick: null, attrs: {},
+        classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+        setAttribute(k, v) { node.attrs[k] = String(v); },
+        appendChild(child) { node.innerHTML += '<div class="' + child.className + '" data-order-id="' + (child.dataset.orderId || "") + '">' + child.innerHTML + "</div>"; return child; },
+        insertAdjacentHTML(pos, html) { node.innerHTML += html; },
+        scrollIntoView() {}
+      };
+      return node;
+    };
+    const elM = id => elsM[id] || (elsM[id] = stubM(id));
+    const ctxM = {
+      console, URL, URLSearchParams, Intl,
+      setTimeout: () => 0, clearTimeout: () => {}, addEventListener() {},
+      location: { pathname: "/entrepot.html", search: "", hash: "", href: "https://famo.test/entrepot.html" },
+      history: { replaceState() {} },
+      document: { getElementById: elM, createElement: () => stubM(""), querySelector: () => null, querySelectorAll: () => [], addEventListener() {} },
+      famoCompany: { EXAMPLE: { iban: "", bic: "" }, withExampleBank: b => b },
+      famoDocPreview: { open() {}, filenameFor: () => "" },
+      famoStaff: {
+        bindLogin: () => ({ enter() {}, logout() {} }),
+        getRole: () => "staff",
+        translateError: m => m,
+        api: async (url, opts) => {
+          if (url === "/api/updateorder") {
+            const patch = JSON.parse(opts.body);
+            updCalls.push(patch);
+            ORDERS_M.find(o => o.id === patch.id).paiement = patch.paiement;
+            return { ok: true, json: async () => ({}) };
+          }
+          return { ok: true, json: async () => ({ orders: ORDERS_M.map(o => Object.assign({}, o)) }) };
+        }
+      }
+    };
+    ctxM.window = ctxM;
+    vm.createContext(ctxM);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctxM);
+    vm.runInContext(inlineOf(pageM), ctxM);
+    const refsM = () => [...elM("c3").innerHTML.matchAll(/class="ref">([^<]+)</g)].map(m => m[1]).sort();
+
+    // AA7 — par défaut : même règle que Bestellingen ; compteurs du haut inchangés.
+    await ctxM.load();
+    assert.deepEqual(refsM(), ["CMD-2026-0102"], "AA7 Magazijn : facturée impayée visible, facturées payées hors du bord");
+    assert.match(elM("c3").innerHTML, />Markeer betaald<\/button>/, "AA7 la facturée impayée garde Markeer betaald");
+    assert.equal(String(elM("n3").textContent), "1", "AA7 compteur de colonne = cartes visibles");
+    assert.match(elM("c3").innerHTML, /<div class="wh-hidden"><span>2 afgehandelde bestellingen verborgen<\/span><button type="button" class="staff-action-secondary" onclick="toggleAfgehandeld\(true\)">Tonen<\/button><\/div>/, "AA7 ligne discrète dans Gefactureerd");
+    assert.equal(elM("boardSummary").textContent, "2 van 4 bestellingen · 2 afgehandeld verborgen", "AA7 résumé du bord");
+    assert.equal(String(elM("statOpen").textContent), "1", "AA7 Niet gefactureerd inchangé");
+    assert.equal(elM("afgehandeldCount").textContent, "2", "AA7 bouton Toon afgehandelde : nombre");
+    assert.equal(elM("afgehandeldBtn").attrs["aria-pressed"], "false", "AA7 bouton non enfoncé par défaut");
+
+    // AA8 — Toon afgehandelde.
+    ctxM.toggleAfgehandeld();
+    assert.deepEqual(refsM(), ["CMD-2026-0102", "CMD-2026-0103", "CMD-2026-0104"], "AA8 Toon afgehandelde remontre les commandes payées");
+    assert.equal(elM("afgehandeldBtn").attrs["aria-pressed"], "true", "AA8 bouton enfoncé");
+    assert.ok(!/wh-hidden/.test(elM("c3").innerHTML), "AA8 plus de ligne « verborgen »");
+    assert.match(elM("c3").innerHTML, />Betaald<\/button>/, "AA8 une commande afgehandeld reste réversible (Betaald)");
+
+    // AA9 — Wissen recache ; rien n'est gardé entre deux chargements.
+    ctxM.clearOrderFilters();
+    assert.deepEqual(refsM(), ["CMD-2026-0102"], "AA9 Wissen recache les commandes afgehandeld");
+    const blockM = /\/\* ====== Afgehandeld[\s\S]*?einde afgehandeld ====== \*\//.exec(pageM);
+    assert.ok(blockM, "AA9 bloc afgehandeld introuvable dans entrepot.html");
+    assert.match(blockM[0], /let SHOW_AFGEHANDELD=false/, "AA9 caché à chaque chargement");
+    assert.ok(!/localStorage|sessionStorage|afgehandeld=/.test(pageM), "AA9 Magazijn ne mémorise pas l'affichage (ni stockage, ni URL)");
+
+    // AA10 — Markeer betaald : la carte quitte le bord, un message dit où la retrouver.
+    await ctxM.togglePay("u1", "Payé");
+    assert.deepEqual(updCalls, [{ id: "u1", paiement: "Payé" }], "AA10 même appel API qu'avant : aucun champ d'archivage");
+    assert.deepEqual(refsM(), [], "AA10 la commande payée quitte le bord");
+    assert.match(elM("c3").innerHTML, /<b>Alles betaald<\/b>[\s\S]*3 afgehandelde bestellingen verborgen/, "AA10 colonne vide : Alles betaald + 3 verborgen");
+    assert.equal(elM("notice").textContent, "CMD-2026-0102 is betaald en afgehandeld — van het bord gehaald. Terug te vinden via ‘Toon afgehandelde’ of in Documenten.", "AA10 message clair");
+
+    // AA11 — remise en openstaand : revient sur le bord, sans ce message.
+    elM("notice").textContent = "";
+    ctxM.toggleAfgehandeld(true);
+    await ctxM.togglePay("u1", "En attente");
+    assert.equal(elM("notice").textContent, "", "AA11 pas de message « afgehandeld » en remettant openstaand");
+    ctxM.toggleAfgehandeld(false);
+    assert.deepEqual(refsM(), ["CMD-2026-0102"], "AA11 de nouveau impayée : visible par défaut");
+
+    // AA12 — lien direct ?id= vers une commande afgehandeld : montrée, pas « niet gevonden ».
+    ctxM.location.search = "?id=p1";
+    await ctxM.load();
+    assert.ok(refsM().includes("CMD-2026-0103"), "AA12 la commande visée est montrée");
+    assert.notEqual(elM("notice").textContent, "Bestelling niet gevonden op het bord.", "AA12 pas d'erreur trompeuse");
+    ctxM.location.search = "";
+
+    // AA13 — filtre d'affichage seulement : API et Documenten intacts.
+    assert.ok(!/filterByFormula/.test(fs.readFileSync(path.join(ROOT, "api", "allorders.js"), "utf8")), "AA13 /api/allorders renvoie toujours toutes les commandes");
+    assert.ok(!/isAfgehandeld|Payé/.test(fs.readFileSync(path.join(ROOT, "documenten.html"), "utf8")), "AA13 Documenten ne filtre pas sur le paiement : une commande afgehandeld y reste consultable");
+  }
+  console.log("✓ AA. Fin de vie des commandes : facturée ET payée hors du bord (filtre explicite, Te betalen, Documenten intact)");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());

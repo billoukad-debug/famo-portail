@@ -26,6 +26,7 @@ Hors menu : `/stock.html` reste accessible par URL directe mais n'est plus propo
 4. Réception confirmée dans **Leveringen** — le nom du réceptionnaire est obligatoire.
 5. Le numéro de facture est attribué une seule fois, au format `FA-2026-0001`.
 5b. La facture porte la communication structurée belge (**Mededeling**), calculée depuis ce numéro : `FA-2026-0001` → `+++202/6000/00192+++`. Rien n'est stocké : même numéro, même communication (`documents.js`, `structuredRef`).
+6. Une commande **facturée et payée** est **afgehandeld** : elle quitte le tableau de Bestellingen et de Magazijn. C'est un filtre d'affichage — rien n'est supprimé ni archivé dans Airtable : elle reste dans Documenten et sur sa fiche, et revient via le filtre **Afgehandeld: Tonen** (Bestellingen, gardé dans l'URL) ou le bouton **Toon afgehandelde** (Magazijn, caché à chaque chargement). Facturée mais impayée, elle reste visible : c'est de l'argent à récupérer, et c'est exactement ce que compte **Te betalen**.
 
 Le total est recalculé côté serveur à chaque modification de lignes (`api/updateorder.js`), jamais accepté tel quel depuis le navigateur.
 
