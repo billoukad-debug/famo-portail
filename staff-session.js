@@ -46,12 +46,14 @@
   let lastRole = null;
   function getRole() { return lastRole; }
 
-  async function login(code) {
+  // want : rôle demandé par la page ("admin" sur Beheer). Le serveur ne s'en sert que
+  // si le code est valable pour les deux rôles (codes identiques).
+  async function login(code, want) {
     const r = await fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ code: String(code || "") })
+      body: JSON.stringify({ code: String(code || ""), want: want === "admin" ? "admin" : "staff" })
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(translateError(d.error || "Aanmelden mislukt"));
@@ -186,9 +188,12 @@
   }
 
   /**
-   * Ajoute les portes de sortie sous un écran de connexion staff : accès à
-   * l'autre rôle et retour au portail client. Sans ça, une page de connexion
+   * Ajoute les portes de sortie sous un écran de connexion staff : retour vers le
+   * travail quotidien et vers le portail client. Sans ça, une page de connexion
    * est un cul-de-sac pour qui n'a pas le code.
+   * Lien vers Beheer : une simple adresse, qui n'ouvre rien en soi — /beheer.html exige une
+   * session beheerder (code beheerder, rôle admin demandé). C'est l'entrée du beheerder quand
+   * les deux codes sont identiques ; une fois connecté en beheerder, le menu affiche Beheer.
    */
   function addLoginExits(loginView) {
     if (!loginView) return;
@@ -199,10 +204,8 @@
     if (here === "beheer.html") {
       exits.push(['/bestellingen.html', "Personeel? Ga naar Bestellingen"]);
     } else {
+      if (here !== "bestellingen.html") exits.push(['/bestellingen.html', "Alle bestellingen"]);
       exits.push(['/beheer.html', "Beheerder? Ga naar Beheer"]);
-      if (here !== "bestellingen.html") {
-        exits.push(['/bestellingen.html', "Alle bestellingen"]);
-      }
     }
     exits.push(['/', "Terug naar het klantportaal"]);
     const nav = document.createElement("div");
@@ -218,6 +221,7 @@
     const loginView = typeof cfg.loginView === "string" ? document.getElementById(cfg.loginView) : cfg.loginView;
     const appView = typeof cfg.appView === "string" ? document.getElementById(cfg.appView) : cfg.appView;
     let busy = false;
+    const want = cfg.requireAdmin ? "admin" : "staff";
 
     // Le formulaire de connexion est visible par défaut dans le HTML (avant que ce
     // script ne s'exécute). On le masque tout de suite — le temps que la session
@@ -230,6 +234,18 @@
     addLoginExits(loginView);
 
     function showAdminDenied() {
+      // Session personnel sur une page Beheer : on propose la connexion beheerder plutôt
+      // qu'une impasse (avec des codes identiques, c'est d'ici qu'on devient beheerder).
+      if (loginView) {
+        if (appView) appView.classList.add("hidden");
+        loginView.classList.remove("hidden");
+        loginView.style.visibility = "";
+        if (errEl) errEl.textContent = "Deze pagina is enkel voor beheerders. Meld u aan met de beheerderscode.";
+        if (codeEl) {
+          try { codeEl.focus(); } catch (e) { /* ignore */ }
+        }
+        return;
+      }
       if (loginView) loginView.classList.add("hidden");
       if (appView) appView.classList.add("hidden");
       let box = document.getElementById("famoAdminDenied");
@@ -273,7 +289,7 @@
       busy = true;
       if (errEl) errEl.textContent = "Controleren…";
       try {
-        await login(code);
+        await login(code, want);
         if (codeEl) codeEl.value = "";
         const ret = takeReturn(null);
         if (ret) {

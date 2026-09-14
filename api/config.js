@@ -69,8 +69,19 @@ module.exports = async (req, res) => {
 
     if (!staffOk) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
-    // Personeel (niet-beheerder) ziet enkel de contactgegevens — IBAN/BIC is enkel voor de beheerder.
-    if (!adminOk) return res.status(200).json({ config: contactOnly });
+    // Personeel (non beheerder) : tout ce qui s'imprime sur un bon ou une facture — IBAN, BIC,
+    // taux de TVA, conditions — puisque ces documents sortent aussi du magasin. Sans cela, une
+    // facture imprimée par le personnel retombait sur l'IBAN d'exemple et un taux de 6 % par défaut.
+    // La boîte interne des commandes (bestellingenEmail) reste réservée au beheerder.
+    if (!adminOk) {
+      return res.status(200).json({ config: Object.assign({}, contactOnly, {
+        iban: config.iban,
+        bic: config.bic,
+        btwTarief: config.btwTarief,
+        betalingsvoorwaarden: config.betalingsvoorwaarden,
+        leveringsvoorwaarden: config.leveringsvoorwaarden
+      }) });
+    }
 
     if (q.status === "1") {
       if (!adminOk) return res.status(401).json({ error: "Enkel voor beheerders" });

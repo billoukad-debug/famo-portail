@@ -7,77 +7,119 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
-  .wh-stats{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;color:var(--f-muted);font-size:12.5px}
+  /* Haut de page sur deux lignes : titre + compteurs essentiels + vues, puis recherche, tri et actions.
+     Niet gefactureerd, le résumé et l'heure : seulement quand la place le permet ; la barre de
+     groepsactie n'apparaît qu'avec une sélection ; Wissen seulement quand un filtre est actif. */
+  .wh-head{align-items:center}
+  .wh-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 16px;min-width:0}
+  @media(max-width:1199px){.wh-extra{display:none!important}}
+  .wh-stats{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--f-muted);font-size:12.5px}
   .wh-stats b{font-weight:600;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--f-ink)}
-  .wh-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
-  .wh-toolbar label{font-size:12px;font-weight:600;color:var(--f-quiet)}
-  .wh-toolbar input{width:min(300px,100%);min-height:44px;padding:0 12px}
+  .wh-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+  /* Libellés lus par les lecteurs d'écran, masqués à l'écran : la barre tient sur une ligne et le bord commence plus haut. */
+  .wh-toolbar label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .wh-toolbar input{flex:1 1 160px;width:auto;max-width:300px;min-height:44px;padding:0 12px}
   .wh-toolbar select{min-height:44px;padding:0 10px}
   .wh-toolbar span{margin-left:auto;color:var(--f-quiet);font-size:12px;font-variant-numeric:tabular-nums}
-  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;padding-bottom:40px}
-  @media (max-width:1000px){ .board{grid-template-columns:1fr 1fr} }
-  @media (max-width:560px){ .board{grid-template-columns:1fr} }
+  /* Colonnes selon la place réelle (menu latéral compris) : 2 lisibles sur tablette, 4 sur grand écran, 1 sur téléphone. */
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:8px;padding-bottom:40px}
   .col{background:var(--f-panel);border:1px solid var(--f-line);border-top:3px solid #77706A;border-radius:12px;padding:10px;min-height:140px}
   .col.c1{border-top-color:#8A6110}.col.c2{border-top-color:#2C6E7E}.col.c3{border-top-color:#1F6D4E}
   .col>h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--f-quiet);margin:2px 4px 10px;display:flex;justify-content:space-between;align-items:center}
   .col>h3 .n{background:var(--f-ink);color:#fff;border-radius:999px;padding:1px 9px;font-size:11.5px}
   .oc{background:#fff;border:1px solid var(--f-line);border-radius:12px;padding:14px;margin-bottom:10px}
-  .oc .ref{font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--f-ink)}
-  .oc .cl{font-size:14px;color:var(--f-ink);font-weight:600;margin:2px 0 4px}
-  .order-lines{background:var(--f-panel);border:1px solid var(--f-line);border-radius:6px;padding:5px 12px;margin:8px 0}
-  .order-line{display:flex;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid var(--f-line)}
-  .order-line:last-child{border-bottom:0}
-  .order-line .q{min-width:40px;text-align:right;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums;color:var(--f-ink)}
-  .order-line .d{font-size:14px;font-weight:500;line-height:1.3;color:var(--f-muted)}
-  .oc .meta{font-size:12px;color:var(--f-muted);margin-top:6px}
-  .oc .meta b{font-variant-numeric:tabular-nums}
-  .oc .row{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
-  .oc button{border:none;border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;min-height:44px;cursor:pointer}
-  .adv{background:var(--f-accent);color:#fff;width:100%;min-height:44px;margin-top:4px}
-  .edit{background:var(--f-panel);color:var(--f-ink);border:1px solid var(--f-line)!important}
-  .doc{background:#fff;color:var(--f-ink);border:1px solid var(--f-line)!important}
-  .pay{background:#E6F0E9;color:#1F6D4E;border:1px solid #C6DCCB!important}
-  .paid{background:#1F6D4E;color:#fff}
+  /* Carte : contenu commun (staff-card.js, .m-card-* dans staff.css) ; ici le cadre compact et les actions. */
+  .board .oc{padding:11px 12px!important;margin-bottom:8px} /* staff.css force .oc à 14px */
+  /* Pied de carte : sélection + actions à gauche, total à droite, sur la même rangée. */
+  .oc .m-card-foot{margin-top:8px;flex-wrap:wrap;row-gap:4px}
+  .oc .row{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 180px;min-width:0} /* trop étroit à côté du total : le total passe dessous, à droite */
+  .oc .m-card-foot .m-card-total{flex:none}
+  /* Hiérarchie des actions : un seul bouton plein (.adv) = ce qui fait avancer la commande ;
+     .edit = secondaire ; navigations (Leveringen, documents) = liens, pas des boutons. */
+  .oc button,.oc a.oc-link{display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:8px;padding:0 10px;font-size:13px;font-weight:600;min-height:44px;cursor:pointer;text-decoration:none}
+  .oc a.oc-link{padding:0 6px;background:none;color:var(--f-accent-2);text-decoration:underline;text-underline-offset:3px}
+  .adv{background:var(--f-accent);color:#fff;flex:1 1 auto;min-height:44px}
+  .oc .edit{background:#fff!important;color:var(--f-ink)!important;border:1px solid var(--f-line)!important} /* secondaire ; staff.css force .edit en beige */
   .save{background:var(--f-accent);color:#fff}
   .save:hover{background:var(--f-accent-2)}
   .oc textarea{width:100%;font-family:inherit;font-size:13px;border:1.5px solid var(--f-line);border-radius:8px;padding:8px;min-height:76px;margin-top:8px}
   .tin{width:100px;min-height:44px;padding:8px 10px;border:1.5px solid var(--f-line);border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums}
   .ehint{font-size:11px;color:var(--f-quiet);margin-top:5px}
-  .pick-editor{margin-top:10px;border:1px solid var(--f-line);border-radius:8px;overflow:hidden;background:#fff}
-  .pick-row{display:grid;grid-template-columns:40px minmax(0,1fr) 158px;gap:9px;align-items:center;min-height:44px;padding:10px 12px 10px 8px;border-bottom:1px solid var(--f-line);cursor:pointer}
-  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{width:24px;height:24px;margin:10px 8px;accent-color:#1F6D4E;cursor:pointer}
-  .pick-row .pn{font-size:14px;font-weight:600}.pick-row .pm{font-size:11.5px;color:var(--f-quiet);margin-top:2px;font-variant-numeric:tabular-nums}.pick-row.done{background:#E6F0E9}
-  .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:44px;min-height:44px;padding:0;background:var(--f-panel);color:var(--f-ink);font-size:20px}.actual input{width:56px;min-height:44px;text-align:center;border:1px solid var(--f-line);border-radius:5px;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
-  .edit-head{font-size:12px;font-weight:700;color:var(--f-ink);margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
+  /* Validation article par article (écran du préparateur, tablette) : une ligne par article —
+     case, quantité commandée + nom (comme sur la carte), puis −/aantal/+ à droite ; sans encadré, cibles de 44 px.
+     Carte trop étroite : les quantités passent dessous, à droite, sans jamais recouvrir le nom. */
+  .pick-editor{margin-top:6px;border-top:1px solid var(--f-line)}
+  .pick-row{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;min-height:44px;padding:0 0 0 2px;border-bottom:1px solid var(--f-line);cursor:pointer}
+  .pick-row input[type=checkbox]{flex:none;width:22px;height:22px;margin:0;accent-color:#1F6D4E;cursor:pointer}
+  .pick-row .pick-text{flex:1 1 90px;min-width:0;padding:4px 0;line-height:1.3}
+  .pick-row .pn{font-size:14px;font-weight:500;overflow-wrap:break-word}
+  .pick-row .pm{margin-right:2px;font-size:14px;font-weight:600;color:var(--f-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .pick-row .pc{font-size:12px;color:var(--f-quiet)}
+  .pick-row .actual{margin-left:auto}
+  .pick-row.done{background:#E6F0E9}
+  .actual{display:flex;align-items:center;justify-content:flex-end;gap:0}
+  .oc .actual button{min-width:44px;min-height:44px;padding:0;border-radius:8px;background:transparent;color:var(--f-ink);font-size:18px;font-weight:600}
+  .actual input{width:48px;min-height:44px;padding:0;text-align:center;border:1px solid var(--f-line);border-radius:6px;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
+  /* Total réel + Klaarzetten : passe à la ligne au lieu de se chevaucher (bouton coupé à droite en colonne étroite). */
+  .edit-head{font-size:12px;font-weight:600;color:var(--f-muted);margin-top:8px}
+  .edit-total{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:8px;font-size:12px;font-weight:600}
+  .edit-total .tin{width:96px;flex:none}
+  .edit-total .save{flex:1 1 150px;min-width:0}
   .empty{color:var(--f-quiet);font-size:12.5px;padding:8px;text-align:center}
-  .prep-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:18px}
-  .prep-tools label{font-size:12.5px;color:var(--f-muted)}
-  .prep-meta{margin:13px 0;color:var(--f-quiet);font-size:12.5px}
-  .prep-grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:20px}
+  /* Vue Dag alignée sur le bord : barre compacte (sélecteur, résumé, lien Leveringen), panneaux resserrés,
+     commandes du jour avec la carte commune (staff-card.js). */
+  .prep-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .prep-tools label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .prep-summary{margin-left:auto;color:var(--f-quiet);font-size:12px;font-variant-numeric:tabular-nums}
+  .prep-summary a{display:inline-flex;align-items:center;min-height:44px;color:var(--f-accent-2);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+  @media(max-width:620px){.prep-summary{margin-left:0;width:100%}}
+  .prep-grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:14px;margin-top:10px}
   .prep-panel{border:1px solid var(--f-line);border-radius:12px;background:#fff}
-  .prep-panel h2{margin:0;padding:16px 18px 8px;font-size:14.5px}
-  .prep-panel p{margin:0;padding:0 18px 13px;color:var(--f-quiet);font-size:12.5px}
-  .prep-product{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--f-line)}
-  .prep-product-qty{margin-left:auto;font-weight:600;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .prep-panel h2{margin:0;padding:12px 14px 2px;font-size:14px}
+  .prep-panel p{margin:0;padding:0 14px 10px;color:var(--f-quiet);font-size:12px}
+  .prep-product{display:flex;align-items:center;gap:12px;padding:8px 14px;border-top:1px solid var(--f-line)}
+  .prep-product-qty{margin-left:auto;font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .prep-product b{display:block;font-size:13.5px;font-weight:500}
-  .prep-product small{display:block;margin-top:2px;color:var(--f-quiet);font-size:11.5px}
-  .prep-order{display:block;padding:12px 18px;border-top:1px solid var(--f-line);color:var(--f-ink);text-decoration:none}
+  .prep-product small{display:block;margin-top:1px;color:var(--f-quiet);font-size:11.5px}
+  .prep-order{display:block;padding:10px 14px;border-top:1px solid var(--f-line);color:var(--f-ink);text-decoration:none}
   .prep-order:hover{background:var(--f-panel)}
-  .prep-order-head{display:flex;align-items:center;gap:9px}
-  .prep-order-ref{font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace}
-  .prep-order-client{font-size:13px;font-weight:500}
-  .prep-order-lines{margin-top:6px;color:var(--f-muted);font-size:12px;line-height:1.55}
-  .prep-alert{margin:14px 0;padding:11px 12px;border:1px solid #E8CFC7;border-radius:8px;background:#FBF1EE;color:var(--f-danger);font-size:12.5px}
-  .prep-empty{padding:24px 18px;color:var(--f-quiet);font-size:12.5px}
+  .prep-alert{margin:10px 0 0;padding:10px 12px;border:1px solid #E8CFC7;border-radius:8px;background:#FBF1EE;color:var(--f-danger);font-size:12.5px}
+  .prep-empty{padding:18px 14px;color:var(--f-quiet);font-size:12.5px}
   .page-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   @media(max-width:860px){.prep-grid{grid-template-columns:1fr}}
   .oc-focus{outline:2px solid var(--f-accent);outline-offset:2px;box-shadow:0 0 0 4px rgba(12,97,87,.14)}
-  .prep-order-cta{margin-left:auto;color:var(--f-accent);font-size:12px;font-weight:600}
+  .prep-order-cta{color:var(--f-accent);font-size:12px;font-weight:600}
   @media(max-width:620px){.wh-toolbar span{margin-left:0;width:100%}.page-actions{width:100%}.page-actions button{flex:1}}
   .oc-progress{height:3px;border-radius:999px;background:var(--f-line);margin-bottom:10px;overflow:hidden}
   .oc-progress span{display:block;height:100%;width:0;border-radius:999px;background:var(--f-accent);transition:width .18s ease}
   @media(prefers-reduced-motion:reduce){.oc-progress span{transition:none}}
   .col .f-empty{padding:26px 10px}
+  /* Afgehandeld (gefactureerd én betaald) : hors du bord par défaut ; bouton de la barre et ligne discrète pour les montrer. */
+  .staff-filterbtn[aria-pressed="true"]{border-color:var(--f-accent);background:var(--f-wash);color:var(--f-accent-2)}
+  .wh-hidden{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;padding:0 4px;color:var(--f-quiet);font-size:12.5px}
+  .wh-hidden button{margin-left:auto}
+  /* Groepsactie : sélection multiple et résultat commande par commande */
+  .wh-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:8px 10px 8px 14px;border:1px solid var(--f-line);border-radius:12px;background:#fff}
+  #bulkCount{margin-right:auto;font-size:13px;font-weight:600;color:var(--f-ink);font-variant-numeric:tabular-nums}
+  .oc-select{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin:0;cursor:pointer}
+  .oc-select input{width:24px;height:24px;margin:0;accent-color:var(--f-accent);cursor:pointer}
+  .oc.oc-selected{border-color:var(--f-accent)!important;background:var(--f-wash)!important} /* staff.css force .oc en !important */
+  .wh-bulk-result{margin-top:12px;border:1px solid var(--f-line);border-radius:12px;background:#fff;overflow:hidden}
+  .br-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:8px 10px 8px 14px;background:var(--f-panel);font-size:13.5px}
+  .br-head button{margin-left:auto}
+  .br-sum{font-size:12.5px;color:var(--f-muted)}
+  .br-sum-fail{color:var(--f-danger);font-weight:600}
+  .br-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;padding:10px 14px;border-top:1px solid var(--f-line);font-size:13px}
+  .br-state{min-width:112px;font-weight:600}
+  .br-ok .br-state{color:var(--f-success)}
+  .br-fail{background:#FBF1EE}
+  .br-fail .br-state{color:var(--f-danger)}
+  .br-skipped .br-state{color:var(--f-warning)}
+  .br-ref{font:500 12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+  .br-client{font-weight:500}
+  .br-msg{flex-basis:100%;padding-left:124px;color:var(--f-muted)}
+  .br-hint{margin:0;padding:10px 14px;border-top:1px solid var(--f-line);color:var(--f-quiet);font-size:12px}
+  @media(max-width:620px){.br-msg{padding-left:0}#bulkCount{width:100%}}
 </style>
 <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
 </head>
@@ -97,10 +139,14 @@
   <aside data-famo-nav class="staff-sidebar"></aside>
   <nav data-famo-mobile-nav class="staff-mobile-nav"></nav>
   <main class="staff-main"><div class="staff-page">
-    <header class="staff-page-head">
-      <div>
+    <header class="staff-page-head wh-head">
+      <div class="wh-title">
         <h1>Magazijn</h1>
-        <p>Voorbereiding en levering · <span id="stamp"></span></p>
+        <div class="wh-stats" aria-label="Dagstatistieken">
+          <span>Te bereiden <b id="statTodo">0</b></span>
+          <span>Onderweg <b id="statOnway">0</b></span>
+          <span class="wh-extra">Niet gefactureerd <b id="statOpen">0</b></span>
+        </div>
       </div>
       <div class="page-actions staff-head-tools">
         <div class="staff-viewtabs" role="tablist" aria-label="Magazijn weergave">
@@ -112,11 +158,6 @@
         <button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button>
       </div>
     </header>
-    <div class="wh-stats" aria-label="Dagstatistieken">
-      <span>Te bereiden <b id="statTodo">0</b></span>
-      <span>Onderweg <b id="statOnway">0</b></span>
-      <span>Niet gefactureerd <b id="statOpen">0</b></span>
-    </div>
 
     <div id="viewBord">
       <section class="wh-toolbar" aria-label="Bestellingen zoeken en sorteren">
@@ -129,9 +170,17 @@
           <option value="client">Klant: A–Z</option>
           <option value="total">Totaal: hoog naar laag</option>
         </select>
-        <button type="button" class="staff-action-secondary" onclick="clearOrderFilters()">Wissen</button>
-        <span id="boardSummary" role="status"></span>
+        <button type="button" id="btnWissen" class="staff-action-secondary hidden" onclick="clearOrderFilters()">Wissen</button>
+        <button type="button" id="afgehandeldBtn" class="staff-filterbtn" aria-pressed="false" onclick="toggleAfgehandeld()">Toon afgehandelde<b class="n" id="afgehandeldCount"></b></button>
+        <button type="button" class="staff-action-secondary hidden" id="bulkAll" onclick="selectAllEligible()">Alles selecteren</button>
+        <span class="wh-meta wh-extra"><span id="boardSummary" role="status"></span> · <span id="stamp"></span></span>
       </section>
+      <section id="bulkBar" class="wh-bulk hidden" aria-label="Groepsactie">
+        <span id="bulkCount" role="status"></span>
+        <button type="button" class="staff-action-secondary" id="bulkClear" onclick="clearSelection()">Selectie wissen</button>
+        <button type="button" class="staff-action" id="bulkGo" onclick="confirmBulkAdvance()">→ Onderweg</button>
+      </section>
+      <section id="bulkResult" class="wh-bulk-result hidden" aria-live="polite" aria-label="Resultaat groepsactie"></section>
       <div class="board">
         <div class="col c0"><h3>Ontvangen <span class="n" id="n0">0</span></h3><div id="c0"></div></div>
         <div class="col c1"><h3>Klaar <span class="n" id="n1">0</span></h3><div id="c1"></div></div>
@@ -152,6 +201,7 @@
           <option value="custom">Kies datum…</option>
         </select>
         <input id="dayCustom" class="staff-field hidden" type="date" onchange="renderDayView()">
+        <span id="dagSummary" class="prep-summary" role="status"></span>
       </div>
       <div id="dagContent" class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div>
     </div>
@@ -162,9 +212,12 @@
 <div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="advanceTitle"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong id="advanceTitle">Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:var(--f-muted);line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 
 <script src="/staff-company.js"></script>
+<script src="/documents.js"></script>
 <script src="/staff-session.js"></script>
 <script src="/staff-doc-preview.js"></script>
 <script src="/staff-i18n.js"></script>
+<script src="/staff-card.js"></script>
+<script src="/staff-doc-actions.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
 /* ====== Bedrijfsgegevens Famo Trading ====== */
@@ -185,17 +238,9 @@ const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
 const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Facturée":"→ Gefactureerd"};
 const statusColor={"Reçue":"#77706A","Prête":"#8A6110","Sortie en livraison":"#2C6E7E","Facturée":"#1F6D4E"};
 let ORDERS=[], STOCK=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery", UPDATING=false, CURRENT_VIEW="bord";
+famoDocActions.setSource(()=>ORDERS);
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
-
-function renderLines(txt){
-  return '<div class="order-lines">'+String(txt||"").split("\n").filter(Boolean).map(line=>{
-    const clean=famoNL.lines(line.replace(/\s*\[€[^\]]+\]/g,""));
-    const m=clean.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*(.*)$/);
-    if(!m) return '<div class="order-line"><span class="d">'+esc(clean)+'</span></div>';
-    return '<div class="order-line"><span class="q">'+esc(m[2])+'</span><span class="d">'+esc(m[3])+' · '+esc(m[1].trim())+'</span></div>';
-  }).join("")+'</div>';
-}
 
 function setView(view){
   CURRENT_VIEW=view==="dag"?"dag":"bord";
@@ -267,6 +312,7 @@ async function load(){
 
 function render(){
   for(let i=0;i<4;i++) document.getElementById("c"+i).innerHTML="";
+  SELECTED=new Set([...SELECTED].filter(id=>advanceTarget(ORDERS.find(o=>o.id===id))));
   const counts=[0,0,0,0];
   const visible=orderView();
   visible.forEach(({o,idx})=>{
@@ -274,30 +320,30 @@ function render(){
     const next=si<3?STATUS[si+1]:null;
     const paid=o.paiement==="Payé";
     const focusId=new URLSearchParams(location.search).get("id")||"";
-    const el=document.createElement("div"); el.className="oc"+(focusId&&(o.id===focusId||o.ref===focusId)?" oc-focus":"");
+    const el=document.createElement("div"); el.className="oc"+(focusId&&(o.id===focusId||o.ref===focusId)?" oc-focus":"")+(SELECTED.has(o.id)?" oc-selected":"");
     el.dataset.orderId=o.id;
     const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
     const primary=canValidate
       ? '<button class="adv" onclick="editLines('+idx+')">Artikelen valideren</button>'
       : (next==="Facturée"
-          ? '<a class="adv" href="/leveringen.html" style="display:block;text-align:center;text-decoration:none">Open Leveringen</a>'
+          ? '<a class="oc-link" href="/leveringen.html">Open Leveringen</a>'
           : (next?'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''));
-    el.innerHTML='<div class="ref">'+esc(o.ref)+'</div>'+
-      '<div class="cl">'+esc(o.client)+'</div>'+
-      renderLines(o.lignes)+
-      '<div class="meta">Levering: '+esc(o.dateLiv||"—")+' · Totaal: <b>'+eur(o.total)+'</b></div>'+
-      (o.factuurnummer?'<div class="meta">'+esc(o.factuurnummer)+'</div>':'')+
-      (o.stockAf?'<div class="meta" style="color:#1F6D4E">✓ Voorraad afgeboekt</div>':'')+
-      (o.statut==="Prête"&&!o.preparationValidee?'<div class="meta" style="color:#8A6110">Artikelen nog niet afzonderlijk gevalideerd</div>':'')+
-      (o.livraisonConfirmee?'<div class="meta" style="color:#1F6D4E">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
-      (o.notes?'<div class="meta">'+esc(o.notes)+'</div>':'')+
-      '<div class="row">'+
-        primary+
-        (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
-        (o.statut!=="Reçue"?'<a class="doc" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=lb" style="display:inline-flex;align-items:center;text-decoration:none">Leveringsbon</a>':'')+
-        (o.factuurnummer?'<a class="doc" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=facture" style="display:inline-flex;align-items:center;text-decoration:none">Factuur</a>':'')+
-        (o.statut==="Facturée"?'<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"Betaald":"Markeer betaald")+'</button>':'')+
-      '</div><div id="e'+idx+'"></div>';
+    el.innerHTML=famoCard.html(o,{
+        foot:'<div class="row">'+
+          (advanceTarget(o)?'<label class="oc-select" title="Selecteren"><input type="checkbox" aria-label="Selecteren" data-id="'+esc(o.id)+'"'+(SELECTED.has(o.id)?' checked':'')+' onchange="toggleSelect(this.dataset.id,this.checked)"></label>':'')+
+          (o.statut==="Facturée"&&!paid?'<button class="adv" onclick="togglePay(\''+o.id+'\',\'Payé\')">Markeer betaald</button>':'')+
+          primary+
+          (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
+          (o.statut==="Facturée"&&paid?'<button class="edit" onclick="togglePay(\''+o.id+'\',\'En attente\')">Markeer openstaand</button>':'')+
+          famoDocActions.iconsHtml(o)+
+          '</div>',
+        extra:(o.factuurnummer?'<div class="m-card-meta">'+esc(o.factuurnummer)+'</div>':'')+
+          (o.statut==="Prête"&&!o.preparationValidee?'<div class="m-card-meta warn">Artikelen nog niet afzonderlijk gevalideerd</div>':'')+
+          (o.livraisonConfirmee?'<div class="m-card-meta ok">✓ Ontvangen door '+esc(o.receptionnePar||"klant")+(o.preuveLivraison&&o.preuveLivraison.length?' · <a href="'+esc(o.preuveLivraison[0].url)+'" target="_blank" rel="noopener">bewijs</a>':'')+'</div>':'')+
+          (o.stockAf?'<div class="m-card-meta ok">✓ Voorraad afgeboekt</div>':'')+
+          (o.notes?'<div class="m-card-meta">'+esc(o.notes)+'</div>':'')
+      })+
+      '<div id="e'+idx+'"></div>';
     document.getElementById("c"+si).appendChild(el);
   });
   const emptyPick='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 9h17v10.5h-17z"/><path d="M3.5 12.75h17M8.2 9v10.5M15.8 9v10.5"/><path d="M7.5 9l2-4.5h5l2 4.5"/></svg><b>Alles klaar.</b><p>Geen bestellingen te verzamelen.</p></div>';
@@ -306,9 +352,18 @@ function render(){
     '<div class="staff-empty f-empty"><p>Geen leveringen onderweg</p></div>',
     '<div class="staff-empty f-empty"><p>Nog niets gefactureerd</p></div>'];
   for(let i=0;i<4;i++){ document.getElementById("n"+i).textContent=counts[i]; if(!counts[i]) document.getElementById("c"+i).innerHTML=emptyCols[i]; }
+  const hidden=SHOW_AFGEHANDELD?0:AFGEHANDELD_MATCH;
+  if(hidden){
+    const c3=document.getElementById("c3");
+    if(!counts[3]) c3.innerHTML='<div class="staff-empty f-empty"><b>Alles betaald</b><p>Gefactureerde en betaalde bestellingen staan niet meer op het bord.</p></div>';
+    c3.insertAdjacentHTML("beforeend",'<div class="wh-hidden"><span>'+hidden+(hidden===1?' afgehandelde bestelling':' afgehandelde bestellingen')+' verborgen</span><button type="button" class="staff-action-secondary" onclick="toggleAfgehandeld(true)">Tonen</button></div>');
+  }
   document.getElementById("statTodo").textContent=counts[0]+counts[1]; document.getElementById("statOnway").textContent=counts[2]; document.getElementById("statOpen").textContent=counts[0]+counts[1]+counts[2];
-  const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen";
+  const summary=document.getElementById("boardSummary"); if(summary) summary.textContent=visible.length+" van "+ORDERS.length+" bestellingen"+(hidden?" · "+hidden+" afgehandeld verborgen":"");
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
+  renderBulkBar();
+  renderAfgehandeldBtn();
+  document.getElementById("btnWissen").classList.toggle("hidden",!(ORDER_QUERY||ORDER_SORT!=="delivery"||SHOW_AFGEHANDELD));
   if(CURRENT_VIEW==="dag") renderDayView();
   else highlightFocusedOrder();
 }
@@ -317,6 +372,7 @@ function highlightFocusedOrder(){
   if(!focusId||CURRENT_VIEW!=="bord") return;
   const idx=ORDERS.findIndex(o=>o.id===focusId||o.ref===focusId);
   if(idx<0){ showNotice("Bestelling niet gevonden op het bord.","error"); return; }
+  if(isAfgehandeld(ORDERS[idx])&&!SHOW_AFGEHANDELD&&!FOCUS_REVEALED){ FOCUS_REVEALED=true; toggleAfgehandeld(true); return; }
   const card=document.querySelector('.oc[data-order-id="'+ORDERS[idx].id+'"]');
   if(!card) return;
   try{ card.scrollIntoView({behavior:"smooth",block:"center"}); }catch(err){ card.scrollIntoView(); }
@@ -324,9 +380,25 @@ function highlightFocusedOrder(){
   const box=document.getElementById("e"+idx);
   if(needsEdit&&box&&!box.innerHTML) editLines(idx);
 }
+/* ====== Afgehandeld : gefactureerd én betaald ======
+   Filtre d'affichage seulement : la commande quitte le bord mais reste dans Airtable,
+   dans Documenten et sur sa fiche. Cachée à chaque chargement de la page ; « Toon afgehandelde »
+   ou la ligne de la colonne Gefactureerd la remontre, « Wissen » la recache.
+   Gefactureerd mais impayée reste sur le bord : c'est de l'argent à récupérer. */
+let SHOW_AFGEHANDELD=false, AFGEHANDELD_MATCH=0, FOCUS_REVEALED=false;
+function isAfgehandeld(o){return !!o&&o.statut==="Facturée"&&o.paiement==="Payé"}
+function toggleAfgehandeld(on){SHOW_AFGEHANDELD=typeof on==="boolean"?on:!SHOW_AFGEHANDELD;render()}
+function renderAfgehandeldBtn(){
+  const btn=document.getElementById("afgehandeldBtn"); if(!btn) return;
+  btn.setAttribute("aria-pressed",SHOW_AFGEHANDELD?"true":"false");
+  document.getElementById("afgehandeldCount").textContent=AFGEHANDELD_MATCH?String(AFGEHANDELD_MATCH):"";
+}
+/* ====== einde afgehandeld ====== */
 function orderView(){
   const q=ORDER_QUERY.trim().toLocaleLowerCase("nl-BE");
-  const rows=ORDERS.map((o,idx)=>({o,idx})).filter(({o})=>!q||[o.ref,o.client,o.lignes,o.notes].join(" ").toLocaleLowerCase("nl-BE").includes(q));
+  const found=ORDERS.map((o,idx)=>({o,idx})).filter(({o})=>!q||[o.ref,o.client,o.lignes,o.notes].join(" ").toLocaleLowerCase("nl-BE").includes(q));
+  AFGEHANDELD_MATCH=found.filter(r=>isAfgehandeld(r.o)).length;
+  const rows=SHOW_AFGEHANDELD?found:found.filter(r=>!isAfgehandeld(r.o));
   const delivery=o=>String(o.dateLiv||"9999-12-31"), recent=o=>String(o.date||"");
   return rows.sort((a,b)=>{
     if(ORDER_SORT==="client") return String(a.o.client).localeCompare(String(b.o.client),"nl");
@@ -337,7 +409,7 @@ function orderView(){
 }
 function setOrderQuery(value){ORDER_QUERY=value;render()}
 function setOrderSort(value){ORDER_SORT=value;render()}
-function clearOrderFilters(){ORDER_QUERY="";ORDER_SORT="delivery";document.getElementById("orderSearch").value="";document.getElementById("orderSort").value="delivery";render()}
+function clearOrderFilters(){ORDER_QUERY="";ORDER_SORT="delivery";SHOW_AFGEHANDELD=false;document.getElementById("orderSearch").value="";document.getElementById("orderSort").value="delivery";render()}
 
 function dayKey(offset=0){
   const base=new Date(new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(new Date())+"T12:00:00");
@@ -375,27 +447,34 @@ function consolidatedItems(){
   }));
   return Object.values(totals).sort((a,b)=>a.name.localeCompare(b.name,"nl"));
 }
+/* Contrôle de stock de la vue Dag. Le stock Airtable est volontairement non fiable (skipStock,
+   Voorraad hors menu) et le personnel ne le charge pas : sans aucune donnée de stock il n'y a rien
+   à contrôler, donc pas de bandeau (sinon chaque produit s'affichait « Onbekend artikel » en rouge).
+   Dès que la table Stock contient des articles, les écarts réels sont de nouveau signalés. */
+function stockAlerts(items){
+  if(!STOCK.length) return [];
+  const stockBy=new Map(STOCK.map(x=>[String(x.product).toLowerCase(),x]));
+  return items.map(i=>{
+    const s=stockBy.get(i.name.toLowerCase());
+    return !s?"Onbekend artikel: "+i.name:s.quantity<i.quantity?i.name+": "+s.quantity+" beschikbaar, "+i.quantity+" nodig":null;
+  }).filter(Boolean);
+}
 function renderDayView(){
   const orders=preparationOrders(),items=consolidatedItems();
   const today=dayKey();
   const onway=ORDERS.filter(o=>o.statut==="Sortie en livraison"&&!o.livraisonConfirmee&&(!String(o.dateLiv||"").slice(0,10)||String(o.dateLiv||"").slice(0,10)<=dayKey(1)));
-  const stockBy=new Map(STOCK.map(x=>[String(x.product).toLowerCase(),x]));
-  const alerts=items.map(i=>{
-    const s=stockBy.get(i.name.toLowerCase());
-    return !s?"Onbekend artikel: "+i.name:s.quantity<i.quantity?i.name+": "+s.quantity+" beschikbaar, "+i.quantity+" nodig":null;
-  }).filter(Boolean);
+  const alerts=stockAlerts(items);
   const label=DAY_FILTER==="custom"?document.getElementById("dayCustom").value:DAY_FILTER==="today"?dayKey():DAY_FILTER==="tomorrow"?dayKey(1):"";
   const c=document.getElementById("dagContent");
   c.className="f-enter";
-  c.innerHTML='<p class="prep-meta">'+orders.length+' bestellingen · '+items.length+' verschillende producten'+(label?' · '+dateLabel(label):'')+'</p>'+
-    (alerts.length?'<div class="prep-alert"><b>Voorraadcontrole vereist</b><br>'+alerts.map(esc).join("<br>")+'</div>':'')+
-    (onway.length?'<div class="prep-alert" style="border-color:var(--f-accent);background:var(--f-wash);color:var(--f-accent-2)"><b>'+onway.length+' onderweg — te bevestigen</b><br><a href="/leveringen.html" style="color:var(--f-accent-2);font-weight:650">Open Leveringen →</a></div>':'')+
+  document.getElementById("dagSummary").innerHTML=orders.length+' bestellingen · '+items.length+' verschillende producten'+(label?' · '+esc(dateLabel(label)):'')+(onway.length?' · <a href="/leveringen.html">'+onway.length+' onderweg — te bevestigen →</a>':'');
+  c.innerHTML=    (alerts.length?'<div class="prep-alert"><b>Voorraadcontrole vereist</b><br>'+alerts.map(esc).join("<br>")+'</div>':'')+
     '<div class="prep-grid"><section class="prep-panel"><h2>Geconsolideerde verzamellijst</h2><p>Tel per product over de geselecteerde bestellingen. Controleer individuele lijnen in Magazijn vóór vertrek.</p>'+
     (items.length?items.map(i=>'<div class="prep-product"><div><b>'+esc(i.name)+'</b><small>'+i.orders+' bestelling'+(i.orders===1?'':'en')+' · '+esc(famoNL.unit(i.unit)||i.unit||"eenheid")+'</small></div><span class="prep-product-qty">'+i.quantity+' '+esc(famoNL.unit(i.unit)||i.unit)+'</span></div>').join(""):'<div class="prep-empty">Geen open bestellingen voor deze selectie.</div>')+
     '</section><section class="prep-panel"><h2>Betrokken bestellingen</h2><p>Open een bestelling om de artikelen afzonderlijk te valideren.</p>'+
     (orders.length?orders.map(o=>{
       const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
-      return '<a class="prep-order f-lift" href="/entrepot.html?id='+encodeURIComponent(o.id)+'"><div class="prep-order-head"><span class="prep-order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span>'+(canValidate?'<span class="prep-order-cta">Valideren</span>':'')+'</div><div class="prep-order-client">'+esc(o.client)+'</div><div class="prep-order-lines">'+esc(famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · ")))+'</div></a>';
+      return '<a class="prep-order f-lift" href="/entrepot.html?id='+encodeURIComponent(o.id)+'">'+famoCard.html(o,{foot:'<span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span>'+(canValidate?'<span class="prep-order-cta">Valideren</span>':''),maxLines:4})+'</a>';
     }).join(""):'<div class="prep-empty">Geen bestellingen gevonden.</div>')+
     '</section></div>';
 }
@@ -459,10 +538,10 @@ function editLines(idx){
     '<div class="pick-editor">'+lines.map((line,i)=>
       '<label class="pick-row" id="pr'+idx+'_'+i+'">'+
       '<input id="ok'+idx+'_'+i+'" type="checkbox" onchange="markPicked('+idx+','+i+')" aria-label="Artikel gecontroleerd">'+
-      '<span><span class="pn">'+esc(line.name)+'</span><span class="pm">Besteld: '+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+(line.comment?' · '+esc(line.comment):'')+'</span></span>'+
+      '<span class="pick-text" title="Besteld: '+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+'"><span class="pm">'+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+'</span> <span class="pn">'+esc(line.name)+'</span>'+(line.comment?' <span class="pc">'+esc(line.comment)+'</span>':'')+'</span>'+
       '<span class="actual"><button type="button" onclick="changeActual('+idx+','+i+',-1)">−</button><input id="aq'+idx+'_'+i+'" type="number" min="0" step="'+(/kg/i.test(String(line.unit||""))?"0.1":"1")+'" value="'+line.quantity+'" oninput="refreshActualTotal('+idx+')"><button type="button" onclick="changeActual('+idx+','+i+',1)">+</button></span>'+
       '</label>').join('')+'</div>'+
-    '<div class="edit-total">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+
+    '<div class="edit-total">Werkelijk totaal (excl. btw): <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+
     '<div class="ehint">Gedeeltelijke levering: pas de aantallen hierboven aan vóór het vertrek.</div>'+
     '<div class="ehint">De aantallen en het totaal worden vastgezet zodra de goederen vertrekken.</div>';
   const card=box.closest(".oc");
@@ -516,7 +595,114 @@ function confirmAdvance(id,statut,index){
   document.getElementById("advanceModal").classList.remove("hidden");
 }
 function closeAdvanceModal(){document.getElementById("advanceModal").classList.add("hidden")}
-async function togglePay(id,paiement){ await upd({id,paiement}); }
+
+/* ====== Groepsactie : meerdere bestellingen samen een stap verder ======
+   Même règle que le bouton de la carte : depuis le Magazijn, seule une commande
+   Klaar dont les articles sont validés avance (vers Onderweg). Ontvangen passe par
+   la validation article par article, Onderweg par Leveringen.
+   L'API ne traite pas de lot : un appel par commande, l'un après l'autre, et un
+   résultat par commande — un échec n'empêche jamais les autres de passer. */
+let SELECTED=new Set(), BULK_RESULT=null;
+function advanceTarget(o){
+  if(!o) return null;
+  const si=STATUS.indexOf(o.statut), next=si>=0&&si<3?STATUS[si+1]:null;
+  const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
+  return !canValidate&&next&&next!=="Facturée"?next:null;
+}
+function eligibleVisible(){return orderView().map(r=>r.o).filter(advanceTarget)}
+function selectedOrders(){return [...SELECTED].map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean)}
+// Cocher ne redessine pas le bord : un contrôle d'articles ouvert sur une autre carte reste intact.
+function syncSelectionDom(){
+  document.querySelectorAll(".oc-select input").forEach(input=>{
+    const on=SELECTED.has(input.dataset.id);
+    input.checked=on;
+    const card=input.closest(".oc"); if(card) card.classList.toggle("oc-selected",on);
+  });
+  renderBulkBar();
+}
+function toggleSelect(id,on){if(on)SELECTED.add(id);else SELECTED.delete(id);syncSelectionDom()}
+function selectAllEligible(){eligibleVisible().forEach(o=>SELECTED.add(o.id));syncSelectionDom()}
+function clearSelection(){SELECTED.clear();syncSelectionDom()}
+function renderBulkBar(){
+  const bar=document.getElementById("bulkBar"); if(!bar) return;
+  const eligible=eligibleVisible().length, orders=selectedOrders(), n=orders.length;
+  /* Replié : la barre n'apparaît qu'avec une sélection ; « Alles selecteren (N) » vit dans la barre d'outils. */
+  bar.classList.toggle("hidden",!n);
+  document.getElementById("bulkCount").textContent=n?n+" geselecteerd":"";
+  const targets=[...new Set(orders.map(advanceTarget).filter(Boolean))];
+  const go=document.getElementById("bulkGo");
+  go.textContent=(targets.length>1?"Volgende stap":NEXTLBL[targets[0]||"Sortie en livraison"])+(n?" ("+n+")":"");
+  go.disabled=UPDATING||!n;
+  document.getElementById("bulkClear").disabled=UPDATING||!n;
+  const all=document.getElementById("bulkAll");
+  all.disabled=UPDATING||!eligible;
+  all.classList.toggle("hidden",!eligible||n>=eligible);
+  all.textContent="Alles selecteren ("+eligible+")";
+}
+function confirmBulkAdvance(){
+  const orders=selectedOrders().filter(advanceTarget);
+  if(UPDATING||!orders.length) return;
+  const targets=[...new Set(orders.map(advanceTarget))];
+  let message=orders.length+(orders.length===1?" bestelling":" bestellingen")+" naar ‘"+(targets.length===1?famoNL.status(targets[0]):"de volgende stap")+"’ verplaatsen: "+orders.map(o=>o.ref).join(", ")+".";
+  if(targets.includes("Sortie en livraison")) message+=" Voorraad wordt niet automatisch bijgewerkt (nog handmatig beheerd). Controleer voorbereiding en leveringsbonnen eerst.";
+  message+=" Elke bestelling wordt afzonderlijk bijgewerkt: mislukt er één, dan gaan de andere gewoon door.";
+  document.getElementById("advanceText").textContent=message;
+  document.getElementById("advanceConfirm").onclick=async()=>{closeAdvanceModal();await runBulkAdvance(orders.map(o=>o.id))};
+  document.getElementById("advanceModal").classList.remove("hidden");
+}
+function setBulkBusy(on){document.querySelectorAll("button, .oc-select input").forEach(el=>{el.disabled=on})}
+async function runBulkAdvance(ids){
+  if(UPDATING) return;
+  UPDATING=true; setBulkBusy(true);
+  const results=[];
+  let stopped="";
+  try{
+    for(let i=0;i<ids.length;i++){
+      const o=ORDERS.find(x=>x.id===ids[i]), target=advanceTarget(o);
+      const row={id:ids[i],ref:o?o.ref:ids[i],client:o?o.client:""};
+      if(stopped){results.push(Object.assign(row,{state:"skipped",message:stopped}));continue}
+      if(!target){results.push(Object.assign(row,{state:"skipped",message:"Niet meer klaar om te vertrekken — ververs het bord."}));continue}
+      document.getElementById("bulkCount").textContent="Bezig: "+(i+1)+" van "+ids.length+" ("+row.ref+")…";
+      try{
+        const patch={id:o.id,statut:target}; if(target==="Sortie en livraison") patch.skipStock=true;
+        const r=await famoStaff.api("/api/updateorder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(patch)});
+        const d=await r.json().catch(()=>({}));
+        if(r.ok) results.push(Object.assign(row,{state:"ok",message:"→ "+famoNL.status(target)}));
+        else results.push(Object.assign(row,{state:"fail",message:famoStaff.translateError(d.error||"Fout bij bijwerken")}));
+      }catch(error){
+        results.push(Object.assign(row,{state:"fail",message:famoStaff.translateError(error.message||"Verbinding mislukt. Probeer opnieuw.")}));
+        if(error.sessionExpired) stopped="Niet uitgevoerd — sessie verlopen. Meld u opnieuw aan en probeer opnieuw.";
+      }
+    }
+  }finally{
+    results.filter(x=>x.state==="ok").forEach(x=>SELECTED.delete(x.id));
+    BULK_RESULT=results;
+    UPDATING=false; setBulkBusy(false);
+    renderBulkResult();
+  }
+  await load();
+  renderBulkBar();
+}
+function renderBulkResult(){
+  const box=document.getElementById("bulkResult"); if(!box) return;
+  if(!BULK_RESULT){box.classList.add("hidden");box.innerHTML="";return}
+  const count=s=>BULK_RESULT.filter(x=>x.state===s).length, ok=count("ok"), fail=count("fail"), skipped=count("skipped");
+  const label={ok:"Gelukt",fail:"Mislukt",skipped:"Niet uitgevoerd"};
+  box.classList.remove("hidden");
+  box.innerHTML='<div class="br-head"><b>Groepsactie: '+ok+' van '+BULK_RESULT.length+' gelukt</b>'+
+    (fail?'<span class="br-sum br-sum-fail">'+fail+' mislukt</span>':'')+
+    (skipped?'<span class="br-sum">'+skipped+' niet uitgevoerd</span>':'')+
+    '<button type="button" class="staff-action-secondary" onclick="closeBulkResult()">Sluiten</button></div>'+
+    BULK_RESULT.map(x=>'<div class="br-row br-'+x.state+'"><span class="br-state">'+label[x.state]+'</span><span class="br-ref">'+esc(x.ref)+'</span><span class="br-client">'+esc(x.client)+'</span><span class="br-msg">'+esc(x.message)+'</span></div>').join("")+
+    (fail?'<p class="br-hint">Mislukte bestellingen blijven geselecteerd zolang ze klaar zijn: los het probleem op en probeer opnieuw.</p>':'');
+}
+function closeBulkResult(){BULK_RESULT=null;renderBulkResult()}
+/* ====== einde groepsactie ====== */
+async function togglePay(id,paiement){
+  await upd({id,paiement});
+  const o=ORDERS.find(x=>x.id===id);
+  if(paiement==="Payé"&&!SHOW_AFGEHANDELD&&isAfgehandeld(o)) showNotice((o.ref||"Bestelling")+" is betaald en afgehandeld — van het bord gehaald. Terug te vinden via ‘Toon afgehandelde’ of in Documenten.","info");
+}
 async function upd(patch){
   if(UPDATING)return;
   UPDATING=true;document.querySelectorAll("button").forEach(b=>b.disabled=true);

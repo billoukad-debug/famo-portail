@@ -10,7 +10,7 @@ Portail B2B de Famo Trading : le client commande en ligne, le personnel prépare
 | **Personnel** — *Dagelijks* | `/bestellingen.html`, `/entrepot.html`, `/leveringen.html`, `/order.html` | `STAFF_CODE` ou `ADMIN_CODE` |
 | **Administration** — *Beheer* | `/beheer.html`, `/invoer.html`, `/documenten.html` | `ADMIN_CODE` uniquement |
 
-Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
+Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. En sens inverse, le portail client affiche **« Terug naar personeel »** (et **« Beheer »** pour un beheerder) uniquement quand une session du personnel est ouverte dans le navigateur — un client n'en voit jamais rien. Aucun lien vers Beheer n'est montré à une session du personnel : ni dans le menu, ni dans Documenten. Seuls les écrans de connexion portent un lien simple « Beheerder? Ga naar Beheer », qui n'ouvre rien en soi : `/beheer.html` demande le code beheerder. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
 
 Redirections conservées : `/overzicht.html` → Bestellingen, `/dagprep.html` → Magazijn (vue jour), `/aan-de-slag.html` → Beheer.
 
@@ -20,10 +20,13 @@ Hors menu : `/stock.html` reste accessible par URL directe mais n'est plus propo
 
 1. Le client commande. **Le serveur relit le catalogue et recalcule le prix** : le navigateur ne décide jamais du montant (`api/order.js`).
 1b. Deux e-mails partent aussitôt : un pour l'équipe (boîte interne) et une confirmation pour le client, si son adresse est renseignée. Voir « E-mails transactionnels ».
+1c. La commande reçoit un numéro lisible au format `CMD-2026-0001`, séquentiel par année comme les factures (`lib/ordernumber.js`). Les anciennes références horodatées (`CMD-1789…`) restent inchangées. Si Airtable ne répond pas au moment de numéroter, la commande est quand même enregistrée, avec une référence horodatée.
 2. Le personnel prépare : validation article par article dans Magazijn, ou raccourci **Snel voorbereiden** depuis la fiche commande.
 3. Départ en livraison. La commande est alors **verrouillée** : lignes et total ne sont plus modifiables (verrou basé sur le statut, pas sur le stock).
 4. Réception confirmée dans **Leveringen** — le nom du réceptionnaire est obligatoire.
 5. Le numéro de facture est attribué une seule fois, au format `FA-2026-0001`.
+5b. La facture porte la communication structurée belge (**Mededeling**), calculée depuis ce numéro : `FA-2026-0001` → `+++202/6000/00192+++`. Rien n'est stocké : même numéro, même communication (`documents.js`, `structuredRef`).
+6. Une commande **facturée et payée** est **afgehandeld** : elle quitte le tableau de Bestellingen et de Magazijn. C'est un filtre d'affichage — rien n'est supprimé ni archivé dans Airtable : elle reste dans Documenten et sur sa fiche, et revient via le filtre **Afgehandeld: Tonen** (Bestellingen, gardé dans l'URL) ou le bouton **Toon afgehandelde** (Magazijn, caché à chaque chargement). Facturée mais impayée, elle reste visible : c'est de l'argent à récupérer, et c'est exactement ce que compte **Te betalen**.
 
 Le total est recalculé côté serveur à chaque modification de lignes (`api/updateorder.js`), jamais accepté tel quel depuis le navigateur.
 
@@ -41,7 +44,7 @@ Tout se règle ici, sans passer par Airtable :
 
 - **Overzicht** — compteurs et alertes actionnables
 - **Aanvragen** — demandes du site public ; « Klant aanmaken » pré-remplit et clôture la demande
-- **Klanten** — création, édition, identifiants (affichés une seule fois, bouton copier)
+- **Klanten** — création, édition, identifiants (affichés une seule fois, bouton copier), et **prix négociés du client directement dans sa fiche** (vide = prix de base ; un résultat par produit si un enregistrement échoue)
 - **Producten** — catalogue, prix de base, unité, catégorie, retrait
 - **Prijzen** — prix négociés par client
 - **Bedrijfsgegevens** — identité, IBAN/BIC, **taux de TVA**, conditions de paiement et de livraison,
@@ -56,6 +59,15 @@ lisibles nulle part, pas même dans la base.
 
 Dès qu'un code est enregistré pour un rôle, il **remplace** celui de l'environnement —
 sinon changer un code ne servirait à rien, l'ancien continuerait d'ouvrir la porte.
+
+**Même code pour les deux rôles** (au démarrage, ou codes enregistrés identiques) : le serveur
+ne peut pas savoir qui le tape. Le rôle suit alors la **page de connexion** — Beheer, Invoeren
+ou Voorraad ouvrent une session beheerder, toute autre page une session personnel (jamais
+beheerder par défaut). Un membre du personnel qui se connecte depuis Bestellingen ne voit donc
+pas Beheer. Le beheerder, lui, se connecte depuis `/beheer.html` : les écrans de connexion du
+personnel portent le lien « Beheerder? Ga naar Beheer » — un simple lien, Beheer demande de toute
+façon le code beheerder ; une fois connecté en beheerder, le menu affiche Beheer. Pour une vraie séparation,
+choisissez deux codes différents dans Beheer → Toegang.
 
 **Si un code est perdu** : videz le champ `Beheerderscode hash` ou `Personeelscode hash`
 dans Airtable ; le code de la variable Vercel redevient valable.
@@ -117,4 +129,4 @@ Vérifie la syntaxe, les fonctions appelées depuis le HTML, l'échappement XSS,
   Vercel (`[mail] …`), nulle part ailleurs.
 - Les factures sont des **documents internes**. L'émission légale B2B belge (Peppol) doit passer par le prestataire comptable.
 - La preuve de livraison accepte un lien HTTPS ; aucun fichier n'est stocké.
-- La numérotation de facture est séquentielle mais pas atomique : deux facturations simultanées pourraient entrer en conflit.
+- La numérotation des factures et des commandes est séquentielle mais pas atomique : deux facturations, ou deux commandes, créées au même instant pourraient recevoir le même numéro.

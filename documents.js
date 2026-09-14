@@ -34,12 +34,13 @@ window.FamoDocuments=(()=>{
     COMPANY=window.famoCompany?famoCompany.withExampleBank(base):Object.assign({exampleBank:false},base);
     return COMPANY;
   }
+  // IBAN et nom obligatoires ; le BIC est facultatif (virement SEPA belge) et n'apparaît que s'il existe.
   function canInvoice(){
-    return !!(COMPANY.iban && COMPANY.bic && COMPANY.nom);
+    return !!(COMPANY.iban && COMPANY.nom);
   }
   function invoiceBlockReason(){
     if(!COMPANY.nom) return "Bedrijfsgegevens ontbreken. Vul ze in via Beheer.";
-    if(!COMPANY.iban||!COMPANY.bic) return "Factuur geblokkeerd: IBAN/BIC ontbreken. Vul ze in via Beheer.";
+    if(!COMPANY.iban) return "Factuur geblokkeerd: IBAN ontbreekt. Vul het in via Beheer.";
     return "";
   }
   function usingExampleBank(){ return !!COMPANY.exampleBank; }
@@ -49,6 +50,15 @@ window.FamoDocuments=(()=>{
       (COMPANY.tva?"<br>BTW "+esc(COMPANY.tva):"")+
       (COMPANY.tel?"<br>"+esc(COMPANY.tel):"");
   }
+  // Gestructureerde mededeling (OGM) afgeleid van het factuurnummer : FA-2026-0001 → +++202/6000/00192+++.
+  // Basis = jaar + volgnummer op 6 cijfers, controle = basis mod 97 (0 → 97). Onbekend formaat → leeg.
+  const structuredRef=invoiceNumber=>{
+    const m=String(invoiceNumber||"").trim().match(/^FA-(\d{4})-(\d{1,6})$/i);
+    if(!m)return"";
+    const base=m[1]+m[2].padStart(6,"0");
+    const digits=base+String(Number(base)%97||97).padStart(2,"0");
+    return"+++"+digits.slice(0,3)+"/"+digits.slice(3,7)+"/"+digits.slice(7)+"+++";
+  };
   const number=(order,type)=>{
     if(type==="invoice") return order.factuurnummer||"—";
     if(type==="credit") return "CN-"+String(order.factuurnummer||order.ref||"").replace(/^FA-/i,"").replace(/^CMD-/i,"");
@@ -72,14 +82,18 @@ window.FamoDocuments=(()=>{
     }
     const sign=credit?-1:1;
     const rows=parse(order.lignes);
-    const total=Number(order.total||0)*sign;
+    // Prix du catalogue et total de commande HORS TVA (Beheer : « exclusief btw ») : la TVA s'ajoute,
+    // arrondie au centime. Avant, elle était retranchée d'un total supposé TTC (≈ 6 % de trop peu).
     const pct=Number(COMPANY.btwTarief)>0?Number(COMPANY.btwTarief):6;
-    const htva=total/(1+pct/100), tva=total-htva;
+    const htva=Math.round(Number(order.total||0)*sign*100)/100;
+    const tva=Math.round(htva*pct)/100;
+    const total=Math.round((htva+tva)*100)/100;
     const num=number(order,type);
     const title=credit?"CREDITNOTA (VOORBEELD)":(invoice?"FACTUUR":"LEVERINGSBON");
     // Rendu uniquement à partir d'ici — parse/calculs inchangés (parité M6).
     const nlUnit=value=>(typeof window!=="undefined"&&window.famoNL)?famoNL.unit(value):value;
     const ibanFmt=value=>String(value||"").replace(/\s+/g,"").replace(/(.{4})/g,"$1 ").trim();
+    const ogm=invoice?structuredRef(order.factuurnummer):"";
     const lineRows=rows.map(row=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
@@ -90,6 +104,7 @@ window.FamoDocuments=(()=>{
       '<div class="bankrow"><span>Begunstigde</span><b>'+esc(COMPANY.nom)+'</b></div>'+
       '<div class="bankrow"><span>IBAN</span><b class="mono">'+esc(ibanFmt(COMPANY.iban))+'</b></div>'+
       (COMPANY.bic?'<div class="bankrow"><span>BIC</span><b class="mono">'+esc(COMPANY.bic)+'</b></div>':'')+
+      (ogm?'<div class="bankrow"><span>Mededeling</span><b class="mono">'+esc(ogm)+'</b></div>':'')+
       (COMPANY.exampleBank?'<div class="bankexample"><em>Voorbeeld — nog niet definitief</em></div>':'')+
       '</div>';
     const payLabel=(typeof window!=="undefined"&&window.famoNL)?famoNL.pay(order.paiement||"En attente"):(order.paiement||"Openstaand");
@@ -124,7 +139,7 @@ window.FamoDocuments=(()=>{
     const totals='<div class="totals">'+
       '<div class="trow"><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div>'+
       '<div class="trow"><span>btw '+esc(String(pct).replace(".",","))+'%</span><span>'+eur(tva)+'</span></div>'+
-      '<div class="trow grand"><span>Totaal</span><span>'+eur(total)+'</span></div>'+
+      '<div class="trow grand"><span>Totaal incl. btw</span><span>'+eur(total)+'</span></div>'+
       '</div>';
     const css='*{box-sizing:border-box}'+
       'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#191512;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
@@ -168,5 +183,5 @@ window.FamoDocuments=(()=>{
       (priced?totals+(invoice?bank:''):'')+
       '<div class="foot">'+foot+'</div></body></html>';
   }
-  return{build,number,filename,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
+  return{build,number,structuredRef,filename,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
 })();

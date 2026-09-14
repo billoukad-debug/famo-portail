@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
+const __prices = require("../lib/prices");
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path, opts) {
@@ -123,6 +124,7 @@ async function statusPayload() {
     cat: r.fields["Catégorie"] || "",
     unite: r.fields["Unité"] || "",
     base: Number(r.fields["Prix de base"] || 0),
+    kaliber: String(r.fields["Kaliber"] || "").trim(),
     actif: !!r.fields["Actif"]
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
@@ -142,7 +144,7 @@ async function statusPayload() {
     id: r.id,
     clientId: (r.fields["Client"] || [])[0] || "",
     productId: (r.fields["Produit"] || [])[0] || "",
-    prix: Number(r.fields["Prix négocié"] || 0)
+    prix: __prices.negotiatedValue(r.fields["Prix négocié"])
   }));
 
   const stockList = (stock.records || []).map(r => ({
@@ -269,6 +271,8 @@ module.exports = async (req, res) => {
         "Prix de base": Math.round(base * 100) / 100,
         "Actif": body.actif === false ? false : true
       };
+      // Kaliber : écrit seulement s'il est envoyé, pour que « Uit catalogus » ne l'efface pas.
+      if (body.kaliber !== undefined) fields["Kaliber"] = clean(body.kaliber, 60);
       let saved;
       if (body.id) {
         saved = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
@@ -425,9 +429,11 @@ module.exports = async (req, res) => {
     if (action === "savePrice") {
       const clientId = clean(body.clientId, 40);
       const productId = clean(body.productId, 40);
-      const prix = Number(body.prix);
+      // Champ laissé vide : enregistré vide (le client paie le prix de base), jamais 0.
+      const prixVide = body.prix === null || body.prix === undefined || String(body.prix).trim() === "";
+      const prix = __prices.negotiatedValue(body.prix);
       if (!clientId || !productId) return res.status(400).json({ error: "Klant en product zijn verplicht" });
-      if (!Number.isFinite(prix) || prix < 0) return res.status(400).json({ error: "Ongeldige prijs" });
+      if (!prixVide && prix === null) return res.status(400).json({ error: "Ongeldige prijs" });
 
       const all = await atAll(encodeURIComponent("Prix négociés"));
       if (all.error) return res.status(500).json(all);
@@ -439,7 +445,7 @@ module.exports = async (req, res) => {
       const fields = {
         "Client": [clientId],
         "Produit": [productId],
-        "Prix négocié": Math.round(prix * 100) / 100
+        "Prix négocié": prix === null ? null : Math.round(prix * 100) / 100
       };
       let saved;
       if (existing) {
@@ -463,6 +469,49 @@ module.exports = async (req, res) => {
       const del = await at(`${encodeURIComponent("Prix négociés")}/${id}`, { method: "DELETE" });
       if (del && del.error) return res.status(500).json({ error: del.error.message || "Prijs verwijderen mislukt" });
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
+    // ---- Prix négociés d'un client, depuis sa fiche : plusieurs produits en un envoi ----
+    // Même règle que savePrice (vide → enregistré vide, 0 → 0). Une seule lecture des
+    // accords, puis une écriture par produit, avec un résultat par produit : un prix
+    // refusé ou une écriture en échec n'empêche pas les autres d'être enregistrés.
+    if (action === "saveClientPrices") {
+      const clientId = clean(body.clientId, 40);
+      const rows = Array.isArray(body.prices) ? body.prices.slice(0, 200) : [];
+      if (!clientId) return res.status(400).json({ error: "Klant is verplicht" });
+      if (!rows.length) return res.status(400).json({ error: "Geen prijzen om op te slaan" });
+
+      const all = await atAll(encodeURIComponent("Prix négociés"));
+      if (all.error) return res.status(500).json(all);
+      const results = [];
+      for (const row of rows) {
+        const productId = clean(row && row.productId, 40);
+        const raw = row ? row.prix : undefined;
+        const prixVide = raw === null || raw === undefined || String(raw).trim() === "";
+        const prix = __prices.negotiatedValue(raw);
+        if (!productId) { results.push({ productId: "", ok: false, error: "Product ontbreekt" }); continue; }
+        if (!prixVide && prix === null) { results.push({ productId, ok: false, error: "Ongeldige prijs" }); continue; }
+        const existing = (all.records || []).find(r => {
+          const c = r.fields["Client"] || [];
+          const p = r.fields["Produit"] || [];
+          return c.includes(clientId) && p.includes(productId);
+        });
+        const fields = {
+          "Client": [clientId],
+          "Produit": [productId],
+          "Prix négocié": prix === null ? null : Math.round(prix * 100) / 100
+        };
+        try {
+          const saved = existing
+            ? await at(`${encodeURIComponent("Prix négociés")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields }) })
+            : await at(encodeURIComponent("Prix négociés"), { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
+          if (saved && saved.error) results.push({ productId, ok: false, error: saved.error.message || "Prijs opslaan mislukt" });
+          else results.push({ productId, ok: true });
+        } catch (e) {
+          results.push({ productId, ok: false, error: "Prijs opslaan mislukt" });
+        }
+      }
+      return res.status(200).json({ ok: results.every(r => r.ok), results, ...(await statusPayload()) });
     }
 
     // ---- Stock ----

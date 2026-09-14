@@ -18,24 +18,38 @@
 .filters-panel label{display:block}
 .filters-panel span{display:block;margin:0 0 4px 2px;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
 .filters-panel select{width:100%}
+/* Haut de page sur deux lignes : titre + compteurs essentiels, puis recherche, filtres, tri et nombre.
+   Open et Te bevestigen doublent les colonnes du bord : visibles seulement quand la place le permet.
+   « Aandacht vereist » se déplie avec le panneau Filters. */
+.b-head{align-items:center;flex-wrap:nowrap;gap:12px}
+.b-head h1{flex:none}
+.b-head .staff-chips{flex:1 1 auto;min-width:0;margin:0;padding:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.b-head .staff-chips::-webkit-scrollbar{display:none}
+.b-head .staff-chip{flex:none;white-space:nowrap}
+.b-head .staff-head-tools{flex:none}
+.b-head+.orders-tools{margin-top:12px}
+.orders-count{flex:none;white-space:nowrap}
+@media(max-width:1199px){.staff-chip.chip-extra{display:none}}
+#filtersPanel:not(.open)~#attentionBox{display:none!important}
 /* Board du matin — 4 colonnes de statut, teinte panel + filet (règle 5h du matin) */
 .m-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px;align-items:start}
 .m-col{display:flex;flex-direction:column;gap:9px;padding:10px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-panel)}
 .m-col-head{display:flex;align-items:center;gap:7px;padding:5px 5px 0;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
 .m-col-head::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--col,#77706A)}
 .m-col-head b{margin-left:auto;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--f-muted)}
-.m-card{display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
-.m-card-top{display:flex;align-items:baseline;gap:8px}
-.m-card-date{margin-left:auto;color:var(--f-quiet);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.m-card-date.m-late{color:var(--f-danger)} /* brique #A8371F sur blanc : 6,5:1 (calculé) */
-.m-card-client{margin-top:5px;font-size:14px;font-weight:500;letter-spacing:-.005em}
-.m-card-lines{margin-top:3px;color:var(--f-quiet);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.m-card-foot{display:flex;align-items:center;gap:8px;margin-top:9px}
+/* La carte n'est plus un lien entier (elle porte des icônes documents) : un lien couvre la carte, les icônes passent au-dessus. */
+.m-card-link{position:absolute;inset:0;z-index:0;border-radius:inherit}
+.m-card-link:focus-visible{outline:2px solid var(--f-accent);outline-offset:2px}
+.m-card .m-card-foot{flex-wrap:wrap;row-gap:4px}
+.m-card{position:relative;display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
+/* Contenu de la carte (date, client, articles, total) : staff-card.js + staff.css, commun avec Magazijn. */
 .m-pay{color:var(--f-quiet);font-size:11.5px}
 .m-pay.open{color:var(--f-warning)} /* ambre #8A6110 sur blanc : 5,5:1 (calculé) */
-.m-card-total{margin-left:auto;font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums}
 .m-col .staff-empty.f-empty{padding:26px 12px;gap:4px}
 .m-col .f-empty p{font-size:12.5px}
+/* Afgehandeld (gefactureerd én betaald) : hors du bord ; une ligne discrète dit combien et permet de les montrer. */
+.m-hidden{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;padding:0 5px;color:var(--f-quiet);font-size:12.5px}
+.m-hidden button{margin-left:auto}
 /* Références et alertes */
 .order-ref{font:500 12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
 .order-alert{display:inline-flex;align-items:center;gap:5px;color:var(--f-warning);font-size:11.5px}
@@ -64,15 +78,15 @@
   <aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
   <nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
   <main class="staff-main"><div class="staff-page">
-    <header class="staff-page-head"><div><h1>Bestellingen</h1><p>Alle bestellingen, met actuele status en aandachtspunten.</p></div>
+    <header class="staff-page-head b-head"><h1>Bestellingen</h1>
+      <section id="chips" class="staff-chips" aria-label="Snelle filters"></section>
       <div class="staff-head-tools"><button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button></div>
     </header>
-    <section id="chips" class="staff-chips" aria-label="Snelle filters"></section>
-    <section id="attentionBox" class="staff-attention hidden" aria-label="Aandacht vereist"></section>
     <section class="orders-tools" aria-label="Bestellingen filteren">
       <input id="search" class="staff-field" type="search" placeholder="Zoek referentie, klant, artikel of factuur…" oninput="render()">
       <button id="filtersBtn" type="button" class="staff-filterbtn" onclick="toggleFilters()" aria-expanded="false" aria-controls="filtersPanel">Filters<span class="n" id="filtersCount"></span></button>
-      <select id="sort" class="staff-select" onchange="onFilterChange()" aria-label="Sorteren"><option value="recent">Nieuwste eerst</option><option value="delivery">Leverdatum</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
+      <select id="sort" class="staff-select" onchange="onFilterChange()" aria-label="Sorteren"><option value="delivery">Leverdatum</option><option value="recent">Nieuwste eerst</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
+      <span id="count" class="staff-count orders-count" role="status"></span>
     </section>
     <div id="filtersPanel" class="filters-panel">
       <label><span>Status</span><select id="status" class="staff-select" onchange="onFilterChange()"><option value="all">Alle statussen</option><option value="open">Open (niet gefactureerd)</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select></label>
@@ -80,17 +94,24 @@
       <label><span>Bron</span><select id="source" class="staff-select" onchange="onFilterChange()"><option value="all">Alle bronnen</option><option value="Klantportaal">Klantportaal</option><option value="WhatsApp">WhatsApp</option><option value="Telefoon">Telefoon</option><option value="E-mail">E-mail</option><option value="Ter plaatse">Ter plaatse</option></select></label>
       <label><span>Leverdatum</span><select id="dateFilter" class="staff-select" onchange="onFilterChange()"><option value="all">Alle datums</option><option value="today">Levering vandaag</option><option value="tomorrow">Levering morgen</option><option value="overdue">Te laat</option><option value="undated">Zonder leverdatum</option></select></label>
       <label><span>Aandacht</span><select id="attention" class="staff-select" onchange="onFilterChange()"><option value="all">Alle aandacht</option><option value="required">Aandacht vereist</option></select></label>
+      <label><span>Afgehandeld</span><select id="afgehandeld" class="staff-select" onchange="onFilterChange()"><option value="verbergen">Verbergen</option><option value="tonen">Tonen</option></select></label>
     </div>
+    <section id="attentionBox" class="staff-attention hidden" aria-label="Aandacht vereist"></section>
     <div id="state" class="orders-state"></div>
     <section id="board" class="m-board" aria-label="Bestellingen per status"></section>
-    <p class="orders-note">Prijzen worden op de server berekend en bij het aanmaken vastgezet. Open een bestelling voor voorbereiding, levering en documenten.</p>
+    <p class="orders-note">Bedragen excl. btw. Prijzen worden op de server berekend en bij het aanmaken vastgezet. Open een bestelling voor voorbereiding, levering en documenten.</p>
   </div></main>
 </div>
+<script src="/staff-company.js"></script>
+<script src="/documents.js"></script>
 <script src="/staff-session.js"></script>
 <script src="/staff-i18n.js"></script>
+<script src="/staff-card.js"></script>
+<script src="/staff-doc-actions.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
-let ORDERS=[],STOCK=[],LAST_ERROR="",FIRST_PAINT=true;
+let ORDERS=[],STOCK=[],LAST_ERROR="",FIRST_PAINT=true,HIDDEN_AFGEHANDELD=0;
+famoDocActions.setSource(()=>ORDERS);
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 const eur=n=>"€ "+Number(n||0).toFixed(2).replace(".",",");
 const statusColor={"Reçue":"#77706A","Prête":"#8A6110","Sortie en livraison":"#2C6E7E","Facturée":"#1F6D4E"};
@@ -101,10 +122,12 @@ const COLS=[
   {key:"Facturée",color:"#1F6D4E",empty:["Nog niets gefactureerd","Bevestigde leveringen verschijnen hier met hun factuurnummer."]}
 ];
 function sourceOf(order){const m=String(order.notes||"").match(/^\[([^\]]+)\]/);return m?m[1]:"Klantportaal"}
-function shortLines(lines){return famoNL.lines(String(lines||"").split("\n").map(x=>x.replace(/\s*\[€[^\]]+\]/g,"")).filter(Boolean).join(" · "))}
 function dateLabel(value){if(!value)return"—";const d=new Date(value+"T00:00:00");return Number.isNaN(d)?value:d.toLocaleDateString("nl-BE",{day:"2-digit",month:"2-digit",year:"numeric"})}
-function shortDate(value){const day=dayKey(value);if(!day)return"—";if(day===localDay())return"Vandaag";if(day===localDay(1))return"Morgen";const d=new Date(day+"T00:00:00");return Number.isNaN(+d)?day:d.toLocaleDateString("nl-BE",{day:"2-digit",month:"2-digit"})}
 function isAttention(o){return (o.statut==="Prête"&&!o.preparationValidee)||(o.statut==="Sortie en livraison"&&!o.livraisonConfirmee)}
+/* Afgehandeld = gefactureerd én betaald. Filtre d'affichage seulement : la commande quitte le bord
+   mais reste dans Airtable, dans Documenten et sur sa fiche ; « Afgehandeld: Tonen » la remontre.
+   Gefactureerd mais impayée reste sur le bord : c'est de l'argent à récupérer. */
+function isAfgehandeld(o){return o.statut==="Facturée"&&o.paiement==="Payé"}
 function localDay(offset=0){
   const base=new Date(new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(new Date())+"T12:00:00");
   base.setDate(base.getDate()+offset);
@@ -116,7 +139,7 @@ const loginCtl=famoStaff.bindLogin({
   code:"code",error:"loginError",loginView:"loginView",appView:"app",
   onDom(){
     const params=new URLSearchParams(location.search);
-    ["status","payment","source","dateFilter","attention","sort"].forEach(name=>{
+    ["status","payment","source","dateFilter","attention","afgehandeld","sort"].forEach(name=>{
       const field=document.getElementById(name),value=params.get(name);
       if(field&&value&&[...field.options].some(option=>option.value===value))field.value=value;
     });
@@ -145,15 +168,16 @@ async function load(){
   }catch(error){LAST_ERROR=famoStaff.translateError(error.message||"Netwerkfout.");render()}
 }
 function statusMatch(o,status){if(status==="all")return true;if(status==="open")return o.statut!=="Facturée";return o.statut===status}
-function filtered(){const term=document.getElementById("search").value.trim().toLowerCase(),status=document.getElementById("status").value,payment=document.getElementById("payment").value,source=document.getElementById("source").value,dateFilter=document.getElementById("dateFilter").value,attention=document.getElementById("attention").value,sort=document.getElementById("sort").value;const list=ORDERS.filter(o=>{const hay=[o.ref,o.client,o.lignes,o.factuurnummer].join(" ").toLowerCase();return(!term||hay.includes(term))&&statusMatch(o,status)&&(payment==="all"||o.paiement===payment)&&(source==="all"||sourceOf(o)===source)&&matchesDate(o,dateFilter)&&(attention==="all"||isAttention(o))});return list.sort((a,b)=>{if(sort==="delivery")return String(a.dateLiv||"9999").localeCompare(String(b.dateLiv||"9999"));if(sort==="client")return String(a.client).localeCompare(String(b.client));if(sort==="total")return Number(b.total)-Number(a.total);return String(b.date||"").localeCompare(String(a.date||""))})}
+function filtered(){const term=document.getElementById("search").value.trim().toLowerCase(),status=document.getElementById("status").value,payment=document.getElementById("payment").value,source=document.getElementById("source").value,dateFilter=document.getElementById("dateFilter").value,attention=document.getElementById("attention").value,sort=document.getElementById("sort").value;const matching=ORDERS.filter(o=>{const hay=[o.ref,o.client,o.lignes,o.factuurnummer].join(" ").toLowerCase();return(!term||hay.includes(term))&&statusMatch(o,status)&&(payment==="all"||o.paiement===payment)&&(source==="all"||sourceOf(o)===source)&&matchesDate(o,dateFilter)&&(attention==="all"||isAttention(o))});const list=document.getElementById("afgehandeld").value==="tonen"?matching:matching.filter(o=>!isAfgehandeld(o));HIDDEN_AFGEHANDELD=matching.length-list.length;return list.sort((a,b)=>{if(sort==="delivery")return String(a.dateLiv||"9999").localeCompare(String(b.dateLiv||"9999"));if(sort==="client")return String(a.client).localeCompare(String(b.client));if(sort==="total")return Number(b.total)-Number(a.total);return String(b.date||"").localeCompare(String(a.date||""))})}
 function syncUrlFromFilters(){
   const params=new URLSearchParams();
-  ["status","payment","source","dateFilter","attention","sort"].forEach(name=>{
+  ["status","payment","source","dateFilter","attention","afgehandeld","sort"].forEach(name=>{
     const field=document.getElementById(name);
     if(!field)return;
     const v=field.value;
     if(!v||v==="all")return;
-    if(name==="sort"&&v==="recent")return;
+    if(name==="sort"&&v==="delivery")return;
+    if(name==="afgehandeld"&&v==="verbergen")return;
     params.set(name,v);
   });
   const q=params.toString();
@@ -162,11 +186,12 @@ function syncUrlFromFilters(){
   if(next!==cur) history.replaceState(null,"",next);
 }
 function onFilterChange(){syncUrlFromFilters();syncFiltersBadge();render()}
+function showAfgehandeld(){document.getElementById("afgehandeld").value="tonen";onFilterChange()}
 function activeFilterCount(){
   let n=0;
-  ["status","payment","source","dateFilter","attention"].forEach(name=>{
+  ["status","payment","source","dateFilter","attention","afgehandeld"].forEach(name=>{
     const field=document.getElementById(name);
-    if(field&&field.value&&field.value!=="all")n++;
+    if(field&&field.value&&field.value!=="all"&&!(name==="afgehandeld"&&field.value==="verbergen"))n++;
   });
   return n;
 }
@@ -200,19 +225,20 @@ function renderChips(){
   const today=ORDERS.filter(o=>dayKey(o.dateLiv)===t&&o.statut!=="Facturée").length;
   const open=ORDERS.filter(o=>o.statut!=="Facturée").length;
   const confirm=ORDERS.filter(o=>o.statut==="Sortie en livraison").length;
-  const unpaid=ORDERS.filter(o=>o.paiement==="En attente").length;
+  /* Te betalen = gefactureerd en nog niet betaald : l'argent à récupérer, pas les commandes pas encore facturées. */
+  const unpaid=ORDERS.filter(o=>o.statut==="Facturée"&&o.paiement==="En attente").length;
   const late=ORDERS.filter(o=>dayKey(o.dateLiv)&&dayKey(o.dateLiv)<t&&o.statut!=="Facturée").length;
   const attn=ORDERS.filter(isAttention).length;
   const chips=[
     {href:"/bestellingen.html?dateFilter=today",count:today,label:"Vandaag"},
-    {href:"/bestellingen.html?status=open",count:open,label:"Open"},
-    {href:"/leveringen.html",count:confirm,label:"Te bevestigen"},
-    {href:"/bestellingen.html?payment=En%20attente",count:unpaid,label:"Te betalen"},
+    {href:"/bestellingen.html?status=open",count:open,label:"Open",extra:true},
+    {href:"/leveringen.html",count:confirm,label:"Te bevestigen",extra:true},
+    {href:"/bestellingen.html?status=Factur%C3%A9e&payment=En%20attente",count:unpaid,label:"Te betalen"},
     {href:"/bestellingen.html?dateFilter=overdue",count:late,label:"Te laat"},
     {href:"/bestellingen.html?attention=required",count:attn,label:"Aandacht"}
   ];
   document.getElementById("chips").innerHTML=chips.map(c=>
-    '<a class="staff-chip'+(chipActive(c.href)?" active":"")+'" href="'+c.href+'"><b>'+c.count+'</b> '+esc(c.label)+'</a>'
+    '<a class="staff-chip'+(chipActive(c.href)?" active":"")+(c.extra?" chip-extra":"")+'" href="'+c.href+'"><b>'+c.count+'</b> '+esc(c.label)+'</a>'
   ).join("");
 }
 function renderAttention(){
@@ -231,23 +257,17 @@ function renderAttention(){
   ).join("")+'</div>'+more;
 }
 function orderCard(o){
-  const day=dayKey(o.dateLiv);
-  const late=Boolean(day&&day<localDay()&&o.statut!=="Facturée");
   const foot=isAttention(o)
     ?'<span class="order-alert">Aandacht</span>'
     :'<span class="m-pay'+(o.paiement==="Payé"?'':' open')+'">'+esc(famoNL.pay(o.paiement||"En attente"))+'</span>';
-  return '<a class="m-card f-lift" href="/order.html?id='+encodeURIComponent(o.id)+'">'+
-    '<div class="m-card-top"><span class="order-ref">'+esc(o.ref)+'</span><span class="m-card-date'+(late?' m-late':'')+'">'+esc(shortDate(o.dateLiv))+'</span></div>'+
-    '<div class="m-card-client">'+esc(o.client)+'</div>'+
-    '<div class="m-card-lines">'+esc(shortLines(o.lignes))+'</div>'+
-    '<div class="m-card-foot">'+foot+'<span class="m-card-total">'+eur(o.total)+'</span></div>'+
-    '</a>';
+  return '<div class="m-card f-lift"><a class="m-card-link" href="/order.html?id='+encodeURIComponent(o.id)+'" aria-label="Bestelling '+esc(o.ref)+' openen"></a>'+famoCard.html(o,{foot:foot+famoDocActions.iconsHtml(o),maxLines:3})+'</div>';
 }
 function render(){
   const state=document.getElementById("state"),board=document.getElementById("board");
   renderChips();
   if(LAST_ERROR){
     board.innerHTML="";
+    document.getElementById("count").textContent="";
     document.getElementById("attentionBox").classList.add("hidden");
     state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
     return;
@@ -255,21 +275,29 @@ function render(){
   renderAttention();
   if(!ORDERS.length){
     board.innerHTML="";
+    document.getElementById("count").textContent="";
     state.innerHTML='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5 12 3.5l8.5 5v7L12 20.5l-8.5-5z"/><path d="M3.5 8.5 12 13.5l8.5-5M12 13.5v7"/></svg><b>Geen bestellingen vandaag</b><p>Zodra een klant bestelt of u er zelf één invoert, verschijnt de bestelling hier.</p><a class="staff-action-secondary" href="/invoer.html">Bestelling invoeren</a></div>';
     return;
   }
-  const list=filtered();
-  state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen</div>';
+  const list=filtered(),sort=document.getElementById("sort").value;
+  state.innerHTML="";
+  document.getElementById("count").textContent=list.length+' van '+ORDERS.length+' bestellingen'+(HIDDEN_AFGEHANDELD?' · '+HIDDEN_AFGEHANDELD+' afgehandeld verborgen':'');
   board.innerHTML=COLS.map(c=>{
-    const colList=list.filter(o=>o.statut===c.key);
+    let colList=list.filter(o=>o.statut===c.key);
+    /* Gefactureerd ne fait que grandir : triée par leverdatum, les plus récentes en haut. */
+    if(c.key==="Facturée"&&sort==="delivery")colList=colList.sort((a,b)=>String(b.dateLiv||"").localeCompare(String(a.dateLiv||"")));
     let body;
+    const hiddenHere=c.key==="Facturée"?HIDDEN_AFGEHANDELD:0;
     if(colList.length){
       body=colList.map(orderCard).join("");
+    }else if(hiddenHere){
+      body='<div class="staff-empty f-empty"><b>Alles betaald</b><p>Gefactureerde en betaalde bestellingen staan niet meer op het bord.</p></div>';
     }else if(ORDERS.some(o=>o.statut===c.key)){
       body='<div class="staff-empty f-empty"><b>Geen resultaten</b><p>Pas de filters of de zoekopdracht aan.</p></div>';
     }else{
       body='<div class="staff-empty f-empty"><b>'+esc(c.empty[0])+'</b><p>'+esc(c.empty[1])+'</p></div>';
     }
+    if(hiddenHere)body+='<div class="m-hidden"><span>'+hiddenHere+(hiddenHere===1?' afgehandelde bestelling':' afgehandelde bestellingen')+' verborgen</span><button type="button" class="staff-action-secondary" onclick="showAfgehandeld()">Tonen</button></div>';
     return '<section class="m-col" data-col="'+esc(c.key)+'">'+
       '<header class="m-col-head" style="--col:'+c.color+'">'+esc(famoNL.status(c.key))+'<b>'+colList.length+'</b></header>'+
       body+'</section>';

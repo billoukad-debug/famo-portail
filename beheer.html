@@ -100,6 +100,15 @@
 .b-badge.env{background:var(--f-warning-wash,#FBF3DF);border:1px solid var(--f-warning-line,#E7D6A9);color:var(--f-warning)}
 .b-footnote{margin:0 0 16px;color:var(--f-quiet);font-size:13px;line-height:1.5}
 .b-footnote a{color:var(--f-accent);font-weight:500}
+/* Prix dans la fiche client : un champ par produit, vide = basisprijs, champ modifié teinté. */
+.b-cprices{margin-top:18px}
+.b-cprices .hint{margin:8px 0 10px}
+.b-price-row{gap:8px 13px}
+.b-price-row input{width:140px;text-align:right;font-variant-numeric:tabular-nums}
+.b-price-row.is-changed input{border-color:var(--f-accent)!important;background:var(--f-wash)!important} /* staff.css force input en !important */
+.b-price-row.has-err{background:rgba(168,55,31,.06)}
+.b-price-err{flex-basis:100%;color:var(--f-danger);font-size:12.5px}
+@media(max-width:620px){.b-price-row input{flex:1;width:auto}}
 @media(max-width:980px){.b-toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 </style>
 <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
@@ -288,6 +297,57 @@ async function closeAanvraag(id){
   if(await post({action:"closeAanvraag",id},"Aanvraag gemarkeerd als behandeld"))render();
 }
 
+/* ====== Prijzen in de klantfiche ======
+   Dans la fiche d'un client existant : un champ par produit actif, pré-rempli avec
+   l'accord en cours. Vide = prix de base (enregistré vide), 0 tapé = 0. Seuls les
+   champs modifiés partent, en un seul envoi (action saveClientPrices), avec un
+   résultat par produit : une ligne en échec garde sa saisie et affiche la raison. */
+let PRICE_ERRORS={},PRICE_DRAFT={};
+const priceNorm=v=>{const s=String(v==null?"":v).trim();return s===""?"":String(Math.round(Number(s)*100)/100)};
+function clientPricesHtml(e){
+  const prods=DATA.products||[];
+  let h='<div class="b-cprices"><div class="b-group"><span>Afgesproken prijzen voor deze klant</span></div>';
+  if(!prods.length)return h+'<p class="hint">Nog geen actieve producten in de catalogus.</p></div>';
+  h+='<p class="hint">Leeg = basisprijs uit de catalogus. Een ingevulde 0 blijft 0. Alles wordt bewaard met “Wijzigingen opslaan”.</p><div class="b-list">';
+  return h+prods.map(x=>{
+    const hit=(DATA.prices||[]).find(p=>p.clientId===e.id&&p.productId===x.id);
+    const initial=hit&&hit.prix!=null?priceNorm(hit.prix):"";
+    const value=PRICE_DRAFT[x.id]!==undefined?PRICE_DRAFT[x.id]:initial;
+    const err=PRICE_ERRORS[x.id];
+    return '<div class="b-row b-price-row'+(priceNorm(value)!==initial?' is-changed':'')+(err?' has-err':'')+'">'+
+      '<div class="grow"><b>'+esc(x.nom)+'</b><span class="sub">basisprijs <span class="b-amt">'+eur(x.base)+'</span> / '+esc(famoNL.unit(x.unite)||x.unite)+'</span></div>'+
+      '<input class="staff-field b-price-in" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Afgesproken prijs voor '+esc(x.nom)+'" data-product="'+esc(x.id)+'" data-initial="'+esc(initial)+'" value="'+esc(value)+'" placeholder="basisprijs" oninput="markPriceChanged(this)">'+
+      (err?'<div class="b-price-err" role="alert">'+esc(err)+'</div>':'')+
+      '</div>';
+  }).join("")+'</div></div>';
+}
+function markPriceChanged(input){
+  const row=input.closest(".b-price-row");
+  if(row)row.classList.toggle("is-changed",priceNorm(input.value)!==(input.dataset.initial||""));
+}
+function changedClientPrices(){
+  const changes=[],bad=[];
+  document.querySelectorAll(".b-price-in").forEach(input=>{
+    const raw=String(input.value||"").trim();
+    const prix=raw===""?null:Number(raw);
+    if((input.validity&&input.validity.badInput)||(prix!==null&&(!Number.isFinite(prix)||prix<0))){bad.push(input.dataset.product);return}
+    if(priceNorm(raw)!==(input.dataset.initial||""))changes.push({productId:input.dataset.product,prix});
+  });
+  return {changes,bad};
+}
+async function saveFichePrices(clientId,changes){
+  const typed={};changes.forEach(c=>{typed[c.productId]=c.prix==null?"":String(c.prix)});
+  const d=await post({action:"saveClientPrices",clientId,prices:changes});
+  PRICE_ERRORS={};PRICE_DRAFT={};
+  if(!d){changes.forEach(c=>{PRICE_ERRORS[c.productId]="Niet opgeslagen — probeer opnieuw.";PRICE_DRAFT[c.productId]=typed[c.productId]});return {saved:0,failed:changes.length}}
+  let saved=0,failed=0;
+  (d.results||[]).forEach(r=>{
+    if(r.ok){saved++;return}
+    failed++;PRICE_ERRORS[r.productId]=famoStaff.translateError(r.error||"Niet opgeslagen");PRICE_DRAFT[r.productId]=typed[r.productId];
+  });
+  return {saved,failed};
+}
+/* ====== einde prijzen klantfiche ====== */
 function renderKlanten(p){
   const e=EDIT_CLIENT,pf=PREFILL;
   const all=DATA.clients||[];
@@ -307,6 +367,7 @@ function renderKlanten(p){
     '<div><label>Gebruikersnaam</label><input class="staff-field" id="cuser" value="'+esc(e?e.user:"")+'" placeholder="automatisch"></div>'+
     '<div class="full"><label class="b-check"><input type="checkbox" id="cgen"'+(e?"":" checked")+'> '+(e?"Nieuw wachtwoord genereren":"Automatisch genereren")+'</label></div>'+
     '</div>'+
+    (e?clientPricesHtml(e):'')+
     '<div class="b-acts"><button class="staff-action" onclick="saveClient()">'+(e?"Wijzigingen opslaan":"Klant aanmaken")+'</button>'+
     ((e||pf)?'<button class="staff-action-secondary" onclick="cancelClient()">Annuleren</button>':'')+'</div>'+
     (CREDS?'<div class="b-creds"><small>Login klaar — noteer of stuur nu door</small>'+
@@ -333,19 +394,30 @@ function renderKlanten(p){
   p.innerHTML=h;
 }
 function setQC(v){QC=v;const el=document.getElementById("qc");const pos=el?el.selectionStart:0;render();const n=document.getElementById("qc");if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}}
-function editClient(id){EDIT_CLIENT=(DATA.clients||[]).find(c=>c.id===id)||null;PREFILL=null;CREDS=null;render();window.scrollTo({top:0,behavior:"smooth"})}
-function cancelClient(){EDIT_CLIENT=null;PREFILL=null;CREDS=null;render()}
+function editClient(id){EDIT_CLIENT=(DATA.clients||[]).find(c=>c.id===id)||null;PREFILL=null;CREDS=null;PRICE_ERRORS={};PRICE_DRAFT={};render();window.scrollTo({top:0,behavior:"smooth"})}
+function cancelClient(){EDIT_CLIENT=null;PREFILL=null;CREDS=null;PRICE_ERRORS={};PRICE_DRAFT={};render()}
 async function saveClient(){
   const nom=val("cnom");
   if(!nom){toast("Bedrijfsnaam is verplicht.",true);return}
   const gen=checked("cgen");
   const email=val("cmail");
   if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast("Dit e-mailadres lijkt niet geldig.",true);return}
+  // Prix de la fiche : saisies vérifiées avant tout envoi.
+  const priceEdit=EDIT_CLIENT?changedClientPrices():{changes:[],bad:[]};
+  if(priceEdit.bad.length){toast("Controleer de afgesproken prijzen: "+priceEdit.bad.length+(priceEdit.bad.length===1?" waarde is":" waarden zijn")+" ongeldig.",true);return}
   const payload={action:"saveClient",nom,adresse:val("cadr"),tel:val("ctel"),email,btw:val("cbtw"),klantnr:val("cnr"),user:val("cuser"),generate:gen};
   if(EDIT_CLIENT&&EDIT_CLIENT.id)payload.id=EDIT_CLIENT.id;
   const d=await post(payload);
   if(!d)return;
   const creds=(!payload.id||gen)?(d.credentials||null):null;
+  // Seuls les prix modifiés partent ; un échec garde la fiche ouverte, avec la raison par produit.
+  const prices=payload.id&&priceEdit.changes.length?await saveFichePrices(payload.id,priceEdit.changes):null;
+  if(prices&&prices.failed){
+    CREDS=creds;EDIT_CLIENT=(DATA.clients||[]).find(c=>c.id===payload.id)||EDIT_CLIENT;PREFILL=null;
+    render();
+    toast("Klant bijgewerkt — "+prices.failed+(prices.failed===1?" prijs":" prijzen")+" niet opgeslagen: zie de fiche.",true);
+    return;
+  }
   const aid=PREFILL&&PREFILL.aanvraagId;
   let warn=false;
   if(!payload.id&&aid){
@@ -354,7 +426,7 @@ async function saveClient(){
   }
   CREDS=creds;EDIT_CLIENT=null;PREFILL=null;
   render();
-  toast((payload.id?"Klant bijgewerkt":"Klant aangemaakt")+(warn?" — let op: de aanvraag kon niet als behandeld worden gemarkeerd, controleer dit om dubbele klanten te vermijden.":""),warn);
+  toast((payload.id?"Klant bijgewerkt":"Klant aangemaakt")+(prices&&prices.saved?" · "+prices.saved+(prices.saved===1?" prijs":" prijzen")+" opgeslagen":"")+(warn?" — let op: de aanvraag kon niet als behandeld worden gemarkeerd, controleer dit om dubbele klanten te vermijden.":""),warn);
 }
 async function resetPw(id){
   const d=await post({action:"resetPassword",id});
@@ -385,6 +457,7 @@ function renderProducten(p){
     '<div><label>Eenheid</label><select class="staff-select" id="punit">'+units.map(u=>'<option value="'+u+'"'+(e&&e.unite===u?" selected":"")+'>'+esc(famoNL.unit(u)||u)+'</option>').join("")+'</select></div>'+
     '<div><label>Categorie</label><input class="staff-field" id="pcat" list="catlist" value="'+esc(e?e.cat:"")+'" placeholder="Algemeen">'+
     '<datalist id="catlist">'+CATS.map(c=>'<option value="'+esc(c)+'"></option>').join("")+'</datalist></div>'+
+    '<div><label>Kaliber</label><input class="staff-field" id="pkal" maxlength="60" value="'+esc(e&&e.kaliber?e.kaliber:"")+'" placeholder="bv. 300–400 g"></div>'+
     '</div>'+
     '<div class="b-acts"><button class="staff-action" onclick="saveProduct()">'+(e?"Wijzigingen opslaan":"Product toevoegen")+'</button>'+
     (e?'<button class="staff-action-secondary" onclick="cancelProduct()">Annuleren</button>':'')+'</div></div>';
@@ -411,7 +484,7 @@ async function saveProduct(){
   const nom=val("pnom"),base=Number(val("pprix"));
   if(!nom){toast("Productnaam is verplicht.",true);return}
   if(!Number.isFinite(base)||base<0){toast("Vul een geldige basisprijs in.",true);return}
-  const payload={action:"saveProduct",nom,base,unite:val("punit"),cat:val("pcat")||"Algemeen",actif:true};
+  const payload={action:"saveProduct",nom,base,unite:val("punit"),cat:val("pcat")||"Algemeen",kaliber:val("pkal"),actif:true};
   if(EDIT_PRODUCT&&EDIT_PRODUCT.id)payload.id=EDIT_PRODUCT.id;
   if(await post(payload,EDIT_PRODUCT?"Product bijgewerkt":"Product toegevoegd")){EDIT_PRODUCT=null;render()}
 }
@@ -437,7 +510,7 @@ function renderPrijzen(p){
   }
   if(prices.length){
     h+='<div class="b-list"><div class="b-list-head"><span class="grow">Afspraak</span><span>Actie</span></div>'+prices.map(x=>
-      '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → <span class="b-amt">'+eur(x.prix)+'</span></span></div>'+
+      '<div class="b-row"><div class="grow"><b>'+esc(byC[x.clientId]||"—")+'</b><span class="sub">'+esc(byP[x.productId]||"—")+' → <span class="b-amt">'+(x.prix==null?'basisprijs':eur(x.prix))+'</span></span></div>'+
       '<div class="acts"><button class="b-danger" onclick="delPrice(\''+esc(x.id)+'\')">Verwijderen</button></div></div>'
     ).join("")+'</div>';
   }else{
@@ -448,8 +521,9 @@ function renderPrijzen(p){
   p.innerHTML=h;
 }
 async function savePrice(){
-  const prix=Number(val("prv"));
-  if(!Number.isFinite(prix)||prix<0){toast("Vul een geldige prijs in.",true);return}
+  // Champ vide = aucun prix saisi (le client paie le prix de base), jamais 0. Un 0 tapé reste 0.
+  const raw=val("prv"),prix=raw===""?null:Number(raw);
+  if(prix!==null&&(!Number.isFinite(prix)||prix<0)){toast("Vul een geldige prijs in.",true);return}
   if(await post({action:"savePrice",clientId:val("prc"),productId:val("prp"),prix},"Prijs opgeslagen"))render();
 }
 async function delPrice(id){
@@ -479,7 +553,7 @@ function renderToegang(p){
       "Alles: bestellingen, magazijn, leveringen, invoeren, documenten en dit beheerscherm — inclusief IBAN en klantgegevens.",
       "Kies iets dat niemand raadt.")+
     box("Personeel","staff",c.staffCodeCustom,
-      "Alleen het dagelijkse werk: bestellingen, magazijn en leveringen. Geen prijzen, geen klantgegevens, geen IBAN.",
+      "Alleen het dagelijkse werk: bestellingen, magazijn en leveringen. Geen prijzen, geen klantgegevens.",
       "Wijzig deze code wanneer iemand het team verlaat.")+
     '</div>'+
     '<p class="b-footnote">Klanten gebruiken geen code maar een eigen login per bedrijf, beheerd onder <a href="#" onclick="go(\'klanten\');return false">Klanten</a>. Zij zien enkel de catalogus en hun eigen bestellingen.</p>'+

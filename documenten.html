@@ -10,6 +10,7 @@
 /* De bibliotheek : elk document herkenbaar aan pictogram + nummer in mono. */
 .d-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
 .d-tools input{flex:1;min-width:230px}
+.d-tools select{flex:none;min-width:200px;max-width:100%}
 .d-chips{margin-top:12px}
 .d-chips .staff-chip{min-height:44px;cursor:pointer}
 .d-sep{width:1px;height:22px;margin:0 4px;background:var(--f-line);align-self:center}
@@ -39,7 +40,7 @@
 .d-doc p{margin:8px 0 10px;color:var(--f-quiet);font-size:12px}
 .d-doc-footer{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .d-doc-footer button,.d-doc-footer a{min-height:44px;display:inline-flex;align-items:center;text-decoration:none}
-@media(max-width:780px){.d-table{display:none!important}.d-list{display:block;margin-top:16px}.d-list .d-doc{display:block}.d-tools input{width:100%;flex:auto}}
+@media(max-width:780px){.d-table{display:none!important}.d-list{display:block;margin-top:16px}.d-list .d-doc{display:block}.d-tools input,.d-tools select{width:100%;flex:auto}}
 @media(min-width:781px){.d-list{display:none}.d-doc{display:none}}
 </style>
 <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
@@ -70,6 +71,7 @@
       </header>
       <div class="d-tools">
         <input id="q" class="staff-field" type="search" placeholder="Documentnummer, bestelling of klant…" oninput="render()">
+        <select id="klant" class="staff-select" onchange="render()" aria-label="Filter op klant"><option value="">Alle klanten</option></select>
       </div>
       <div class="staff-chips d-chips" role="group" aria-label="Filter op type en status">
         <button type="button" id="tp_all" class="staff-chip active" onclick="setType('all')">Alle types</button>
@@ -116,6 +118,13 @@ function applyUrlFilters(){
     }
   }
 }
+// Liste des clients présents dans les commandes ; garde la sélection au rechargement.
+function fillClients(){
+  const sel=document.getElementById("klant"),cur=sel.value;
+  const names=[...new Set(ORDERS.map(o=>o.client).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"nl"));
+  sel.innerHTML='<option value="">Alle klanten</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join("");
+  sel.value=names.includes(cur)?cur:"";
+}
 function makeDocs(){
   DOCS=[];
   const invOk=FamoDocuments.canInvoice?FamoDocuments.canInvoice():false;
@@ -145,6 +154,7 @@ async function load(){
     const r=await famoStaff.api("/api/allorders"),d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||"Documenten konden niet worden geladen.");
     ORDERS=d.orders||[];
+    fillClients();
     makeDocs();
     applyUrlFilters();
     render();
@@ -160,8 +170,8 @@ async function load(){
   }
 }
 function filter(){
-  const q=document.getElementById("q").value.toLowerCase();
-  return DOCS.filter(d=>(!q||(d.number+" "+d.order.ref+" "+d.order.client).toLowerCase().includes(q))&&(TYPE==="all"||d.type===TYPE)&&(STATE==="all"||(STATE==="available"&&d.available)||(STATE==="blocked"&&!d.available)));
+  const q=document.getElementById("q").value.toLowerCase(),klant=document.getElementById("klant").value;
+  return DOCS.filter(d=>(!q||(d.number+" "+d.order.ref+" "+d.order.client).toLowerCase().includes(q))&&(!klant||d.order.client===klant)&&(TYPE==="all"||d.type===TYPE)&&(STATE==="all"||(STATE==="available"&&d.available)||(STATE==="blocked"&&!d.available)));
 }
 function icoPaths(t){
   if(t==="delivery")return '<path d="M3.5 8 12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M3.5 8 12 12.5 20.5 8M12 12.5v8"/>';
@@ -169,7 +179,19 @@ function icoPaths(t){
   return '<path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14.5 3.5V8H19"/><path d="M9.5 12.5h5M9.5 16h5"/>';
 }
 function ico(t){return '<span class="d-ico" aria-hidden="true"><svg viewBox="0 0 24 24">'+icoPaths(t)+'</svg></span>'}
-function act(d){return d.available?'<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Bekijken</button>':(d.type==="invoice"?'<a class="staff-action-secondary" href="/beheer.html">Vul IBAN in</a>':'')}
+/* Bouton d'action d'un document. « Vul IBAN in » seulement quand l'IBAN manque vraiment (la facture
+   sort alors avec l'IBAN d'exemple). Une facture sans numéro est bloquée par la livraison, pas par la
+   banque : lien vers Leveringen si la commande est en route, sinon aucun bouton. Beheer : beheerder seul. */
+function act(d){
+  const admin=famoStaff.getRole()==="admin";
+  if(d.available){
+    const view='<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Bekijken</button>';
+    return view+(d.type==="invoice"&&admin&&FamoDocuments.usingExampleBank()?'<a class="staff-action-secondary" href="/beheer.html">Vul IBAN in</a>':'');
+  }
+  if(d.type!=="invoice")return '';
+  if(!d.order.factuurnummer)return d.order.statut==="Sortie en livraison"?'<a class="staff-action-secondary" href="/leveringen.html">Levering bevestigen</a>':'';
+  return admin?'<a class="staff-action-secondary" href="/beheer.html">Vul bedrijfsgegevens in</a>':'';
+}
 function row(d){
   return '<tr'+(d.available?'':' class="d-blocked"')+'><td><div class="d-id">'+ico(d.type)+'<div><span class="d-num">'+esc(d.number)+'</span><span class="d-type">'+d.label+'</span></div></div></td>'
     +'<td><a class="d-ref" href="/order.html?id='+encodeURIComponent(d.order.id)+'">'+esc(d.order.ref)+'</a></td>'
@@ -194,7 +216,7 @@ function render(){
     return;
   }
   table.className="d-table";
-  table.innerHTML='<table><thead><tr><th>Document</th><th>Bestelling</th><th>Klant</th><th>Datum</th><th class="r">Bedrag</th><th>Status</th><th></th></tr></thead><tbody>'+list.map(row).join("")+'</tbody></table>';
+  table.innerHTML='<table><thead><tr><th>Document</th><th>Bestelling</th><th>Klant</th><th>Datum</th><th class="r">Bedrag excl. btw</th><th>Status</th><th></th></tr></thead><tbody>'+list.map(row).join("")+'</tbody></table>';
   cards.innerHTML=list.map(card).join("");
 }
 function preview(type,id){
@@ -206,7 +228,7 @@ function preview(type,id){
       title:"Factuur geblokkeerd",
       meta:order.ref||"",
       filename:"geblokkeerd.txt",
-      html:"<!doctype html><html><body style='font-family:sans-serif;padding:32px'><h1>Factuur geblokkeerd</h1><p>"+FamoDocuments.esc(msg)+"</p><p><a href='/beheer.html'>Open Beheer</a></p></body></html>"
+      html:"<!doctype html><html><body style='font-family:sans-serif;padding:32px'><h1>Factuur geblokkeerd</h1><p>"+FamoDocuments.esc(msg)+"</p>"+(famoStaff.getRole()==="admin"?"<p><a href='/beheer.html'>Open Beheer</a></p>":"<p>Vraag de beheerder om de bedrijfsgegevens aan te vullen.</p>")+"</body></html>"
     });
     return;
   }

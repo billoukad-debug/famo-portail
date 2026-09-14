@@ -215,6 +215,51 @@
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
 
+  /* Le moteur PDF (html2pdf) recopie le document dans la page principale avant la capture.
+     Deux pièges, corrigés ici :
+     1. Les styles du document sont dans son <head> : ne recopier que <body> les perdait
+        (PDF en texte brut). On emporte ses règles, préfixées pour ne viser que la copie —
+        sinon « body », « h1 », « table »… restyleraient la page le temps de la capture.
+     2. La capture était forcée à une fenêtre de 794 px alors que html2pdf centre la page
+        dans la fenêtre réelle : sur un écran large, le cadrage partait trop à droite et
+        coupait la gauche du document. On capture désormais dans la fenêtre réelle. */
+  const PDF_ROOT = "famo-pdf-root";
+
+  function scopeSelector(selector, root) {
+    return String(selector || "").split(",").map(part => {
+      const s = part.trim();
+      if (!s) return "";
+      if (/^(html|body|:root)$/i.test(s)) return root;
+      if (/^(html|body)(?=[.#:[\s>+~])/i.test(s)) return root + s.replace(/^(html|body)(\s*)/i, (m, tag, space) => (space ? " " : ""));
+      return root + " " + s;
+    }).filter(Boolean).join(",");
+  }
+
+  // Règles CSS d'un document, préfixées par `root`. Les @media print sont ignorées (écran seulement).
+  function scopedCss(doc, root) {
+    const walk = rules => Array.from(rules || []).map(rule => {
+      if (rule.type === 1) return scopeSelector(rule.selectorText, root) + "{" + rule.style.cssText + "}";
+      if (rule.type === 4 && rule.media && !/\bprint\b/i.test(rule.media.mediaText)) {
+        return "@media " + rule.media.mediaText + "{" + walk(rule.cssRules) + "}";
+      }
+      return "";
+    }).filter(Boolean).join("\n");
+    return Array.from((doc && doc.styleSheets) || []).map(sheet => {
+      try { return walk(sheet.cssRules); } catch (e) { return ""; }
+    }).filter(Boolean).join("\n");
+  }
+
+  // Copie du document pour html2pdf : son contenu + ses styles, dans une racine neutre.
+  function pdfSource(doc) {
+    const root = document.createElement("div");
+    root.className = PDF_ROOT;
+    const style = document.createElement("style");
+    style.textContent = "." + PDF_ROOT + "{box-sizing:border-box;width:100%;background:#fff}\n" + scopedCss(doc, "." + PDF_ROOT);
+    root.appendChild(style);
+    Array.from(doc.body.childNodes).forEach(node => root.appendChild(document.importNode(node, true)));
+    return root;
+  }
+
   async function downloadPdf() {
     if (busy) return;
     if (!frame || !frame.contentDocument || !frame.contentDocument.body) {
@@ -226,14 +271,20 @@
     setStatus("PDF genereren…", "loading");
     try {
       const html2pdf = await loadPdfLib();
-      const source = frame.contentDocument.body;
+      const source = pdfSource(frame.contentDocument);
       const worker = html2pdf().set({
-        margin: [10, 10, 10, 10],
+        // Pas de marge latérale : les marges intérieures du document font office de marges,
+        // comme dans l'aperçu A4 (21 cm de large). Marges haut/bas pour les pages suivantes.
+        margin: [10, 0, 10, 0],
         filename: state.filename,
         image: { type: "jpeg", quality: 0.96 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
+        // Pas de windowWidth forcé : capture dans la fenêtre réelle, là où html2pdf place la page.
+        // Défilement à 0 : la copie est dans un calque fixé en haut de l'écran ; tenir compte du
+        // défilement de la page donnait un PDF blanc quand la liste était descendue.
+        html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] }
+        // Ne jamais couper une ligne ni un bloc entre deux pages (s'il tient sur une page).
+        pagebreak: { mode: ["css", "legacy"], avoid: ["tr", ".mast", ".metaband", ".banner", ".party", ".totals", ".bank", ".foot", "section"] }
       }).from(source);
       const blob = await worker.outputPdf("blob");
       if (!(blob instanceof Blob) || blob.type.indexOf("pdf") === -1 && blob.type !== "application/octet-stream") {
@@ -259,6 +310,8 @@
     print,
     downloadPdf,
     filenameFor,
+    scopeSelector,
+    scopedCss,
     esc
   };
 })(typeof window !== "undefined" ? window : global);

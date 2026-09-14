@@ -1,5 +1,7 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __mail = require("../lib/ordermail");
+const __prices = require("../lib/prices");
+const __orderNumber = require("../lib/ordernumber");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -60,12 +62,7 @@ async function buildOrderLines(clientId, items){
 
   const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
   const negotiated = await atAll(`${encodeURIComponent("Prix négociés")}`);
-  const priceByProduct = new Map();
-  (negotiated.records || []).forEach(record => {
-    const clients = record.fields["Client"] || [];
-    const products = record.fields["Produit"] || [];
-    if (clients.includes(clientId) && products[0]) priceByProduct.set(products[0], numberOf(record.fields["Prix négocié"]));
-  });
+  const priceByProduct = __prices.negotiatedFor(negotiated.records, clientId);
   const products = new Map((cat.records || []).map(record => [record.id, record]));
 
   const merged = new Map();
@@ -88,7 +85,7 @@ async function buildOrderLines(clientId, items){
   for (const [productId, entry] of merged) {
     const quantity = entry.quantity;
     const fields = products.get(productId).fields;
-    const price = priceByProduct.has(productId) ? priceByProduct.get(productId) : numberOf(fields["Prix de base"]);
+    const price = __prices.unitPrice(products.get(productId), priceByProduct);
     const unit = fields["Unité"] || "";
     const name = fields["Produit"] || "Artikel";
     const comment = entry.comment;
@@ -142,7 +139,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: String(e.message || e) });
     }
 
-    const ref = "CMD-" + Date.now();
+    const ref = await __orderNumber.nextOrderRef(at);
     const today = new Date().toISOString().slice(0, 10);
     const fields = {
       "Référence": ref,

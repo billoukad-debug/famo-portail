@@ -21,14 +21,16 @@
     };
   }
 
+  // L'exemple ne remplace qu'un IBAN absent. Un IBAN réel n'est jamais écrasé : un BIC manquant
+  // (facultatif pour un virement SEPA belge) laisse l'IBAN tel quel, sans BIC.
   function withExampleBank(company) {
     const c = Object.assign({}, company || {});
-    const missing = !c.iban || !c.bic;
-    if (missing) {
+    if (!c.iban) {
       c.iban = EXAMPLE.iban;
       c.bic = EXAMPLE.bic;
       c.exampleBank = true;
     } else {
+      c.bic = c.bic || "";
       c.exampleBank = false;
     }
     return c;
