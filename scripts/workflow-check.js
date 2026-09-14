@@ -2033,6 +2033,55 @@ async function main() {
   }
   console.log("✓ AG. Vue Dag : pas d'alerte stock sans données de stock, haut compact, même carte");
 
+  // --- AH. Factures du personnel : vrai IBAN, taux et conditions ; l'exemple ne remplace qu'un IBAN absent ---
+  {
+    delete require.cache[require.resolve(path.join(ROOT, "api", "config.js"))];
+    delete require.cache[require.resolve(path.join(ROOT, "lib", "staffauth.js"))];
+    const authAH = require(path.join(ROOT, "lib", "staffauth.js"));
+    const configAH = require(path.join(ROOT, "api", "config.js"));
+    assert.ok(authAH.hasCode(), "AH0 codes d'environnement présents");
+    const staffHdrAH = { cookie: "famo_sess=" + encodeURIComponent(authAH.sign(Date.now() + 60000, "staff")) };
+    const CONF_AH = { records: [{ id: "recConf", fields: {
+      "Bedrijfsnaam": "Famo Trading BV", "Adres": "Jezusstraat 34", "Postcode en plaats": "2000 Antwerpen", "BTW-nummer": "BE0788705713",
+      "IBAN": "BE71096123456769", "BTW-tarief": 21, "Betalingsvoorwaarden": "Betaalbaar binnen 14 dagen.",
+      "Leveringsvoorwaarden": "Klachten binnen 12u.", "Bestellingen e-mail": "ops@famo.test"
+    } }] };
+
+    // AH1 — session personnel : tout ce qui s'imprime sur une facture, jamais la boîte interne.
+    let rAH = await call(configAH, null, [CONF_AH], { method: "GET", headers: staffHdrAH, query: {} });
+    assert.equal(rAH.res.statusCode, 200, "AH1 config lisible par le personnel");
+    const staffCfg = rAH.res.payload.config;
+    assert.equal(staffCfg.iban, "BE71096123456769", "AH1 personnel : IBAN réel reçu");
+    assert.equal(staffCfg.btwTarief, 21, "AH1 personnel : taux de TVA réglé reçu");
+    assert.equal(staffCfg.betalingsvoorwaarden, "Betaalbaar binnen 14 dagen.", "AH1 personnel : conditions de paiement reçues");
+    assert.ok(!("bestellingenEmail" in staffCfg), "AH1 personnel : boîte interne jamais exposée");
+
+    // AH2 — public (portail client sans session) : coordonnées seules, aucun IBAN.
+    rAH = await call(configAH, null, [CONF_AH], { method: "GET", headers: {}, query: { public: "1" } });
+    assert.ok(!("iban" in rAH.res.payload.config) && !("bestellingenEmail" in rAH.res.payload.config), "AH2 public : ni IBAN ni boîte interne");
+
+    // AH3 — facture rendue avec la config reçue par le personnel : vrai IBAN, pas d'exemple, taux réglé.
+    const ctxAH = { console, Intl, Date };
+    ctxAH.window = ctxAH;
+    vm.createContext(ctxAH);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-company.js"), "utf8"), ctxAH);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "documents.js"), "utf8"), ctxAH);
+    ctxAH.FamoDocuments.setCompany(staffCfg);
+    const factuurAH = ctxAH.FamoDocuments.build({ ref: "CMD-2026-0400", client: "Resto Test", factuurnummer: "FA-2026-0400", lignes: "Zalm × 2 kg [€12.50]", total: 25 }, "invoice");
+    assert.match(factuurAH, /BE71 0961 2345 6769/, "AH3 facture du personnel : IBAN réel");
+    assert.ok(!/Voorbeeld bankgegevens|BE68 5390 0754 7034/.test(factuurAH), "AH3 facture du personnel : jamais l'IBAN d'exemple");
+    assert.match(factuurAH, /btw 21%/, "AH3 facture du personnel : taux réglé, pas 6 % par défaut");
+
+    // AH4 — l'exemple ne remplace qu'un IBAN absent : un BIC vide ne fait plus disparaître l'IBAN réel.
+    const bankAH = ctxAH.famoCompany.withExampleBank({ iban: "BE71096123456769", bic: "" });
+    assert.equal(bankAH.iban, "BE71096123456769", "AH4 BIC vide : IBAN réel conservé");
+    assert.equal(bankAH.exampleBank, false, "AH4 BIC vide : pas de mention d'exemple");
+    ctxAH.FamoDocuments.setCompany({ bedrijfsnaam: "Famo Trading BV", iban: "BE71096123456769", bic: "" });
+    assert.ok(ctxAH.FamoDocuments.canInvoice(), "AH4 facture possible sans BIC");
+    assert.equal(ctxAH.famoCompany.withExampleBank({ iban: "", bic: "" }).exampleBank, true, "AH4 IBAN absent : exemple signalé comme tel");
+  }
+  console.log("✓ AH. Factures du personnel : vrai IBAN, taux et conditions ; l'exemple ne remplace qu'un IBAN absent");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

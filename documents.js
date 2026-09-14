@@ -34,12 +34,13 @@ window.FamoDocuments=(()=>{
     COMPANY=window.famoCompany?famoCompany.withExampleBank(base):Object.assign({exampleBank:false},base);
     return COMPANY;
   }
+  // IBAN et nom obligatoires ; le BIC est facultatif (virement SEPA belge) et n'apparaît que s'il existe.
   function canInvoice(){
-    return !!(COMPANY.iban && COMPANY.bic && COMPANY.nom);
+    return !!(COMPANY.iban && COMPANY.nom);
   }
   function invoiceBlockReason(){
     if(!COMPANY.nom) return "Bedrijfsgegevens ontbreken. Vul ze in via Beheer.";
-    if(!COMPANY.iban||!COMPANY.bic) return "Factuur geblokkeerd: IBAN/BIC ontbreken. Vul ze in via Beheer.";
+    if(!COMPANY.iban) return "Factuur geblokkeerd: IBAN ontbreekt. Vul het in via Beheer.";
     return "";
   }
   function usingExampleBank(){ return !!COMPANY.exampleBank; }
