@@ -2082,6 +2082,42 @@ async function main() {
   }
   console.log("✓ AH. Factures du personnel : vrai IBAN, taux et conditions ; l'exemple ne remplace qu'un IBAN absent");
 
+  // --- AI. Facture : prix hors TVA, la TVA s'ajoute (elle n'est plus retranchée du total) -------
+  {
+    const ctxAI = { console, Intl, Date };
+    ctxAI.window = ctxAI;
+    vm.createContext(ctxAI);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-company.js"), "utf8"), ctxAI);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "documents.js"), "utf8"), ctxAI);
+    const D = ctxAI.FamoDocuments;
+    const row = (html, label) => (new RegExp('<div class="trow[^"]*"><span>' + label + '</span><span>([^<]+)</span></div>').exec(html) || [])[1];
+    const orderAI = { ref: "CMD-2026-0500", client: "Resto Test", factuurnummer: "FA-2026-0500", lignes: "Kabeljauw × 5 kg [€20.00]", total: 100 };
+
+    // AI1 — 6 % : 100,00 HT → 6,00 TVA → 106,00 à payer.
+    D.setCompany({ bedrijfsnaam: "Famo Trading BV", iban: "BE71096123456769", bic: "GKCCBEBB", btwTarief: 6 });
+    const f6 = D.build(orderAI, "invoice");
+    assert.equal(row(f6, "Totaal excl\\. btw"), "€ 100,00", "AI1 total de la commande = total hors TVA");
+    assert.equal(row(f6, "btw 6%"), "€ 6,00", "AI1 TVA ajoutée, pas retranchée");
+    assert.equal(row(f6, "Totaal incl\\. btw"), "€ 106,00", "AI1 total à payer TVA comprise");
+
+    // AI2 — 21 % et arrondi au centime : 25,00 HT → 5,25 → 30,25.
+    D.setCompany({ bedrijfsnaam: "Famo Trading BV", iban: "BE71096123456769", bic: "GKCCBEBB", btwTarief: 21 });
+    const f21 = D.build({ ...orderAI, total: 25 }, "invoice");
+    assert.equal(row(f21, "btw 21%"), "€ 5,25", "AI2 TVA 21 %");
+    assert.equal(row(f21, "Totaal incl\\. btw"), "€ 30,25", "AI2 total TVA comprise");
+    D.setCompany({ bedrijfsnaam: "Famo Trading BV", iban: "BE71096123456769", bic: "GKCCBEBB", btwTarief: 6 });
+    const fRound = D.build({ ...orderAI, total: 12.35 }, "invoice");
+    assert.equal(row(fRound, "btw 6%"), "€ 0,74", "AI2 TVA arrondie au centime (12,35 × 6 % = 0,741)");
+    assert.equal(row(fRound, "Totaal incl\\. btw"), "€ 13,09", "AI2 total = HT + TVA arrondie");
+
+    // AI3 — avoir (voorbeeld) : mêmes montants en négatif ; bon de livraison sans aucun total.
+    const cn = D.build(orderAI, "credit");
+    assert.equal(row(cn, "Totaal incl\\. btw"), "€ -106,00", "AI3 avoir : total TVA comprise en négatif");
+    assert.ok(!/Totaal (excl|incl)/.test(D.build(orderAI, "delivery")), "AI3 bon de livraison : pas de montants");
+    assert.ok(!/total\/\(1\+pct\/100\)/.test(fs.readFileSync(path.join(ROOT, "documents.js"), "utf8")), "AI4 plus de TVA retranchée d'un total supposé TTC");
+  }
+  console.log("✓ AI. Facture : prix hors TVA, TVA ajoutée et arrondie au centime (6 %, 21 %, avoir)");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

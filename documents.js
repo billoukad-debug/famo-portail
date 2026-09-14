@@ -82,9 +82,12 @@ window.FamoDocuments=(()=>{
     }
     const sign=credit?-1:1;
     const rows=parse(order.lignes);
-    const total=Number(order.total||0)*sign;
+    // Prix du catalogue et total de commande HORS TVA (Beheer : « exclusief btw ») : la TVA s'ajoute,
+    // arrondie au centime. Avant, elle était retranchée d'un total supposé TTC (≈ 6 % de trop peu).
     const pct=Number(COMPANY.btwTarief)>0?Number(COMPANY.btwTarief):6;
-    const htva=total/(1+pct/100), tva=total-htva;
+    const htva=Math.round(Number(order.total||0)*sign*100)/100;
+    const tva=Math.round(htva*pct)/100;
+    const total=Math.round((htva+tva)*100)/100;
     const num=number(order,type);
     const title=credit?"CREDITNOTA (VOORBEELD)":(invoice?"FACTUUR":"LEVERINGSBON");
     // Rendu uniquement à partir d'ici — parse/calculs inchangés (parité M6).
@@ -136,7 +139,7 @@ window.FamoDocuments=(()=>{
     const totals='<div class="totals">'+
       '<div class="trow"><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div>'+
       '<div class="trow"><span>btw '+esc(String(pct).replace(".",","))+'%</span><span>'+eur(tva)+'</span></div>'+
-      '<div class="trow grand"><span>Totaal</span><span>'+eur(total)+'</span></div>'+
+      '<div class="trow grand"><span>Totaal incl. btw</span><span>'+eur(total)+'</span></div>'+
       '</div>';
     const css='*{box-sizing:border-box}'+
       'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#191512;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
