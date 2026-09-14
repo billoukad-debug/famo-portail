@@ -1036,6 +1036,7 @@ async function main() {
     vm.createContext(ctx);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctx);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-card.js"), "utf8"), ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-doc-actions.js"), "utf8"), ctx);
     vm.runInContext(inline, ctx);
     const refs = () => [...el("board").innerHTML.matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]);
 
@@ -1704,6 +1705,7 @@ async function main() {
     vm.createContext(ctxB);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctxB);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-card.js"), "utf8"), ctxB);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-doc-actions.js"), "utf8"), ctxB);
     vm.runInContext(inlineOf(fs.readFileSync(path.join(ROOT, "bestellingen.html"), "utf8")), ctxB);
     const colB = key => (new RegExp('data-col="' + key + '">([\\s\\S]*?)</section>').exec(elB("board").innerHTML) || [])[1] || "";
     const refsB = key => [...colB(key).matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]).sort();
@@ -1798,6 +1800,7 @@ async function main() {
     vm.createContext(ctxM);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctxM);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-card.js"), "utf8"), ctxM);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-doc-actions.js"), "utf8"), ctxM);
     vm.runInContext(inlineOf(pageM), ctxM);
     const refsM = () => [...elM("c3").innerHTML.matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]).sort();
 
@@ -1827,7 +1830,7 @@ async function main() {
     }
     assert.match(elM("c0").innerHTML, /<button class="adv" onclick="editLines\(\d+\)">Artikelen valideren<\/button>/, "AD1 Ontvangen : Artikelen valideren en plein");
     assert.match(elM("c3").innerHTML, /<button class="adv" onclick="togglePay\('u1','Payé'\)">Markeer betaald<\/button>/, "AD1 Gefactureerd impayée : Markeer betaald en plein");
-    assert.match(elM("c3").innerHTML, /<a class="oc-link" href="\/documenten\.html\?order=u1&type=facture">Factuur<\/a>/, "AD2 documents en lien, pas en bouton");
+    assert.match(elM("c3").innerHTML, /<a class="doc-ico" href="\/documenten\.html\?order=u1&type=facture" title="Factuur openen"/, "AD2 documents : icône qui ouvre, pas un bouton plein");
 
     // AA9 — Wissen recache ; rien n'est gardé entre deux chargements.
     ctxM.clearOrderFilters();
@@ -1919,6 +1922,79 @@ async function main() {
     assert.match(entAD, /\.oc button,\.oc a\.oc-link\{[^}]*min-height:44px/, "AD3 liens et boutons gardent 44 px de cible");
   }
   console.log("✓ AD. Cartes Magazijn : un seul bouton plein (avancer), secondaires, navigations en liens");
+
+  // --- AE. Documents depuis les cartes : ouvrir (icône) et imprimer sans aperçu -------------
+  {
+    const bestAE = fs.readFileSync(path.join(ROOT, "bestellingen.html"), "utf8");
+    const entAE = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    for (const [name, src] of [["bestellingen.html", bestAE], ["entrepot.html", entAE]]) {
+      for (const s of ["/staff-company.js", "/documents.js", "/staff-doc-actions.js"]) assert.ok(src.includes('<script src="' + s + '"></script>'), "AE0 " + name + " charge " + s);
+      assert.match(src, /famoDocActions\.iconsHtml\(o\)/, "AE0 " + name + " affiche les icônes documents sur la carte");
+      assert.match(src, /famoDocActions\.setSource\(\(\)=>ORDERS\)/, "AE0 " + name + " donne ses commandes à l'impression");
+    }
+    assert.ok(!/<a class="m-card[ "]/.test(bestAE), "AE1 Bestellingen : la carte n'est plus un lien qui contiendrait des boutons");
+    assert.match(bestAE, /<a class="m-card-link" href="\/order\.html\?id='/, "AE1 Bestellingen : la fiche reste ouvrable en touchant la carte");
+    const notices = [], frames = [], apiCalls = [];
+    let setCompanyCalls = 0, printed = 0;
+    const bodyAE = { appendChild(node) {
+      frames.push(node);
+      node.contentWindow = { document: { body: { innerHTML: node.srcdoc } }, focus() {}, print() { printed++; } };
+      if (node.onload) node.onload();
+    } };
+    const ctxAE = {
+      console, encodeURIComponent, setTimeout: () => 0, clearTimeout: () => {},
+      document: { body: bodyAE, getElementById: () => null, createElement: () => { const n = { attrs: {}, setAttribute(k, v) { n.attrs[k] = v; }, remove() { n.removed = true; } }; return n; } },
+      showNotice: (m, kind) => notices.push([m, kind]),
+      famoStaff: { api: async url => { apiCalls.push(url); return { ok: true, json: async () => ({ config: { bedrijfsnaam: "Famo" } }) }; } },
+      FamoDocuments: {
+        setCompany() { setCompanyCalls++; },
+        build(order, type) {
+          if (type === "invoice" && !order.ok) throw new Error("Factuur geblokkeerd: IBAN/BIC ontbreken. Vul ze in via Beheer.");
+          return "<html><body>" + type + " " + order.ref + "</body></html>";
+        }
+      }
+    };
+    ctxAE.window = ctxAE;
+    vm.createContext(ctxAE);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-doc-actions.js"), "utf8"), ctxAE);
+    const A = ctxAE.famoDocActions;
+    const ORD = [
+      { id: "r", ref: "CMD-2026-0301", statut: "Reçue" },
+      { id: "k", ref: "CMD-2026-0302", statut: "Prête" },
+      { id: "f", ref: "CMD-2026-0303", statut: "Facturée", factuurnummer: "FA-2026-0301", ok: true },
+      { id: "b", ref: "CMD-2026-0304", statut: "Facturée", factuurnummer: "FA-2026-0302", ok: false }
+    ];
+    A.setSource(() => ORD);
+
+    // AE2 — mêmes règles que Documenten.
+    assert.equal(A.iconsHtml(ORD[0]), "", "AE2 Ontvangen : pas encore de document");
+    const kAE = A.iconsHtml(ORD[1]);
+    assert.match(kAE, /<a class="doc-ico" href="\/documenten\.html\?order=k&type=lb" title="Leveringsbon openen" aria-label="Leveringsbon openen">/, "AE2 Klaar : leveringsbon ouvrable");
+    assert.match(kAE, /<button type="button" class="doc-ico" data-id="k" onclick="famoDocActions\.print\(this\.dataset\.id,'delivery'\)" title="Leveringsbon afdrukken" aria-label="Leveringsbon afdrukken">/, "AE2 Klaar : leveringsbon imprimable");
+    assert.ok(!/Factuur/.test(kAE), "AE2 pas de facture sans numéro");
+    assert.match(A.iconsHtml(ORD[2]), /type=facture" title="Factuur openen"[\s\S]*print\(this\.dataset\.id,'invoice'\)" title="Factuur afdrukken"/, "AE2 facturée : facture ouvrable et imprimable");
+
+    // AE3 — imprimer : identité chargée une fois, document de documents.js dans un cadre invisible, impression lancée.
+    assert.equal(await A.print("k", "delivery"), true, "AE3 impression lancée");
+    assert.equal(printed, 1, "AE3 print() appelé sur le document");
+    assert.equal(frames[0].srcdoc, "<html><body>delivery CMD-2026-0302</body></html>", "AE3 même document que l'aperçu (documents.js)");
+    assert.equal(frames[0].className, "doc-print-frame", "AE3 cadre d'impression invisible");
+    assert.equal(await A.print("f", "invoice"), true, "AE3 facture imprimée");
+    assert.equal(printed, 2, "AE3 deux impressions");
+    assert.ok(frames[0].removed, "AE3 l'ancien cadre est retiré");
+    assert.deepEqual(apiCalls, ["/api/config"], "AE3 identité de l'entreprise chargée une seule fois");
+    assert.equal(setCompanyCalls, 1, "AE3 identité transmise à documents.js");
+
+    // AE4 — document bloqué ou pas encore disponible : message clair, rien n'est imprimé.
+    assert.equal(await A.print("b", "invoice"), false, "AE4 facture bloquée : pas d'impression");
+    assert.equal(printed, 2, "AE4 rien d'imprimé");
+    assert.deepEqual(notices.pop(), ["Factuur geblokkeerd: IBAN/BIC ontbreken. Vul ze in via Beheer.", "error"], "AE4 raison affichée");
+    assert.equal(await A.print("r", "delivery"), false, "AE4 document pas encore disponible");
+    assert.match(notices.pop()[0], /niet beschikbaar/, "AE4 message clair");
+
+    assert.match(fs.readFileSync(path.join(ROOT, "staff.css"), "utf8"), /\.doc-actions \.doc-ico\{[^}]*min-width:44px;min-height:44px/, "AE5 icônes : cible de 44 px");
+  }
+  console.log("✓ AE. Documents depuis les cartes (icône pour ouvrir, impression sans aperçu, mêmes règles que Documenten)");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());

@@ -37,7 +37,11 @@
 .m-col-head{display:flex;align-items:center;gap:7px;padding:5px 5px 0;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
 .m-col-head::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--col,#77706A)}
 .m-col-head b{margin-left:auto;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--f-muted)}
-.m-card{display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
+/* La carte n'est plus un lien entier (elle porte des icônes documents) : un lien couvre la carte, les icônes passent au-dessus. */
+.m-card-link{position:absolute;inset:0;z-index:0;border-radius:inherit}
+.m-card-link:focus-visible{outline:2px solid var(--f-accent);outline-offset:2px}
+.m-card .m-card-foot{flex-wrap:wrap;row-gap:4px}
+.m-card{position:relative;display:block;padding:12px 13px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-surface);text-decoration:none;color:var(--f-ink)}
 /* Contenu de la carte (date, client, articles, total) : staff-card.js + staff.css, commun avec Magazijn. */
 .m-pay{color:var(--f-quiet);font-size:11.5px}
 .m-pay.open{color:var(--f-warning)} /* ambre #8A6110 sur blanc : 5,5:1 (calculé) */
@@ -98,12 +102,16 @@
     <p class="orders-note">Prijzen worden op de server berekend en bij het aanmaken vastgezet. Open een bestelling voor voorbereiding, levering en documenten.</p>
   </div></main>
 </div>
+<script src="/staff-company.js"></script>
+<script src="/documents.js"></script>
 <script src="/staff-session.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-card.js"></script>
+<script src="/staff-doc-actions.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
 let ORDERS=[],STOCK=[],LAST_ERROR="",FIRST_PAINT=true,HIDDEN_AFGEHANDELD=0;
+famoDocActions.setSource(()=>ORDERS);
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
 const eur=n=>"€ "+Number(n||0).toFixed(2).replace(".",",");
 const statusColor={"Reçue":"#77706A","Prête":"#8A6110","Sortie en livraison":"#2C6E7E","Facturée":"#1F6D4E"};
@@ -252,7 +260,7 @@ function orderCard(o){
   const foot=isAttention(o)
     ?'<span class="order-alert">Aandacht</span>'
     :'<span class="m-pay'+(o.paiement==="Payé"?'':' open')+'">'+esc(famoNL.pay(o.paiement||"En attente"))+'</span>';
-  return '<a class="m-card f-lift" href="/order.html?id='+encodeURIComponent(o.id)+'">'+famoCard.html(o,{foot,maxLines:3})+'</a>';
+  return '<div class="m-card f-lift"><a class="m-card-link" href="/order.html?id='+encodeURIComponent(o.id)+'" aria-label="Bestelling '+esc(o.ref)+' openen"></a>'+famoCard.html(o,{foot:foot+famoDocActions.iconsHtml(o),maxLines:3})+'</div>';
 }
 function render(){
   const state=document.getElementById("state"),board=document.getElementById("board");

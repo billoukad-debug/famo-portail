@@ -331,3 +331,11 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .m-card-foot{display:flex;align-items:center;gap:8px;margin-top:6px}
 .m-card-note{color:var(--f-quiet);font:500 11.5px ui-monospace,SFMono-Regular,Menlo,monospace}
 .m-card-total{margin-left:auto;color:var(--f-ink);font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums}
+/* Documents depuis les cartes (staff-doc-actions.js) : ouvrir (icône document + LB/FA) et imprimer sans aperçu. */
+.doc-actions{position:relative;z-index:1;display:inline-flex;flex-wrap:wrap;gap:6px}
+.doc-pair{display:inline-flex;overflow:hidden;border:1px solid var(--f-line);border-radius:8px;background:#fff}
+.doc-actions .doc-ico{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:44px;min-height:44px;padding:0 8px;border:0;border-radius:0;background:transparent;color:var(--f-muted);font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-decoration:none;cursor:pointer}
+.doc-actions .doc-ico+.doc-ico{border-left:1px solid var(--f-line)}
+.doc-actions .doc-ico:hover{background:var(--f-panel);color:var(--f-ink)}
+.doc-actions .doc-ico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.doc-print-frame{position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden}

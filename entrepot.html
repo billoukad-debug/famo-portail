@@ -202,10 +202,12 @@
 <div id="advanceModal" class="doc-preview hidden" role="dialog" aria-modal="true" aria-labelledby="advanceTitle"><div class="doc-preview-pane" style="width:min(460px,100%);height:auto"><div class="doc-preview-actions"><div><strong id="advanceTitle">Status wijzigen</strong></div><button type="button" onclick="closeAdvanceModal()">Sluiten</button></div><div style="padding:20px"><p id="advanceText" style="margin:0;color:var(--f-muted);line-height:1.5"></p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px"><button type="button" onclick="closeAdvanceModal()">Annuleren</button><button type="button" class="doc-print" id="advanceConfirm">Bevestigen</button></div></div></div></div>
 
 <script src="/staff-company.js"></script>
+<script src="/documents.js"></script>
 <script src="/staff-session.js"></script>
 <script src="/staff-doc-preview.js"></script>
 <script src="/staff-i18n.js"></script>
 <script src="/staff-card.js"></script>
+<script src="/staff-doc-actions.js"></script>
 <script src="/staff-nav.js"></script>
 <script>
 /* ====== Bedrijfsgegevens Famo Trading ====== */
@@ -226,6 +228,7 @@ const STATUS=["Reçue","Prête","Sortie en livraison","Facturée"];
 const NEXTLBL={"Prête":"→ Klaar","Sortie en livraison":"→ Onderweg","Facturée":"→ Gefactureerd"};
 const statusColor={"Reçue":"#77706A","Prête":"#8A6110","Sortie en livraison":"#2C6E7E","Facturée":"#1F6D4E"};
 let ORDERS=[], STOCK=[], DAY_FILTER="today", ORDER_QUERY="", ORDER_SORT="delivery", UPDATING=false, CURRENT_VIEW="bord";
+famoDocActions.setSource(()=>ORDERS);
 const eur=n=>"€ "+Number(n).toFixed(2).replace(".",",");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 
@@ -322,8 +325,7 @@ function render(){
           primary+
           (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
           (o.statut==="Facturée"&&paid?'<button class="edit" onclick="togglePay(\''+o.id+'\',\'En attente\')">Markeer openstaand</button>':'')+
-          (o.statut!=="Reçue"?'<a class="oc-link" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=lb">Leveringsbon</a>':'')+
-          (o.factuurnummer?'<a class="oc-link" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=facture">Factuur</a>':'')+
+          famoDocActions.iconsHtml(o)+
           '</div>',
         extra:(o.factuurnummer?'<div class="m-card-meta">'+esc(o.factuurnummer)+'</div>':'')+
           (o.statut==="Prête"&&!o.preparationValidee?'<div class="m-card-meta warn">Artikelen nog niet afzonderlijk gevalideerd</div>':'')+

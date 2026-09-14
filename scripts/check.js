@@ -448,7 +448,7 @@ for (const page of OPERATIONAL) {
     fail("entrepot.html", "Onderweg doit renvoyer vers Leveringen");
   } else if (/Ontvangst bevestigen/.test(ent)) {
     fail("entrepot.html", "ne plus confirmer réception in-place (unique owner = Leveringen)");
-  } else if (!/documenten\.html\?order=/.test(ent)) {
+  } else if (!/documenten\.html\?order=/.test(ent) && !(ent.includes('<script src="/staff-doc-actions.js"></script>') && /documenten\.html\?order=/.test(fs.readFileSync(path.join(root, "staff-doc-actions.js"), "utf8")))) {
     fail("entrepot.html", "docs doivent deep-linker Documenten");
   } else if (!/\/entrepot\.html\?id=/.test(ent) || /prep-order" href="\/order\.html/.test(ent)) {
     fail("entrepot.html", "vue Dag doit lier vers Magazijn ?id= (pas order.html)");
