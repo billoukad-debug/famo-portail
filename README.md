@@ -10,7 +10,7 @@ Portail B2B de Famo Trading : le client commande en ligne, le personnel prépare
 | **Personnel** — *Dagelijks* | `/bestellingen.html`, `/entrepot.html`, `/leveringen.html`, `/order.html` | `STAFF_CODE` ou `ADMIN_CODE` |
 | **Administration** — *Beheer* | `/beheer.html`, `/invoer.html`, `/documenten.html` | `ADMIN_CODE` uniquement |
 
-Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. En sens inverse, le portail client affiche **« Terug naar personeel »** (et **« Beheer »** pour un beheerder) uniquement quand une session du personnel est ouverte dans le navigateur — un client n'en voit jamais rien. Aucun lien vers Beheer n'est montré au personnel : ni dans le menu, ni sur les écrans de connexion, ni dans Documenten. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
+Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. En sens inverse, le portail client affiche **« Terug naar personeel »** (et **« Beheer »** pour un beheerder) uniquement quand une session du personnel est ouverte dans le navigateur — un client n'en voit jamais rien. Aucun lien vers Beheer n'est montré à une session du personnel : ni dans le menu, ni dans Documenten. Seuls les écrans de connexion portent un lien simple « Beheerder? Ga naar Beheer », qui n'ouvre rien en soi : `/beheer.html` demande le code beheerder. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
 
 Redirections conservées : `/overzicht.html` → Bestellingen, `/dagprep.html` → Magazijn (vue jour), `/aan-de-slag.html` → Beheer.
 
@@ -64,7 +64,9 @@ sinon changer un code ne servirait à rien, l'ancien continuerait d'ouvrir la po
 ne peut pas savoir qui le tape. Le rôle suit alors la **page de connexion** — Beheer, Invoeren
 ou Voorraad ouvrent une session beheerder, toute autre page une session personnel (jamais
 beheerder par défaut). Un membre du personnel qui se connecte depuis Bestellingen ne voit donc
-pas Beheer. Le beheerder, lui, se connecte depuis `/beheer.html`. Pour une vraie séparation,
+pas Beheer. Le beheerder, lui, se connecte depuis `/beheer.html` : les écrans de connexion du
+personnel portent le lien « Beheerder? Ga naar Beheer » — un simple lien, Beheer demande de toute
+façon le code beheerder ; une fois connecté en beheerder, le menu affiche Beheer. Pour une vraie séparation,
 choisissez deux codes différents dans Beheer → Toegang.
 
 **Si un code est perdu** : videz le champ `Beheerderscode hash` ou `Personeelscode hash`

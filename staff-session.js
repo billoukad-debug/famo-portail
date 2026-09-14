@@ -191,8 +191,9 @@
    * Ajoute les portes de sortie sous un écran de connexion staff : retour vers le
    * travail quotidien et vers le portail client. Sans ça, une page de connexion
    * est un cul-de-sac pour qui n'a pas le code.
-   * Jamais de lien vers Beheer ici : cet écran est vu par le personnel, avant toute
-   * connexion. Le beheerder atteint Beheer par le menu, une fois connecté (rôle admin).
+   * Lien vers Beheer : une simple adresse, qui n'ouvre rien en soi — /beheer.html exige une
+   * session beheerder (code beheerder, rôle admin demandé). C'est l'entrée du beheerder quand
+   * les deux codes sont identiques ; une fois connecté en beheerder, le menu affiche Beheer.
    */
   function addLoginExits(loginView) {
     if (!loginView) return;
@@ -202,8 +203,9 @@
     const exits = [];
     if (here === "beheer.html") {
       exits.push(['/bestellingen.html', "Personeel? Ga naar Bestellingen"]);
-    } else if (here !== "bestellingen.html") {
-      exits.push(['/bestellingen.html', "Alle bestellingen"]);
+    } else {
+      if (here !== "bestellingen.html") exits.push(['/bestellingen.html', "Alle bestellingen"]);
+      exits.push(['/beheer.html', "Beheerder? Ga naar Beheer"]);
     }
     exits.push(['/', "Terug naar het klantportaal"]);
     const nav = document.createElement("div");

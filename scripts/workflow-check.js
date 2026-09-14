@@ -1524,7 +1524,8 @@ async function main() {
     assert.ok(/href="\/beheer\.html"/.test(navW.sidebarHtml("bestellingen", true)) && /href="\/beheer\.html"/.test(navW.sheetHtml("bestellingen", true, 0)), "W3 beheerder : Beheer présent");
     assert.ok(/href="\/"/.test(navW.sidebarHtml("bestellingen", false)) && /href="\/"/.test(navW.sheetHtml("bestellingen", false, 0)), "W3 lien vers le klantportaal pour tous");
 
-    // W4 — écrans de connexion : aucun lien vers Beheer ; la page indique le rôle demandé ;
+    // W4 — écrans de connexion : un lien simple vers Beheer, qui n'ouvre rien en soi (Beheer exige le rôle admin) ;
+    //      la page indique le rôle demandé ;
     //      une session personnel sur Beheer reçoit une invite, pas une impasse.
     const sessSrcW = fs.readFileSync(path.join(ROOT, "staff-session.js"), "utf8");
     const loadSession = (pathname, serverRole) => {
@@ -1551,12 +1552,13 @@ async function main() {
     ["bestellingen.html", "entrepot.html", "leveringen.html", "documenten.html", "invoer.html", "order.html"].forEach(p => {
       const s = loadSession("/" + p, "staff");
       s.famoStaff.bindLogin({ code: "code", error: "err", loginView: "login", appView: "app" });
-      assert.ok(!/beheer\.html/.test(s.exits), "W4 écran de connexion " + p + " : aucun lien vers Beheer");
+      assert.match(s.exits, /<a href="\/beheer\.html">Beheerder\? Ga naar Beheer<\/a>/, "W4 écran de connexion " + p + " : lien simple vers Beheer (adresse seule, sans code ni rôle)");
       assert.match(s.exits, /href="\/"/, "W4 écran de connexion " + p + " : retour au klantportaal");
     });
     const sB = loadSession("/beheer.html", "staff");
     const ctlB = sB.famoStaff.bindLogin({ code: "code", error: "err", loginView: "login", appView: "app", requireAdmin: true });
     assert.match(sB.exits, /href="\/bestellingen\.html"/, "W4 connexion Beheer : retour vers le personnel");
+    assert.ok(!/href="\/beheer\.html"/.test(sB.exits), "W4 connexion Beheer : pas de lien vers elle-même");
     await ctlB.enter();
     assert.equal(sB.bodies[0].want, "admin", "W4 Beheer demande le rôle admin");
     assert.equal(sB.loginView.classList.hidden, false, "W4 session personnel sur Beheer : le formulaire reste proposé");
