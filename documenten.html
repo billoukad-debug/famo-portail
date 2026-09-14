@@ -179,7 +179,19 @@ function icoPaths(t){
   return '<path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14.5 3.5V8H19"/><path d="M9.5 12.5h5M9.5 16h5"/>';
 }
 function ico(t){return '<span class="d-ico" aria-hidden="true"><svg viewBox="0 0 24 24">'+icoPaths(t)+'</svg></span>'}
-function act(d){return d.available?'<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Bekijken</button>':(d.type==="invoice"&&famoStaff.getRole()==="admin"?'<a class="staff-action-secondary" href="/beheer.html">Vul IBAN in</a>':'')}
+/* Bouton d'action d'un document. « Vul IBAN in » seulement quand l'IBAN manque vraiment (la facture
+   sort alors avec l'IBAN d'exemple). Une facture sans numéro est bloquée par la livraison, pas par la
+   banque : lien vers Leveringen si la commande est en route, sinon aucun bouton. Beheer : beheerder seul. */
+function act(d){
+  const admin=famoStaff.getRole()==="admin";
+  if(d.available){
+    const view='<button class="staff-action-secondary" onclick="preview(\''+d.type+'\',\''+esc(d.order.id)+'\')">Bekijken</button>';
+    return view+(d.type==="invoice"&&admin&&FamoDocuments.usingExampleBank()?'<a class="staff-action-secondary" href="/beheer.html">Vul IBAN in</a>':'');
+  }
+  if(d.type!=="invoice")return '';
+  if(!d.order.factuurnummer)return d.order.statut==="Sortie en livraison"?'<a class="staff-action-secondary" href="/leveringen.html">Levering bevestigen</a>':'';
+  return admin?'<a class="staff-action-secondary" href="/beheer.html">Vul bedrijfsgegevens in</a>':'';
+}
 function row(d){
   return '<tr'+(d.available?'':' class="d-blocked"')+'><td><div class="d-id">'+ico(d.type)+'<div><span class="d-num">'+esc(d.number)+'</span><span class="d-type">'+d.label+'</span></div></div></td>'
     +'<td><a class="d-ref" href="/order.html?id='+encodeURIComponent(d.order.id)+'">'+esc(d.order.ref)+'</a></td>'

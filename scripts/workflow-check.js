@@ -1570,14 +1570,15 @@ async function main() {
 
     // W5 — Documenten : les liens vers Beheer n'existent que pour le beheerder.
     const docSrcW = fs.readFileSync(path.join(ROOT, "documenten.html"), "utf8");
-    const actSrc = /function act\(d\)\{[^\n]*/.exec(docSrcW)[0];
-    const actFor = role => {
-      const c = { esc: s => String(s), famoStaff: { getRole: () => role } };
+    const actSrc = /function act\(d\)\{[\s\S]*?\n\}/.exec(docSrcW)[0];
+    const actFor = (role, d, example) => {
+      const c = { esc: s => String(s), famoStaff: { getRole: () => role }, FamoDocuments: { usingExampleBank: () => !!example } };
       vm.runInNewContext(actSrc, c);
-      return c.act({ available: false, type: "invoice", order: { id: "o1" } });
+      return c.act(d);
     };
-    assert.ok(!/beheer\.html/.test(actFor("staff")), "W5 Documenten personnel : pas de « Vul IBAN in » vers Beheer");
-    assert.match(actFor("admin"), /href="\/beheer\.html"/, "W5 Documenten beheerder : lien vers Beheer");
+    const faBlockedW = { available: false, type: "invoice", order: { id: "o1", factuurnummer: "FA-2026-0001" } };
+    assert.ok(!/beheer\.html/.test(actFor("staff", faBlockedW)), "W5 Documenten personnel : pas de lien vers Beheer");
+    assert.match(actFor("admin", faBlockedW), /href="\/beheer\.html"/, "W5 Documenten beheerder : lien vers Beheer quand les données manquent");
     assert.ok(/getRole\(\)==="admin"\?"<p><a href='\/beheer\.html'>Open Beheer<\/a><\/p>":/.test(docSrcW), "W5 facture bloquée : « Open Beheer » réservé au beheerder");
 
     // W6 — portail client : bascule seulement avec une session du personnel ; Beheer seulement pour l'admin.
@@ -2117,6 +2118,29 @@ async function main() {
     assert.ok(!/total\/\(1\+pct\/100\)/.test(fs.readFileSync(path.join(ROOT, "documents.js"), "utf8")), "AI4 plus de TVA retranchée d'un total supposé TTC");
   }
   console.log("✓ AI. Facture : prix hors TVA, TVA ajoutée et arrondie au centime (6 %, 21 %, avoir)");
+
+  // --- AJ. Documenten : « Vul IBAN in » seulement si l'IBAN manque ; blocage livraison → Leveringen ---
+  {
+    const docAJ = fs.readFileSync(path.join(ROOT, "documenten.html"), "utf8");
+    const actAJ = /function act\(d\)\{[\s\S]*?\n\}/.exec(docAJ)[0];
+    const runAJ = (role, d, example) => {
+      const c = { esc: s => String(s), famoStaff: { getRole: () => role }, FamoDocuments: { usingExampleBank: () => !!example } };
+      vm.runInNewContext(actAJ, c);
+      return c.act(d);
+    };
+    const onderwegAJ = { available: false, type: "invoice", reason: "Geblokkeerd — levering nog niet bevestigd", order: { id: "o1", statut: "Sortie en livraison" } };
+    const klaarAJ = { available: false, type: "invoice", reason: "Geblokkeerd — levering nog niet bevestigd", order: { id: "o2", statut: "Prête" } };
+    const beschikbaarAJ = { available: true, type: "invoice", order: { id: "o3", statut: "Facturée", factuurnummer: "FA-2026-0003" } };
+    for (const role of ["admin", "staff"]) {
+      assert.ok(!/IBAN|beheer\.html/.test(runAJ(role, onderwegAJ, false)), "AJ1 " + role + " : blocage livraison, jamais « Vul IBAN in »");
+      assert.match(runAJ(role, onderwegAJ, false), /<a class="staff-action-secondary" href="\/leveringen\.html">Levering bevestigen<\/a>/, "AJ1 " + role + " : commande en route → vers Leveringen");
+      assert.equal(runAJ(role, klaarAJ, false), "", "AJ1 " + role + " : commande pas encore partie → aucun bouton");
+    }
+    assert.ok(!/Vul IBAN in/.test(runAJ("admin", beschikbaarAJ, false)), "AJ2 IBAN réel : seulement Bekijken");
+    assert.match(runAJ("admin", beschikbaarAJ, true), /Bekijken<\/button><a class="staff-action-secondary" href="\/beheer\.html">Vul IBAN in<\/a>/, "AJ2 IBAN d'exemple : « Vul IBAN in » pour le beheerder");
+    assert.ok(!/beheer\.html/.test(runAJ("staff", beschikbaarAJ, true)), "AJ2 personnel : jamais de lien vers Beheer");
+  }
+  console.log("✓ AJ. Documenten : « Vul IBAN in » seulement si l'IBAN manque ; blocage livraison → Leveringen");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());
