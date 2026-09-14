@@ -1714,7 +1714,7 @@ async function main() {
     assert.deepEqual(refsB("Reçue"), ["CMD-2026-0101"], "AA1 les autres colonnes ne changent pas");
     assert.match(colB("Facturée"), /<b>1<\/b><\/header>/, "AA1 compteur de colonne = cartes visibles");
     assert.match(colB("Facturée"), /<div class="m-hidden"><span>2 afgehandelde bestellingen verborgen<\/span><button type="button" class="staff-action-secondary" onclick="showAfgehandeld\(\)">Tonen<\/button><\/div>/, "AA1 ligne discrète : combien sont cachées, et Tonen");
-    assert.equal(elB("state").innerHTML, '<div class="staff-count">2 van 4 bestellingen · 2 afgehandeld verborgen</div>', "AA1 compteur du haut");
+    assert.equal(elB("count").textContent, "2 van 4 bestellingen · 2 afgehandeld verborgen", "AA1 compteur du haut");
 
     // AA2 — Te betalen : facturées ET impayées seulement ; son lien montre exactement ce qu'il compte.
     const chipB = /<a class="staff-chip[^"]*" href="([^"]+)"><b>(\d+)<\/b> Te betalen<\/a>/.exec(elB("chips").innerHTML);
@@ -1722,7 +1722,7 @@ async function main() {
     assert.equal(chipB[2], "1", "AA2 Te betalen ne compte plus les commandes pas encore facturées");
     assert.equal(chipB[1], "/bestellingen.html?status=Factur%C3%A9e&payment=En%20attente", "AA2 lien Te betalen = facturées impayées");
     elB("status").value = "Facturée"; elB("payment").value = "En attente"; ctxB.onFilterChange();
-    assert.equal(elB("state").innerHTML, '<div class="staff-count">1 van 4 bestellingen</div>', "AA2 le filtre du chip donne le même nombre");
+    assert.equal(elB("count").textContent, "1 van 4 bestellingen", "AA2 le filtre du chip donne le même nombre");
     assert.match(elB("chips").innerHTML, /class="staff-chip active" href="[^"]+"><b>1<\/b> Te betalen/, "AA2 chip actif sur son propre filtre");
     elB("status").value = "all"; elB("payment").value = "all"; ctxB.onFilterChange();
 
@@ -1732,7 +1732,7 @@ async function main() {
     assert.equal(ctxB.location.search, "?afgehandeld=tonen", "AA3 filtre gardé dans l'URL");
     assert.equal(elB("filtersCount").textContent, "1", "AA3 compté dans le badge Filters");
     assert.ok(!/m-hidden/.test(elB("board").innerHTML), "AA3 plus de ligne « verborgen » quand tout est montré");
-    assert.equal(elB("state").innerHTML, '<div class="staff-count">4 van 4 bestellingen</div>', "AA3 compteur du haut");
+    assert.equal(elB("count").textContent, "4 van 4 bestellingen", "AA3 compteur du haut");
 
     // AA4 — retour au défaut : absent de l'URL, pas compté.
     elB("afgehandeld").value = "verbergen"; ctxB.onFilterChange();
@@ -1750,7 +1750,7 @@ async function main() {
     // AA6 — recherche d'une facture payée : rien de perdu, la ligne dit qu'elle est cachée.
     elB("search").value = "FA-2026-0103";
     ctxB.render();
-    assert.equal(elB("state").innerHTML, '<div class="staff-count">0 van 4 bestellingen · 1 afgehandeld verborgen</div>', "AA6 recherche : commande trouvée mais cachée, dit clairement");
+    assert.equal(elB("count").textContent, "0 van 4 bestellingen · 1 afgehandeld verborgen", "AA6 recherche : commande trouvée mais cachée, dit clairement");
     assert.match(colB("Facturée"), /<b>Alles betaald<\/b>[\s\S]*1 afgehandelde bestelling verborgen/, "AA6 colonne : Alles betaald + 1 verborgen");
     elB("search").value = "";
 
@@ -1883,6 +1883,21 @@ async function main() {
     assert.match(allAB, /m-card-date m-nodate">Geen leverdatum</, "AB2 sans date : libellé explicite");
   }
   console.log("✓ AB. Carte commune Bestellingen/Magazijn (date d'abord, articles compacts, total)");
+
+  // --- AC. Haut de page compact (deux lignes) : Bestellingen et Magazijn ------------------
+  {
+    const bestAC = fs.readFileSync(path.join(ROOT, "bestellingen.html"), "utf8");
+    const entAC = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    assert.match(bestAC, /<header class="staff-page-head b-head"><h1>Bestellingen<\/h1>\s*<section id="chips"/, "AC1 Bestellingen ligne 1 : titre et compteurs dans l'en-tête");
+    assert.match(bestAC, /<section class="orders-tools"[\s\S]*?<span id="count"[\s\S]*?<\/section>/, "AC1 Bestellingen ligne 2 : recherche, filtres, tri et nombre");
+    assert.match(bestAC, /\{href:"\/bestellingen\.html\?status=open",count:open,label:"Open",extra:true\}/, "AC2 Open replié quand la place manque");
+    assert.match(bestAC, /#filtersPanel:not\(\.open\)~#attentionBox\{display:none!important\}/, "AC2 Aandacht vereist se déplie avec Filters");
+    assert.match(entAC, /<header class="staff-page-head wh-head">\s*<div class="wh-title">\s*<h1>Magazijn<\/h1>\s*<div class="wh-stats"/, "AC3 Magazijn ligne 1 : titre et compteurs dans l'en-tête");
+    assert.match(entAC, /<span class="wh-extra">Niet gefactureerd/, "AC3 Niet gefactureerd replié quand la place manque");
+    assert.match(entAC, /bar\.classList\.toggle\("hidden",!n\)/, "AC4 groepsactie repliée tant que rien n'est sélectionné");
+    assert.match(entAC, /id="bulkAll"[^>]*>Alles selecteren<\/button>\s*<span class="wh-meta wh-extra">/, "AC4 Alles selecteren dans la barre d'outils");
+  }
+  console.log("✓ AC. Haut de page compact (deux lignes, essentiel visible, reste replié)");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());

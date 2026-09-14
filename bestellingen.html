@@ -18,6 +18,19 @@
 .filters-panel label{display:block}
 .filters-panel span{display:block;margin:0 0 4px 2px;color:var(--f-quiet);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em}
 .filters-panel select{width:100%}
+/* Haut de page sur deux lignes : titre + compteurs essentiels, puis recherche, filtres, tri et nombre.
+   Open et Te bevestigen doublent les colonnes du bord : visibles seulement quand la place le permet.
+   « Aandacht vereist » se déplie avec le panneau Filters. */
+.b-head{align-items:center;flex-wrap:nowrap;gap:12px}
+.b-head h1{flex:none}
+.b-head .staff-chips{flex:1 1 auto;min-width:0;margin:0;padding:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.b-head .staff-chips::-webkit-scrollbar{display:none}
+.b-head .staff-chip{flex:none;white-space:nowrap}
+.b-head .staff-head-tools{flex:none}
+.b-head+.orders-tools{margin-top:12px}
+.orders-count{flex:none;white-space:nowrap}
+@media(max-width:1199px){.staff-chip.chip-extra{display:none}}
+#filtersPanel:not(.open)~#attentionBox{display:none!important}
 /* Board du matin — 4 colonnes de statut, teinte panel + filet (règle 5h du matin) */
 .m-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px;align-items:start}
 .m-col{display:flex;flex-direction:column;gap:9px;padding:10px;border:1px solid var(--f-line);border-radius:12px;background:var(--f-panel)}
@@ -61,15 +74,15 @@
   <aside class="staff-sidebar" data-famo-nav aria-label="Personeelsnavigatie"></aside>
   <nav class="staff-mobile-nav" data-famo-mobile-nav aria-label="Mobiele navigatie"></nav>
   <main class="staff-main"><div class="staff-page">
-    <header class="staff-page-head"><div><h1>Bestellingen</h1><p>Alle bestellingen, met actuele status en aandachtspunten.</p></div>
+    <header class="staff-page-head b-head"><h1>Bestellingen</h1>
+      <section id="chips" class="staff-chips" aria-label="Snelle filters"></section>
       <div class="staff-head-tools"><button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button></div>
     </header>
-    <section id="chips" class="staff-chips" aria-label="Snelle filters"></section>
-    <section id="attentionBox" class="staff-attention hidden" aria-label="Aandacht vereist"></section>
     <section class="orders-tools" aria-label="Bestellingen filteren">
       <input id="search" class="staff-field" type="search" placeholder="Zoek referentie, klant, artikel of factuur…" oninput="render()">
       <button id="filtersBtn" type="button" class="staff-filterbtn" onclick="toggleFilters()" aria-expanded="false" aria-controls="filtersPanel">Filters<span class="n" id="filtersCount"></span></button>
       <select id="sort" class="staff-select" onchange="onFilterChange()" aria-label="Sorteren"><option value="delivery">Leverdatum</option><option value="recent">Nieuwste eerst</option><option value="client">Klant A–Z</option><option value="total">Hoogste totaal</option></select>
+      <span id="count" class="staff-count orders-count" role="status"></span>
     </section>
     <div id="filtersPanel" class="filters-panel">
       <label><span>Status</span><select id="status" class="staff-select" onchange="onFilterChange()"><option value="all">Alle statussen</option><option value="open">Open (niet gefactureerd)</option><option value="Reçue">Ontvangen</option><option value="Prête">Klaar</option><option value="Sortie en livraison">Onderweg</option><option value="Facturée">Gefactureerd</option></select></label>
@@ -79,6 +92,7 @@
       <label><span>Aandacht</span><select id="attention" class="staff-select" onchange="onFilterChange()"><option value="all">Alle aandacht</option><option value="required">Aandacht vereist</option></select></label>
       <label><span>Afgehandeld</span><select id="afgehandeld" class="staff-select" onchange="onFilterChange()"><option value="verbergen">Verbergen</option><option value="tonen">Tonen</option></select></label>
     </div>
+    <section id="attentionBox" class="staff-attention hidden" aria-label="Aandacht vereist"></section>
     <div id="state" class="orders-state"></div>
     <section id="board" class="m-board" aria-label="Bestellingen per status"></section>
     <p class="orders-note">Prijzen worden op de server berekend en bij het aanmaken vastgezet. Open een bestelling voor voorbereiding, levering en documenten.</p>
@@ -209,14 +223,14 @@ function renderChips(){
   const attn=ORDERS.filter(isAttention).length;
   const chips=[
     {href:"/bestellingen.html?dateFilter=today",count:today,label:"Vandaag"},
-    {href:"/bestellingen.html?status=open",count:open,label:"Open"},
-    {href:"/leveringen.html",count:confirm,label:"Te bevestigen"},
+    {href:"/bestellingen.html?status=open",count:open,label:"Open",extra:true},
+    {href:"/leveringen.html",count:confirm,label:"Te bevestigen",extra:true},
     {href:"/bestellingen.html?status=Factur%C3%A9e&payment=En%20attente",count:unpaid,label:"Te betalen"},
     {href:"/bestellingen.html?dateFilter=overdue",count:late,label:"Te laat"},
     {href:"/bestellingen.html?attention=required",count:attn,label:"Aandacht"}
   ];
   document.getElementById("chips").innerHTML=chips.map(c=>
-    '<a class="staff-chip'+(chipActive(c.href)?" active":"")+'" href="'+c.href+'"><b>'+c.count+'</b> '+esc(c.label)+'</a>'
+    '<a class="staff-chip'+(chipActive(c.href)?" active":"")+(c.extra?" chip-extra":"")+'" href="'+c.href+'"><b>'+c.count+'</b> '+esc(c.label)+'</a>'
   ).join("");
 }
 function renderAttention(){
@@ -245,6 +259,7 @@ function render(){
   renderChips();
   if(LAST_ERROR){
     board.innerHTML="";
+    document.getElementById("count").textContent="";
     document.getElementById("attentionBox").classList.add("hidden");
     state.innerHTML='<div class="staff-error">'+esc(LAST_ERROR)+'<br><button class="staff-action-secondary" style="margin-top:12px" onclick="load()">Opnieuw proberen</button></div>';
     return;
@@ -252,11 +267,13 @@ function render(){
   renderAttention();
   if(!ORDERS.length){
     board.innerHTML="";
+    document.getElementById("count").textContent="";
     state.innerHTML='<div class="staff-empty f-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5 12 3.5l8.5 5v7L12 20.5l-8.5-5z"/><path d="M3.5 8.5 12 13.5l8.5-5M12 13.5v7"/></svg><b>Geen bestellingen vandaag</b><p>Zodra een klant bestelt of u er zelf één invoert, verschijnt de bestelling hier.</p><a class="staff-action-secondary" href="/invoer.html">Bestelling invoeren</a></div>';
     return;
   }
   const list=filtered(),sort=document.getElementById("sort").value;
-  state.innerHTML='<div class="staff-count">'+list.length+' van '+ORDERS.length+' bestellingen'+(HIDDEN_AFGEHANDELD?' · '+HIDDEN_AFGEHANDELD+' afgehandeld verborgen':'')+'</div>';
+  state.innerHTML="";
+  document.getElementById("count").textContent=list.length+' van '+ORDERS.length+' bestellingen'+(HIDDEN_AFGEHANDELD?' · '+HIDDEN_AFGEHANDELD+' afgehandeld verborgen':'');
   board.innerHTML=COLS.map(c=>{
     let colList=list.filter(o=>o.statut===c.key);
     /* Gefactureerd ne fait que grandir : triée par leverdatum, les plus récentes en haut. */

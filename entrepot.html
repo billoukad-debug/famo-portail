@@ -7,16 +7,22 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Crect%20width='16'%20height='16'%20rx='3.5'%20fill='%230C6157'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%2013.5V2.5h8'/%3E%3Cpath%20d='M4%208h2.8c1.4%200%201.7-1.3%203.1-1.3s1.5%201.3%202.9%201.3'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="/staff.css">
 <style>
-  .wh-stats{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;color:var(--f-muted);font-size:12.5px}
+  /* Haut de page sur deux lignes : titre + compteurs essentiels + vues, puis recherche, tri et actions.
+     Niet gefactureerd, le résumé et l'heure : seulement quand la place le permet ; la barre de
+     groepsactie n'apparaît qu'avec une sélection ; Wissen seulement quand un filtre est actif. */
+  .wh-head{align-items:center}
+  .wh-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 16px;min-width:0}
+  @media(max-width:1199px){.wh-extra{display:none!important}}
+  .wh-stats{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--f-muted);font-size:12.5px}
   .wh-stats b{font-weight:600;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--f-ink)}
-  .wh-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
+  .wh-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
   /* Libellés lus par les lecteurs d'écran, masqués à l'écran : la barre tient sur une ligne et le bord commence plus haut. */
   .wh-toolbar label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-  .wh-toolbar input{width:min(260px,100%);min-height:44px;padding:0 12px}
+  .wh-toolbar input{flex:1 1 160px;width:auto;max-width:300px;min-height:44px;padding:0 12px}
   .wh-toolbar select{min-height:44px;padding:0 10px}
   .wh-toolbar span{margin-left:auto;color:var(--f-quiet);font-size:12px;font-variant-numeric:tabular-nums}
   /* Colonnes selon la place réelle (menu latéral compris) : 2 lisibles sur tablette, 4 sur grand écran, 1 sur téléphone. */
-  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:16px;padding-bottom:40px}
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:8px;padding-bottom:40px}
   .col{background:var(--f-panel);border:1px solid var(--f-line);border-top:3px solid #77706A;border-radius:12px;padding:10px;min-height:140px}
   .col.c1{border-top-color:#8A6110}.col.c2{border-top-color:#2C6E7E}.col.c3{border-top-color:#1F6D4E}
   .col>h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--f-quiet);margin:2px 4px 10px;display:flex;justify-content:space-between;align-items:center}
@@ -124,10 +130,14 @@
   <aside data-famo-nav class="staff-sidebar"></aside>
   <nav data-famo-mobile-nav class="staff-mobile-nav"></nav>
   <main class="staff-main"><div class="staff-page">
-    <header class="staff-page-head">
-      <div>
+    <header class="staff-page-head wh-head">
+      <div class="wh-title">
         <h1>Magazijn</h1>
-        <p>Voorbereiding en levering · <span id="stamp"></span></p>
+        <div class="wh-stats" aria-label="Dagstatistieken">
+          <span>Te bereiden <b id="statTodo">0</b></span>
+          <span>Onderweg <b id="statOnway">0</b></span>
+          <span class="wh-extra">Niet gefactureerd <b id="statOpen">0</b></span>
+        </div>
       </div>
       <div class="page-actions staff-head-tools">
         <div class="staff-viewtabs" role="tablist" aria-label="Magazijn weergave">
@@ -139,11 +149,6 @@
         <button class="staff-iconbtn" onclick="load()" title="Vernieuwen" aria-label="Vernieuwen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></svg></button>
       </div>
     </header>
-    <div class="wh-stats" aria-label="Dagstatistieken">
-      <span>Te bereiden <b id="statTodo">0</b></span>
-      <span>Onderweg <b id="statOnway">0</b></span>
-      <span>Niet gefactureerd <b id="statOpen">0</b></span>
-    </div>
 
     <div id="viewBord">
       <section class="wh-toolbar" aria-label="Bestellingen zoeken en sorteren">
@@ -156,13 +161,13 @@
           <option value="client">Klant: A–Z</option>
           <option value="total">Totaal: hoog naar laag</option>
         </select>
-        <button type="button" class="staff-action-secondary" onclick="clearOrderFilters()">Wissen</button>
+        <button type="button" id="btnWissen" class="staff-action-secondary hidden" onclick="clearOrderFilters()">Wissen</button>
         <button type="button" id="afgehandeldBtn" class="staff-filterbtn" aria-pressed="false" onclick="toggleAfgehandeld()">Toon afgehandelde<b class="n" id="afgehandeldCount"></b></button>
-        <span id="boardSummary" role="status"></span>
+        <button type="button" class="staff-action-secondary hidden" id="bulkAll" onclick="selectAllEligible()">Alles selecteren</button>
+        <span class="wh-meta wh-extra"><span id="boardSummary" role="status"></span> · <span id="stamp"></span></span>
       </section>
       <section id="bulkBar" class="wh-bulk hidden" aria-label="Groepsactie">
         <span id="bulkCount" role="status"></span>
-        <button type="button" class="staff-action-secondary" id="bulkAll" onclick="selectAllEligible()">Alles selecteren</button>
         <button type="button" class="staff-action-secondary" id="bulkClear" onclick="clearSelection()">Selectie wissen</button>
         <button type="button" class="staff-action" id="bulkGo" onclick="confirmBulkAdvance()">→ Onderweg</button>
       </section>
@@ -345,6 +350,7 @@ function render(){
   document.getElementById("stamp").textContent="Bijgewerkt: "+new Date().toLocaleTimeString("nl-BE");
   renderBulkBar();
   renderAfgehandeldBtn();
+  document.getElementById("btnWissen").classList.toggle("hidden",!(ORDER_QUERY||ORDER_SORT!=="delivery"||SHOW_AFGEHANDELD));
   if(CURRENT_VIEW==="dag") renderDayView();
   else highlightFocusedOrder();
 }
@@ -600,14 +606,18 @@ function clearSelection(){SELECTED.clear();syncSelectionDom()}
 function renderBulkBar(){
   const bar=document.getElementById("bulkBar"); if(!bar) return;
   const eligible=eligibleVisible().length, orders=selectedOrders(), n=orders.length;
-  bar.classList.toggle("hidden",!eligible&&!n);
-  document.getElementById("bulkCount").textContent=n?n+" geselecteerd":eligible+(eligible===1?" bestelling":" bestellingen")+" klaar om te vertrekken";
+  /* Replié : la barre n'apparaît qu'avec une sélection ; « Alles selecteren (N) » vit dans la barre d'outils. */
+  bar.classList.toggle("hidden",!n);
+  document.getElementById("bulkCount").textContent=n?n+" geselecteerd":"";
   const targets=[...new Set(orders.map(advanceTarget).filter(Boolean))];
   const go=document.getElementById("bulkGo");
   go.textContent=(targets.length>1?"Volgende stap":NEXTLBL[targets[0]||"Sortie en livraison"])+(n?" ("+n+")":"");
   go.disabled=UPDATING||!n;
   document.getElementById("bulkClear").disabled=UPDATING||!n;
-  document.getElementById("bulkAll").disabled=UPDATING||!eligible;
+  const all=document.getElementById("bulkAll");
+  all.disabled=UPDATING||!eligible;
+  all.classList.toggle("hidden",!eligible||n>=eligible);
+  all.textContent="Alles selecteren ("+eligible+")";
 }
 function confirmBulkAdvance(){
   const orders=selectedOrders().filter(advanceTarget);
