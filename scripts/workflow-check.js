@@ -1996,6 +1996,15 @@ async function main() {
   }
   console.log("✓ AE. Documents depuis les cartes (icône pour ouvrir, impression sans aperçu, mêmes règles que Documenten)");
 
+  // --- AF. Portail client : l'étoile favoris se remplit quand elle est active ------------
+  {
+    const idxAF = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+    assert.match(idxAF, /\.icon\{[^}]*fill:none/, "AF0 icônes au contour par défaut");
+    assert.match(idxAF, /\.fav\.on\{color:#A87D1B\}\.fav\.on \.icon\{fill:currentColor\}/, "AF1 étoile active remplie (règle plus précise que .icon)");
+    assert.match(idxAF, /localStorage\.setItem\(favKey\(\),JSON\.stringify\(favs\)\)/, "AF2 enregistrement des favoris inchangé (par appareil)");
+  }
+  console.log("✓ AF. Portail client : étoile favoris remplie quand elle est active");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 
