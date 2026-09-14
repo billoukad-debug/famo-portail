@@ -311,3 +311,23 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
    on impose 44px depuis la peau partagee — gants, ecran humide, 5h du matin. */
 .stock-edit input,.stock-edit select,.stock-edit button,
 .stock-card-form input,.stock-card-form select,.stock-card-form button{height:44px!important;min-height:44px!important}
+/* Carte commande commune (staff-card.js) — Bestellingen et Magazijn.
+   Leverdatum = première lecture ; la référence passe en secondaire (mono, discrète).
+   Articles en liste compacte, sans pavé ni encadré : plus de commandes visibles sans défiler. */
+.m-card-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+.m-card-date{color:var(--f-ink);font-size:15px;font-weight:600;letter-spacing:-.005em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.m-card-date.m-late{color:var(--f-danger)} /* brique #A8371F sur blanc : 6,5:1 (calculé) */
+.m-card-date.m-nodate{color:var(--f-quiet);font-size:13px;font-weight:500}
+.m-card-ref{margin-left:auto;color:var(--f-quiet);font:500 11.5px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.m-card-client{margin-top:3px;color:var(--f-ink);font-size:14px;font-weight:500;letter-spacing:-.005em}
+.m-card-lines{list-style:none;margin:5px 0 0;padding:0;color:var(--f-muted);font-size:13px;line-height:1.45}
+.m-card-lines li{display:flex;gap:8px;min-width:0}
+.m-card-q{flex:none;min-width:52px;color:var(--f-ink);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.m-card-n{min-width:0;overflow-wrap:break-word}
+.m-card-more{color:var(--f-quiet)}
+.m-card-meta{margin-top:4px;color:var(--f-muted);font-size:12px;line-height:1.4}
+.m-card-meta.ok{color:var(--f-success)}
+.m-card-meta.warn{color:var(--f-warning)}
+.m-card-foot{display:flex;align-items:center;gap:8px;margin-top:6px}
+.m-card-note{color:var(--f-quiet);font:500 11.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.m-card-total{margin-left:auto;color:var(--f-ink);font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums}

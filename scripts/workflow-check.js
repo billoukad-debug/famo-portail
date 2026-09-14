@@ -998,7 +998,8 @@ async function main() {
     assert.ok(!/<option[^>]*\bselected\b/.test(sortSelect[1]), "R1 aucune option forcée par selected");
 
     // R2 — la date est plus grande que la référence.
-    const px = re => Number((re.exec(pageSrc) || [])[1]);
+    const cardCss = fs.readFileSync(path.join(ROOT, "staff.css"), "utf8"); // styles de carte communs (staff-card.js)
+    const px = re => Number((re.exec(cardCss) || [])[1]);
     assert.ok(px(/\.m-card-date\{[^}]*font-size:([\d.]+)px/) > px(/\.m-card-ref\{[^}]*font:\s*\d+\s+([\d.]+)px/), "R2 leverdatum plus grande que la référence");
 
     // Le vrai script de la page, avec un DOM minimal et une API simulée.
@@ -1034,6 +1035,7 @@ async function main() {
     ctx.window = ctx;
     vm.createContext(ctx);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-card.js"), "utf8"), ctx);
     vm.runInContext(inline, ctx);
     const refs = () => [...el("board").innerHTML.matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]);
 
@@ -1701,6 +1703,7 @@ async function main() {
     ctxB.window = ctxB;
     vm.createContext(ctxB);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctxB);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-card.js"), "utf8"), ctxB);
     vm.runInContext(inlineOf(fs.readFileSync(path.join(ROOT, "bestellingen.html"), "utf8")), ctxB);
     const colB = key => (new RegExp('data-col="' + key + '">([\\s\\S]*?)</section>').exec(elB("board").innerHTML) || [])[1] || "";
     const refsB = key => [...colB(key).matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]).sort();
@@ -1794,8 +1797,9 @@ async function main() {
     ctxM.window = ctxM;
     vm.createContext(ctxM);
     vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctxM);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-card.js"), "utf8"), ctxM);
     vm.runInContext(inlineOf(pageM), ctxM);
-    const refsM = () => [...elM("c3").innerHTML.matchAll(/class="ref">([^<]+)</g)].map(m => m[1]).sort();
+    const refsM = () => [...elM("c3").innerHTML.matchAll(/class="m-card-ref">([^<]+)</g)].map(m => m[1]).sort();
 
     // AA7 — par défaut : même règle que Bestellingen ; compteurs du haut inchangés.
     await ctxM.load();
@@ -1850,6 +1854,35 @@ async function main() {
     assert.ok(!/isAfgehandeld|Payé/.test(fs.readFileSync(path.join(ROOT, "documenten.html"), "utf8")), "AA13 Documenten ne filtre pas sur le paiement : une commande afgehandeld y reste consultable");
   }
   console.log("✓ AA. Fin de vie des commandes : facturée ET payée hors du bord (filtre explicite, Te betalen, Documenten intact)");
+
+  // --- AB. Carte commande commune (Bestellingen + Magazijn) : date d'abord, articles compacts ---
+  {
+    const bestAB = fs.readFileSync(path.join(ROOT, "bestellingen.html"), "utf8");
+    const entAB = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    for (const [name, src] of [["bestellingen.html", bestAB], ["entrepot.html", entAB]]) {
+      assert.ok(src.includes('<script src="/staff-card.js"></script>'), "AB0 " + name + " charge la carte commune");
+      assert.match(src, /famoCard\.html\(o,/, "AB0 " + name + " dessine ses cartes avec famoCard.html");
+    }
+    assert.ok(!/[^-]order-lines?\b|<div class="ref">/.test(entAB), "AB1 Magazijn : plus de pavé gris par article, plus de référence en tête");
+    const cssAB = fs.readFileSync(path.join(ROOT, "staff.css"), "utf8");
+    assert.ok(!/\.m-card-lines[^{]*\{[^}]*background/.test(cssAB), "AB1 liste d'articles sans fond");
+    const ctxAB = { console, Intl };
+    ctxAB.window = ctxAB;
+    vm.createContext(ctxAB);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-i18n.js"), "utf8"), ctxAB);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, "staff-card.js"), "utf8"), ctxAB);
+    const todayAB = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(new Date());
+    const cardAB = ctxAB.famoCard.html({ ref: "CMD-2026-0200", client: "Resto <A>", dateLiv: todayAB, statut: "Prête", total: 96,
+      lignes: "Kabeljauw × 3 kg [€20.00]\nMosselen × 2 caisse [€28.00] (grote)\nOesters × 1 caisse\nTong × 2 kg\nZalm × 1 kg" }, { maxLines: 4, foot: "<i>x</i>" });
+    assert.match(cardAB, /^<div class="m-card-top"><span class="m-card-date">Vandaag<\/span><span class="m-card-ref">CMD-2026-0200<\/span><\/div><div class="m-card-client">Resto &lt;A><\/div>/, "AB2 date d'abord, référence secondaire, client échappé");
+    assert.match(cardAB, /<li><span class="m-card-q">3 kg<\/span><span class="m-card-n">Kabeljauw<\/span><\/li><li><span class="m-card-q">2 kassa<\/span><span class="m-card-n">Mosselen \(grote\)<\/span><\/li>/, "AB3 articles compacts : quantité + unité, nom, sans prix");
+    assert.match(cardAB, /<li class="m-card-more">\+ 1 meer<\/li><\/ul>/, "AB3 liste plafonnée quand la page le demande");
+    assert.match(cardAB, /<div class="m-card-foot"><i>x<\/i><span class="m-card-total">€ 96,00<\/span><\/div>$/, "AB4 total en pied de carte");
+    const allAB = ctxAB.famoCard.html({ ref: "R", client: "C", dateLiv: "", statut: "Reçue", total: 1, lignes: "Kabeljauw × 3 kg\nTong × 2 kg\nZalm × 1 kg\nOesters × 1 caisse\nMosselen × 2 caisse" });
+    assert.equal((allAB.match(/<li>/g) || []).length, 5, "AB3 sans plafond : tous les articles (Magazijn)");
+    assert.match(allAB, /m-card-date m-nodate">Geen leverdatum</, "AB2 sans date : libellé explicite");
+  }
+  console.log("✓ AB. Carte commune Bestellingen/Magazijn (date d'abord, articles compacts, total)");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());
