@@ -45,17 +45,26 @@
   .oc textarea{width:100%;font-family:inherit;font-size:13px;border:1.5px solid var(--f-line);border-radius:8px;padding:8px;min-height:76px;margin-top:8px}
   .tin{width:100px;min-height:44px;padding:8px 10px;border:1.5px solid var(--f-line);border-radius:8px;font-size:14px;font-variant-numeric:tabular-nums}
   .ehint{font-size:11px;color:var(--f-quiet);margin-top:5px}
-  .pick-editor{margin-top:10px;border:1px solid var(--f-line);border-radius:8px;overflow:hidden;background:#fff}
-  /* Ligne de validation : nom et « Besteld » sur deux lignes ; quand la place manque (carte
-     étroite : téléphone, tablette, bord à plusieurs colonnes), les quantités passent dessous
-     au lieu de recouvrir le nom. Défaut d'origine (colonne fixe de 158 px + libellés en ligne). */
-  .pick-row{display:flex;flex-wrap:wrap;gap:6px 9px;align-items:center;min-height:44px;padding:10px 12px 10px 8px;border-bottom:1px solid var(--f-line);cursor:pointer}
-  .pick-row>span:not(.actual){flex:1 1 150px;min-width:0}
+  /* Validation article par article (écran du préparateur, tablette) : une ligne par article —
+     case, quantité commandée + nom (comme sur la carte), puis −/aantal/+ à droite ; sans encadré, cibles de 44 px.
+     Carte trop étroite : les quantités passent dessous, à droite, sans jamais recouvrir le nom. */
+  .pick-editor{margin-top:6px;border-top:1px solid var(--f-line)}
+  .pick-row{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;min-height:44px;padding:0 0 0 2px;border-bottom:1px solid var(--f-line);cursor:pointer}
+  .pick-row input[type=checkbox]{flex:none;width:22px;height:22px;margin:0;accent-color:#1F6D4E;cursor:pointer}
+  .pick-row .pick-text{flex:1 1 90px;min-width:0;padding:4px 0;line-height:1.3}
+  .pick-row .pn{font-size:14px;font-weight:500;overflow-wrap:break-word}
+  .pick-row .pm{margin-right:2px;font-size:14px;font-weight:600;color:var(--f-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .pick-row .pc{font-size:12px;color:var(--f-quiet)}
   .pick-row .actual{margin-left:auto}
-  .pick-row:last-child{border-bottom:0}.pick-row input[type=checkbox]{flex:none;width:24px;height:24px;margin:10px 8px;accent-color:#1F6D4E;cursor:pointer}
-  .pick-row .pn{display:block;font-size:14px;font-weight:600;overflow-wrap:break-word}.pick-row .pm{display:block;font-size:11.5px;color:var(--f-quiet);margin-top:2px;font-variant-numeric:tabular-nums}.pick-row.done{background:#E6F0E9}
-  .actual{display:flex;align-items:center;justify-content:flex-end;gap:4px}.actual button{min-width:44px;min-height:44px;padding:0;background:var(--f-panel);color:var(--f-ink);font-size:20px}.actual input{width:56px;min-height:44px;text-align:center;border:1px solid var(--f-line);border-radius:5px;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
-  .edit-head{font-size:12px;font-weight:700;color:var(--f-ink);margin-top:10px}.edit-total{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:700}.edit-total .tin{width:110px}
+  .pick-row.done{background:#E6F0E9}
+  .actual{display:flex;align-items:center;justify-content:flex-end;gap:0}
+  .oc .actual button{min-width:44px;min-height:44px;padding:0;border-radius:8px;background:transparent;color:var(--f-ink);font-size:18px;font-weight:600}
+  .actual input{width:48px;min-height:44px;padding:0;text-align:center;border:1px solid var(--f-line);border-radius:6px;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
+  /* Total réel + Klaarzetten : passe à la ligne au lieu de se chevaucher (bouton coupé à droite en colonne étroite). */
+  .edit-head{font-size:12px;font-weight:600;color:var(--f-muted);margin-top:8px}
+  .edit-total{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:8px;font-size:12px;font-weight:600}
+  .edit-total .tin{width:96px;flex:none}
+  .edit-total .save{flex:1 1 150px;min-width:0}
   .empty{color:var(--f-quiet);font-size:12.5px;padding:8px;text-align:center}
   .prep-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:18px}
   .prep-tools label{font-size:12.5px;color:var(--f-muted)}
@@ -521,7 +530,7 @@ function editLines(idx){
     '<div class="pick-editor">'+lines.map((line,i)=>
       '<label class="pick-row" id="pr'+idx+'_'+i+'">'+
       '<input id="ok'+idx+'_'+i+'" type="checkbox" onchange="markPicked('+idx+','+i+')" aria-label="Artikel gecontroleerd">'+
-      '<span><span class="pn">'+esc(line.name)+'</span><span class="pm">Besteld: '+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+(line.comment?' · '+esc(line.comment):'')+'</span></span>'+
+      '<span class="pick-text" title="Besteld: '+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+'"><span class="pm">'+line.quantity+(line.unit?' '+esc(famoNL.unit(line.unit)||line.unit):'')+'</span> <span class="pn">'+esc(line.name)+'</span>'+(line.comment?' <span class="pc">'+esc(line.comment)+'</span>':'')+'</span>'+
       '<span class="actual"><button type="button" onclick="changeActual('+idx+','+i+',-1)">−</button><input id="aq'+idx+'_'+i+'" type="number" min="0" step="'+(/kg/i.test(String(line.unit||""))?"0.1":"1")+'" value="'+line.quantity+'" oninput="refreshActualTotal('+idx+')"><button type="button" onclick="changeActual('+idx+','+i+',1)">+</button></span>'+
       '</label>').join('')+'</div>'+
     '<div class="edit-total">Werkelijk totaal: <input class="tin" id="tt'+idx+'" type="number" step="0.01" value="'+o.total+'" '+(allPriced?'readonly':'')+'><button class="save" onclick="saveLines('+idx+')">'+(o.statut==="Reçue"?'✓ Klaarzetten':'✓ Voorbereiding opslaan')+'</button></div>'+

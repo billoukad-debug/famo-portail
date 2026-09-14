@@ -1645,14 +1645,21 @@ async function main() {
       const m = new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{([^}]*)\\}").exec(entSrc);
       return m ? m[1] : "";
     };
-    assert.match(entSrc, /class="pn">[\s\S]{0,40}<\/span><span class="pm">Besteld:/, "Y0 structure attendue : nom puis « Besteld »");
-    assert.match(rule(".pick-row .pn"), /display:block/, "Y1 le nom occupe sa propre ligne");
-    assert.match(rule(".pick-row .pm"), /display:block/, "Y1 « Besteld » sur une ligne distincte, jamais collé au nom");
-    assert.match(rule(".pick-row"), /flex-wrap:wrap/, "Y2 les quantités passent dessous quand la place manque");
+    assert.match(entSrc, /<span class="pick-text" title="Besteld: [^>]*><span class="pm">[\s\S]{0,80}<\/span> <span class="pn">/, "Y0 structure : case, quantité commandée puis nom (comme sur la carte), « Besteld » en info-bulle");
+    assert.match(rule(".pick-row .pick-text"), /flex:1 1 90px;min-width:0/, "Y1 le nom prend la place restante sur la ligne");
+    assert.match(rule(".pick-row .pm"), /white-space:nowrap/, "Y1 la quantité commandée ne se coupe jamais");
+    assert.match(rule(".pick-row"), /flex-wrap:wrap/, "Y2 carte trop étroite : les quantités passent dessous au lieu de recouvrir le nom");
+    assert.match(rule(".pick-row .actual"), /margin-left:auto/, "Y2 quantités alignées à droite");
     assert.ok(!/grid-template-columns:40px minmax\(0,1fr\) 158px/.test(entSrc), "Y2 plus de colonne fixe de 158 px qui écrasait le nom");
     assert.match(rule(".pick-row .pn"), /overflow-wrap:break-word/, "Y2 un nom très long se coupe au lieu de déborder sous les boutons");
+    assert.ok(!/border-radius|background/.test(rule(".pick-editor")), "Y3 plus d'encadré autour des articles");
+    assert.match(rule(".pick-row"), /min-height:44px/, "Y4 ligne entière touchable (44 px)");
+    assert.match(rule(".oc .actual button"), /min-width:44px;min-height:44px/, "Y4 −/+ gardent 44 px");
+    assert.match(rule(".actual input"), /min-height:44px/, "Y4 champ quantité 44 px");
+    assert.match(rule(".edit-total"), /flex-wrap:wrap/, "Y5 total réel et Klaarzetten passent à la ligne au lieu de se chevaucher");
+    assert.match(rule(".edit-total .save"), /min-width:0/, "Y5 Klaarzetten ne dépasse plus à droite");
   }
-  console.log("✓ Y. Magazijn : validation lisible (nom et « Besteld » sur deux lignes, quantités dessous si étroit)");
+  console.log("✓ Y. Magazijn : validation compacte (une ligne par article, 44 px, total et Klaarzetten sans chevauchement)");
 
   // --- Z. Portail client : menu latéral utilisable au doigt sur téléphone ----------------
   {
