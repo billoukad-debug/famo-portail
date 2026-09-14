@@ -31,15 +31,15 @@
   /* Carte : contenu commun (staff-card.js, .m-card-* dans staff.css) ; ici le cadre compact et les actions. */
   .board .oc{padding:11px 12px!important;margin-bottom:8px} /* staff.css force .oc à 14px */
   /* Pied de carte : sélection + actions à gauche, total à droite, sur la même rangée. */
-  .oc .m-card-foot{margin-top:8px}
-  .oc .row{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 auto;min-width:0}
+  .oc .m-card-foot{margin-top:8px;flex-wrap:wrap;row-gap:4px}
+  .oc .row{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 180px;min-width:0} /* trop étroit à côté du total : le total passe dessous, à droite */
   .oc .m-card-foot .m-card-total{flex:none}
-  .oc button,.oc a.adv,.oc a.doc{display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:8px;padding:0 10px;font-size:13px;font-weight:600;min-height:44px;cursor:pointer;text-decoration:none}
+  /* Hiérarchie des actions : un seul bouton plein (.adv) = ce qui fait avancer la commande ;
+     .edit = secondaire ; navigations (Leveringen, documents) = liens, pas des boutons. */
+  .oc button,.oc a.oc-link{display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:8px;padding:0 10px;font-size:13px;font-weight:600;min-height:44px;cursor:pointer;text-decoration:none}
+  .oc a.oc-link{padding:0 6px;background:none;color:var(--f-accent-2);text-decoration:underline;text-underline-offset:3px}
   .adv{background:var(--f-accent);color:#fff;flex:1 1 auto;min-height:44px}
-  .edit{background:var(--f-panel);color:var(--f-ink);border:1px solid var(--f-line)!important}
-  .doc{background:#fff;color:var(--f-ink);border:1px solid var(--f-line)!important}
-  .pay{background:#E6F0E9;color:#1F6D4E;border:1px solid #C6DCCB!important}
-  .paid{background:#1F6D4E;color:#fff}
+  .oc .edit{background:#fff!important;color:var(--f-ink)!important;border:1px solid var(--f-line)!important} /* secondaire ; staff.css force .edit en beige */
   .save{background:var(--f-accent);color:#fff}
   .save:hover{background:var(--f-accent-2)}
   .oc textarea{width:100%;font-family:inherit;font-size:13px;border:1.5px solid var(--f-line);border-radius:8px;padding:8px;min-height:76px;margin-top:8px}
@@ -313,16 +313,17 @@ function render(){
     const primary=canValidate
       ? '<button class="adv" onclick="editLines('+idx+')">Artikelen valideren</button>'
       : (next==="Facturée"
-          ? '<a class="adv" href="/leveringen.html">Open Leveringen</a>'
+          ? '<a class="oc-link" href="/leveringen.html">Open Leveringen</a>'
           : (next?'<button class="adv" onclick="confirmAdvance(\''+o.id+'\',\''+next+'\','+idx+')">'+(NEXTLBL[next]||('→ '+famoNL.status(next)))+'</button>':''));
     el.innerHTML=famoCard.html(o,{
         foot:'<div class="row">'+
           (advanceTarget(o)?'<label class="oc-select" title="Selecteren"><input type="checkbox" aria-label="Selecteren" data-id="'+esc(o.id)+'"'+(SELECTED.has(o.id)?' checked':'')+' onchange="toggleSelect(this.dataset.id,this.checked)"></label>':'')+
+          (o.statut==="Facturée"&&!paid?'<button class="adv" onclick="togglePay(\''+o.id+'\',\'Payé\')">Markeer betaald</button>':'')+
           primary+
           (o.statut!=="Reçue"?'<button class="edit" onclick="editLines('+idx+')">Aantallen</button>':'')+
-          (o.statut!=="Reçue"?'<a class="doc" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=lb">Leveringsbon</a>':'')+
-          (o.factuurnummer?'<a class="doc" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=facture">Factuur</a>':'')+
-          (o.statut==="Facturée"?'<button class="'+(paid?"paid":"pay")+'" onclick="togglePay(\''+o.id+'\',\''+(paid?"En attente":"Payé")+'\')">'+(paid?"Betaald":"Markeer betaald")+'</button>':'')+
+          (o.statut==="Facturée"&&paid?'<button class="edit" onclick="togglePay(\''+o.id+'\',\'En attente\')">Markeer openstaand</button>':'')+
+          (o.statut!=="Reçue"?'<a class="oc-link" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=lb">Leveringsbon</a>':'')+
+          (o.factuurnummer?'<a class="oc-link" href="/documenten.html?order='+encodeURIComponent(o.id)+'&type=facture">Factuur</a>':'')+
           '</div>',
         extra:(o.factuurnummer?'<div class="m-card-meta">'+esc(o.factuurnummer)+'</div>':'')+
           (o.statut==="Prête"&&!o.preparationValidee?'<div class="m-card-meta warn">Artikelen nog niet afzonderlijk gevalideerd</div>':'')+

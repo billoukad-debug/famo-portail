@@ -1817,7 +1817,17 @@ async function main() {
     assert.deepEqual(refsM(), ["CMD-2026-0102", "CMD-2026-0103", "CMD-2026-0104"], "AA8 Toon afgehandelde remontre les commandes payées");
     assert.equal(elM("afgehandeldBtn").attrs["aria-pressed"], "true", "AA8 bouton enfoncé");
     assert.ok(!/wh-hidden/.test(elM("c3").innerHTML), "AA8 plus de ligne « verborgen »");
-    assert.match(elM("c3").innerHTML, />Betaald<\/button>/, "AA8 une commande afgehandeld reste réversible (Betaald)");
+    assert.match(elM("c3").innerHTML, /<button class="edit" onclick="togglePay\('p1','En attente'\)">Markeer openstaand<\/button>/, "AA8 une commande afgehandeld reste réversible (Markeer openstaand, secondaire)");
+    // AD1 — un seul bouton plein par carte, et c'est celui qui fait avancer la commande.
+    for (const col of ["c0", "c1", "c2", "c3"]) {
+      elM(col).innerHTML.split('<div class="oc').slice(1).forEach(card => {
+        const filled = [...card.matchAll(/class="adv"[^>]*>([^<]+)</g)].map(m => m[1]);
+        assert.ok(filled.length <= 1, "AD1 au plus un bouton plein par carte : " + filled.join(", "));
+      });
+    }
+    assert.match(elM("c0").innerHTML, /<button class="adv" onclick="editLines\(\d+\)">Artikelen valideren<\/button>/, "AD1 Ontvangen : Artikelen valideren en plein");
+    assert.match(elM("c3").innerHTML, /<button class="adv" onclick="togglePay\('u1','Payé'\)">Markeer betaald<\/button>/, "AD1 Gefactureerd impayée : Markeer betaald en plein");
+    assert.match(elM("c3").innerHTML, /<a class="oc-link" href="\/documenten\.html\?order=u1&type=facture">Factuur<\/a>/, "AD2 documents en lien, pas en bouton");
 
     // AA9 — Wissen recache ; rien n'est gardé entre deux chargements.
     ctxM.clearOrderFilters();
@@ -1898,6 +1908,17 @@ async function main() {
     assert.match(entAC, /id="bulkAll"[^>]*>Alles selecteren<\/button>\s*<span class="wh-meta wh-extra">/, "AC4 Alles selecteren dans la barre d'outils");
   }
   console.log("✓ AC. Haut de page compact (deux lignes, essentiel visible, reste replié)");
+
+  // --- AD. Hiérarchie des actions sur les cartes Magazijn (voir aussi AD1/AD2 dans AA) ------
+  {
+    const entAD = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    assert.match(entAD, /'<a class="oc-link" href="\/leveringen\.html">Open Leveringen<\/a>'/, "AD2 Open Leveringen est une navigation : lien, pas bouton plein");
+    assert.ok(!/<a class="adv"|class="doc"|class="pay"|class="paid"/.test(entAD), "AD2 plus de lien habillé en bouton plein ni de styles de bouton concurrents");
+    const linkCss = /\n\s*\.oc a\.oc-link\{([^}]*)\}/.exec(entAD); // la règle propre au lien, pas la règle commune « .oc button,.oc a.oc-link »
+    assert.ok(linkCss && /background:none/.test(linkCss[1]) && /text-decoration:underline/.test(linkCss[1]), "AD2 lien discret : sans fond, souligné");
+    assert.match(entAD, /\.oc button,\.oc a\.oc-link\{[^}]*min-height:44px/, "AD3 liens et boutons gardent 44 px de cible");
+  }
+  console.log("✓ AD. Cartes Magazijn : un seul bouton plein (avancer), secondaires, navigations en liens");
 
   // silence unused after restore
   assert.ok(authlib2.hasCode());
