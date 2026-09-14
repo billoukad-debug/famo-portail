@@ -2012,6 +2012,25 @@ async function main() {
   }
   console.log("✓ AF. Portail client : étoile favoris remplie quand elle est active");
 
+  // --- AG. Vue Dag : pas d'alerte stock sans données de stock ; vue alignée sur le bord -----
+  {
+    const entAG = fs.readFileSync(path.join(ROOT, "entrepot.html"), "utf8");
+    const fnAG = /function stockAlerts\(items\)\{[\s\S]*?\n\}/.exec(entAG);
+    assert.ok(fnAG, "AG0 stockAlerts introuvable dans entrepot.html");
+    const ctxAG = { STOCK: [] };
+    vm.createContext(ctxAG);
+    vm.runInContext(fnAG[0], ctxAG);
+    const itemsAG = [{ name: "Kabeljauw", quantity: 3 }, { name: "Zalm", quantity: 5 }];
+    assert.deepEqual(Array.from(ctxAG.stockAlerts(itemsAG)), [], "AG1 table Stock vide (ou non chargée pour le personnel) : aucun bandeau");
+    ctxAG.STOCK = [{ product: "Zalm", quantity: 2 }];
+    assert.deepEqual(Array.from(ctxAG.stockAlerts(itemsAG)), ["Onbekend artikel: Kabeljauw", "Zalm: 2 beschikbaar, 5 nodig"], "AG2 stock renseigné : les vrais écarts restent signalés");
+    assert.match(entAG, /const alerts=stockAlerts\(items\);/, "AG1 la vue Dag passe par stockAlerts");
+    assert.match(entAG, /<span id="dagSummary" class="prep-summary" role="status"><\/span>/, "AG3 résumé et lien Leveringen dans la barre de la vue Dag");
+    assert.ok(!/prep-meta|prep-order-head/.test(entAG), "AG3 plus de ligne de résumé séparée ni d'ancienne carte");
+    assert.match(entAG, /'<a class="prep-order f-lift" href="\/entrepot\.html\?id='\+encodeURIComponent\(o\.id\)\+'">'\+famoCard\.html\(o,/, "AG4 commandes du jour : même carte que le bord");
+  }
+  console.log("✓ AG. Vue Dag : pas d'alerte stock sans données de stock, haut compact, même carte");
+
   // silence unused after restore
   assert.ok(authlib2.hasCode());
 

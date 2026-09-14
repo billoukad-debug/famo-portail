@@ -66,29 +66,29 @@
   .edit-total .tin{width:96px;flex:none}
   .edit-total .save{flex:1 1 150px;min-width:0}
   .empty{color:var(--f-quiet);font-size:12.5px;padding:8px;text-align:center}
-  .prep-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:18px}
-  .prep-tools label{font-size:12.5px;color:var(--f-muted)}
-  .prep-meta{margin:13px 0;color:var(--f-quiet);font-size:12.5px}
-  .prep-grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:20px}
+  /* Vue Dag alignée sur le bord : barre compacte (sélecteur, résumé, lien Leveringen), panneaux resserrés,
+     commandes du jour avec la carte commune (staff-card.js). */
+  .prep-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .prep-tools label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .prep-summary{margin-left:auto;color:var(--f-quiet);font-size:12px;font-variant-numeric:tabular-nums}
+  .prep-summary a{display:inline-flex;align-items:center;min-height:44px;color:var(--f-accent-2);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+  @media(max-width:620px){.prep-summary{margin-left:0;width:100%}}
+  .prep-grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:14px;margin-top:10px}
   .prep-panel{border:1px solid var(--f-line);border-radius:12px;background:#fff}
-  .prep-panel h2{margin:0;padding:16px 18px 8px;font-size:14.5px}
-  .prep-panel p{margin:0;padding:0 18px 13px;color:var(--f-quiet);font-size:12.5px}
-  .prep-product{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--f-line)}
-  .prep-product-qty{margin-left:auto;font-weight:600;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .prep-panel h2{margin:0;padding:12px 14px 2px;font-size:14px}
+  .prep-panel p{margin:0;padding:0 14px 10px;color:var(--f-quiet);font-size:12px}
+  .prep-product{display:flex;align-items:center;gap:12px;padding:8px 14px;border-top:1px solid var(--f-line)}
+  .prep-product-qty{margin-left:auto;font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .prep-product b{display:block;font-size:13.5px;font-weight:500}
-  .prep-product small{display:block;margin-top:2px;color:var(--f-quiet);font-size:11.5px}
-  .prep-order{display:block;padding:12px 18px;border-top:1px solid var(--f-line);color:var(--f-ink);text-decoration:none}
+  .prep-product small{display:block;margin-top:1px;color:var(--f-quiet);font-size:11.5px}
+  .prep-order{display:block;padding:10px 14px;border-top:1px solid var(--f-line);color:var(--f-ink);text-decoration:none}
   .prep-order:hover{background:var(--f-panel)}
-  .prep-order-head{display:flex;align-items:center;gap:9px}
-  .prep-order-ref{font:500 12px ui-monospace,SFMono-Regular,Menlo,monospace}
-  .prep-order-client{font-size:13px;font-weight:500}
-  .prep-order-lines{margin-top:6px;color:var(--f-muted);font-size:12px;line-height:1.55}
-  .prep-alert{margin:14px 0;padding:11px 12px;border:1px solid #E8CFC7;border-radius:8px;background:#FBF1EE;color:var(--f-danger);font-size:12.5px}
-  .prep-empty{padding:24px 18px;color:var(--f-quiet);font-size:12.5px}
+  .prep-alert{margin:10px 0 0;padding:10px 12px;border:1px solid #E8CFC7;border-radius:8px;background:#FBF1EE;color:var(--f-danger);font-size:12.5px}
+  .prep-empty{padding:18px 14px;color:var(--f-quiet);font-size:12.5px}
   .page-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   @media(max-width:860px){.prep-grid{grid-template-columns:1fr}}
   .oc-focus{outline:2px solid var(--f-accent);outline-offset:2px;box-shadow:0 0 0 4px rgba(12,97,87,.14)}
-  .prep-order-cta{margin-left:auto;color:var(--f-accent);font-size:12px;font-weight:600}
+  .prep-order-cta{color:var(--f-accent);font-size:12px;font-weight:600}
   @media(max-width:620px){.wh-toolbar span{margin-left:0;width:100%}.page-actions{width:100%}.page-actions button{flex:1}}
   .oc-progress{height:3px;border-radius:999px;background:var(--f-line);margin-bottom:10px;overflow:hidden}
   .oc-progress span{display:block;height:100%;width:0;border-radius:999px;background:var(--f-accent);transition:width .18s ease}
@@ -201,6 +201,7 @@
           <option value="custom">Kies datum…</option>
         </select>
         <input id="dayCustom" class="staff-field hidden" type="date" onchange="renderDayView()">
+        <span id="dagSummary" class="prep-summary" role="status"></span>
       </div>
       <div id="dagContent" class="staff-loading"><div class="staff-skeleton" style="max-width:260px;margin:25px auto"></div></div>
     </div>
@@ -446,27 +447,34 @@ function consolidatedItems(){
   }));
   return Object.values(totals).sort((a,b)=>a.name.localeCompare(b.name,"nl"));
 }
+/* Contrôle de stock de la vue Dag. Le stock Airtable est volontairement non fiable (skipStock,
+   Voorraad hors menu) et le personnel ne le charge pas : sans aucune donnée de stock il n'y a rien
+   à contrôler, donc pas de bandeau (sinon chaque produit s'affichait « Onbekend artikel » en rouge).
+   Dès que la table Stock contient des articles, les écarts réels sont de nouveau signalés. */
+function stockAlerts(items){
+  if(!STOCK.length) return [];
+  const stockBy=new Map(STOCK.map(x=>[String(x.product).toLowerCase(),x]));
+  return items.map(i=>{
+    const s=stockBy.get(i.name.toLowerCase());
+    return !s?"Onbekend artikel: "+i.name:s.quantity<i.quantity?i.name+": "+s.quantity+" beschikbaar, "+i.quantity+" nodig":null;
+  }).filter(Boolean);
+}
 function renderDayView(){
   const orders=preparationOrders(),items=consolidatedItems();
   const today=dayKey();
   const onway=ORDERS.filter(o=>o.statut==="Sortie en livraison"&&!o.livraisonConfirmee&&(!String(o.dateLiv||"").slice(0,10)||String(o.dateLiv||"").slice(0,10)<=dayKey(1)));
-  const stockBy=new Map(STOCK.map(x=>[String(x.product).toLowerCase(),x]));
-  const alerts=items.map(i=>{
-    const s=stockBy.get(i.name.toLowerCase());
-    return !s?"Onbekend artikel: "+i.name:s.quantity<i.quantity?i.name+": "+s.quantity+" beschikbaar, "+i.quantity+" nodig":null;
-  }).filter(Boolean);
+  const alerts=stockAlerts(items);
   const label=DAY_FILTER==="custom"?document.getElementById("dayCustom").value:DAY_FILTER==="today"?dayKey():DAY_FILTER==="tomorrow"?dayKey(1):"";
   const c=document.getElementById("dagContent");
   c.className="f-enter";
-  c.innerHTML='<p class="prep-meta">'+orders.length+' bestellingen · '+items.length+' verschillende producten'+(label?' · '+dateLabel(label):'')+'</p>'+
-    (alerts.length?'<div class="prep-alert"><b>Voorraadcontrole vereist</b><br>'+alerts.map(esc).join("<br>")+'</div>':'')+
-    (onway.length?'<div class="prep-alert" style="border-color:var(--f-accent);background:var(--f-wash);color:var(--f-accent-2)"><b>'+onway.length+' onderweg — te bevestigen</b><br><a href="/leveringen.html" style="color:var(--f-accent-2);font-weight:650">Open Leveringen →</a></div>':'')+
+  document.getElementById("dagSummary").innerHTML=orders.length+' bestellingen · '+items.length+' verschillende producten'+(label?' · '+esc(dateLabel(label)):'')+(onway.length?' · <a href="/leveringen.html">'+onway.length+' onderweg — te bevestigen →</a>':'');
+  c.innerHTML=    (alerts.length?'<div class="prep-alert"><b>Voorraadcontrole vereist</b><br>'+alerts.map(esc).join("<br>")+'</div>':'')+
     '<div class="prep-grid"><section class="prep-panel"><h2>Geconsolideerde verzamellijst</h2><p>Tel per product over de geselecteerde bestellingen. Controleer individuele lijnen in Magazijn vóór vertrek.</p>'+
     (items.length?items.map(i=>'<div class="prep-product"><div><b>'+esc(i.name)+'</b><small>'+i.orders+' bestelling'+(i.orders===1?'':'en')+' · '+esc(famoNL.unit(i.unit)||i.unit||"eenheid")+'</small></div><span class="prep-product-qty">'+i.quantity+' '+esc(famoNL.unit(i.unit)||i.unit)+'</span></div>').join(""):'<div class="prep-empty">Geen open bestellingen voor deze selectie.</div>')+
     '</section><section class="prep-panel"><h2>Betrokken bestellingen</h2><p>Open een bestelling om de artikelen afzonderlijk te valideren.</p>'+
     (orders.length?orders.map(o=>{
       const canValidate=o.statut==="Reçue"||(o.statut==="Prête"&&!o.preparationValidee);
-      return '<a class="prep-order f-lift" href="/entrepot.html?id='+encodeURIComponent(o.id)+'"><div class="prep-order-head"><span class="prep-order-ref">'+esc(o.ref)+'</span><span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span>'+(canValidate?'<span class="prep-order-cta">Valideren</span>':'')+'</div><div class="prep-order-client">'+esc(o.client)+'</div><div class="prep-order-lines">'+esc(famoNL.lines(String(o.lignes||"").replace(/\s*\[€[^\]]+\]/g,"").replace(/\n/g," · ")))+'</div></a>';
+      return '<a class="prep-order f-lift" href="/entrepot.html?id='+encodeURIComponent(o.id)+'">'+famoCard.html(o,{foot:'<span class="staff-status" style="--status:'+(statusColor[o.statut]||"#8d8d8d")+'">'+esc(famoNL.status(o.statut))+'</span>'+(canValidate?'<span class="prep-order-cta">Valideren</span>':''),maxLines:4})+'</a>';
     }).join(""):'<div class="prep-empty">Geen bestellingen gevonden.</div>')+
     '</section></div>';
 }
