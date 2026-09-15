@@ -15,7 +15,7 @@ Les couleurs de statut sont identiques partout : orange ontvangen, bleu klaar, v
 ## Structure
 
 ```
-api/            fonctions serverless (inchangées depuis la v1, + api/klantdoc.js pour les documents client)
+api/            fonctions serverless (inchangées depuis la v1, + api/klantdoc.js pour les documents client, + api/klantwachtwoord.js pour le mot de passe client)
 lib/            règles métier (prix négociés, numérotation, auth, mail)
 assets/ui.css   une seule feuille de style (jetons, composants, responsive, print)
 assets/ui.js    couche partagée : K.api, K.staff, K.klant, K.c (composants), K.shell (navigation), K.toast/confirm/panel
@@ -47,6 +47,14 @@ node scripts/check.js
 3. **Vertrekt** (`Sortie en livraison`) — la commande est verrouillée.
 4. **Ontvangst bevestigen** (nom du réceptionnaire obligatoire) → `Facturée`, numéro `FA-AAAA-0001`, facture disponible pour le personnel et le client.
 5. Betaald / openstaand se gère séparément (Documenten ou fiche).
+
+## Comptes clients
+
+Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Il n'y a pas de session serveur : l'onglet garde les deux et les renvoie à chaque appel, le serveur revérifie à chaque fois.
+
+- **Changer son mot de passe** : Klant → Account → Wachtwoord → Wijzigen (`/api/klantwachtwoord`). Le client retape son mot de passe actuel, vérifié côté serveur ; seul le compte qui vient d'être vérifié est modifié, jamais un identifiant envoyé par le navigateur. Nouveau mot de passe : 8 à 80 caractères, différent de l'actuel ; 5 essais ratés par 30 s.
+- **Mot de passe oublié** : `/wachtwoord.html`, Famo en remet un depuis Beheer.
+- **À faire** : les mots de passe restent stockés **en clair** dans `Wachtwoord` (choix assumé pour l'instant). Hachage et session client : voir `IDEAS.md`, B3.
 
 ## Variables d'environnement Vercel
 

@@ -157,14 +157,56 @@
   }
 
   /* ---------- account ---------- */
+  // Le mot de passe actuel est vérifié par le serveur, jamais ici : le navigateur ne fait
+  // que les contrôles de confort (champs remplis, longueur, confirmation identique).
+  function openPasswordPanel() {
+    const p = K.panel({ title: "Wachtwoord wijzigen", sub: "Ter bevestiging vragen we uw huidige wachtwoord.", body:
+      '<form id="pwForm" novalidate style="display:flex;flex-direction:column;gap:14px">' +
+      '<input type="text" name="username" autocomplete="username" value="' + K.esc(sess.user) + '" hidden>' +
+      K.c.field("Huidig wachtwoord", K.c.input("pwCur", { type: "password", attrs: ' autocomplete="current-password" required' }), { id: "fPwCur", for: "pwCur" }) +
+      K.c.field("Nieuw wachtwoord", K.c.input("pwNew", { type: "password", attrs: ' autocomplete="new-password" required' }), { id: "fPwNew", for: "pwNew", hint: "Minstens 8 tekens." }) +
+      K.c.field("Herhaal nieuw wachtwoord", K.c.input("pwRep", { type: "password", attrs: ' autocomplete="new-password" required' }), { id: "fPwRep", for: "pwRep" }) +
+      '<div id="pwErr"></div></form>',
+      footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="pwOk">Wachtwoord wijzigen</button>' });
+    const val = id => p.el.querySelector("#" + id).value;
+    let sending = false;
+    async function submit() {
+      if (sending) return;
+      const huidig = val("pwCur"), nieuw = val("pwNew"), herhaal = val("pwRep");
+      const errCur = huidig ? "" : "Vul uw huidige wachtwoord in.";
+      const errNew = !nieuw ? "Kies een nieuw wachtwoord." : nieuw.length < 8 ? "Het nieuwe wachtwoord moet minstens 8 tekens hebben." : nieuw.length > 80 ? "Het nieuwe wachtwoord mag hoogstens 80 tekens hebben." : nieuw === huidig ? "Kies een nieuw wachtwoord dat verschilt van het huidige." : "";
+      const errRep = !errNew && herhaal !== nieuw ? "De twee nieuwe wachtwoorden zijn niet gelijk." : "";
+      K.setErr("fPwCur", errCur); K.setErr("fPwNew", errNew); K.setErr("fPwRep", errRep);
+      p.el.querySelector("#pwErr").innerHTML = "";
+      if (errCur || errNew || errRep) return;
+      const btn = p.el.querySelector("#pwOk"); sending = true; K.busy(btn, true, "Wijzigen…");
+      try {
+        await K.api("/api/klantwachtwoord", { json: { user: sess.user, pw: huidig, nieuw } });
+        // Les appels suivants renvoient le mot de passe : sans cette mise à jour ils échoueraient en 401.
+        sess.pw = nieuw; K.klant.set(Object.assign({}, K.klant.get() || sess, { pw: nieuw }));
+        p.close();
+        K.toast("Wachtwoord gewijzigd. Gebruik voortaan uw nieuwe wachtwoord.");
+      } catch (err) {
+        if (err.status === 401) { K.setErr("fPwCur", "Uw huidige wachtwoord klopt niet."); p.el.querySelector("#pwCur").focus(); }
+        else p.el.querySelector("#pwErr").innerHTML = K.c.error(err.message);
+        sending = false; K.busy(btn, false);
+      }
+    }
+    p.el.querySelector("[data-cancel]").onclick = p.close;
+    p.el.querySelector("#pwOk").onclick = submit;
+    const form = p.el.querySelector("#pwForm");
+    form.addEventListener("submit", e => { e.preventDefault(); submit(); });
+    form.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); submit(); } });
+  }
   function renderAccount() {
     const cl = cat.client || {}, co = cat.company || {};
     const body = '<div class="mcard"><div class="row"><div>Zaak<small>' + K.esc(cl.nom || "") + '</small></div></div><div class="row"><div>Leveradres<small style="white-space:pre-line">' + K.esc(cl.adresse || "—") + '</small></div></div><div class="row"><div>Gebruikersnaam<small>' + K.esc(sess.user) + '</small></div></div></div>' +
-      '<div class="mcard"><div class="row"><div>Documenten<small>Leveringsbonnen en facturen per bestelling</small></div><a href="#/bestellingen" class="btn btn-o btn-sm" data-goto="geleverd">Openen</a></div></div><div class="mcard"><div class="row"><div>Gegevens wijzigen<small>Adres, contact, e-mail: bel of mail Famo</small></div></div><div class="row"><div>Wachtwoord wijzigen<small>Famo zet een nieuw wachtwoord klaar</small></div><a href="/wachtwoord.html" class="btn btn-o btn-sm">Aanvragen</a></div></div>' +
+      '<div class="mcard"><div class="row"><div>Documenten<small>Leveringsbonnen en facturen per bestelling</small></div><a href="#/bestellingen" class="btn btn-o btn-sm" data-goto="geleverd">Openen</a></div></div><div class="mcard"><div class="row"><div>Gegevens wijzigen<small>Adres, contact, e-mail: bel of mail Famo</small></div></div><div class="row"><div>Wachtwoord<small>Wijzig uw wachtwoord zelf, met uw huidige wachtwoord</small></div><button type="button" class="btn btn-o btn-sm" id="pwChange">Wijzigen</button></div></div>' +
       '<div class="mcard"><b>' + K.esc(co.bedrijfsnaam || "Famo Trading") + '</b><div class="quiet" style="font-size:12.5px;margin-top:4px">' + K.esc([co.adres, co.plaats].filter(Boolean).join(", ")) + '</div><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (co.telefoon ? '<a class="btn btn-o btn-sm" href="tel:' + K.esc(co.telefoon.replace(/\s+/g, "")) + '">' + K.icon("phone") + K.esc(co.telefoon) + '</a>' : "") + (co.email ? '<a class="btn btn-o btn-sm" href="mailto:' + K.esc(co.email) + '">' + K.esc(co.email) + '</a>' : "") + '</div></div>' +
       '<button type="button" class="btn btn-o btn-block" id="logout" style="color:var(--danger)">Uitloggen</button>';
     shell("account", '<div class="mlist">' + body + '</div>', topbar("Account", cl.nom || ""));
     K.on(app, "click", "[data-goto]", () => { ordFilter = "geleverd"; });
+    document.getElementById("pwChange").onclick = openPasswordPanel;
     document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: "Uitloggen?", text: "Uw winkelmand blijft bewaard op dit toestel.", yes: "Uitloggen" })) { K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
   }
 
