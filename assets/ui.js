@@ -184,7 +184,14 @@
     return { el: s, close, body: s.querySelector(".panel-b"), footer: s.querySelector(".panel-f") };
   };
   K.bind = (root, sel, ev, fn) => (root || document).querySelectorAll(sel).forEach(el => el.addEventListener(ev, fn));
-  K.on = (root, ev, sel, fn) => (root || document).addEventListener(ev, e => { const t = e.target.closest(sel); if (t && (root || document).contains(t)) fn(e, t); });
+  const delegated = new WeakMap();
+  K.on = (root, ev, sel, fn) => {
+    const host = root || document, key = ev + ":" + sel;
+    let handlers = delegated.get(host); if (!handlers) { handlers = new Map(); delegated.set(host, handlers); }
+    const previous = handlers.get(key); if (previous) host.removeEventListener(ev, previous);
+    const handler = e => { const t = e.target.closest(sel); if (t && host.contains(t)) fn(e, t); };
+    handlers.set(key, handler); host.addEventListener(ev, handler);
+  };
   K.$ = (sel, root) => (root || document).querySelector(sel);
   K.$$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
   K.setErr = (fieldId, msg) => { const f = document.getElementById(fieldId); if (!f) return; const e = f.querySelector("[data-err]"); if (e) e.textContent = msg || ""; const i = f.querySelector(".input"); if (i) { if (msg) i.setAttribute("aria-invalid", "true"); else i.removeAttribute("aria-invalid"); } };

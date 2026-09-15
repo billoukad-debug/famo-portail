@@ -17,3 +17,17 @@ test("unités traduites en néerlandais", () => { assert.equal(K.unit("caisse"),
 test("statuts et paiements en néerlandais", () => { assert.equal(K.status("Reçue"), "Ontvangen"); assert.equal(K.status("Facturée"), "Geleverd"); assert.equal(K.pay("Payé"), "Betaald"); });
 test("eur au format belge", () => { assert.equal(K.eur(1284.5), "€ 1.284,50"); assert.equal(K.eur(9.5), "€ 9,50"); });
 test("isLate : livraison passée et pas livrée", () => { assert.equal(K.isLate({ statut: "Reçue", dateLiv: "2000-01-01" }), true); assert.equal(K.isLate({ statut: "Facturée", dateLiv: "2000-01-01" }), false); assert.equal(K.isLate({ statut: "Reçue", dateLiv: "" }), ""); });
+test("K.on remplace un gestionnaire délégué identique au lieu de le cumuler", () => {
+  const listeners = new Map();
+  const root = {
+    addEventListener(ev, fn) { listeners.set(ev, fn); },
+    removeEventListener(ev, fn) { if (listeners.get(ev) === fn) listeners.delete(ev); },
+    contains: () => true
+  };
+  let first = 0, second = 0;
+  K.on(root, "click", "[data-fav]", () => { first++; });
+  K.on(root, "click", "[data-fav]", () => { second++; });
+  listeners.get("click")({ target: { closest: () => ({}) } });
+  assert.equal(first, 0);
+  assert.equal(second, 1);
+});
