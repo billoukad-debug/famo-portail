@@ -63,7 +63,7 @@
 
   /* ---------- API ---------- */
   const ERR = { "Code invalide": "Ongeldige personeelscode", "POST only": "Alleen POST toegestaan" };
-  K.errText = m => { const raw = String(m || "").trim(); if (!raw) return "Onbekende fout"; if (ERR[raw]) return ERR[raw]; return raw.replace(/\bcaisse\b/gi, "kassa").replace(/\bpièce\b/gi, "stuk"); };
+  K.errText = m => { if (m && typeof m === "object") m = m.message || m.error || JSON.stringify(m); const raw = String(m || "").trim(); if (!raw) return "Onbekende fout"; if (ERR[raw]) return ERR[raw]; return raw.replace(/\bcaisse\b/gi, "kassa").replace(/\bpièce\b/gi, "stuk"); };
   K.api = async function (url, opts) {
     const o = Object.assign({ credentials: "include" }, opts || {});
     if (o.json !== undefined) { o.method = o.method || "POST"; o.headers = Object.assign({ "Content-Type": "application/json" }, o.headers || {}); o.body = JSON.stringify(o.json); delete o.json; }

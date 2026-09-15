@@ -1,132 +1,57 @@
-# FAMO Portail
+# FAMO Portail — v2
 
-Portail B2B de Famo Trading : le client commande en ligne, le personnel prépare et livre, le responsable administre. Site statique + fonctions serverless Vercel, données dans Airtable.
+Portail B2B de Famo Trading (grossiste poisson, Anvers) : le client commande en ligne, le personnel prépare et livre, le responsable administre. Site statique + fonctions serverless Vercel, données dans Airtable. Interface en néerlandais, documentation en français.
 
-## Les trois interfaces
+## Trois portails, une identité
 
-| Interface | Pages | Accès |
-|---|---|---|
-| **Client** | `/` (catalogue, panier, historique), `/aanvraag.html` (demande d'accès) | identifiant + mot de passe client |
-| **Personnel** — *Dagelijks* | `/bestellingen.html`, `/entrepot.html`, `/leveringen.html`, `/order.html` | `STAFF_CODE` ou `ADMIN_CODE` |
-| **Administration** — *Beheer* | `/beheer.html`, `/invoer.html`, `/documenten.html` | `ADMIN_CODE` uniquement |
+| Portail | Couleur | Pages | Accès |
+|---|---|---|---|
+| **Klant** | indigo | `/` (accueil + connexion), `/klant.html` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag.html`, `/wachtwoord.html` | gebruikersnaam + wachtwoord |
+| **Personeel** | vert | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html` | `STAFF_CODE` (cookie 8 h) |
+| **Beheer** | ambre | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, bedrijf, toegang, status), `/invoer.html`, `/stock.html` | `ADMIN_CODE` |
 
-Chaque page du personnel porte le lien **« Klantportaal bekijken ↗ »** vers le portail client. En sens inverse, le portail client affiche **« Terug naar personeel »** (et **« Beheer »** pour un beheerder) uniquement quand une session du personnel est ouverte dans le navigateur — un client n'en voit jamais rien. Aucun lien vers Beheer n'est montré à une session du personnel : ni dans le menu, ni dans Documenten. Seuls les écrans de connexion portent un lien simple « Beheerder? Ga naar Beheer », qui n'ouvre rien en soi : `/beheer.html` demande le code beheerder. La restriction admin n'est pas seulement visuelle : `api/onboarding.js`, `api/staff.js` et `api/stock.js` refusent une session personnel (`adminOk`).
+Les couleurs de statut sont identiques partout : orange ontvangen, bleu klaar, violet onderweg, vert geleverd, rouge te laat.
 
-Redirections conservées : `/overzicht.html` → Bestellingen, `/dagprep.html` → Magazijn (vue jour), `/aan-de-slag.html` → Beheer.
+## Structure
 
-Hors menu : `/stock.html` reste accessible par URL directe mais n'est plus proposé — le stock Airtable n'est pas compté et aucune transition ne le déduit (voir « Politique de stock »).
-
-## Le parcours d'une commande
-
-1. Le client commande. **Le serveur relit le catalogue et recalcule le prix** : le navigateur ne décide jamais du montant (`api/order.js`).
-1b. Deux e-mails partent aussitôt : un pour l'équipe (boîte interne) et une confirmation pour le client, si son adresse est renseignée. Voir « E-mails transactionnels ».
-1c. La commande reçoit un numéro lisible au format `CMD-2026-0001`, séquentiel par année comme les factures (`lib/ordernumber.js`). Les anciennes références horodatées (`CMD-1789…`) restent inchangées. Si Airtable ne répond pas au moment de numéroter, la commande est quand même enregistrée, avec une référence horodatée.
-2. Le personnel prépare : validation article par article dans Magazijn, ou raccourci **Snel voorbereiden** depuis la fiche commande.
-3. Départ en livraison. La commande est alors **verrouillée** : lignes et total ne sont plus modifiables (verrou basé sur le statut, pas sur le stock).
-4. Réception confirmée dans **Leveringen** — le nom du réceptionnaire est obligatoire.
-5. Le numéro de facture est attribué une seule fois, au format `FA-2026-0001`.
-5b. La facture porte la communication structurée belge (**Mededeling**), calculée depuis ce numéro : `FA-2026-0001` → `+++202/6000/00192+++`. Rien n'est stocké : même numéro, même communication (`documents.js`, `structuredRef`).
-6. Une commande **facturée et payée** est **afgehandeld** : elle quitte le tableau de Bestellingen et de Magazijn. C'est un filtre d'affichage — rien n'est supprimé ni archivé dans Airtable : elle reste dans Documenten et sur sa fiche, et revient via le filtre **Afgehandeld: Tonen** (Bestellingen, gardé dans l'URL) ou le bouton **Toon afgehandelde** (Magazijn, caché à chaque chargement). Facturée mais impayée, elle reste visible : c'est de l'argent à récupérer, et c'est exactement ce que compte **Te betalen**.
-
-Le total est recalculé côté serveur à chaque modification de lignes (`api/updateorder.js`), jamais accepté tel quel depuis le navigateur.
-
-Les produits au kilo acceptent les décimales (`0,5 kg`). Les autres unités restent entières. L'unité Airtable `caisse` s'affiche **kassa** — jamais le mot français à l'écran (`staff-i18n.js`).
-
-## Politique de stock
-
-Le stock Airtable n'est pas fiable tant qu'un inventaire réel n'a pas été fait. En conséquence : **aucune transition ne déduit le stock** (`skipStock`), et Voorraad est retiré du menu. Une seule règle, partout — c'est volontaire, pas un oubli.
-
-Pour réactiver : compter physiquement, remplir la table `Stock`, retirer `skipStock` de `entrepot.html` et `order.html`, remettre Voorraad dans `staff-nav.js`.
-
-## Administration (`/beheer.html`)
-
-Tout se règle ici, sans passer par Airtable :
-
-- **Overzicht** — compteurs et alertes actionnables
-- **Aanvragen** — demandes du site public ; « Klant aanmaken » pré-remplit et clôture la demande
-- **Klanten** — création, édition, identifiants (affichés une seule fois, bouton copier), et **prix négociés du client directement dans sa fiche** (vide = prix de base ; un résultat par produit si un enregistrement échoue)
-- **Producten** — catalogue, prix de base, unité, catégorie, retrait
-- **Prijzen** — prix négociés par client
-- **Bedrijfsgegevens** — identité, IBAN/BIC, **taux de TVA**, conditions de paiement et de livraison,
-  et **Bestelmeldingen** : la boîte interne qui reçoit chaque nouvelle commande
-- **Toegang** — qui a accès à quoi, et **changement des codes** admin et personnel
-
-## Codes d'accès
-
-Les codes se changent depuis **Beheer → Toegang**, sans passer par Vercel ni redéployer.
-Ils sont stockés **hachés** (scrypt) dans Airtable : ni le code ni sa valeur ne sont
-lisibles nulle part, pas même dans la base.
-
-Dès qu'un code est enregistré pour un rôle, il **remplace** celui de l'environnement —
-sinon changer un code ne servirait à rien, l'ancien continuerait d'ouvrir la porte.
-
-**Même code pour les deux rôles** (au démarrage, ou codes enregistrés identiques) : le serveur
-ne peut pas savoir qui le tape. Le rôle suit alors la **page de connexion** — Beheer, Invoeren
-ou Voorraad ouvrent une session beheerder, toute autre page une session personnel (jamais
-beheerder par défaut). Un membre du personnel qui se connecte depuis Bestellingen ne voit donc
-pas Beheer. Le beheerder, lui, se connecte depuis `/beheer.html` : les écrans de connexion du
-personnel portent le lien « Beheerder? Ga naar Beheer » — un simple lien, Beheer demande de toute
-façon le code beheerder ; une fois connecté en beheerder, le menu affiche Beheer. Pour une vraie séparation,
-choisissez deux codes différents dans Beheer → Toegang.
-
-**Si un code est perdu** : videz le champ `Beheerderscode hash` ou `Personeelscode hash`
-dans Airtable ; le code de la variable Vercel redevient valable.
-
-`STAFF_CODE` et `ADMIN_CODE` doivent **toujours rester définis** dans Vercel : ils
-sèment le secret HMAC des cookies de session. Sans eux, ce secret serait devinable.
-
-Le taux de TVA et les mentions légales des documents viennent de ces réglages : rien n'est codé en dur dans `documents.js`.
-
-## E-mails transactionnels
-
-À chaque commande (portail client ou saisie manuelle), deux messages distincts partent via **Resend** :
-
-| Destinataire | Contenu |
-|---|---|
-| **Équipe** (`Configuratie."Bestellingen e-mail"`) | Client complet, adresse, téléphone, source, lignes, total, **note du client**, lien direct vers la commande. Répondre au message écrit au client. |
-| **Client** (`Clients.Email`) | Confirmation propre : référence, date souhaitée, lignes, total, mention explicite « geen factuur ». Ne contient ni note interne, ni boîte ops, ni lien staff. |
-
-Deux envois séparés et non un seul à deux destinataires : les contenus diffèrent, la boîte interne ne doit jamais fuir vers le client, et Resend rejette toute la requête si un destinataire est malformé — une adresse client erronée ne doit pas supprimer la copie de l'équipe.
-
-Les unités sont traduites comme dans l'interface (`caisse` → **kassa**), garanti par un test de parité avec `staff-i18n.js`.
-
-**Mise en service** : créer un compte Resend, y vérifier le domaine (DNS SPF/DKIM) — sans domaine vérifié, `onboarding@resend.dev` ne délivre qu'au propriétaire du compte —, poser `RESEND_API_KEY` et `MAIL_FROM`, redéployer, puis renseigner la boîte interne dans Beheer et l'adresse e-mail de chaque client.
-
-**Sans `RESEND_API_KEY`, rien n'est envoyé et aucun appel réseau n'est tenté** : les commandes fonctionnent exactement comme avant. C'est délibéré.
-
-## Variables d'environnement (Vercel)
-
-```text
-AIRTABLE_TOKEN=...
-ADMIN_CODE=...
-STAFF_CODE=...
-RESEND_API_KEY=...        # optionnel — sans lui, aucun e-mail n'est envoyé
-MAIL_FROM=Famo Trading <bestellingen@famotrading.be>
-PORTAL_URL=https://famo-portail.vercel.app   # optionnel, déduit sinon
+```
+api/            fonctions serverless (inchangées depuis la v1, + api/klantdoc.js pour les documents client)
+lib/            règles métier (prix négociés, numérotation, auth, mail)
+assets/ui.css   une seule feuille de style (jetons, composants, responsive, print)
+assets/ui.js    couche partagée : K.api, K.staff, K.klant, K.c (composants), K.shell (navigation), K.toast/confirm/panel
+assets/pages/   un script par page (klant.js, bestellingen.js, order.js, entrepot.js, leveringen.js, invoer.js, documenten.js, beheer.js, stock.js, start.js, login.js, aanvraag.js, staff-common.js)
+documents.js    génération leveringsbon / factuur / creditnota (inchangé)
+staff-doc-preview.js  aperçu A4, impression, PDF (inchangé)
+scripts/dev.js  serveur local avec Airtable et Resend nabootsés (zéro quota)
+scripts/check.js garde-fous (syntaxe, secrets, liens, NL, tests)
 ```
 
-Sans `ADMIN_CODE` ni `STAFF_CODE`, le login est **refusé** (fail-closed, aucun code de secours). `ADMIN_CODE` donne l'accès complet ; `STAFF_CODE` limite au travail quotidien. Les deux peuvent être identiques au démarrage.
+## Développer sans toucher à la vraie base
 
-Après modification d'une variable : **Redeploy**.
+```bash
+node scripts/dev.js
+```
 
-## Contrôles avant publication
+Ouvre http://localhost:4200. Codes : personeel `team-dev-code`, beheer `beheer-dev-code`, klant `aloha` / `welkom123`. Les données vivent dans `.dev-data/airtable.json` ; `FAMO_RESEED=1 node scripts/dev.js` repart des données de démo. Les fonctions `api/*.js` tournent telles quelles : seul `fetch` vers `api.airtable.com` et `api.resend.com` est redirigé vers les serveurs locaux.
+
+Avant chaque push :
 
 ```bash
 node scripts/check.js
 ```
 
-Vérifie la syntaxe, les fonctions appelées depuis le HTML, l'échappement XSS, la navigation, et les règles métier critiques : prix serveur, verrou après départ, réceptionnaire obligatoire, numéro de facture unique, séparation des rôles. GitHub Actions rejoue le même contrôle à chaque push sur `main`.
+## Parcours d'une commande
 
-## Limites connues
+1. Le client commande (`/api/order`) — le serveur recalcule les prix.
+2. Personnel : **valider article par article** puis Klaarzetten (`Prête`).
+3. **Vertrekt** (`Sortie en livraison`) — la commande est verrouillée.
+4. **Ontvangst bevestigen** (nom du réceptionnaire obligatoire) → `Facturée`, numéro `FA-AAAA-0001`, facture disponible pour le personnel et le client.
+5. Betaald / openstaand se gère séparément (Documenten ou fiche).
 
-- Les mots de passe clients sont stockés en clair dans Airtable et transitent à chaque appel. À remplacer par des hachages et une vraie session serveur.
-- Un seul code par rôle : pas d'identité individuelle ni de révocation ciblée (on sait qu'une action vient du personnel, pas de qui).
-- Seule la **confirmation de commande** part par e-mail. Les identifiants clients et les documents
-  (bon de livraison, facture) se transmettent toujours à la main.
-- L'envoi est **synchrone** : il ajoute ~0,5 s à la réponse (plafonné à 4 s). Vercel ne garantit pas
-  l'exécution après l'envoi de la réponse, donc on ne peut pas le différer sans dépendance.
-- Un échec d'envoi n'annule jamais une commande : il est signalé dans la réponse et dans les logs
-  Vercel (`[mail] …`), nulle part ailleurs.
-- Les factures sont des **documents internes**. L'émission légale B2B belge (Peppol) doit passer par le prestataire comptable.
-- La preuve de livraison accepte un lien HTTPS ; aucun fichier n'est stocké.
-- La numérotation des factures et des commandes est séquentielle mais pas atomique : deux facturations, ou deux commandes, créées au même instant pourraient recevoir le même numéro.
+## Variables d'environnement Vercel
+
+`AIRTABLE_TOKEN`, `ADMIN_CODE`, `STAFF_CODE` (obligatoires), `RESEND_API_KEY` + `MAIL_FROM` (e-mails), `PORTAL_URL` (liens dans les e-mails). Voir `VERCEL_CHECKLIST.md`.
+
+## Pas dans cette version (v2 proposée)
+
+Optimisation de tournée, carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, upload de photos de preuve, déduction automatique du stock (désactivée tant que la table n'est pas fiable).

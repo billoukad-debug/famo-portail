@@ -1,40 +1,23 @@
 # Avant de pousser du code
 
-Deux bugs ont deja casse la production :
-- une parenthese manquante dans `entrepot.html` (tout le JS du magazijn etait mort)
-- une variable hors portee dans `api/order.js` (plus aucune commande client possible)
-
-Les deux auraient ete attrapes en 10 secondes par la commande ci-dessous.
-
-## La commande a lancer avant chaque push
-
 ```bash
-node scripts/check.js && npx eslint api/
+node scripts/check.js
 ```
 
-Si ca affiche « Tout est bon », tu peux pousser.
+Vert = déployable. Le même contrôle tourne sur GitHub à chaque push (onglet Actions).
 
-## Ce qui est verifie
+## Ce qui est vérifié
+- Syntaxe de tout le JavaScript et des scripts inline.
+- `api/` : aucun secret, aucun code de secours ; `lib/staffauth.js` reste fail-closed.
+- Les e-mails lient toujours `/order.html?id=` ; tout lien interne pointe vers une page existante.
+- Interface : dialogues maison (`K.confirm`, `K.prompt`), jamais `alert()` ; aucun code personnel en storage ni en URL.
+- Néerlandais : `caisse` n'est jamais affiché tel quel (→ `kassa` via `K.unit`).
+- Chaque page charge `assets/ui.css` + `assets/ui.js` et a un meta viewport.
+- Tests unitaires `test/*.test.js`.
 
-| Controle | Attrape |
-|---|---|
-| `scripts/check.js` | Erreurs de syntaxe dans `api/*.js` et dans les `<script>` des pages HTML |
-| `scripts/check.js` | Fonctions appelees dans un `onclick=` mais jamais definies |
-| `eslint api/` | Variables non definies, code inatteignable, cles dupliquees |
-
-Le meme controle tourne automatiquement sur GitHub a chaque push.
-Si l'onglet **Actions** affiche une croix rouge, le code est casse : corrige avant de continuer.
-
-## Ce qui n'est PAS verifie
-
-Ces controles ne testent pas le comportement. Ils disent que le code s'execute,
-pas qu'il fait la bonne chose. **Charge la page une fois dans le navigateur
-avant de pousser** — c'est ce qui manquait les deux fois.
-
-## Zones sensibles
-
-- **Les prix ne viennent jamais du navigateur.** Le serveur les recalcule depuis
-  Airtable a chaque commande. Ne jamais faire confiance a un total envoye par le client.
-- **Le stock ne se deduit qu'une fois**, au passage en « Sortie en livraison »,
-  protege par le champ `Stock afgeboekt`. Ne pas contourner ce verrou.
-- **Le numero de facture est attribue une seule fois** et ne doit jamais etre reattribue.
+## Règles de la maison
+- Une seule feuille de style, un seul module partagé : pas de CSS ni de helpers par page.
+- Tout texte visible en néerlandais ; les valeurs Airtable restent en français (`Reçue`, `caisse`) et se traduisent à l'affichage.
+- Cibles tactiles ≥ 44 px. Le personnel travaille avec des gants sur une tablette.
+- Une action principale par écran ; les détails à la demande (panneau latéral).
+- Ne jamais modifier `api/` ou `lib/` pour un besoin d'affichage : le front s'adapte à l'API, pas l'inverse.

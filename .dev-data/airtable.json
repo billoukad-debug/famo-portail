@@ -294,13 +294,20 @@
     "Référence": "CMD-1789434863995",
     "Date": "2026-09-15",
     "Lignes (produits / quantités)": "VANNAMEI GARNALEN 26-30 × 2 pièce [€10.00]\nVANNAMEI GARNALEN GEPELD 16/20 × 1 pièce [€12.90]",
-    "Statut": "Reçue",
-    "Statut paiement": "En attente",
+    "Statut": "Facturée",
+    "Statut paiement": "Payé",
     "Total": 32.9,
     "Client": [
      "recrbkXmnxhcYFd5N"
     ],
-    "Date livraison souhaitée": "2026-09-16"
+    "Date livraison souhaitée": "2026-09-16",
+    "Préparation validée": true,
+    "Préparée le": "2026-09-15T02:08:53.465Z",
+    "Livraison confirmée": true,
+    "Réceptionné par": "Yuki",
+    "Livrée le": "2026-09-15T02:08:53.492Z",
+    "Factuurnummer": "FA-2026-0003",
+    "Facturée le": "2026-09-15T02:08:53.520Z"
    }
   },
   {
