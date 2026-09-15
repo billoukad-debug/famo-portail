@@ -5,6 +5,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const childProcess = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const errors = [];
 const ok = (msg) => console.log("\x1b[32m✓\x1b[0m " + msg);
@@ -51,6 +52,10 @@ ok("Pages : couche partagée + viewport");
 
 // 7. Tests unitaires (Node --test) s'il y en a.
 if (fs.existsSync(path.join(ROOT, "test"))) { const r = require("child_process").spawnSync(process.execPath, ["--test", ...fs.readdirSync(path.join(ROOT, "test")).filter(f => f.endsWith(".test.js")).map(f => "test/" + f)], { cwd: ROOT, stdio: "inherit" }); if (r.status !== 0) fail("node --test a échoué"); else ok("Tests unitaires"); }
+
+// 8. Scénarios métier hérités de la v1, adaptés aux contrats frontend v2.
+const workflow = childProcess.spawnSync(process.execPath, [path.join(__dirname, "workflow-check.js")], { cwd: ROOT, stdio: "inherit" });
+if (workflow.status !== 0) fail("Scénarios métier critiques"); else ok("Scénarios métier critiques");
 
 if (errors.length) { console.log("\n\x1b[31m" + errors.length + " problème(s).\x1b[0m"); process.exit(1); }
 console.log("\n\x1b[32mTout est bon.\x1b[0m");
