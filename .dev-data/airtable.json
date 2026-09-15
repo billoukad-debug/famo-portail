@@ -1,0 +1,537 @@
+{
+ "Clients": [
+  {
+   "id": "recrbkXmnxhcYFd5N",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Nom": "Aloha Poke Bowls",
+    "Email": "keuken@alohapoke.example",
+    "Téléphone": "+32 489 33 99 96",
+    "Lieu de livraison": "Jezusstraat 32\n2000 Antwerpen",
+    "Gebruikersnaam": "aloha",
+    "Wachtwoord": "welkom123",
+    "BTW-nummer": "BE 0123.456.789",
+    "Klantnummer": "K-001",
+    "Infos générales": "Levering via de achterdeur, bellen bij aankomst.",
+    "Articles habituels": "Zalm, vannamei 26-30, tonijn"
+   }
+  },
+  {
+   "id": "recyXmb33CZXP6dAw",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Nom": "Brasserie De Kaai",
+    "Email": "chef@dekaai.example",
+    "Téléphone": "+32 3 123 45 67",
+    "Lieu de livraison": "Waalsekaai 10\n2000 Antwerpen",
+    "Gebruikersnaam": "dekaai",
+    "Wachtwoord": "kaai2026!",
+    "BTW-nummer": "BE 0987.654.321",
+    "Klantnummer": "K-002"
+   }
+  },
+  {
+   "id": "recZAetFevygI6ScS",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Nom": "Vishandel Nora",
+    "Téléphone": "+32 3 765 43 21",
+    "Lieu de livraison": "Turnhoutsebaan 200\n2140 Borgerhout",
+    "Gebruikersnaam": "nora",
+    "Wachtwoord": "nora-vis-1",
+    "Klantnummer": "K-003"
+   }
+  }
+ ],
+ "Catalogue": [
+  {
+   "id": "recs3B8XMFimkSk8G",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Saumon frais",
+    "Prix de base": 18.5,
+    "Unité": "kg",
+    "Catégorie": "Poisson",
+    "Actif": true
+   }
+  },
+  {
+   "id": "rech4gExxGyM4eUAZ",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Cabillaud",
+    "Prix de base": 22,
+    "Unité": "kg",
+    "Catégorie": "Poisson",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recXPSltPn7ImEMFj",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Zeebaars heel 400-600",
+    "Prix de base": 14.9,
+    "Unité": "kg",
+    "Catégorie": "Poisson",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recDpznzl9lBaOqva",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Moules (caisse)",
+    "Prix de base": 28,
+    "Unité": "caisse",
+    "Catégorie": "Coquillages",
+    "Actif": true
+   }
+  },
+  {
+   "id": "rec0XVatjeC0PDa2Y",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Crevettes grises",
+    "Prix de base": 35,
+    "Unité": "kg",
+    "Catégorie": "Crustacés",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recCFNSVN2SRSj7rg",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN 26-30",
+    "Prix de base": 12.9,
+    "Unité": "pièce",
+    "Catégorie": "Algemeen",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recVg7GAhKtzlXaQv",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN 16-20 EP",
+    "Prix de base": 13.9,
+    "Unité": "pièce",
+    "Catégorie": "Algemeen",
+    "Actif": true
+   }
+  },
+  {
+   "id": "rec2AVPmzAwJ5SPQz",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN GEPELD 16/20",
+    "Prix de base": 12.9,
+    "Unité": "pièce",
+    "Catégorie": "Algemeen",
+    "Actif": true,
+    "Kaliber": "16/20"
+   }
+  },
+  {
+   "id": "rectYZkhUCOjTWHyR",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN GEPELD 26/30",
+    "Prix de base": 11,
+    "Unité": "pièce",
+    "Catégorie": "Algemeen",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recb04wvGXOlXe75F",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Scampi",
+    "Prix de base": 15,
+    "Unité": "caisse",
+    "Catégorie": "Algemeen",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recBmIgU1re6ngNPi",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Oesters Zeeuwse creuse nr. 3",
+    "Prix de base": 0.85,
+    "Unité": "pièce",
+    "Catégorie": "Coquillages",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recOwXTseCE6z8Lds",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Tonijn sashimi blok",
+    "Prix de base": 29.9,
+    "Unité": "kg",
+    "Catégorie": "Poisson",
+    "Actif": true
+   }
+  },
+  {
+   "id": "recfH87aJ2PFFfRZJ",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Vis (oud artikel)",
+    "Prix de base": 3,
+    "Unité": "caisse",
+    "Catégorie": "Algemeen"
+   }
+  }
+ ],
+ "Commandes": [
+  {
+   "id": "recvu053HiSn51wV2",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Référence": "B-260828-ZQ4R",
+    "Date": "2026-09-10",
+    "Lignes (produits / quantités)": "Saumon frais × 3 kg [€16.00]\nVANNAMEI GARNALEN 26-30 × 4 pièce [€10.00] (gepeld graag)",
+    "Statut": "Facturée",
+    "Statut paiement": "Payé",
+    "Total": 88,
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Date livraison souhaitée": "2026-09-11",
+    "Factuurnummer": "FA-2026-0001",
+    "Préparation validée": true,
+    "Préparée le": "2026-09-11T01:04:39.852Z",
+    "Livrée le": "2026-09-11T02:04:39.852Z",
+    "Facturée le": "2026-09-11T02:04:39.852Z",
+    "Réceptionné par": "Kenji",
+    "Livraison confirmée": true
+   }
+  },
+  {
+   "id": "recv63AzzRQ7yvmpy",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Référence": "B-260830-M7PX",
+    "Date": "2026-09-12",
+    "Lignes (produits / quantités)": "Tonijn sashimi blok × 2 kg [€27.50]\nSaumon frais × 2 kg [€16.00]",
+    "Statut": "Facturée",
+    "Statut paiement": "En attente",
+    "Total": 87,
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Date livraison souhaitée": "2026-09-13",
+    "Factuurnummer": "FA-2026-0002",
+    "Préparation validée": true,
+    "Préparée le": "2026-09-13T01:04:39.852Z",
+    "Livrée le": "2026-09-13T02:04:39.852Z",
+    "Facturée le": "2026-09-13T02:04:39.852Z",
+    "Réceptionné par": "Kenji",
+    "Livraison confirmée": true
+   }
+  },
+  {
+   "id": "recFmfsQr61jZVEc6",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Référence": "CMD-1788122390015",
+    "Date": "2026-09-13",
+    "Lignes (produits / quantités)": "Moules (caisse) × 3 caisse [€26.00]\nCrevettes grises × 1.5 kg [€35.00]",
+    "Statut": "Prête",
+    "Statut paiement": "En attente",
+    "Total": 130.5,
+    "Notes": "[Telefoon] Graag vóór 9u",
+    "Client": [
+     "recyXmb33CZXP6dAw"
+    ],
+    "Date livraison souhaitée": "2026-09-15",
+    "Préparation validée": true,
+    "Préparée le": "2026-09-15T01:04:39.852Z"
+   }
+  },
+  {
+   "id": "recIfRAccoMQXuGqx",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Référence": "B-260901-K2WD",
+    "Date": "2026-09-14",
+    "Lignes (produits / quantités)": "Saumon frais × 4 kg [€16.00]\nVANNAMEI GARNALEN 26-30 × 6 pièce [€10.00]\nOesters Zeeuwse creuse nr. 3 × 48 pièce [€0.85]",
+    "Statut": "Reçue",
+    "Statut paiement": "En attente",
+    "Total": 164.8,
+    "Notes": "Zalm graag in filets.",
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Date livraison souhaitée": "2026-09-15"
+   }
+  },
+  {
+   "id": "recs0BWKLQSyJ2Lt8",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Référence": "B-260901-H8TN",
+    "Date": "2026-09-14",
+    "Lignes (produits / quantités)": "Cabillaud × 5 kg [€22.00]\nZeebaars heel 400-600 × 6 kg [€14.90]",
+    "Statut": "Reçue",
+    "Statut paiement": "En attente",
+    "Total": 199.4,
+    "Client": [
+     "recZAetFevygI6ScS"
+    ],
+    "Date livraison souhaitée": "2026-09-16"
+   }
+  },
+  {
+   "id": "reccEBCK7hGuMGPJO",
+   "createdTime": "2026-09-15T01:14:24.009Z",
+   "fields": {
+    "Référence": "CMD-1789434863995",
+    "Date": "2026-09-15",
+    "Lignes (produits / quantités)": "VANNAMEI GARNALEN 26-30 × 2 pièce [€10.00]\nVANNAMEI GARNALEN GEPELD 16/20 × 1 pièce [€12.90]",
+    "Statut": "Reçue",
+    "Statut paiement": "En attente",
+    "Total": 32.9,
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Date livraison souhaitée": "2026-09-16"
+   }
+  },
+  {
+   "id": "recAicajvFYXyU564",
+   "createdTime": "2026-09-15T01:53:21.974Z",
+   "fields": {
+    "Référence": "CMD-1789437201969",
+    "Date": "2026-09-15",
+    "Lignes (produits / quantités)": "Tonijn sashimi blok × 2 kg [€27.50]\nSaumon frais × 2 kg [€16.00]",
+    "Statut": "Reçue",
+    "Statut paiement": "En attente",
+    "Total": 87,
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Date livraison souhaitée": "2026-09-16"
+   }
+  }
+ ],
+ "Stock": [
+  {
+   "id": "recWDL59yAFk3T4XT",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Saumon frais",
+    "Quantité disponible": 12,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "recGJeU88HOvkSSEI",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Cabillaud",
+    "Quantité disponible": 8,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "recMSwZlR5pxIgtig",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Zeebaars heel 400-600",
+    "Quantité disponible": 6,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "recd5DyZYuWa2NykZ",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Moules (caisse)",
+    "Quantité disponible": 3,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "rec3U0UXkfBziVpIw",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Crevettes grises",
+    "Quantité disponible": 1,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "rec77u14D6eiLh8kk",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN 26-30",
+    "Quantité disponible": 20,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "rec6lmNsW3Sqt9pfG",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN 16-20 EP",
+    "Quantité disponible": 14,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "recFqgqWl309Cgzpy",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN GEPELD 16/20",
+    "Quantité disponible": 9,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "recDGpr7J3qALhtj0",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "VANNAMEI GARNALEN GEPELD 26/30",
+    "Quantité disponible": 7,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "rec44QUXJ0fWgJAbt",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Scampi",
+    "Quantité disponible": 5,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "recpCxokyfiIu3qhE",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Oesters Zeeuwse creuse nr. 3",
+    "Quantité disponible": 200,
+    "Seuil bas": 4
+   }
+  },
+  {
+   "id": "rec2Z4oLIg3L7DugX",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Produit": "Tonijn sashimi blok",
+    "Quantité disponible": 4,
+    "Seuil bas": 4
+   }
+  }
+ ],
+ "Mouvements de stock": [],
+ "Prix négociés": [
+  {
+   "id": "recLOp6rlGPNCFJiK",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Produit": [
+     "recs3B8XMFimkSk8G"
+    ],
+    "Prix négocié": 16
+   }
+  },
+  {
+   "id": "recDhFWsovRZftm01",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Produit": [
+     "recCFNSVN2SRSj7rg"
+    ],
+    "Prix négocié": 10
+   }
+  },
+  {
+   "id": "recguO2JMiTx1rDU9",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Client": [
+     "recrbkXmnxhcYFd5N"
+    ],
+    "Produit": [
+     "recOwXTseCE6z8Lds"
+    ],
+    "Prix négocié": 27.5
+   }
+  },
+  {
+   "id": "recrUTI5VZc3KfLHn",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Client": [
+     "recyXmb33CZXP6dAw"
+    ],
+    "Produit": [
+     "recDpznzl9lBaOqva"
+    ],
+    "Prix négocié": 26
+   }
+  }
+ ],
+ "Configuratie": [
+  {
+   "id": "rec1qjzhibgWfi43X",
+   "createdTime": "2026-09-15T01:04:39.843Z",
+   "fields": {
+    "Bedrijfsnaam": "Famo Trading BV",
+    "Adres": "Jezusstraat 34",
+    "Postcode en plaats": "2000 Antwerpen, België",
+    "BTW-nummer": "BE 0788.705.713",
+    "Telefoon": "03 000 00 00",
+    "E-mail": "info@famotrading.be",
+    "IBAN": "BE68539007547034",
+    "BIC": "GKCCBEBB",
+    "BTW-tarief": 6,
+    "Betalingsvoorwaarden": "Betaalbaar binnen 14 dagen",
+    "Leveringsvoorwaarden": "Controleer de goederen bij ontvangst. Klachten over verse producten melden wij graag dezelfde dag.",
+    "Bestellingen e-mail": "bestellingen@famotrading.be",
+    "Besteldeadline": "22:00",
+    "Leverdagen": "ma,di,wo,do,vr,za"
+   }
+  }
+ ],
+ "Aanvragen": [
+  {
+   "id": "rech5X9EE9RSJbf4g",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Bedrijfsnaam": "Sushi Sato",
+    "Contactpersoon": "Yuki Sato",
+    "Email": "yuki@sushisato.example",
+    "Telefoon": "+32 470 11 22 33",
+    "Adres": "Meir 12, 2000 Antwerpen",
+    "Notities": "Wij zoeken een vaste leverancier voor sashimi-kwaliteit.",
+    "Status": "Nieuw"
+   }
+  },
+  {
+   "id": "recJncQGKt137nRc8",
+   "createdTime": "2026-09-15T01:04:39.852Z",
+   "fields": {
+    "Bedrijfsnaam": "AYBI group",
+    "Contactpersoon": "Bilal Kaddouri",
+    "Email": "aybi@example.com",
+    "Telefoon": "+32 489 33 99 96",
+    "Adres": "Rue Constant Deraedt 10",
+    "Status": "Verwerkt"
+   }
+  }
+ ]
+}
