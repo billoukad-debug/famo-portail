@@ -1,5 +1,5 @@
 (async function () {
-  if (!(await K.requireStaff({ admin: true }))) return;
+  if (!(await K.requireStaff())) return;
   const page = K.shell({ portal: "beheer" });
   let items = [], moves = [], cfg = null, hist = { product: "", days: 30, limit: 100 };
   // Verwijderen blijft voor de beheerder (server : 403 voor personeel) ; de knop volgt de rol van de sessie.

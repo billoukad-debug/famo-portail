@@ -1,5 +1,5 @@
 (async function () {
-  if (!(await K.requireStaff({ admin: true }))) return;
+  if (!(await K.requireStaff())) return;
   const page = K.shell({});
   const DAY_KEYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
   // Leverregels : uit Configuratie (via /api/config, daarna /api/staff?client=). Zelfde controle als lib/levering.js

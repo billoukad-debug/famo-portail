@@ -25,7 +25,7 @@
     // start
     "Verse vis en zeevruchten · Antwerpen": "Poissons et fruits de mer frais · Anvers", "Toegang aanvragen": "Demander un accès",
     "Verse vis bestellen,<br>zo simpel als een berichtje.": "Commander du poisson frais,<br>aussi simple qu'un message.",
-    "Bestel vandaag vóór 22:00 en wij leveren morgen in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug in het portaal.": "Commandez aujourd'hui avant 22 h, nous livrons demain à Anvers et dans les environs. Vous voyez vos prix convenus, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures dans le portail.",
+    "Bestel vandaag vóór {t} en wij leveren morgen in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug in het portaal.": "Commandez aujourd'hui avant {t}, nous livrons demain à Anvers et dans les environs. Vous voyez vos prix convenus, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures dans le portail.",
     "Klantportaal": "Portail client", "Aanmelden met uw gebruikersnaam": "Connectez-vous avec votre identifiant", "U bent afgemeld.": "Vous êtes déconnecté.",
     "Gebruikersnaam": "Identifiant", "Wachtwoord": "Mot de passe", "Tonen": "Afficher", "Verbergen": "Masquer", "Aanmelden": "Se connecter", "Aanmelden…": "Connexion…",
     "Wachtwoord vergeten?": "Mot de passe oublié ?", "Nog geen klant? Toegang aanvragen": "Pas encore client ? Demander un accès", "Werkt u bij Famo?": "Vous travaillez chez Famo ?",
@@ -90,8 +90,47 @@
     "Wachtwoord wijzigen mislukt. Probeer het later opnieuw.": "La modification du mot de passe a échoué. Réessayez plus tard.", "Bedrijfsnaam, contactpersoon, e-mail en telefoon zijn verplicht": "Nom de l'entreprise, personne de contact, e-mail et téléphone sont obligatoires",
     "Ongeldig e-mailadres": "Adresse e-mail invalide", "Ongeldige leverdag": "Jour de livraison invalide", "De leverdag ligt in het verleden": "Le jour de livraison est passé", "Kies een leverdag binnen de komende 60 dagen": "Choisissez un jour de livraison dans les 60 prochains jours",
     "Op zondag leveren we niet": "Nous ne livrons pas le dimanche", "Geen artikelen": "Aucun article", "Klant en artikelen vereist": "Client et articles requis", "Ongeldig artikel of aantal": "Article ou quantité invalide",
-    "Alleen producten per kg mogen een decimale hoeveelheid hebben": "Seuls les produits au kg acceptent une quantité décimale", "Geen verbinding. Controleer het netwerk en probeer opnieuw.": "Pas de connexion. Vérifiez le réseau et réessayez."
+    "Alleen producten per kg mogen een decimale hoeveelheid hebben": "Seuls les produits au kg acceptent une quantité décimale", "Geen verbinding. Controleer het netwerk en probeer opnieuw.": "Pas de connexion. Vérifiez le réseau et réessayez.",
+    "Op die dag leveren we niet": "Nous ne livrons pas ce jour-là", "Op die dag zijn we gesloten": "Nous sommes fermés ce jour-là", "Ongeldige hoeveelheid": "Quantité invalide", "Artikel is niet beschikbaar": "Article indisponible",
+    "Verzoek mislukt": "La demande a échoué", "Niets gewijzigd": "Rien n'a été modifié", "Opslaan mislukt": "Enregistrement impossible", "Annuleren mislukt": "Annulation impossible", "Onbekende actie": "Action inconnue",
+    "Vul uw gebruikersnaam en e-mailadres in.": "Indiquez votre identifiant et votre adresse e-mail.", "Te veel aanvragen. Probeer over een uur opnieuw of bel ons.": "Trop de demandes. Réessayez dans une heure ou appelez-nous.",
+    "Wachtwoord vernieuwen mislukt. Bel ons.": "Le renouvellement du mot de passe a échoué. Appelez-nous.", "Aanvraag opslaan mislukt. Bel ons.": "L'enregistrement de la demande a échoué. Appelez-nous.",
+    "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons.": "L'envoi de la demande a échoué. Réessayez plus tard ou appelez-nous.",
+    "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord.": "Si les données sont correctes, vous recevrez dans quelques minutes un e-mail avec un nouveau mot de passe.",
+    // leveringsregels (uit Configuratie) — {t} = deadline, {n} = dagen, {d} = dagenlijst, {m}/{r} = bedragen
+    "Bestel vóór {t} voor levering morgen": "Commandez avant {t} pour une livraison demain", "bestel vóór {t} voor morgen": "commandez avant {t} pour demain", "Bestel vóór {t} voor levering morgen.": "Commandez avant {t} pour une livraison demain.",
+    "Levering op {d}. Vóór {t} besteld = morgen geleverd.": "Livraison le {d}. Commandé avant {t} = livré demain.", "Die dag is te vroeg: bestel vóór {t} voor levering morgen.": "Ce jour est trop tôt : commandez avant {t} pour une livraison demain.",
+    "Kies een leverdag binnen de komende {n} dagen": "Choisissez un jour de livraison dans les {n} prochains jours", "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór {t} voor levering morgen.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant {t} pour une livraison demain.",
+    "Minimumbestelling {m} excl. btw · nog {r} toe te voegen.": "Commande minimum {m} HTVA · encore {r} à ajouter.", "Minimumbestelling {m} excl. btw": "Commande minimum {m} HTVA",
+    "zo": "dim", "ma": "lun", "di": "mar", "wo": "mer", "do": "jeu", "vr": "ven", "za": "sam",
+    // beschikbaarheid
+    "Nog {n}": "Encore {n}", "Uitverkocht": "Épuisé", "Slechts {n} beschikbaar.": "Seulement {n} disponible(s).",
+    // bestelling detail
+    "Details": "Détails", "Artikelen": "Articles", "Verloop": "Suivi", "Klaar": "Préparée", "Geleverd": "Livrée", "Gefactureerd": "Facturée", "Geannuleerd": "Annulée", "Betaald": "Payée", "Reden": "Motif",
+    "Factuurnummer": "Numéro de facture", "Gefactureerd op": "Facturée le", "Geleverd op": "Livrée le", "Ontvangen door": "Réceptionné par", "Betaald op": "Payée le", "Uitzondering levering": "Exception de livraison",
+    "Creditnota": "Note de crédit", "Uw opmerking": "Votre remarque", "Besteld op": "Commandée le", "Gewenste leverdag": "Jour de livraison souhaité", "Sluiten": "Fermer",
+    "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
+    "Bestelling geannuleerd · artikelen in de winkelmand": "Commande annulée · articles dans le panier", "Geannuleerd door klant": "Annulée par le client",
+    // openstaande facturen
+    "Openstaande facturen": "Factures ouvertes", "Totaal openstaand": "Total à payer", "Mededeling": "Communication", "Kopiëren": "Copier", "Gekopieerd": "Copié", "Betaalgegevens": "Coordonnées de paiement",
+    "Kopiëren lukt niet op dit toestel.": "La copie n'est pas possible sur cet appareil.", "Geen openstaande facturen": "Aucune facture ouverte", "Alles is betaald. Dank u wel.": "Tout est payé. Merci.",
+    // favorieten synchronisatie
+    "Favorieten bewaren mislukt. Ze blijven op dit toestel.": "Enregistrement des favoris impossible. Ils restent sur cet appareil.",
+    // account
+    "Klantnummer": "Numéro de client", "Btw-nummer": "Numéro de TVA", "Contactgegevens": "Coordonnées", "E-mail voor bevestigingen en facturen": "E-mail pour les confirmations et factures", "Leveradres wijzigen: bel of mail Famo": "Changer l'adresse de livraison : appelez ou écrivez à Famo",
+    "Gegevens opgeslagen": "Données enregistrées", "Opslaan": "Enregistrer", "Opslaan…": "Enregistrement…", "Bevestigingen en facturen gaan naar dit adres.": "Les confirmations et factures sont envoyées à cette adresse.",
+    // sessie / mail
+    "Sessie verlopen, meld u opnieuw aan.": "Session expirée, reconnectez-vous.", "Geen bevestigingsmail: er is geen e-mailadres bij uw account. Voeg het toe via Account.": "Pas d'e-mail de confirmation : aucune adresse e-mail n'est liée à votre compte. Ajoutez-la via Compte.",
+    "Geen bevestigingsmail ontvangen? De bestelling is wel goed geregistreerd. Bel Famo bij twijfel.": "Pas d'e-mail de confirmation ? La commande est bien enregistrée. Appelez Famo en cas de doute.", "Een bevestiging is gemaild naar": "Une confirmation a été envoyée à",
+    // wachtwoord vergeten
+    "Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.": "Indiquez votre identifiant et l'adresse e-mail de votre établissement. S'ils correspondent, nous envoyons un nouveau mot de passe à cette adresse.",
+    "Nieuw wachtwoord aanvragen": "Demander un nouveau mot de passe", "E-mailadres van uw zaak": "Adresse e-mail de votre établissement", "E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.": "L'envoi d'e-mail n'est pas possible pour le moment. Appelez-nous ou écrivez-nous pour un nouveau mot de passe.",
+    "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe."
   };
+  // Servermeldingen met een getal erin : één patroon per melding, vertaald bij het tonen.
+  const FR_PAT = [[/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
+  // K.t met plaatshouders : K.tt("Nog {n}", {n: 3}).
+  K.tt = (s, vars) => Object.entries(vars || {}).reduce((out, [k, v]) => out.split("{" + k + "}").join(String(v)), K.t(s));
   K.langSwitch = () => '<div class="lang" role="group" aria-label="Taal / Langue">' + ["nl", "fr"].map(l => '<button type="button" data-lang="' + l + '"' + (K.lang === l ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l.toUpperCase() + '</button>').join("") + '</div>';
   const doc = global.document;
   if (doc && doc.documentElement) doc.documentElement.lang = K.lang;
@@ -168,26 +207,46 @@
 
   /* ---------- API ---------- */
   const ERR = { "Code invalide": "Ongeldige personeelscode", "POST only": "Alleen POST toegestaan" };
-  K.errText = m => { if (m && typeof m === "object") m = m.message || m.error || JSON.stringify(m); const raw = String(m || "").trim(); if (!raw) return K.t("Onbekende fout"); if (ERR[raw]) return K.t(ERR[raw]); const nl = raw.replace(/\bcaisse\b/gi, "kassa").replace(/\bpièce\b/gi, "stuk"); return K.lang === "fr" ? (K.FR[raw] || K.FR[nl] || nl) : nl; };
+  K.errText = m => { if (m && typeof m === "object") m = m.message || m.error || JSON.stringify(m); const raw = String(m || "").trim(); if (!raw) return K.t("Onbekende fout"); if (ERR[raw]) return K.t(ERR[raw]); const nl = raw.replace(/\bcaisse\b/gi, "kassa").replace(/\bpièce\b/gi, "stuk"); if (K.lang !== "fr") return nl; const pat = FR_PAT.find(([re]) => re.test(nl)); return K.FR[raw] || K.FR[nl] || (pat ? nl.replace(pat[0], pat[1]) : nl); };
+  // opts.retry : bij netwerkfout of 5xx één keer opnieuw proberen (na 800 ms) vóór de fout doorgaat.
   K.api = async function (url, opts) {
     const o = Object.assign({ credentials: "include" }, opts || {});
+    const retry = !!o.retry; delete o.retry;
     if (o.json !== undefined) { o.method = o.method || "POST"; o.headers = Object.assign({ "Content-Type": "application/json" }, o.headers || {}); o.body = JSON.stringify(o.json); delete o.json; }
-    let r;
-    try { r = await fetch(url, o); } catch (e) { const err = new Error(K.t("Geen verbinding. Controleer het netwerk en probeer opnieuw.")); err.network = true; throw err; }
-    const d = await r.json().catch(() => ({}));
-    if (r.status === 401 && !/\/api\/(catalogue|orders|order)$/.test(url)) {
-      document.dispatchEvent(new CustomEvent("famo:session-expired", { detail: { url } }));
+    const once = async () => {
+      let r;
+      try { r = await fetch(url, o); } catch (e) { const err = new Error(K.t("Geen verbinding. Controleer het netwerk en probeer opnieuw.")); err.network = true; throw err; }
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 401 && !/\/api\/(catalogue|orders|order|klantorder|klantdoc|klantwachtwoord)$/.test(url)) {
+        document.dispatchEvent(new CustomEvent("famo:session-expired", { detail: { url } }));
+      }
+      if (!r.ok) { const err = new Error(K.errText(d.error || "Verzoek mislukt")); err.status = r.status; err.payload = d; throw err; }
+      return d;
+    };
+    try { return await once(); }
+    catch (err) { if (retry && (err.network || err.status >= 500)) { await new Promise(res => setTimeout(res, 800)); return once(); } throw err; }
+  };
+  // Laadblok met « Opnieuw proberen » : voert fn uit ; bij een fout toont de container de melding
+  // en een link die fn opnieuw start. Retourneert wat fn retourneert (undefined bij een fout).
+  K.retryBox = async function (container, fn) {
+    try { return await fn(); }
+    catch (err) {
+      const el = typeof container === "string" ? document.getElementById(container) : container;
+      if (!el) throw err;
+      el.innerHTML = K.c.error(err.message || String(err), true);
+      const a = el.querySelector("[data-retry]"); if (a) a.onclick = e => { e.preventDefault(); K.retryBox(el, fn); };
+      return undefined;
     }
-    if (!r.ok) { const err = new Error(K.errText(d.error || "Verzoek mislukt")); err.status = r.status; err.payload = d; throw err; }
-    return d;
   };
 
   /* ---------- personeel / beheer sessie (cookie) ---------- */
   K.staff = {
-    role: null,
-    async login(code, want) { const d = await K.api("/api/session", { json: { code: String(code || ""), want: want === "admin" ? "admin" : "staff" } }); K.staff.role = d.role || null; return d; },
-    async check() { try { const d = await K.api("/api/session"); K.staff.role = d.role || null; return true; } catch (e) { K.staff.role = null; return false; } },
-    async logout() { try { await fetch("/api/session", { method: "DELETE", credentials: "include" }); } catch (e) { /* ignore */ } K.staff.role = null; },
+    role: null, name: "",
+    // « name » = voornaam van een persoonlijke PIN (Medewerkers) ; bij een gedeelde code geeft de server de rol terug (personeel/beheerder) : dan geen naam.
+    nameOf(d) { const n = String((d && d.name) || "").trim(); return /^(personeel|beheerder)$/i.test(n) ? "" : n; },
+    async login(code, want) { const d = await K.api("/api/session", { json: { code: String(code || ""), want: want === "admin" ? "admin" : "staff" } }); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); return d; },
+    async check() { try { const d = await K.api("/api/session"); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); return true; } catch (e) { K.staff.role = null; K.staff.name = ""; return false; } },
+    async logout() { try { await fetch("/api/session", { method: "DELETE", credentials: "include" }); } catch (e) { /* ignore */ } K.staff.role = null; K.staff.name = ""; },
     isAdmin() { return K.staff.role === "admin"; }
   };
   K.RETURN = "famoReturnTo";
@@ -276,7 +335,7 @@
     const o = opts || {};
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
     d.setAttribute("aria-labelledby", "kPromptTitle");
-    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kPromptTitle">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" aria-labelledby="kPromptTitle" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>Annuleren</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
+    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kPromptTitle">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" aria-labelledby="kPromptTitle" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Annuleren") + '</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
     const inp = d.querySelector("#kPrompt");
     const done = v => { d.remove(); resolve(v); };
     d.querySelector("[data-no]").onclick = () => done(null); d.querySelector("[data-yes]").onclick = () => done(inp.value); inp.addEventListener("keydown", e => { if (e.key === "Enter") done(inp.value); if (e.key === "Escape") done(null); });
@@ -286,7 +345,7 @@
     const o = opts || {};
     const s = document.createElement("div"); s.className = "scrim"; s.setAttribute("role", "dialog"); s.setAttribute("aria-modal", "true");
     s.setAttribute("aria-labelledby", "kPanelTitle");
-    s.innerHTML = '<div class="panel"' + (o.width ? ' style="width:min(' + o.width + ',100%)"' : "") + '><div class="panel-h"><div><h2 class="h2" id="kPanelTitle">' + K.esc(o.title || "") + '</h2>' + (o.sub ? '<p class="sub">' + K.esc(o.sub) + '</p>' : "") + '</div><button type="button" class="ibtn" data-close aria-label="Sluiten">' + K.icon("x") + '</button></div><div class="panel-b">' + (o.body || "") + '</div>' + (o.footer ? '<div class="panel-f">' + o.footer + '</div>' : "") + '</div>';
+    s.innerHTML = '<div class="panel"' + (o.width ? ' style="width:min(' + o.width + ',100%)"' : "") + '><div class="panel-h"><div><h2 class="h2" id="kPanelTitle">' + K.esc(o.title || "") + '</h2>' + (o.sub ? '<p class="sub">' + K.esc(o.sub) + '</p>' : "") + '</div><button type="button" class="ibtn" data-close aria-label="' + K.t("Sluiten") + '">' + K.icon("x") + '</button></div><div class="panel-b">' + (o.body || "") + '</div>' + (o.footer ? '<div class="panel-f">' + o.footer + '</div>' : "") + '</div>';
     const close = () => { s.remove(); document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (o.onClose) o.onClose(); };
     const key = e => { if (e.key === "Escape") close(); };
     s.querySelector("[data-close]").onclick = close; s.onclick = e => { if (e.target === s) close(); };
@@ -312,8 +371,10 @@
 
   /* ---------- personeel/beheer shell ---------- */
   const NAV_DAILY = [["bestellingen.html", "Bestellingen", "orders"], ["entrepot.html", "Magazijn", "box"], ["leveringen.html", "Leveringen", "truck"]];
+  // Invoeren en Voorraad staan open voor het personeel (bestelling ingeven aan de telefoon, voorraad
+  // tellen) ; enkel verwijderen in Voorraad en Beheer blijven voor de beheerder (server : adminOk).
   const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];
-  const NAV_STAFF_MORE = [["documenten.html", "Documenten", "doc"]];
+  const NAV_STAFF_MORE = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"]];
   K.shell = function (opts) {
     const o = opts || {};
     K.lang = "nl"; // personeel en beheer werken altijd in het Nederlands, ook op een toestel dat het klantportaal in het Frans toont
@@ -325,14 +386,17 @@
     document.body.classList.add("portal-" + portal);
     const link = ([href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="/' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span></a>';
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
+    // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
+    const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
     const side = '<aside class="side" data-famo-nav><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
-      (admin ? '<a class="nav' + (here === "stock.html" ? " on" : "") + '" href="/stock.html">' + K.icon("stock") + '<span>Voorraad</span></a>' : "") +
+      link(["stock.html", "Voorraad", "stock"]) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
-      '<div class="user">' + c.avatar(admin ? "Beheerder" : "Personeel") + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500">' + (admin ? "Beheerder" : "Personeel") + '</b><div><a href="#" data-logout class="quiet" style="font-size:11px">Uitloggen</a></div></div></div></aside>';
+      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><a href="#" data-logout class="quiet" style="font-size:11px">Uitloggen</a></div></div></div></aside>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
-    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' + c.avatar(admin ? "Beheerder" : "Personeel") + '<button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
+    // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
+    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<div class="shell">' + side + '<div class="main">' + top + '<div id="page"></div></div></div>';
     K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });

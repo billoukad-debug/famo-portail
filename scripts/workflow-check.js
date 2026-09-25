@@ -456,9 +456,12 @@ async function main() {
     const ui = fs.readFileSync(path.join(ROOT, "assets", "ui.js"), "utf8");
     assert.match(ui, /const NAV_DAILY\s*=\s*\[\["bestellingen\.html",\s*"Bestellingen"[\s\S]*?\["entrepot\.html",\s*"Magazijn"[\s\S]*?\["leveringen\.html",\s*"Leveringen"/, "I destinations quotidiennes v2");
     assert.match(ui, /const NAV_ADMIN\s*=\s*\[\["invoer\.html",\s*"Invoeren"[\s\S]*?\["documenten\.html",\s*"Documenten"[\s\S]*?\["beheer\.html",\s*"Beheer"/, "I destinations beheer v2");
-    assert.match(ui, /const NAV_STAFF_MORE\s*=\s*\[\["documenten\.html",\s*"Documenten"/, "I personnel sans écrans administrateur");
+    assert.match(ui, /const NAV_STAFF_MORE\s*=\s*\[\["invoer\.html",\s*"Invoeren"[\s\S]*?\["documenten\.html",\s*"Documenten"\]?[^\]]*\]\s*\]/, "I personnel : Invoeren + Documenten, sans Beheer");
+    assert.ok(!/NAV_STAFF_MORE\s*=[^;]*beheer\.html/.test(ui), "I personnel sans écran Beheer");
     assert.match(ui, /admin\s*\?\s*NAV_ADMIN\s*:\s*NAV_STAFF_MORE/, "I menu sélectionné selon le rôle");
-    assert.match(ui, /admin\s*\?\s*'<a class="nav'[\s\S]*?href="\/stock\.html"/, "I stock réservé au menu beheer");
+    assert.match(ui, /link\(\["stock\.html",\s*"Voorraad"/, "I Voorraad voor personeel én beheerder");
+    assert.match(fs.readFileSync(path.join(ROOT, "assets", "pages", "stock.js"), "utf8"), /K\.requireStaff\(\)/, "I stock.js open voor personeel");
+    assert.match(fs.readFileSync(path.join(ROOT, "assets", "pages", "invoer.js"), "utf8"), /K\.requireStaff\(\)/, "I invoer.js open voor personeel");
   }
   console.log("✓ I. Navigation v2 (Dagelijks, Beheer, séparation des rôles)");
 
