@@ -24,79 +24,53 @@ Règle absolue : l'unité Airtable `caisse` s'affiche **kassa**, jamais « caiss
 
 ---
 
-# Le système : synthèse Notion × Revolut
+# Le système : Crème (sept. 2026)
 
-Les deux références disent la même chose sous deux costumes. Ce qu'on en garde :
+Grammaire Airbnb DESIGN.md, radius Anthropic/Claude, une seule nuance d'action : un **bleu chaud pastel**. Tout vit dans **`assets/ui.css`** (feuille unique) ; les pages ne font que consommer les classes et variables. Les noms de variables (`--p`, `--ink`, `--line`, `st-*`…) sont figés : changer une valeur re-habille tout le portail sans toucher au JS.
 
-**De Notion** — canvas chaud jamais blanc pur · cartes blanches posées dessus · hiérarchie par l'alpha d'une **seule** encre · filets 1px **au lieu d'ombres** · 12px cartes / 8px boutons / pilules réservées aux étiquettes · un seul accent pour l'action principale · aplats stricts, zéro dégradé.
-
-**De Revolut** — **graisse plafonnée à 500** au-dessus de 20px : l'autorité vient de la taille et du tracking, pas du gras · titres de section en **gris**, pas en encre, pour un rythme éditorial calme · tracking négatif croissant avec la taille · séparation par filet et changement de surface, jamais par élévation.
-
-## Jetons
+## Jetons (`:root` de `assets/ui.css`)
 
 ```css
---f-canvas:      #FAF6F0   /* crème chaud — JAMAIS de blanc pur en fond */
---f-panel:       #F2ECE3   /* deuxième surface : barres, en-têtes de tableau */
---f-surface:     #FFFFFF   /* uniquement ce qui doit flotter */
---f-ink:         #191512   /* une seule encre, déclinée par alpha */
---f-hairline:    #E5DDD3   /* filet 1px */
---f-accent:      #0C6157   /* action unique, lien, état actif */
---f-accent-2:    #084A42   /* survol / pressé */
---f-accent-wash: #E0EDE8   /* fond d'un état sélectionné */
---f-gold:        #A87D1B   /* favori actif, et rien d'autre — 3,47:1 sur canvas (#C79A2F tombait à 2,41:1) */
---f-danger:      #A8371F   /* erreur, suppression */
---f-warning-wash:#FBF3DF   /* fond de bandeau d'avertissement — texte #6B4E0B dessus : 6,9:1 */
---f-warning-line:#E7D6A9   /* filet assorti au lavis d'avertissement */
---f-success-wash:#E6F0E9   /* fond d'état de succès — texte #1F6D4E dessus : 5,2:1 */
---f-success-line:#C6DCCB   /* filet assorti au lavis de succès */
+--canvas:  #FAF9F5   /* fond crème — jamais de blanc pur en fond */
+--soft:    #F1EFE8   /* deuxième surface : totaux, lignes en creux */
+--card:    #FFFFFF   /* cartes posées sur le canvas */
+--ink:     #232323   /* texte uniquement — jamais un bouton noir */
+--ink-2:   #6A6A6A   /* corps secondaire */
+--ink-3:   #737169   /* méta, libellés discrets */
+--line:    #E3E0D6   --line-soft: #EDEBE4   --line-strong: #C7C3B7
+--p:       #4876A2   /* TOUTE action : bouton principal, lien, onglet actif, sélection */
+--p-deep:  #3F6690   /* survol / pressé */
+--p-soft:  #E4EDF5   /* fond d'un état sélectionné */
+--klei:    #AD5830   /* « uw prijs » et favori actif, rien d'autre */
 ```
 
-Les quatre lavis d'état sont déclarés une seule fois dans le `:root` de `staff.css` ; `beheer.html` les consomme avec des replis (`var(--f-warning-wash, #FBF3DF)`).
-
-**Hiérarchie de l'encre** : 100 % titres · 70 % corps · **58 %** titres de section · 28 % inactif.
-
-### Contrastes — calculés, pas estimés
-
-| Usage | Ratio sur `#FAF6F0` | Verdict |
-|---|---|---|
-| Corps, encre 70 % | **6,4:1** | ✅ |
-| Accent `#0C6157` | **6,8:1** | ✅ |
-| Encre 45 % | **2,9:1** | ❌ échoue AA — d'où le 58 % |
-| Canvas vs panel | **1,09:1** | ⚠️ 9 % d'écart seulement |
-
-Ces deux dernières lignes sont la raison d'une règle non négociable : **sur les écrans du personnel, garder un filet 1px en plus de la teinte.** Un écart de 9 % est élégant sur un écran calibré et invisible à 5 h du matin sur un téléphone humide. Client et admin peuvent se contenter de la teinte.
-
-Toute couleur ajoutée doit avoir son ratio **calculé et noté**. Pas d'appréciation à l'œil.
+Statuts (fond doux + point, rayon 6px, même famille que `.chip`) : Nieuw `#B7841A`/`#F5EEDC` · Klaar = bleu · Onderweg `#2E4F70`/`#E1E7EE` · Geleverd `#5F7A48`/`#E8EEE0` · Gefactureerd `#8A8883` · Fout `#B8432E`/`#F7E6E1`.
 
 ## Typographie
 
-**Aucune webfont** — la CSP et l'absence de dépendances l'interdisent. On se sert de ce qui est déjà sur toutes les machines.
-
-- **Serif système** `Georgia, "Iowan Old Style", serif` — **uniquement au-dessus de 22px**. Un seul moment par écran : le nom du client, le titre de page, le montant du total.
-- **Sans système** en dessous de 18px pour tout le fonctionnel. Jamais l'inverse.
-- **Graisse ≤ 500** partout au-dessus de 20px.
-- **Tracking** négatif croissant avec la taille (≈ −0.024em à 88px, −0.010em à 24px). Seule exception positive : +0.015em sur les micro-libellés en capitales à 12px.
-- **Chiffres** en sans avec `tabular-nums` — gros et serrés, jamais en mono.
-- **Mono** réservé aux seules références (`CMD-2026-0147`).
+**Plus Jakarta Sans** (Google Fonts, 400/500/600/700 — autorisée par la CSP de `vercel.json`), repli système. Titres 600 avec tracking négatif (−0.03em sur les grands titres). Chiffres en `tabular-nums`. Mono réservé aux références (`CMD-2026-0147`).
 
 ## Formes
 
-12px sur les cartes, 8px sur les contrôles. **Pas de pilules sur ce qui s'actionne** : une pilule de 46px a des zones mortes dans les coins et se confond avec sa voisine quand on porte des gants. Pilule réservée aux étiquettes (statuts, filtres).
+Rayons **4 / 6 / 8 / 12** (`--r-xs`, `--r-sm`, `--r`, `--r-lg`) : 8px contrôles, 12px cartes et panneaux. **Aucune pilule sur ce qui s'actionne.** Ombres douces à plusieurs couches (`--shadow`, `--lift`) seulement pour ce qui flotte (login, panier, dialogue).
 
-La forme dit alors quelque chose : **arrondi = information, angle = action**.
+## Nom
 
-Zéro ombre sur le contenu. Ombre uniquement pour une vraie élévation (panier mobile, dialogue), et teintée chaud `rgba(60,45,30,.10)` — jamais un gris neutre.
+« **FAMO Seafood** » à l'écran ; « **Famo Trading BV** » sur le papier (factures, bons de livraison, e-mails légaux).
+
+## Appareils
+
+- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Les cartes produit réservent une vignette (photo à venir).
+- **Personnel** : tablette au magasin (820), téléphone en tournée (390), ordinateur au bureau (1280). Barre latérale 240px → rail 88px (≤ 1180px) → bandeau horizontal (≤ 720px). Cibles ≥ 44px, y compris les cases à cocher (zone 44px, case visible 22px).
+- **Bestellingen** : un appui sur une commande la déplie, un second ouvre sa page.
 
 ## Le geste signature : het prijzenpaar
 
-Le couple prix négocié / prix public barré est l'objet le plus chargé de tout le portail : c'est la relation commerciale rendue visible. Il doit devenir **le moment typographique de l'écran** — chiffre grand et serré, prix public petit et barré au-dessus, « uw prijs » traité comme une annotation et non comme une étiquette.
+Prix négocié grand et serré, prix public petit et barré, « uw prijs » en **klei** comme annotation. N'apparaît nulle part ailleurs ; sans prix négocié, l'espace reste vide.
 
-Ce dispositif n'apparaît **nulle part ailleurs**. Sur un produit sans prix négocié, l'espace reste vide — ce qui le rend plus fort quand il apparaît.
+## Amendement
 
-## Amendements de charte — décidés, ne pas « corriger » dans l'autre sens
-
-1. **Répétition de l'accent sur les boards et listes.** La règle « une seule action accent par écran » se lit : **un seul *type* d'action accent par écran**. Sur un board ou une liste, le même type d'action accent peut se répéter sur chaque carte (p. ex. « Bevestigen » sur chaque commande) — c'est une seule action, multipliée par les cartes, pas plusieurs actions concurrentes.
-2. **L'annotation « uw prijs » du prijzenpaar** reste en **Georgia italique 12px**, sous le seuil des 22px réservé au serif. Exception signature assumée : c'est le seul endroit du portail où le serif descend sous le seuil, précisément parce que le prijzenpaar est le moment typographique de l'écran.
+**Répétition de l'accent sur les boards et listes** : « une seule action accent par écran » se lit « un seul *type* d'action accent » — le même bouton bleu peut se répéter sur chaque carte.
 
 ---
 
@@ -142,7 +116,7 @@ Les `.b-*` de Beheer sont les plus récents et les plus propres — bonne base d
 # Contraintes techniques — ne pas casser
 
 1. **HTML + CSS + JS pur.** Pas de framework, pas de build, pas de `package.json`.
-2. **Aucune dépendance externe.** Ni CDN de police, ni librairie d'icônes, rien qui parte vers un autre serveur.
+2. **Aucune dépendance externe** hors Google Fonts (seule origine tierce autorisée par la CSP). Ni librairie d'icônes, ni CDN de script.
 3. **Les icônes sont dans le CSS, pas dans le HTML.** `staff.css` lignes 19-20 et 51 : `.staff-nav-icon.orders::before{content:"□"}` etc. Le HTML est produit par `staff-nav.js` (`linkHtml`). Pour passer en SVG inline, modifier **ces deux fichiers**.
 4. **`esc()` obligatoire** sur toute page qui écrit dans `innerHTML` — vérifié automatiquement.
 5. **`alert()` / `confirm()` / `prompt()` natifs interdits** — modales et toasts maison.
@@ -169,4 +143,4 @@ Par ordre d'impact réel sur les gens qui s'en servent :
 - Ajouter des écrans qui n'existent pas côté serveur.
 - Introduire du français visible.
 - Rendre le stock proéminent : il est volontairement hors menu tant qu'il n'est pas fiable.
-- Prétendre avoir vérifié visuellement : **les outils navigateur ne sont pas disponibles**. La vérification passe par le code, les appels API et le calcul des contrastes.
+- Prétendre avoir vérifié visuellement sans capture : la vérification passe par un audit navigateur (390 / 820 / 1280) sur `node scripts/dev.js`, le code et le calcul des contrastes.
