@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
       bestellingenEmail: (c["Bestellingen e-mail"] || "").trim()
     };
     const contactOnly = {
-      bedrijfsnaam: config.bedrijfsnaam || "Famo Trading BV",
+      bedrijfsnaam: config.bedrijfsnaam || "FAMO Seafood",
       adres: config.adres,
       plaats: config.plaats,
       btw: config.btw,

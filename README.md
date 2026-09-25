@@ -1,6 +1,6 @@
 # FAMO Portail — v2
 
-Portail B2B de Famo Trading (grossiste poisson, Anvers) : le client commande en ligne, le personnel prépare et livre, le responsable administre. Site statique + fonctions serverless Vercel, données dans Airtable. Interface en néerlandais, documentation en français.
+Portail B2B de FAMO Seafood (grossiste poisson, Anvers) : le client commande en ligne, le personnel prépare et livre, le responsable administre. Site statique + fonctions serverless Vercel, données dans Airtable. Interface en néerlandais, documentation en français.
 
 ## Trois portails, une identité
 

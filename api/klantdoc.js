@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
         livreeLe: f["Livrée le"] || "", receptionnePar: f["Réceptionné par"] || ""
       },
       config: {
-        bedrijfsnaam: c["Bedrijfsnaam"] || "Famo Trading BV", adres: c["Adres"] || "", plaats: c["Postcode en plaats"] || "", btw: c["BTW-nummer"] || "",
+        bedrijfsnaam: c["Bedrijfsnaam"] || "FAMO Seafood", adres: c["Adres"] || "", plaats: c["Postcode en plaats"] || "", btw: c["BTW-nummer"] || "",
         telefoon: c["Telefoon"] || "", email: c["E-mail"] || "",
         iban: invoiced ? (c["IBAN"] || "").trim() : "", bic: invoiced ? (c["BIC"] || "").trim() : "",
         btwTarief: Number(c["BTW-tarief"]) > 0 ? Number(c["BTW-tarief"]) : 6,

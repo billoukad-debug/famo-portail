@@ -212,7 +212,7 @@
     document.body.classList.add("portal-" + portal);
     const link = ([href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="/' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span></a>';
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
-    const side = '<aside class="side" data-famo-nav><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>Famo Trading</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+    const side = '<aside class="side" data-famo-nav><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       (admin ? '<a class="nav' + (here === "stock.html" ? " on" : "") + '" href="/stock.html">' + K.icon("stock") + '<span>Voorraad</span></a>' : "") +
