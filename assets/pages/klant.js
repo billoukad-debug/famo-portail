@@ -102,7 +102,7 @@
   function productCard(p) {
     const qty = Number(cart.items[p.id] || 0), neg = p.prix < p.base;
     return '<div class="prod' + (qty > 0 ? " on" : "") + '" data-id="' + p.id + '"><div class="ph">' + (p.foto ? '<img src="' + K.esc(p.foto) + '" alt="" loading="lazy" data-fallback>' : K.icon("fish")) + '</div>' +
-      '<div class="pi"><div class="pn">' + K.esc(p.nom) + '</div><div style="display:flex;gap:6px;align-items:center;margin-top:2px;flex-wrap:wrap">' + (p.kaliber ? '<span class="tag">' + K.esc(p.kaliber) + '</span>' : "") + '<span class="tag">' + K.esc(unitLabel(p)) + '</span>' + stockTag(p) + '<button type="button" class="ibtn fav' + (favs[p.id] ? " on" : "") + '" data-fav="' + p.id + '" aria-label="' + K.t("Favoriet") + '" aria-pressed="' + (favs[p.id] ? "true" : "false") + '" style="width:32px;height:32px">' + K.icon("star") + '</button></div>' +
+      '<div class="pi"><div class="pn">' + K.esc(p.nom) + '</div><div style="display:flex;gap:6px;align-items:center;margin-top:2px;flex-wrap:wrap">' + (p.kaliber ? '<span class="tag">' + K.esc(p.kaliber) + '</span>' : "") + '<span class="tag">' + K.esc(unitLabel(p)) + '</span>' + stockTag(p) + '<button type="button" class="ibtn fav' + (favs[p.id] ? " on" : "") + '" data-fav="' + p.id + '" aria-label="' + K.t("Favoriet") + '" aria-pressed="' + (favs[p.id] ? "true" : "false") + '" style="width:40px;height:40px;margin:-4px 0">' + K.icon("star") + '</button></div>' +
       '<div class="pp" style="margin-top:4px"><b class="mono">' + K.eur(p.prix) + '</b>' + (neg ? '<s class="mono">' + K.eur(p.base) + '</s><small>' + K.t("uw prijs") + '</small>' : '<small>/ ' + K.esc(unitLabel(p)) + '</small>') + '</div></div>' +
       K.c.stepper(p.id, qty, { step: isKg(p) ? 0.5 : 1 }) + '</div>';
   }

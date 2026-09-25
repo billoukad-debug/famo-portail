@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FAMO Seafood · Klantportaal</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273.5%27 fill=%27%234B57DB%27/%3E%3Cpath d=%27M5 13V3h6M5 8h4%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273.5%27 fill=%27%234876A2%27/%3E%3Cpath d=%27M5 13V3h6M5 8h4%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/ui.css">
 <script src="/assets/ui.js"></script>
 </head>
@@ -17,12 +17,12 @@
 .start{min-height:100vh;display:flex;flex-direction:column}
 .start-hd{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;gap:12px;flex-wrap:wrap}
 .start-body{flex:1;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px;padding:20px clamp(16px,8vw,120px) 30px;align-items:center}
-.hero h1{font-size:clamp(28px,4vw,44px);line-height:1.08;letter-spacing:-.025em}
+.hero h1{font-size:clamp(28px,4vw,44px);line-height:1.1;letter-spacing:-.03em;font-weight:600}
 .hero p{font-size:15px;color:var(--ink-2);margin:14px 0 0;max-width:460px;line-height:1.55}
 .proof{display:flex;gap:18px;margin-top:24px;flex-wrap:wrap}.proof div{font-size:12.5px;color:var(--ink-2)}.proof b{display:block;font-size:20px;color:var(--ink)}
-.login{padding:28px;display:flex;flex-direction:column;gap:14px;border-top:5px solid var(--p);max-width:440px;width:100%;justify-self:end}
-.start-ft{display:flex;align-items:center;justify-content:space-between;padding:16px 24px 20px;border-top:1px solid var(--line);background:#fff;gap:12px;flex-wrap:wrap}
-.mini{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2);flex-wrap:wrap}.mini a{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:1px solid var(--line);border-radius:8px;color:var(--ink);font-weight:500;background:#fff}.mini a:hover{text-decoration:none;background:var(--canvas)}.mini a i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.login{padding:28px;display:flex;flex-direction:column;gap:14px;max-width:440px;width:100%;justify-self:end;box-shadow:var(--lift);border-color:transparent}
+.start-ft{display:flex;align-items:center;justify-content:space-between;padding:16px 24px 20px;border-top:1px solid var(--line-soft);background:var(--canvas);gap:12px;flex-wrap:wrap}
+.mini{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2);flex-wrap:wrap}.mini a{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--r);color:var(--ink);font-weight:500;background:var(--card)}.mini a:hover{text-decoration:none;background:var(--soft)}.mini a i{width:8px;height:8px;border-radius:50%;display:inline-block}
 @media (max-width:860px){.start-body{grid-template-columns:1fr;gap:24px}.login{justify-self:stretch;max-width:none}.hero p{max-width:none}}
 </style>
 <script src="/assets/pages/start.js"></script>
