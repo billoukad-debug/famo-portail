@@ -4,7 +4,7 @@
 
 FAMO Portail is a static HTML site (repo-root `*.html`, vanilla JS) plus Vercel
 serverless functions in `api/*.js` (Node CommonJS, `module.exports = async (req, res) => {}`).
-Airtable is the only data backend; there is no local database. There is **no
+Airtable is the default data backend; Postgres (Neon) and SQLite are available through `DB_BACKEND` (see below). There is **no
 `package.json` and no lockfile** — the code uses only Node built-ins plus global
 `fetch`, and ESLint is fetched on demand via `npx`. Target runtime is Node 22.
 
@@ -27,6 +27,10 @@ Airtable is the only data backend; there is no local database. There is **no
   also accepted. `node scripts/dev.js` seeds `team-dev-code` / `beheer-dev-code`.
   The session is an HttpOnly+Secure cookie; browsers treat `http://localhost` as a
   secure context, so the cookie works over plain http locally.
+- Data backend switch: `DB_BACKEND` (`airtable` default, `postgres` via `DATABASE_URL`,
+  `sqlite` for local/tests). `lib/datastore.js` routes the Airtable REST calls to
+  `lib/at-engine.js` when not `airtable`; business code in `api/` is unchanged.
+  `DB_BACKEND=sqlite node scripts/dev.js` runs the whole portal on the SQL engine.
 - `AIRTABLE_TOKEN` is required for real Clients/Catalogue/Commandes/Stock data. Without
   it, endpoints degrade gracefully rather than crashing (e.g. `/api/allorders` returns
   `{"orders":[]}`), so the staff cockpit renders but shows empty/zero data. Customer

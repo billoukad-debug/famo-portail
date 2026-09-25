@@ -4,13 +4,13 @@ Portail B2B de FAMO Seafood (grossiste poisson, Anvers) : le client commande en 
 
 ## Trois portails, une identité
 
-| Portail | Couleur | Pages | Accès |
-|---|---|---|---|
-| **Klant** | indigo | `/` (accueil + connexion), `/klant.html` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag.html`, `/wachtwoord.html` | gebruikersnaam + wachtwoord |
-| **Personeel** | vert | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html` | `STAFF_CODE` (cookie 8 h) |
-| **Beheer** | ambre | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, bedrijf, toegang, status), `/invoer.html`, `/stock.html` | `ADMIN_CODE` |
+| Portail | Pages | Accès |
+|---|---|---|
+| **Klant** | `/` (accueil + connexion), `/klant.html` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag.html`, `/wachtwoord.html` | gebruikersnaam + wachtwoord |
+| **Personeel** | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html`, `/invoer.html`, `/stock.html` | `STAFF_CODE` ou PIN personnel (cookie 8 h) |
+| **Beheer** | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, bedrijf, toegang, rapportage, status) + tout le personnel | `ADMIN_CODE` ou PIN beheerder |
 
-Les couleurs de statut sont identiques partout : orange ontvangen, bleu klaar, violet onderweg, vert geleverd, rouge te laat.
+Une seule peau « Crème » pour les trois portails, un seul bleu d'action (voir `DESIGN.md`). Les couleurs de statut sont identiques partout : ocre ontvangen, bleu klaar, bleu nuit onderweg, vert olive geleverd, gris gefactureerd, rouge te laat.
 
 ## Structure
 
@@ -101,9 +101,30 @@ Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Il
 - **Anti-force brute** : 5 échecs par 30 s par gebruikersnaam, sur tous les endpoints client (`authClient` partagé) ; un client archivé ne peut plus se connecter.
 - **À faire** : les mots de passe restent stockés **en clair** dans `Wachtwoord` (choix assumé pour l'instant). Hachage et session client : voir `IDEAS.md`, B3.
 
+## Base de données : Airtable ou Postgres (Neon)
+
+Le code métier parle le protocole REST d'Airtable. `lib/datastore.js` (première ligne de chaque `api/*.js`) choisit où vont ces requêtes :
+
+| `DB_BACKEND` | Données | Usage |
+|---|---|---|
+| absent ou `airtable` | Airtable (`AIRTABLE_TOKEN`) | défaut, comportement historique |
+| `postgres` | Neon, table unique `famo_records`, via `DATABASE_URL` | production après bascule |
+| `sqlite` | SQLite intégré à Node (`DB_SQLITE_FILE`, défaut en mémoire) | tests et banc local : `DB_BACKEND=sqlite node scripts/dev.js` |
+
+`lib/at-engine.js` rejoue le contrat Airtable (formules via `lib/at-formula.js`, partagé avec le faux Airtable du banc local ; tri, pages, lots de 10, champs vides effacés, 404/422) et gère la concurrence par numéro de version. `lib/sql.js` parle à Neon en HTTPS avec le `fetch` natif : toujours aucune dépendance npm. Limite connue : l'upload de photo produit répond 501 en mode Postgres (stockage de fichiers à brancher, par exemple Vercel Blob).
+
+**Bascule, dans l'ordre :**
+1. Vercel → Storage → Neon relié au projet (fournit `DATABASE_URL`), puis redéployer.
+2. Beheer → Systeemstatus → **Database** : « bereikbaar » doit apparaître.
+3. **Kopieer Airtable naar de nieuwe database**, puis **Vergelijken** : toutes les lignes « OK ».
+4. Un moment sans commande : recopier, vérifier, mettre `DB_BACKEND=postgres` dans Vercel, redéployer.
+5. Retour arrière : `DB_BACKEND=airtable` et redéployer. Airtable n'est jamais modifié par la copie ; les commandes passées pendant la période Postgres n'y sont pas.
+
+Une fois basculé, la copie est refusée (409) : elle écraserait les nouvelles commandes avec une Airtable périmée.
+
 ## Variables d'environnement Vercel
 
-`AIRTABLE_TOKEN`, `ADMIN_CODE`, `STAFF_CODE` (obligatoires), `RESEND_API_KEY` + `MAIL_FROM` (e-mails : confirmation, annulation, onderweg, geleverd + facture, bienvenue, nouvelle demande d'accès, mot de passe), `PORTAL_URL` (liens dans les e-mails). En local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff pour tester depuis une IP du réseau. Voir `VERCEL_CHECKLIST.md`.
+`AIRTABLE_TOKEN`, `ADMIN_CODE`, `STAFF_CODE` (obligatoires), `DB_BACKEND` + `DATABASE_URL` (Postgres, voir ci-dessus), `RESEND_API_KEY` + `MAIL_FROM` (e-mails : confirmation, annulation, onderweg, geleverd + facture, bienvenue, nouvelle demande d'accès, mot de passe), `PORTAL_URL` (liens dans les e-mails). En local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff pour tester depuis une IP du réseau. Voir `VERCEL_CHECKLIST.md`.
 
 `vercel.json` pose une Content-Security-Policy (scripts et connexions du site uniquement, images https/data/blob pour les photos Airtable et les PDF, pas d'iframe externe).
 

@@ -1,3 +1,4 @@
+require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
