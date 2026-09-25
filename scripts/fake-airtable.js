@@ -13,30 +13,70 @@ const BASE_ID = "appcdduLth9iGX8I0";
 // Schema: veldnamen + types, overgenomen uit de echte base (list_tables_for_base).
 const SCHEMA = {
   Clients: {
-    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text" },
+    // Gearchiveerd : plus de connexion ni de présence dans les listes (api/catalogue authClient, api/staff).
+    // Favorieten : JSON {favorieten:[ids], standaard:{id:qty}} synchronisé entre appareils (api/klantorder).
+    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text" },
     primary: "Nom"
   },
   Catalogue: {
-    fields: { "Produit": "text", "Prix de base": "number", "Unité": "select", "Catégorie": "text", "Actif": "checkbox", "Stock": "links", "Prix négociés": "links", "Kaliber": "text", "Foto": "attachments" },
-    selects: { "Unité": ["kg", "pièce", "caisse"] }, primary: "Produit"
+    // BTW-tarief : taux par produit (6 / 21) ; vide = taux de Configuratie.
+    fields: { "Produit": "text", "Prix de base": "number", "Unité": "select", "Catégorie": "text", "Actif": "checkbox", "Stock": "links", "Prix négociés": "links", "Kaliber": "text", "Foto": "attachments", "BTW-tarief": "number" },
+    selects: { "Unité": ["kg", "pièce", "caisse", "carton"] }, primary: "Produit"
   },
   Commandes: {
-    fields: { "Référence": "text", "Date": "date", "Lignes (produits / quantités)": "text", "Statut": "select", "Statut paiement": "select", "Total": "number", "Photo préparation": "attachments", "Notes": "text", "Client": "links", "Date livraison souhaitée": "date", "Factuurnummer": "text", "Stock afgeboekt": "checkbox", "Préparation validée": "checkbox", "Préparée le": "datetime", "Livrée le": "datetime", "Preuve de livraison": "attachments", "Facturée le": "datetime", "Réceptionné par": "text", "Livraison confirmée": "checkbox", "Annulée le": "datetime", "Motif annulation": "text", "Correcties": "text" },
-    selects: { "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"] },
+    fields: {
+      "Référence": "text", "Date": "date", "Lignes (produits / quantités)": "text", "Statut": "select", "Statut paiement": "select", "Total": "number", "Photo préparation": "attachments", "Notes": "text", "Client": "links", "Date livraison souhaitée": "date", "Factuurnummer": "text", "Stock afgeboekt": "checkbox", "Préparation validée": "checkbox", "Préparée le": "datetime", "Livrée le": "datetime", "Preuve de livraison": "attachments", "Facturée le": "datetime", "Réceptionné par": "text", "Livraison confirmée": "checkbox",
+      // Corrections (api/updateorder applyCorrection) : journal + annulation.
+      "Annulée le": "datetime", "Motif annulation": "text", "Correcties": "text",
+      // Paiement : horodatage et mode, posés quand la facture passe sur « Payé ».
+      "Payé le": "datetime", "Mode de paiement": "select",
+      // Exception à la réception (absent, refusé, partiel, abîmé) + ordre de tournée.
+      "Uitzondering levering": "select", "Uitzondering nota": "text", "Volgorde levering": "number",
+      // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
+      "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text"
+    },
+    selects: {
+      "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
+      "Mode de paiement": ["Contant", "Overschrijving", "Bancontact", "Andere"],
+      "Uitzondering levering": ["Afwezig", "Geweigerd", "Gedeeltelijk", "Beschadigd"]
+    },
     fieldIds: { fldjCdOntoPXPKLIb: "Preuve de livraison", fld4P0uySgGI6P6yE: "Photo préparation" }, primary: "Référence"
   },
   Stock: { fields: { "Produit": "text", "Quantité disponible": "number", "Seuil bas": "number", "Produit lié": "links" }, primary: "Produit" },
   "Mouvements de stock": { fields: { "Mouvement": "text", "Date et heure": "datetime", "Type": "select", "Produit": "text", "Quantité": "number", "Stock avant": "number", "Stock après": "number", "Référence commande": "text", "Note": "text" }, selects: { "Type": ["Sortie livraison", "Correction inventaire", "Entrée stock", "Retour client", "Annulation sortie"] }, primary: "Mouvement" },
   "Prix négociés": { fields: { "Libellé": "text", "Client": "links", "Produit": "links", "Prix négocié": "number" }, primary: "Libellé" },
   Configuratie: {
-    fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text" },
+    // Règles de livraison et de facturation lues par lib/levering.js : Besteldeadline "22:00",
+    // Leverdagen "ma,di,wo,do,vr,za", Gesloten dagen (une date ISO par ligne), Minimum bestelling,
+    // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
+    fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
     primary: "Bedrijfsnaam"
   },
   Aanvragen: {
     fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select" },
     selects: { "Status": ["Nieuw", "Verwerkt"] }, primary: "Bedrijfsnaam"
+  },
+  // Comptes individuels du personnel (api/session : connexion par PIN, api/onboarding : gestion).
+  Medewerkers: {
+    fields: { "Naam": "text", "Rol": "select", "PIN hash": "text", "Actief": "checkbox", "Laatste aanmelding": "datetime" },
+    selects: { "Rol": ["personeel", "beheerder"] }, primary: "Naam"
   }
 };
+
+// Medewerker de démonstration, présent dès que la table est vide : « Ilse », personeel,
+// PIN 1234. scripts/seed.js ne connaît pas cette table ; la nabootsing la remplit
+// elle-même (reset() et chargement d'un fichier .dev-data antérieur).
+// Le hachage reproduit lib/staffauth.hashCode (scrypt$<sel hex>$<empreinte hex>, N=16384)
+// SANS charger ce module : dev.js ne pose STAFF_CODE/ADMIN_CODE qu'après avoir construit
+// la base, et staffauth lit ces variables une seule fois au chargement.
+const DEMO_MEDEWERKER = { naam: "Ilse", rol: "personeel", pin: "1234" };
+function scryptHash(code) {
+  const salt = crypto.randomBytes(16);
+  return "scrypt$" + salt.toString("hex") + "$" + crypto.scryptSync(String(code), salt, 32, { N: 16384 }).toString("hex");
+}
+function demoMedewerkers() {
+  return [{ "Naam": DEMO_MEDEWERKER.naam, "Rol": DEMO_MEDEWERKER.rol, "PIN hash": scryptHash(DEMO_MEDEWERKER.pin), "Actief": true }];
+}
 
 function newId(prefix) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -54,10 +94,13 @@ class FakeAirtable {
     if (this.file && fs.existsSync(this.file)) {
       try { this.data = JSON.parse(fs.readFileSync(this.file, "utf8")); } catch (_) { /* opnieuw beginnen */ }
       Object.keys(SCHEMA).forEach((t) => { if (!this.data[t]) this.data[t] = []; });
+      // Fichier .dev-data d'avant la table Medewerkers : on l'ajoute sans tout reseeder.
+      if (this.data.Configuratie.length && !this.data.Medewerkers.length) this.ensureMedewerkers();
     }
   }
   save() { if (this.file) { fs.mkdirSync(path.dirname(this.file), { recursive: true }); fs.writeFileSync(this.file, JSON.stringify(this.data, null, 1)); } }
-  reset() { Object.keys(SCHEMA).forEach((t) => { this.data[t] = []; }); this.save(); }
+  reset() { Object.keys(SCHEMA).forEach((t) => { this.data[t] = []; }); this.ensureMedewerkers(); this.save(); }
+  ensureMedewerkers() { if (!this.data.Medewerkers.length) this.create("Medewerkers", demoMedewerkers(), false); }
 
   table(name) {
     const t = Object.keys(SCHEMA).find((k) => k.toLowerCase() === String(name).toLowerCase());
@@ -119,8 +162,13 @@ class FakeAirtable {
   list(table, q) {
     let rows = this.data[table].slice();
     if (q.filterByFormula) {
-      const fn = compileFormula(q.filterByFormula, table, this);
-      rows = rows.filter((r) => truthy(fn(r)));
+      // Formule hors du sous-ensemble compris ici : on renvoie TOUT plutôt qu'une erreur
+      // (la vraie Airtable, elle, répondrait 422). Le message signale la lacune dans la
+      // console du serveur de dev ; en production la formule reste évaluée par Airtable.
+      let fn = null;
+      try { fn = compileFormula(q.filterByFormula, table, this); }
+      catch (e) { console.warn("[fake-airtable] formule non comprise, tout est renvoyé : " + q.filterByFormula + " (" + e.message + ")"); }
+      if (fn) rows = rows.filter((r) => truthy(fn(r)));
     }
     (q.sort || []).slice().reverse().forEach((s) => {
       rows.sort((a, b) => {
@@ -142,9 +190,11 @@ class FakeAirtable {
     if (!rec) throw err(404, "NOT_FOUND", "Record not found");
     return rec;
   }
+  // Content-API : le segment est un id de champ (fldXXX) ou, comme le fait api/onboarding
+  // pour « Foto », le nom du champ pièce jointe lui-même.
   upload(recordId, fieldId, body) {
     for (const [t, s] of Object.entries(SCHEMA)) {
-      const fieldName = (s.fieldIds || {})[fieldId];
+      const fieldName = (s.fieldIds || {})[fieldId] || (s.fields[fieldId] === "attachments" ? fieldId : "");
       if (!fieldName) continue;
       const rec = this.data[t].find((x) => x.id === recordId);
       if (!rec) continue;
@@ -208,6 +258,9 @@ function compileFormula(src, table, db) {
     const m = s.slice(i).match(/^[A-Z_]+/);
     if (m) {
       const fn = m[0]; i += fn.length; ws();
+      // Fonction inconnue : refusée dès l'analyse (pas à l'évaluation), pour que list()
+      // puisse retomber sur « tout renvoyer » avant de filtrer quoi que ce soit.
+      if (!FORMULA_FUNCTIONS.has(fn)) throw err(422, "INVALID_FILTER_BY_FORMULA", "Unknown function " + fn);
       if (peek() !== "(") throw err(422, "INVALID_FILTER_BY_FORMULA", "The formula for filtering records is invalid: " + src);
       i++;
       const args = [];
@@ -229,7 +282,12 @@ function compileFormula(src, table, db) {
           case "IS_SAME": return dayNum(vals[0]) === dayNum(vals[1]) && !!vals[0];
           case "RECORD_ID": return r.id;
           case "DATETIME_PARSE": return String(vals[0] || "");
-          default: throw err(422, "INVALID_FILTER_BY_FORMULA", "Unknown function " + fn);
+          // Fenêtres temporelles (api/allorders, api/orders, api/stock history) :
+          // TODAY()/NOW() en ISO, DATEADD(date, n, 'days'|'months'|'years') à la journée près.
+          case "TODAY": return new Date().toISOString().slice(0, 10);
+          case "NOW": return new Date().toISOString();
+          case "DATEADD": return dateAdd(vals[0], Number(vals[1]) || 0, String(vals[2] || "days"));
+          default: return "";
         }
       };
     }
@@ -240,8 +298,20 @@ function compileFormula(src, table, db) {
   if (i < s.length) throw err(422, "INVALID_FILTER_BY_FORMULA", "The formula for filtering records is invalid: " + src);
   return fn;
 }
+const FORMULA_FUNCTIONS = new Set(["AND", "OR", "NOT", "LOWER", "UPPER", "FIND", "ARRAYJOIN", "IS_AFTER", "IS_BEFORE", "IS_SAME", "RECORD_ID", "DATETIME_PARSE", "TODAY", "NOW", "DATEADD"]);
 function norm(v) { if (v === true) return 1; if (v === false || v === undefined || v === null) return v === false ? 0 : ""; return typeof v === "number" ? v : String(v); }
 function dayNum(v) { if (!v) return NaN; const d = new Date(String(v).length === 10 ? v + "T00:00:00Z" : v); return Number.isNaN(d.getTime()) ? NaN : Math.floor(d.getTime() / 86400000); }
+function dateAdd(v, n, unit) {
+  const d = new Date(String(v).length === 10 ? v + "T00:00:00Z" : v);
+  if (Number.isNaN(d.getTime())) return "";
+  const u = String(unit).toLowerCase();
+  if (/^year/.test(u)) d.setUTCFullYear(d.getUTCFullYear() + n);
+  else if (/^month/.test(u)) d.setUTCMonth(d.getUTCMonth() + n);
+  else if (/^hour/.test(u)) d.setTime(d.getTime() + n * 3600000);
+  else if (/^week/.test(u)) d.setUTCDate(d.getUTCDate() + n * 7);
+  else d.setUTCDate(d.getUTCDate() + n); // days par défaut
+  return d.toISOString();
+}
 
 // ---- HTTP-server ------------------------------------------------------------------
 function readJson(req) {
