@@ -104,6 +104,7 @@ async function main() {
     items: [{ productId: "prod1", quantity: 2, price: 0 }]
   }, [
     { records: [{ id: "client1", fields: { "Wachtwoord": "pass" } }] },
+    { records: [] },
     { records: [{ id: "prod1", fields: { "Produit": "Zalm", "Prix de base": 12.5, "Unité": "kg" } }] },
     { records: [] },
     NO_ORDER_REFS,
@@ -111,7 +112,7 @@ async function main() {
   ]);
   assert.equal(result.res.statusCode, 200);
   assert.equal(result.res.payload.total, 25);
-  const created = JSON.parse(result.calls[4].options.body).records[0].fields;
+  const created = JSON.parse(result.calls[5].options.body).records[0].fields;
   assert.equal(created.Total, 25);
   assert.match(created["Lignes (produits / quantités)"], /\[€12\.50\]/);
 
@@ -120,6 +121,7 @@ async function main() {
     items: [{ productId: "prod1", quantity: 0.5 }]
   }, [
     { records: [{ id: "client1", fields: { "Wachtwoord": "pass" } }] },
+    { records: [] },
     { records: [{ id: "prod1", fields: { "Produit": "Mosselen", "Prix de base": 12.5, "Unité": "caisse" } }] },
     { records: [] }
   ]);
@@ -269,6 +271,7 @@ async function main() {
           "Stock afgeboekt": false
         }
       },
+      { records: [{ fields: { "Voorraad afboeken": true } }] },
       { records: [{ id: "stk1", fields: { Produit: "Mosselen", "Quantité disponible": 10 } }] },
       { records: [{ id: "stk1", fields: { "Quantité disponible": 8 } }] },
       { records: [] },
@@ -309,10 +312,11 @@ async function main() {
           "Stock afgeboekt": false
         }
       },
+      { records: [{ fields: {} }] },
       { fields: { Statut: "Sortie en livraison" } }
     ], { headers: cookieHdr });
-    assert.equal(result.res.statusCode, 200, "Sortie avec skipStock doit réussir");
-    assert.equal(result.calls.filter(c => /Stock/.test(c.url)).length, 0, "skipStock ne touche jamais au stock");
+    assert.equal(result.res.statusCode, 200, "Sortie zonder « Voorraad afboeken » doit réussir");
+    assert.equal(result.calls.filter(c => /Stock/.test(c.url)).length, 0, "config uit → jamais de stock touché, même sans skipStock");
 
     result = await call(updateOrder2, {
       id: "rec2", lignes: "Mosselen × 5 caisse", total: 50
@@ -337,7 +341,7 @@ async function main() {
     }, [
       { fields: { Statut: "Prête", "Préparation validée": true } },
       { records: [{ id: "cat1", fields: { Produit: "Mosselen", "Unité": "caisse", "Prix de base": 28 } }] },
-      { records: [{ id: "cat1", fields: { Produit: "Mosselen", "Unité": "caisse", "Prix de base": 28 } }] },
+      { records: [] },
       { fields: { ok: true } }
     ], { headers: cookieHdr });
     assert.equal(result.res.statusCode, 200, "modifier les lignes doit réussir");
@@ -402,6 +406,7 @@ async function main() {
           "Stock afgeboekt": false
         }
       },
+      { records: [{ fields: { "Voorraad afboeken": true } }] },
       { records: [{ id: "stk2", fields: { Produit: "Zalm", "Quantité disponible": 5 } }] },
       { records: [{ id: "stk2", fields: { "Quantité disponible": 4 } }] },
       { records: [] },
@@ -462,6 +467,7 @@ async function main() {
     const allorders = require(path.join(ROOT, "api", "allorders.js"));
     const originalFetch = global.fetch;
     const replies = [
+      { records: [] },
       { records: [] },
       { records: [] }
     ];
@@ -548,9 +554,9 @@ async function main() {
     delete process.env.RESEND_API_KEY;
     reloadMail();
     let createOrderM = require(path.join(ROOT, "api", "order.js"));
-    let r1 = await call(createOrderM, ORDER_BODY, [CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }]);
+    let r1 = await call(createOrderM, ORDER_BODY, [CLIENT_OK, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }]);
     assert.equal(r1.res.statusCode, 200, "M1 commande OK sans cle");
-    assert.equal(r1.calls.length, 5, "M1 aucun appel supplementaire sans cle (client, catalogue, prix, numérotation, commande)");
+    assert.equal(r1.calls.length, 6, "M1 aucun appel supplementaire sans cle (client, configuratie, catalogue, prix, numérotation, commande)");
     assert.equal(resendCalls(r1.calls).length, 0, "M1 aucun appel Resend sans cle");
 
     // M2 — avec cle : deux mails, destinataires disjoints, secret non fuite.
@@ -558,7 +564,7 @@ async function main() {
     reloadMail();
     createOrderM = require(path.join(ROOT, "api", "order.js"));
     const r2 = await call(createOrderM, ORDER_BODY, [
-      CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
+      CLIENT_OK, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
     ]);
     assert.equal(r2.res.statusCode, 200, "M2 commande OK avec cle");
     const mails = resendCalls(r2.calls);
@@ -590,7 +596,7 @@ async function main() {
     // M2d — echappement (nom client hostile) + traduction des unites.
     const XSS = { records: [{ id: "client1", fields: { "Wachtwoord": "pass", "Nom": "<img src=x onerror=alert(1)>", "Email": "chef@resto.test" } }] };
     const rX = await call(createOrderM, ORDER_BODY, [
-      XSS, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
+      XSS, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
     ]);
     resendCalls(rX.calls).map(bodyOf).forEach(m => {
       assert.ok(!/<img/i.test(m.html), "M2d nom client echappe");
@@ -601,7 +607,7 @@ async function main() {
     // M3 — Resend en echec : la commande reste un succes.
     for (const failMode of ["throw", "422"]) {
       const originalFetch = global.fetch;
-      const replies = [CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG];
+      const replies = [CLIENT_OK, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG];
       global.fetch = async url => {
         if (/api\.resend\.com/.test(String(url))) {
           if (failMode === "throw") throw new Error("reseau indisponible");
@@ -623,7 +629,7 @@ async function main() {
     // M4 — client sans e-mail : seule l'equipe est prevenue.
     const NO_MAIL = { records: [{ id: "client1", fields: { "Wachtwoord": "pass", "Nom": "Resto Test" } }] };
     const r4 = await call(createOrderM, ORDER_BODY, [
-      NO_MAIL, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }
+      NO_MAIL, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }
     ]);
     assert.equal(resendCalls(r4.calls).length, 1, "M4 un seul envoi sans e-mail client");
     assert.ok(bodyOf(resendCalls(r4.calls)[0]).to.includes("ops@famo.test"), "M4 c'est l'equipe qui recoit");
@@ -632,7 +638,7 @@ async function main() {
     // M5 — pas de boite ops : seul le client est prevenu.
     const NO_OPS = { records: [{ fields: { "Bedrijfsnaam": "Famo Trading BV", "E-mail": "info@famotrading.be" } }] };
     const r5 = await call(createOrderM, ORDER_BODY, [
-      CLIENT_OK, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, NO_OPS, { id: "m1" }
+      CLIENT_OK, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, NO_OPS, { id: "m1" }
     ]);
     assert.equal(resendCalls(r5.calls).length, 1, "M5 un seul envoi sans boite ops");
     assert.ok(bodyOf(resendCalls(r5.calls)[0]).to.includes("chef@resto.test"), "M5 c'est le client qui recoit");
@@ -821,14 +827,14 @@ async function main() {
 
     // P2 — ce que le client voit au catalogue.
     const catalogueP = require(path.join(ROOT, "api", "catalogue.js"));
-    let r = await call(catalogueP, { user: "prijs", pw: "pass" }, [CLIENT_P, CAT_P, NEG_P, { records: [] }]);
+    let r = await call(catalogueP, { user: "prijs", pw: "pass" }, [CLIENT_P, CAT_P, NEG_P, { records: [] }, { records: [] }]);
     assert.equal(r.res.statusCode, 200, "P2 login catalogue");
     assert.deepEqual(shownPrices(r.res.payload.products), EXPECTED, "P2 catalogue : vide → base, 0 → 0");
 
     // P3 — ce qu'il paie en commandant : identique au catalogue, ligne par ligne.
-    r = await call(createOrder, { user: "prijs", pw: "pass", items: ITEMS }, [CLIENT_P, CAT_P, NEG_P, NO_ORDER_REFS, { records: [{ id: "orderPrix" }] }]);
+    r = await call(createOrder, { user: "prijs", pw: "pass", items: ITEMS }, [CLIENT_P, { records: [] }, CAT_P, NEG_P, NO_ORDER_REFS, { records: [{ id: "orderPrix" }] }]);
     assert.equal(r.res.statusCode, 200, "P3 commande client");
-    const orderFields = JSON.parse(r.calls[4].options.body).records[0].fields;
+    const orderFields = JSON.parse(r.calls[5].options.body).records[0].fields;
     assert.deepEqual(linePrices(orderFields["Lignes (produits / quantités)"]), EXPECTED, "P3 commande = catalogue");
     assert.equal(orderFields.Total, EXPECTED_TOTAL, "P3 total commande");
 
@@ -845,7 +851,7 @@ async function main() {
     // P5 — recalcul quand le personnel modifie les lignes.
     r = await call(updateOrder2, { id: "recPrix", lignes: "Zalm × 2 kg\nMosselen × 1 caisse\nKabeljauw × 1 kg", total: 9999 }, [
       { fields: { Statut: "Reçue", Client: ["clientPrix"] } },
-      CAT_P, CAT_P, NEG_P,
+      CAT_P, NEG_P,
       { fields: {} }
     ], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 200, "P5 modification des lignes");
@@ -1131,10 +1137,10 @@ async function main() {
     r = await call(uo, { id: "o5", statut: "Prête", preparationValidee: true }, [{ fields: { Statut: "Annulée" } }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 409, "AN6 geannuleerd → geen gewone stap zonder herstel");
     // 7. Bewerken : leverdag/nota vóór vertrek ; zondag 400 ; na vertrek 409
-    r = await call(uo, { id: "o6", correction: "bewerken", reden: "klant wil donderdag", dateLivraison: okDay, notes: "achteraan bellen" }, [{ fields: { Statut: "Reçue", "Date livraison souhaitée": "2026-01-05", Notes: "" } }, { fields: {} }], { headers: cookieHdr });
+    r = await call(uo, { id: "o6", correction: "bewerken", reden: "klant wil donderdag", dateLivraison: okDay, notes: "achteraan bellen" }, [{ fields: { Statut: "Reçue", "Date livraison souhaitée": "2026-01-05", Notes: "" } }, { records: [] }, { fields: {} }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 200, "AN7 bewerken OK");
     b = patchOf(r); assert.equal(b.fields["Date livraison souhaitée"], okDay); assert.equal(b.fields.Notes, "achteraan bellen"); assert.match(b.fields.Correcties, /leverdag 2026-01-05 → /);
-    r = await call(uo, { id: "o6", correction: "bewerken", reden: "klant wil zondag", dateLivraison: sun }, [{ fields: { Statut: "Reçue" } }], { headers: cookieHdr });
+    r = await call(uo, { id: "o6", correction: "bewerken", reden: "klant wil zondag", dateLivraison: sun }, [{ fields: { Statut: "Reçue" } }, { records: [] }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 400, "AN7 zondag geweigerd");
     r = await call(uo, { id: "o6", correction: "bewerken", reden: "te laat", notes: "x" }, [{ fields: { Statut: "Sortie en livraison" } }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 409, "AN7 na vertrek vergrendeld");
@@ -1349,7 +1355,7 @@ async function main() {
       { id: "s3", fields: { "Produit": "Kabeljauw", "Unité": "kg", "Prix de base": 20, "Foto": [{ url: "http://insecure.test/k.jpg", type: "image/jpeg" }] } },
       { id: "s4", fields: { "Produit": "Tong", "Unité": "kg", "Prix de base": 30 } }
     ] };
-    const rS = await call(catalogueS, { user: "foto", pw: "pass" }, [CLIENT_S, CAT_S, { records: [] }, { records: [] }]);
+    const rS = await call(catalogueS, { user: "foto", pw: "pass" }, [CLIENT_S, CAT_S, { records: [] }, { records: [] }, { records: [] }]);
     assert.equal(rS.res.statusCode, 200, "S1 login catalogue");
     const byName = Object.fromEntries(rS.res.payload.products.map(p => [p.nom, p]));
     assert.equal(byName.Zalm.foto, AT + "zalm-l.jpg", "S1 vignette large préférée");
@@ -1472,10 +1478,10 @@ async function main() {
     const CLIENT_T = { records: [{ id: "clientT", fields: { "Nom": "Resto T", "Wachtwoord": "pass" } }] };
     const CAT_T = { records: [{ id: "pT", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 10 } }] };
     const ITEMS_T = [{ productId: "pT", quantity: 1 }];
-    let rT = await call(createOrder, { user: "tnum", pw: "pass", items: ITEMS_T }, [CLIENT_T, CAT_T, { records: [] }, refRecord(`CMD-${year}-0007`), { records: [{ id: "orderT" }] }]);
+    let rT = await call(createOrder, { user: "tnum", pw: "pass", items: ITEMS_T }, [CLIENT_T, { records: [] }, CAT_T, { records: [] }, refRecord(`CMD-${year}-0007`), { records: [{ id: "orderT" }] }]);
     assert.equal(rT.res.statusCode, 200, "T6 commande client");
     assert.equal(rT.res.payload.ref, `CMD-${year}-0008`, "T6 référence renvoyée au client");
-    assert.equal(JSON.parse(rT.calls[4].options.body).records[0].fields["Référence"], `CMD-${year}-0008`, "T6 référence enregistrée dans Airtable");
+    assert.equal(JSON.parse(rT.calls[5].options.body).records[0].fields["Référence"], `CMD-${year}-0008`, "T6 référence enregistrée dans Airtable");
     const staffT = require(path.join(ROOT, "api", "staff.js"));
     rT = await call(staffT, { clientId: "clientT", items: ITEMS_T }, [CAT_T, { records: [] }, refRecord(`CMD-${year}-0008`), { records: [{ id: "orderT2" }] }], { headers: adminCookieHdr });
     assert.equal(rT.res.statusCode, 200, "T6 saisie staff");

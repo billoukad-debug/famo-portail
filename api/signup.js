@@ -1,4 +1,5 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
+const __ordermail = require("../lib/ordermail");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -57,9 +58,18 @@ module.exports = async (req, res) => {
       body: JSON.stringify({ records: [{ fields }] })
     });
     const j = await r.json();
-    if (j.error) return res.status(500).json(j);
-    res.status(200).json({ ok: true });
+    if (j.error) return res.status(500).json({ error: "Aanvraag opslaan mislukt. Bel ons." });
+    // L'équipe est prévenue par e-mail ; sans clé mail rien ne part, la demande est quand même enregistrée.
+    let mail = null;
+    if (__ordermail.enabled()) {
+      mail = await (async () => {
+        const cfg = await __ordermail.loadMailConfig(async p => (await fetch(`https://api.airtable.com/v0/${BASE}/${p}`, { headers: { Authorization: `Bearer ${TOKEN}` } })).json());
+        return __ordermail.notifySignup({ aanvraag: { bedrijfsnaam, contact: contactpersoon, tel: telefoon, email, adresse: adres, notities }, opsEmail: cfg.opsEmail, company: cfg, portalUrl: __ordermail.portalUrl(req), at: Date.now() });
+      })().catch(() => null);
+    }
+    res.status(200).json({ ok: true, mail: mail ? !!mail.ok : null });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    console.error("[signup]", e && e.message || e);
+    res.status(500).json({ error: "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons." });
   }
 };

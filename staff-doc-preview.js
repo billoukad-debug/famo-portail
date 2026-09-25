@@ -42,6 +42,16 @@
     if (kind === "credit") {
       return "Famo-Creditnota-" + sanitizeFilePart(opts.number || opts.ref || "CN") + ".pdf";
     }
+    // Bundels (meerdere documenten in één PDF) : één bestand per dag.
+    if (kind === "deliveries") {
+      return "Famo-Leveringsbonnen-" + sanitizeFilePart(opts.date || todayBrussels()) + ".pdf";
+    }
+    if (kind === "invoices") {
+      return "Famo-Facturen-" + sanitizeFilePart(opts.date || todayBrussels()) + ".pdf";
+    }
+    if (kind === "credits") {
+      return "Famo-Creditnotas-" + sanitizeFilePart(opts.date || todayBrussels()) + ".pdf";
+    }
     if (kind === "picking" || kind === "prep" || kind === "voorbereiding") {
       return "Famo-Verzamellijst-" + sanitizeFilePart(opts.date || todayBrussels()) + ".pdf";
     }

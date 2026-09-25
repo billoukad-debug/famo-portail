@@ -1,5 +1,6 @@
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
+const __lev = require("../lib/levering");
 const BASE = "appcdduLth9iGX8I0";
 
 async function at(path){
@@ -53,13 +54,18 @@ module.exports = async (req, res) => {
       // absente de contactOnly ci-dessous, qui part au public et au staff non-admin.
       bestellingenEmail: (c["Bestellingen e-mail"] || "").trim()
     };
+    const rules = __lev.rulesFrom(c);
+    config.betaaltermijnDagen = rules.betaaltermijn;
+    config.voorraadAfboeken = rules.voorraadAfboeken;
+    config.levering = __lev.publicRules(rules);
     const contactOnly = {
       bedrijfsnaam: config.bedrijfsnaam || "FAMO Seafood",
       adres: config.adres,
       plaats: config.plaats,
       btw: config.btw,
       telefoon: config.telefoon,
-      email: config.email
+      email: config.email,
+      levering: config.levering
     };
 
     // Public contact block for the client portal (no IBAN/BIC).
@@ -78,6 +84,8 @@ module.exports = async (req, res) => {
         iban: config.iban,
         bic: config.bic,
         btwTarief: config.btwTarief,
+        betaaltermijnDagen: config.betaaltermijnDagen,
+        voorraadAfboeken: config.voorraadAfboeken,
         betalingsvoorwaarden: config.betalingsvoorwaarden,
         leveringsvoorwaarden: config.leveringsvoorwaarden
       }) });

@@ -17,8 +17,9 @@ sans transformer le portail en ERP générique.
 | UI staff | En cours (PRs) | Shell + nav 4+Meer ; documents PDF in-app |
 | Go-live | Quasi prêt | Guide `/aan-de-slag.html` + purge manuelle Airtable |
 | Facturation légale | Intentionnellement incomplète | Docs internes, pas Peppol |
-| Auth | Acceptable pour démarrer | Code staff partagé + fallback temporaire ; mots de passe clients en clair |
-| Portail client `/` | Fonctionnel, hors redesign | Historique + reorder ; pas de session cookie |
+| Auth | Acceptable pour démarrer | Codes partagés + PIN personnels (`Medewerkers`) ; pas de fallback ; mots de passe clients en clair |
+| Portail client `/` | Fonctionnel, hors redesign | Détail commande, relevé impayés, favoris synchronisés, mot de passe oublié par e-mail ; pas de session cookie |
+| Livraison & paiement | Fait | Règles configurables (deadline, jours, fermetures, minimum), exceptions de livraison, ordre de tournée, mode/date de paiement, creditnota réelle (C2) |
 
 ---
 
