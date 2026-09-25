@@ -24,6 +24,7 @@ module.exports = async (req, res) => {
     const rec = ((found && found.records) || [])[0];
     if (!rec || !(rec.fields["Client"] || []).includes(client.id)) return res.status(404).json({ error: "Bestelling niet gevonden" });
     const f = rec.fields || {};
+    if (f["Statut"] === "Annulée") return res.status(409).json({ error: "Deze bestelling is geannuleerd: er zijn geen documenten." });
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};
     const invoiced = f["Statut"] === "Facturée";

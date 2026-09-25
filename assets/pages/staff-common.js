@@ -10,7 +10,7 @@
     return S;
   };
   S.byId = id => S.orders.find(o => o.id === id);
-  S.counts = () => { const t = K.today(); return { today: S.orders.filter(o => o.day === t && o.statut !== "Facturée").length, prep: S.orders.filter(o => o.statut === "Reçue").length, ready: S.orders.filter(o => o.statut === "Prête").length, road: S.orders.filter(o => o.statut === "Sortie en livraison").length, late: S.orders.filter(o => o.late).length, unpaid: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").length, unpaidSum: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").reduce((s, o) => s + Number(o.total || 0), 0) }; };
+  S.counts = () => { const t = K.today(); return { today: S.orders.filter(o => o.day === t && !K.isClosed(o)).length, prep: S.orders.filter(o => o.statut === "Reçue").length, ready: S.orders.filter(o => o.statut === "Prête").length, road: S.orders.filter(o => o.statut === "Sortie en livraison").length, late: S.orders.filter(o => o.late).length, unpaid: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").length, unpaidSum: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").reduce((s, o) => s + Number(o.total || 0), 0) }; };
   S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); await S.load(true); return d; };
   S.lineTxt = o => K.linesSummary(o.lignes);
 
@@ -60,11 +60,11 @@
     const lines = K.parseLines(o.lignes);
     const state = lines.map(() => false);
     const p = K.panel({ title: "Artikelen valideren", sub: o.client + " · " + o.ref + " · levering " + K.relDay(o.day), body:
-      '<div class="card" id="vl">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-v="' + i + '"') + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet" style="font-size:12px">„' + K.esc(l.comment) + '”</div>' : "") + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" step="' + (/kg/i.test(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '"><button type="button" data-inc aria-label="Meer">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div>' +
+      '<div class="card" id="vl">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-v="' + i + '"', { label: "Gecontroleerd: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet" style="font-size:12px">„' + K.esc(l.comment) + '”</div>' : "") + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" step="' + (/kg/i.test(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '"><button type="button" data-inc aria-label="Meer">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div>' +
       (o.notes ? K.c.warn("<b>Nota klant:</b> " + K.esc(o.notes)) : "") + '<div class="quiet" style="font-size:12.5px">Pas een aantal aan als u minder kunt leveren; het totaal wordt op de server herberekend.</div><div id="vErr"></div>',
       footer: '<span class="muted" id="vCount" style="margin-right:auto;font-size:12.5px">0 van ' + lines.length + ' gecontroleerd</span><button type="button" class="btn btn-o" data-cancel>Later</button><button type="button" class="btn btn-p" id="vOk" disabled>Klaarzetten</button>' });
     const refresh = () => { const n = state.filter(Boolean).length; p.el.querySelector("#vCount").textContent = n + " van " + lines.length + " gecontroleerd"; p.el.querySelector("#vOk").disabled = n !== lines.length; };
-    K.on(p.el, "click", "[data-v]", (e, t) => { const i = +t.dataset.v; state[i] = !state[i]; t.classList.toggle("on", state[i]); t.closest(".line").classList.toggle("ok", state[i]); refresh(); });
+    K.on(p.el, "click", "[data-v]", (e, t) => { const i = +t.dataset.v; state[i] = !state[i]; K.setOn(t, state[i]); refresh(); });
     K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = /kg/i.test(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.max(0, /kg/i.test(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v)); lines[i].qty = v; inp.value = v; }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(Number(String(inp.value).replace(",", ".")) || 0)); });
     p.el.querySelector("[data-cancel]").onclick = p.close;
     p.el.querySelector("#vOk").onclick = async () => {
@@ -83,10 +83,69 @@
   };
   S.togglePaid = async function (o, onDone) {
     const paid = o.paiement === "Payé";
+    if (!(await K.confirm({ title: paid ? "Terug op openstaand?" : "Markeren als betaald?", text: o.client + " · " + (o.factuurnummer || o.ref) + " · " + K.eur(o.total) + " excl. btw", yes: paid ? "Terug op openstaand" : "Betaald" }))) return;
     try { await S.update(o.id, { paiement: paid ? "En attente" : "Payé" }); K.toast(paid ? "Terug op openstaand" : "Gemarkeerd als betaald"); if (onDone) onDone(); } catch (err) { K.toast(err.message, { kind: "err" }); }
   };
+  /* ---------- corrigeren (paneel) : één marche arrière, annuleren, herstellen ---------- */
+  // Welke correcties er mogelijk zijn hangt af van status en rol. De server beslist
+  // opnieuw ; hier tonen we enkel wat zinvol is, met de gevolgen in klare taal.
+  S.corrections = function (o) {
+    const admin = K.staff.isAdmin(), st = o.statut, out = [];
+    if (st === "Prête") out.push({ correction: "terug", title: "Terug naar te bereiden", text: "De validatie van de artikelen wordt gewist. Het magazijn valideert opnieuw." });
+    if (st === "Sortie en livraison") out.push({ correction: "terug", title: "Terug naar klaar (vertrek ongedaan)", text: "De bestelling is toch niet vertrokken. Afgeboekte voorraad wordt teruggezet." });
+    if (st === "Facturée") out.push({ correction: "terug", title: "Ontvangst ongedaan maken", text: "Terug op Onderweg. Het factuurnummer blijft voorbehouden voor deze bestelling. Enkel beheerder, niet als de factuur op betaald staat.", admin: true, danger: true });
+    if (st === "Reçue" || st === "Prête") out.push({ correction: "annuleren", title: "Bestelling annuleren", text: "De bestelling verdwijnt uit Magazijn en Leveringen. Ze blijft zichtbaar onder „Geannuleerd” en kan hersteld worden.", danger: true });
+    if (st === "Sortie en livraison") out.push({ correction: "annuleren", title: "Bestelling annuleren (al onderweg)", text: "Enkel beheerder. Afgeboekte voorraad wordt teruggezet.", admin: true, danger: true });
+    if (st === "Annulée") out.push({ correction: "herstellen", title: "Herstellen", text: "Terug naar „Ontvangen”. Het magazijn valideert opnieuw." });
+    return out.filter(c => !c.admin || admin);
+  };
+  S.correctPanel = function (o, onDone) {
+    const opts = S.corrections(o);
+    const p = K.panel({ title: "Corrigeren", sub: o.client + " · " + o.ref + " · nu: " + K.status(o.statut), body:
+      (opts.length ? '<div class="field"><label>Wat wilt u doen?</label><div class="card" id="cOpts">' + opts.map((c, i) => '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer" data-copt="' + i + '">' + K.c.check(false, 'data-cchk="' + i + '"', { label: c.title }) + '<div><b' + (c.danger ? ' style="color:var(--danger)"' : "") + '>' + K.esc(c.title) + '</b><div class="quiet" style="font-size:12px">' + K.esc(c.text) + '</div></div></label>').join("") + '</div></div>' : K.c.warn(o.statut === "Facturée" ? "Geleverd en gefactureerd. Terugdraaien kan enkel een beheerder; een fout in de aantallen wordt met een creditnota rechtgezet." : "Geen correctie mogelijk in deze stap.")) +
+      (o.statut === "Facturée" && o.paiement === "Payé" ? K.c.warn("Deze factuur staat op <b>betaald</b>. Zet ze eerst terug op openstaand (fiche → „Terug op openstaand”).") : "") +
+      K.c.field("Reden", K.c.input("cReden", { placeholder: "bv. klant belde af, verkeerde dag, per ongeluk vertrokken", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fReden", req: true, hint: "Wordt bij de bestelling bewaard (Correcties)." }) +
+      '<div id="cErr"></div>',
+      footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="cOk" disabled>Bevestigen</button>' });
+    let chosen = -1;
+    K.on(p.el, "click", "[data-copt]", (e, t) => { e.preventDefault(); chosen = +t.dataset.copt; K.$$("[data-cchk]", p.el).forEach(c => c.classList.toggle("on", +c.dataset.cchk === chosen)); K.$$("[data-copt]", p.el).forEach(l => l.classList.toggle("ok", +l.dataset.copt === chosen)); const b = p.el.querySelector("#cOk"); b.disabled = false; b.textContent = opts[chosen].title; b.className = "btn " + (opts[chosen].danger ? "btn-danger" : "btn-p"); });
+    p.el.querySelector("[data-cancel]").onclick = p.close;
+    p.el.querySelector("#cOk").onclick = async () => {
+      const reden = p.el.querySelector("#cReden").value.trim();
+      K.setErr("fReden", reden.length >= 3 ? "" : "Verplicht: geef een reden (minstens 3 tekens)."); if (reden.length < 3 || chosen < 0) return;
+      const c = opts[chosen];
+      if (c.danger && !(await K.confirm({ title: c.title + "?", text: o.client + " · " + o.ref + ". " + c.text, yes: c.title, danger: true }))) return;
+      const btn = p.el.querySelector("#cOk"); K.busy(btn, true, "Bezig…");
+      try {
+        const d = await S.update(o.id, { correction: c.correction, reden });
+        p.close(); K.toast(c.title + " · " + o.client + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad teruggezet" : "")); if (onDone) onDone(d);
+      } catch (err) { p.el.querySelector("#cErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
+    };
+  };
+  /* ---------- leverdag / nota aanpassen (paneel), enkel vóór vertrek ---------- */
+  S.editPanel = function (o, onDone) {
+    const p = K.panel({ title: "Leverdag en nota aanpassen", sub: o.client + " · " + o.ref, body:
+      K.c.field("Leverdag", '<input type="date" class="input" id="eDay" value="' + K.esc(o.dateLiv || "") + '" min="' + K.today() + '">', { id: "fDay", hint: "Geen levering op zondag." }) +
+      K.c.field("Nota (voor magazijn en chauffeur)", '<textarea class="input" id="eNote" rows="3" maxlength="500">' + K.esc(o.notes || "") + '</textarea>', {}) +
+      K.c.field("Reden van de wijziging", K.c.input("eReden", { placeholder: "bv. klant belde: liever donderdag", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fEReden", req: true }) + '<div id="eErr"></div>',
+      footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="eOk">Opslaan</button>' });
+    p.el.querySelector("[data-cancel]").onclick = p.close;
+    p.el.querySelector("#eOk").onclick = async () => {
+      const day = p.el.querySelector("#eDay").value, note = p.el.querySelector("#eNote").value, reden = p.el.querySelector("#eReden").value.trim();
+      K.setErr("fEReden", reden.length >= 3 ? "" : "Verplicht: geef een reden."); if (reden.length < 3) return;
+      const payload = { correction: "bewerken", reden }; if (day && day !== (o.dateLiv || "")) payload.dateLivraison = day; if (note !== (o.notes || "")) payload.notes = note;
+      if (!payload.dateLivraison && payload.notes === undefined) { p.el.querySelector("#eErr").innerHTML = K.c.error("Niets gewijzigd."); return; }
+      const btn = p.el.querySelector("#eOk"); K.busy(btn, true, "Opslaan…");
+      try { await S.update(o.id, payload); p.close(); K.toast("Bestelling aangepast"); if (onDone) onDone(); }
+      catch (err) { p.el.querySelector("#eErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
+    };
+  };
+  // Zelfde knop overal (fiche, tabel, magazijn, leveringen) : ghost, nooit de hoofdactie.
+  S.correctBtn = (o, label) => '<button type="button" class="btn btn-ghost btn-sm" data-act="correct" data-id="' + o.id + '" title="Corrigeren">' + K.esc(label || "Corrigeren") + '</button>';
+
   // Snelle actieknop volgens status.
   S.nextAction = function (o) {
+    if (o.statut === "Annulée") return '<button type="button" class="btn btn-o btn-sm" data-act="correct" data-id="' + o.id + '">Herstellen</button>';
     if (o.statut === "Reçue") return '<button type="button" class="btn btn-p btn-sm" data-act="validate" data-id="' + o.id + '">Klaarzetten</button>';
     if (o.statut === "Prête") return '<button type="button" class="btn btn-p btn-sm" data-act="depart" data-id="' + o.id + '">Vertrekt</button>';
     if (o.statut === "Sortie en livraison") return '<button type="button" class="btn btn-p btn-sm" data-act="deliver" data-id="' + o.id + '">Ontvangst bevestigen</button>';
@@ -104,9 +163,11 @@
       else if (act === "delivery") S.openDoc(o, "delivery");
       else if (act === "paid") S.togglePaid(o, refresh);
       else if (act === "picking") S.openPicking([o], o.client);
+      else if (act === "correct") S.correctPanel(o, refresh);
+      else if (act === "edit") S.editPanel(o, refresh);
       else if (act === "open") location.href = "/order.html?id=" + encodeURIComponent(o.id);
     });
   };
-  S.orderCard = o => '<a class="ocard" href="/order.html?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + K.stKey(o.statut) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Open</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
+  S.orderCard = o => '<a class="ocard" href="/order.html?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + (o.statut === "Annulée" ? "inv" : K.stKey(o.statut)) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Openstaand</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
   global.S = S;
 })(window);

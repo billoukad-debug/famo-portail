@@ -9,7 +9,96 @@
   K.eur = v => "€ " + (Number(v) || 0).toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   K.num = v => String(Number(v) || 0).replace(".", ",");
   K.qty = v => { const n = Number(v) || 0; return Number.isInteger(n) ? String(n) : n.toLocaleString("nl-BE", { maximumFractionDigits: 3 }); };
-  const DAYS = ["zo", "ma", "di", "wo", "do", "vr", "za"], MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+  /* ---------- taal / langue (klantportaal : NL of FR ; personeel en beheer : altijd NL) ----------
+     Eén schakelaar (K.langSwitch), één woordenboek (K.FR, sleutel = de Nederlandse tekst), één
+     functie (K.t). Een ontbrekende vertaling valt terug op het Nederlands, nooit op een lege string. */
+  K.lang = (() => { try { return localStorage.getItem("famoLang") === "fr" ? "fr" : "nl"; } catch (e) { return "nl"; } })();
+  K.setLang = l => { try { localStorage.setItem("famoLang", l === "fr" ? "fr" : "nl"); } catch (e) { /* privé venster */ } location.reload(); };
+  K.t = s => (K.lang === "fr" && K.FR[s]) ? K.FR[s] : s;
+  // Woordenboek klantportaal. Ook de foutmeldingen van de server (in het Nederlands) staan
+  // erin : de API blijft eentalig, de vertaling gebeurt bij het tonen (K.errText).
+  K.FR = {
+    "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
+    "Vandaag": "Aujourd'hui", "Morgen": "Demain", "Gisteren": "Hier", "Algemeen": "Général", "Ontvangen": "Reçue", "Openstaand": "À payer",
+    "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Annuleren": "Annuler",
+    "Laden…": "Chargement…", "Openen": "Ouvrir", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
+    // start
+    "Verse vis en zeevruchten · Antwerpen": "Poissons et fruits de mer frais · Anvers", "Toegang aanvragen": "Demander un accès",
+    "Verse vis bestellen,<br>zo simpel als een berichtje.": "Commander du poisson frais,<br>aussi simple qu'un message.",
+    "Bestel vandaag vóór 22:00 en wij leveren morgen in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug in het portaal.": "Commandez aujourd'hui avant 22 h, nous livrons demain à Anvers et dans les environs. Vous voyez vos prix convenus, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures dans le portail.",
+    "Klantportaal": "Portail client", "Aanmelden met uw gebruikersnaam": "Connectez-vous avec votre identifiant", "U bent afgemeld.": "Vous êtes déconnecté.",
+    "Gebruikersnaam": "Identifiant", "Wachtwoord": "Mot de passe", "Tonen": "Afficher", "Verbergen": "Masquer", "Aanmelden": "Se connecter", "Aanmelden…": "Connexion…",
+    "Wachtwoord vergeten?": "Mot de passe oublié ?", "Nog geen klant? Toegang aanvragen": "Pas encore client ? Demander un accès", "Werkt u bij Famo?": "Vous travaillez chez Famo ?",
+    "besteldeadline": "heure limite de commande", "ma–za": "lun–sam", "levering, niet op zondag": "livraison, pas le dimanche", "Gratis": "Gratuite", "levering": "livraison",
+    "Vul uw gebruikersnaam in.": "Indiquez votre identifiant.", "Vul uw wachtwoord in.": "Indiquez votre mot de passe.", "Gebruikersnaam of wachtwoord klopt niet.": "Identifiant ou mot de passe incorrect.",
+    // catalogus
+    "bestel vóór 22:00 voor morgen": "commandez avant 22 h pour demain", "Zoek een product…": "Rechercher un produit…", "Alles": "Tout", "Favoriet": "Favori", "Uit favorieten": "Retirer des favoris",
+    "uw prijs": "votre prix", "artikel": "article", "artikelen": "articles", "excl. btw": "HTVA", "Bestellen": "Commander",
+    "Niets gevonden voor": "Aucun résultat pour", "Nog geen favorieten": "Pas encore de favoris", "Probeer een ander woord of kies een categorie.": "Essayez un autre mot ou choisissez une catégorie.",
+    "Tik op de ster bij een product om het hier te zien.": "Touchez l'étoile d'un produit pour le voir ici.", "Tik op de ster bij een product in de catalogus.": "Touchez l'étoile d'un produit dans le catalogue.",
+    // winkelmand
+    "Winkelmand": "Panier", "Leegmaken": "Vider", "Opmerking (bv. dikke moot)": "Remarque (ex. tranche épaisse)", "Leverdag": "Jour de livraison", "Andere dag": "Autre jour",
+    "Geen levering op zondag. Vóór 22:00 besteld = morgen geleverd.": "Pas de livraison le dimanche. Commandé avant 22 h = livré demain.",
+    "Leveradres": "Adresse de livraison", "Adres bij Famo bekend": "Adresse connue de Famo", "Ander adres? Zet het in de opmerking.": "Autre adresse ? Indiquez-la dans la remarque.",
+    "Opmerking voor Famo": "Remarque pour Famo", "bv. graag achteraan bellen": "ex. sonner à l'arrière", "Totaal excl. btw": "Total HTVA",
+    "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór 22:00 voor levering morgen.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant 22 h pour une livraison demain.",
+    "Bestelling plaatsen": "Passer la commande", "Uw winkelmand is leeg": "Votre panier est vide", "Kies producten in de catalogus.": "Choisissez des produits dans le catalogue.", "Naar de catalogus": "Vers le catalogue",
+    "Op zondag leveren we niet. Kies een andere dag.": "Nous ne livrons pas le dimanche. Choisissez un autre jour.", "Die dag is te vroeg: bestel vóór 22:00 voor levering morgen.": "Ce jour est trop tôt : commandez avant 22 h pour une livraison demain.",
+    "Kies een dag binnen de komende 60 dagen.": "Choisissez un jour dans les 60 prochains jours.", "Winkelmand leegmaken?": "Vider le panier ?", "Alle artikelen worden verwijderd.": "Tous les articles seront retirés.",
+    "Bestelling versturen…": "Envoi de la commande…", "Uw sessie is verlopen. Meld u opnieuw aan.": "Votre session a expiré. Reconnectez-vous.",
+    // bevestigd
+    "Bestelling ontvangen": "Commande reçue", "Dank u wel. We zetten alles klaar voor": "Merci. Nous préparons tout pour le", "Wordt klaargezet": "En préparation", "de dag vóór levering": "la veille de la livraison",
+    "Onderweg": "En livraison", "ochtend": "matin", "Geleverd → leveringsbon en factuur bij uw bestellingen": "Livrée → bon de livraison et facture dans vos commandes",
+    "Geen bevestigingsmail: er is geen e-mailadres bij uw account. Vraag Famo om het toe te voegen.": "Pas d'e-mail de confirmation : aucune adresse e-mail n'est liée à votre compte. Demandez à Famo de l'ajouter.",
+    "Een bevestiging is gemaild als uw e-mailadres bij Famo bekend is.": "Une confirmation a été envoyée par e-mail si Famo connaît votre adresse.", "Naar mijn bestellingen": "Vers mes commandes", "Verder bestellen": "Continuer à commander",
+    // bestellingen
+    "Mijn bestellingen": "Mes commandes", "Lopend": "En cours", "Geleverd · documenten": "Livrées · documents", "Te betalen": "À payer", "Levering": "Livraison",
+    "Geleverd · betaald": "Livrée · payée", "Geleverd · openstaand": "Livrée · à payer", "Te laat": "En retard", "Factuur": "Facture", "Leveringsbon": "Bon de livraison", "Opnieuw bestellen": "Commander à nouveau",
+    "Wordt klaargezet · wijzigen of annuleren: bel Famo.": "En préparation · pour modifier ou annuler : appelez Famo.", "Geen lopende bestellingen": "Aucune commande en cours", "Niets in deze lijst": "Rien dans cette liste",
+    "Bestel vóór 22:00 voor levering morgen.": "Commandez avant 22 h pour une livraison demain.", "Bestelling": "Commande", "annuleren?": "annuler ?", "Behouden": "Garder", "Annuleren…": "Annulation…", "geannuleerd": "annulée",
+    "Ze wordt niet klaargezet en niet geleverd. U kunt ze daarna opnieuw bestellen.": "Elle ne sera ni préparée ni livrée. Vous pourrez la commander à nouveau ensuite.",
+    "in de winkelmand gezet": "ajouté(s) au panier", "Deze artikelen staan niet meer in de catalogus": "Ces articles ne sont plus au catalogue",
+    // favorieten
+    "Mijn standaardbestelling": "Ma commande type", "Nog niet ingesteld": "Pas encore définie", "In winkelmand zetten": "Mettre dans le panier", "Vervang door winkelmand": "Remplacer par le panier",
+    "Huidige winkelmand opslaan als standaard": "Enregistrer le panier actuel comme commande type", "Snel opnieuw bestellen": "Recommander rapidement",
+    "Zet eerst artikelen in de winkelmand.": "Mettez d'abord des articles dans le panier.", "Standaardbestelling opgeslagen": "Commande type enregistrée",
+    // account
+    "Zaak": "Établissement", "Taal": "Langue", "Nederlands of Frans, voor dit toestel": "Néerlandais ou français, sur cet appareil", "Documenten": "Documents", "Leveringsbonnen en facturen per bestelling": "Bons de livraison et factures par commande",
+    "Gegevens wijzigen": "Modifier vos données", "Adres, contact, e-mail: bel of mail Famo": "Adresse, contact, e-mail : appelez ou écrivez à Famo", "Wijzig uw wachtwoord zelf, met uw huidige wachtwoord": "Changez votre mot de passe vous-même, avec le mot de passe actuel",
+    "Uitloggen": "Se déconnecter", "Uitloggen?": "Se déconnecter ?", "Uw winkelmand blijft bewaard op dit toestel.": "Votre panier reste enregistré sur cet appareil.",
+    "Wachtwoord wijzigen": "Changer le mot de passe", "Ter bevestiging vragen we uw huidige wachtwoord.": "Par sécurité, nous demandons votre mot de passe actuel.", "Huidig wachtwoord": "Mot de passe actuel", "Nieuw wachtwoord": "Nouveau mot de passe",
+    "Minstens 8 tekens.": "Au moins 8 caractères.", "Herhaal nieuw wachtwoord": "Répétez le nouveau mot de passe", "Vul uw huidige wachtwoord in.": "Indiquez votre mot de passe actuel.", "Kies een nieuw wachtwoord.": "Choisissez un nouveau mot de passe.",
+    "Het nieuwe wachtwoord moet minstens 8 tekens hebben.": "Le nouveau mot de passe doit contenir au moins 8 caractères.", "Het nieuwe wachtwoord mag hoogstens 80 tekens hebben.": "Le nouveau mot de passe ne peut dépasser 80 caractères.",
+    "Kies een nieuw wachtwoord dat verschilt van het huidige.": "Choisissez un mot de passe différent de l'actuel.", "De twee nieuwe wachtwoorden zijn niet gelijk.": "Les deux nouveaux mots de passe ne correspondent pas.",
+    "Wachtwoord gewijzigd. Gebruik voortaan uw nieuwe wachtwoord.": "Mot de passe modifié. Utilisez désormais le nouveau.", "Uw huidige wachtwoord klopt niet.": "Votre mot de passe actuel est incorrect.",
+    // aanvraag
+    "Voor horeca en handel. Wij bellen u binnen 1 werkdag met uw prijzen en uw toegang.": "Pour l'horeca et le commerce. Nous vous appelons sous 1 jour ouvrable avec vos prix et votre accès.",
+    "Bedrijfsnaam": "Nom de l'entreprise", "Contactpersoon": "Personne de contact", "Telefoon": "Téléphone", "E-mail": "E-mail", "Straat, nummer, gemeente": "Rue, numéro, commune",
+    "Wat bestelt u meestal?": "Que commandez-vous habituellement ?", "bv. garnalen 16/20, zalm, tonijn · ongeveer per week": "ex. crevettes 16/20, saumon, thon · environ par semaine",
+    "Aanvraag versturen": "Envoyer la demande", "Al klant?": "Déjà client ?", "Geef een geldig e-mailadres.": "Indiquez une adresse e-mail valide.", "Versturen…": "Envoi…",
+    "Aanvraag ontvangen.": "Demande reçue.", "Wij bellen u op": "Nous vous appelons au", "binnen 1 werkdag.": "sous 1 jour ouvrable.", "Terug naar de startpagina": "Retour à l'accueil",
+    // wachtwoord vergeten
+    "← Aanmelden": "← Connexion", "Wachtwoord vergeten": "Mot de passe oublié",
+    "Uw wachtwoord wordt door FAMO Seafood beheerd. Bel of mail ons: wij zetten meteen een nieuw wachtwoord klaar en sturen het naar het e-mailadres van uw zaak.": "Votre mot de passe est géré par FAMO Seafood. Appelez-nous ou écrivez-nous : nous préparons aussitôt un nouveau mot de passe et l'envoyons à l'adresse e-mail de votre établissement.",
+    "Gegevens laden…": "Chargement…",
+    // serveur (NL → FR)
+    "Ongeldige gebruikersnaam of wachtwoord": "Identifiant ou mot de passe incorrect", "Bestelling niet gevonden": "Commande introuvable", "Referentie ontbreekt": "Référence manquante",
+    "Deze bestelling is al geannuleerd.": "Cette commande est déjà annulée.", "Deze bestelling wordt al klaargezet. Bel Famo om ze te wijzigen of te annuleren.": "Cette commande est déjà en préparation. Appelez Famo pour la modifier ou l'annuler.",
+    "Deze bestelling is geannuleerd: er zijn geen documenten.": "Cette commande est annulée : il n'y a pas de documents.",
+    "Te veel bestellingen in korte tijd. Wacht even en probeer opnieuw, of bel ons.": "Trop de commandes en peu de temps. Patientez un instant et réessayez, ou appelez-nous.",
+    "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw.": "Trop de tentatives échouées. Attendez 30 secondes et réessayez.", "Te veel aanvragen vanaf dit toestel. Probeer later opnieuw of bel ons.": "Trop de demandes depuis cet appareil. Réessayez plus tard ou appelez-nous.",
+    "Wachtwoord wijzigen mislukt. Probeer het later opnieuw.": "La modification du mot de passe a échoué. Réessayez plus tard.", "Bedrijfsnaam, contactpersoon, e-mail en telefoon zijn verplicht": "Nom de l'entreprise, personne de contact, e-mail et téléphone sont obligatoires",
+    "Ongeldig e-mailadres": "Adresse e-mail invalide", "Ongeldige leverdag": "Jour de livraison invalide", "De leverdag ligt in het verleden": "Le jour de livraison est passé", "Kies een leverdag binnen de komende 60 dagen": "Choisissez un jour de livraison dans les 60 prochains jours",
+    "Op zondag leveren we niet": "Nous ne livrons pas le dimanche", "Geen artikelen": "Aucun article", "Klant en artikelen vereist": "Client et articles requis", "Ongeldig artikel of aantal": "Article ou quantité invalide",
+    "Alleen producten per kg mogen een decimale hoeveelheid hebben": "Seuls les produits au kg acceptent une quantité décimale", "Geen verbinding. Controleer het netwerk en probeer opnieuw.": "Pas de connexion. Vérifiez le réseau et réessayez."
+  };
+  K.langSwitch = () => '<div class="lang" role="group" aria-label="Taal / Langue">' + ["nl", "fr"].map(l => '<button type="button" data-lang="' + l + '"' + (K.lang === l ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l.toUpperCase() + '</button>').join("") + '</div>';
+  const doc = global.document;
+  if (doc && doc.documentElement) doc.documentElement.lang = K.lang;
+  if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => { const b = e.target && e.target.closest && e.target.closest("[data-lang]"); if (b && b.dataset.lang !== K.lang) K.setLang(b.dataset.lang); });
+  const DAYS_BY = { nl: ["zo", "ma", "di", "wo", "do", "vr", "za"], fr: ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"] };
+  const MONTHS_BY = { nl: ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"], fr: ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"] };
+  const DAYS = new Proxy([], { get: (_, i) => DAYS_BY[K.lang][i] }), MONTHS = new Proxy([], { get: (_, i) => MONTHS_BY[K.lang][i] });
   K.parseDate = v => { if (!v) return null; const d = new Date(String(v).includes("T") ? v : v + "T00:00:00"); return Number.isNaN(d.getTime()) ? null : d; };
   K.isoDay = d => { const x = d instanceof Date ? d : K.parseDate(d); if (!x) return ""; const m = String(x.getMonth() + 1).padStart(2, "0"), day = String(x.getDate()).padStart(2, "0"); return x.getFullYear() + "-" + m + "-" + day; };
   K.today = () => K.isoDay(new Date());
@@ -17,23 +106,39 @@
   K.date = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0"); };
   K.dateLong = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); };
   K.time = v => { const d = K.parseDate(v); return d ? String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") : ""; };
-  K.relDay = iso => { if (!iso) return "—"; const t = K.today(); if (iso === t) return "Vandaag"; if (iso === K.addDays(t, 1)) return "Morgen"; if (iso === K.addDays(t, -1)) return "Gisteren"; return K.date(iso); };
+  K.relDay = iso => { if (!iso) return "—"; const t = K.today(); if (iso === t) return K.t("Vandaag"); if (iso === K.addDays(t, 1)) return K.t("Morgen"); if (iso === K.addDays(t, -1)) return K.t("Gisteren"); return K.date(iso); };
   K.initials = name => String(name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("") || "?";
   K.uid = () => Math.random().toString(36).slice(2, 9);
 
   /* ---------- NL (interne waarden blijven Frans in Airtable) ---------- */
   K.NL = {
-    status: { "Reçue": "Ontvangen", "Prête": "Klaar", "Sortie en livraison": "Onderweg", "Facturée": "Geleverd" },
+    status: { "Reçue": "Ontvangen", "Prête": "Klaar", "Sortie en livraison": "Onderweg", "Facturée": "Geleverd", "Annulée": "Geannuleerd" },
     pay: { "En attente": "Openstaand", "Payé": "Betaald" },
     unit: { "caisse": "kassa", "carton": "doos", "pièce": "stuk", "piece": "stuk", "kg": "kg" },
-    move: { "Correction inventaire": "Voorraadcorrectie", "Entrée stock": "Voorraadontvangst", "Retour client": "Klantretour", "Sortie livraison": "Levering" }
+    move: { "Correction inventaire": "Voorraadcorrectie", "Entrée stock": "Voorraadontvangst", "Retour client": "Klantretour", "Sortie livraison": "Vertrek levering", "Annulation sortie": "Vertrek ongedaan" },
+    // Catégories du catalogue Airtable (valeurs françaises historiques) ; repli : valeur brute.
+    cat: { "poisson": "Vis", "poissons": "Vis", "coquillages": "Schelpdieren", "coquillage": "Schelpdieren", "crustacés": "Schaaldieren", "crustaces": "Schaaldieren", "crustacé": "Schaaldieren", "céphalopodes": "Inktvis", "fumé": "Gerookt", "surgelé": "Diepvries", "divers": "Algemeen", "général": "Algemeen", "": "Algemeen" }
   };
-  K.status = v => K.NL.status[v] || v || "Ontvangen";
-  K.pay = v => K.NL.pay[v] || v || "Openstaand";
-  K.unit = v => K.NL.unit[String(v || "").toLowerCase()] || v || "";
+  // staff-i18n.js (documents, e-mails) lit ce même dictionnaire : une seule source.
+  if (global.FAMO_NL) Object.assign(global.FAMO_NL, K.NL);
+  // Zelfde interne waarden, Franse labels voor het klantportaal.
+  K.FRV = {
+    status: { "Reçue": "Reçue", "Prête": "Préparée", "Sortie en livraison": "En livraison", "Facturée": "Livrée", "Annulée": "Annulée" },
+    pay: { "En attente": "À payer", "Payé": "Payée" },
+    unit: { "caisse": "caisse", "carton": "carton", "pièce": "pièce", "piece": "pièce", "kg": "kg" },
+    cat: { "poisson": "Poissons", "poissons": "Poissons", "coquillages": "Coquillages", "coquillage": "Coquillages", "crustacés": "Crustacés", "crustaces": "Crustacés", "crustacé": "Crustacés", "céphalopodes": "Céphalopodes", "fumé": "Fumé", "surgelé": "Surgelé", "divers": "Général", "général": "Général", "": "Général" }
+  };
+  const dict = () => (K.lang === "fr" ? K.FRV : K.NL);
+  K.status = v => dict().status[v] || v || K.t("Ontvangen");
+  K.pay = v => dict().pay[v] || v || K.t("Openstaand");
+  K.unit = v => dict().unit[String(v || "").toLowerCase()] || v || "";
   K.move = v => K.NL.move[v] || v;
+  K.cat = v => { const k = String(v || "").trim().toLowerCase(); return dict().cat[k] || String(v || "").trim() || K.t("Algemeen"); };
   K.STATUSES = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
-  K.stKey = st => ({ "Reçue": "new", "Prête": "ready", "Sortie en livraison": "road", "Facturée": "done" })[st] || "new";
+  K.CANCELLED = "Annulée";
+  // Une bestelling « afgesloten » n'est plus à préparer ni à livrer : gefactureerd of geannuleerd.
+  K.isClosed = o => o.statut === "Facturée" || o.statut === K.CANCELLED;
+  K.stKey = st => ({ "Reçue": "new", "Prête": "ready", "Sortie en livraison": "road", "Facturée": "done", "Annulée": "cancel" })[st] || "new";
   K.stChip = (st, extra) => '<span class="chip st-' + K.stKey(st) + '"><i></i>' + K.esc(extra || K.status(st)) + '</span>';
   K.stCell = (st, label) => '<span class="cell-st c-' + K.stKey(st) + '">' + K.esc(label || K.status(st)) + '</span>';
   K.payCell = p => p === "Payé" ? '<span class="cell-st c-done">Betaald</span>' : '<span class="cell-st c-open">Openstaand</span>';
@@ -47,7 +152,7 @@
   K.formatLine = l => `${l.name} × ${K.qty(l.qty).replace(",", ".")}${l.unit ? " " + l.unit : ""}${l.price != null ? " [€" + Number(l.price).toFixed(2) + "]" : ""}${l.comment ? " (" + l.comment + ")" : ""}`;
   K.linesSummary = txt => K.parseLines(txt).map(l => K.qty(l.qty) + "× " + l.name).join(" · ");
   K.dayOrder = o => o.dateLiv || o.date || "";
-  K.isLate = o => o.statut !== "Facturée" && o.dateLiv && o.dateLiv < K.today();
+  K.isLate = o => o.statut !== "Facturée" && o.statut !== "Annulée" && o.dateLiv && o.dateLiv < K.today();
 
   /* ---------- opslag ---------- */
   K.store = {
@@ -63,12 +168,12 @@
 
   /* ---------- API ---------- */
   const ERR = { "Code invalide": "Ongeldige personeelscode", "POST only": "Alleen POST toegestaan" };
-  K.errText = m => { if (m && typeof m === "object") m = m.message || m.error || JSON.stringify(m); const raw = String(m || "").trim(); if (!raw) return "Onbekende fout"; if (ERR[raw]) return ERR[raw]; return raw.replace(/\bcaisse\b/gi, "kassa").replace(/\bpièce\b/gi, "stuk"); };
+  K.errText = m => { if (m && typeof m === "object") m = m.message || m.error || JSON.stringify(m); const raw = String(m || "").trim(); if (!raw) return K.t("Onbekende fout"); if (ERR[raw]) return K.t(ERR[raw]); const nl = raw.replace(/\bcaisse\b/gi, "kassa").replace(/\bpièce\b/gi, "stuk"); return K.lang === "fr" ? (K.FR[raw] || K.FR[nl] || nl) : nl; };
   K.api = async function (url, opts) {
     const o = Object.assign({ credentials: "include" }, opts || {});
     if (o.json !== undefined) { o.method = o.method || "POST"; o.headers = Object.assign({ "Content-Type": "application/json" }, o.headers || {}); o.body = JSON.stringify(o.json); delete o.json; }
     let r;
-    try { r = await fetch(url, o); } catch (e) { const err = new Error("Geen verbinding. Controleer het netwerk en probeer opnieuw."); err.network = true; throw err; }
+    try { r = await fetch(url, o); } catch (e) { const err = new Error(K.t("Geen verbinding. Controleer het netwerk en probeer opnieuw.")); err.network = true; throw err; }
     const d = await r.json().catch(() => ({}));
     if (r.status === 401 && !/\/api\/(catalogue|orders|order)$/.test(url)) {
       document.dispatchEvent(new CustomEvent("famo:session-expired", { detail: { url } }));
@@ -141,14 +246,17 @@
   c.field = (label, inputHtml, opts) => { const o = opts || {}; return '<div class="field"' + (o.id ? ' id="' + o.id + '"' : "") + '><label' + (o.for ? ' for="' + o.for + '"' : "") + '>' + K.esc(label) + (o.req ? ' <span style="color:var(--danger)">*</span>' : "") + '</label>' + inputHtml + (o.hint ? '<span class="quiet" style="font-size:12px">' + K.esc(o.hint) + '</span>' : "") + '<span class="err" data-err></span></div>'; };
   c.input = (id, opts) => { const o = opts || {}; return '<input class="input" id="' + id + '" type="' + (o.type || "text") + '"' + (o.value != null ? ' value="' + K.esc(o.value) + '"' : "") + (o.placeholder ? ' placeholder="' + K.esc(o.placeholder) + '"' : "") + (o.attrs || "") + '>'; };
   c.empty = (title, text, action) => '<div class="state"><div class="ic">' + K.icon("orders") + '</div><b>' + K.esc(title) + '</b>' + (text ? '<p class="sub" style="max-width:320px;white-space:normal">' + K.esc(text) + '</p>' : "") + (action || "") + '</div>';
-  c.error = (text, retry) => '<div class="notice err" role="alert"><i>!</i><div><b>Er ging iets mis.</b> ' + K.esc(text) + (retry ? ' <a href="#" data-retry>Opnieuw proberen</a>' : "") + '</div></div>';
+  c.error = (text, retry) => '<div class="notice err" role="alert"><i>!</i><div><b>' + K.t("Er ging iets mis.") + '</b> ' + K.esc(text) + (retry ? ' <a href="#" data-retry>' + K.t("Opnieuw proberen") + '</a>' : "") + '</div></div>';
   c.warn = html => '<div class="notice warn"><i>!</i><div>' + html + '</div></div>';
   c.ok = html => '<div class="notice ok"><i>✓</i><div>' + html + '</div></div>';
   c.skeleton = n => '<div style="display:flex;flex-direction:column;gap:10px">' + Array.from({ length: n || 3 }, () => '<div class="card card-b" style="display:flex;flex-direction:column;gap:8px"><div class="sk" style="width:40%"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:55%"></div></div>').join("") + '</div>';
   c.kpi = (n, label, warn) => '<span class="kpi' + (warn ? " warn" : "") + '"><b>' + K.esc(n) + '</b> ' + K.esc(label) + '</span>';
   c.avatar = name => '<span class="avatar">' + K.esc(K.initials(name)) + '</span>';
-  c.check = (on, attrs) => '<button type="button" class="check' + (on ? " on" : "") + '" ' + (attrs || "") + ' aria-pressed="' + (on ? "true" : "false") + '">' + K.icon("check") + '</button>';
-  c.stepper = (id, value, opts) => { const o = opts || {}; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="Aantal"><button type="button" data-inc aria-label="Meer">+</button></div>'; };
+  // opts.big → 44px (personnel, gants) ; opts.label → nom accessible. aria-pressed suit K.setOn.
+  c.check = (on, attrs, opts) => { const o = opts || {}; return '<button type="button" class="check' + (on ? " on" : "") + (o.big ? " big" : "") + '" ' + (attrs || "") + (o.label ? ' aria-label="' + K.esc(o.label) + '"' : "") + ' aria-pressed="' + (on ? "true" : "false") + '">' + K.icon("check") + '</button>'; };
+  // Interrupteur visuel + état accessible en une fois (check, toggle, favoriet).
+  K.setOn = (el, on) => { if (!el) return; el.classList.toggle("on", !!on); el.setAttribute("aria-pressed", on ? "true" : "false"); const line = el.closest(".line"); if (line) line.classList.toggle("ok", !!on); };
+  c.stepper = (id, value, opts) => { const o = opts || {}; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.t("Minder") + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.t("Aantal") + '"><button type="button" data-inc aria-label="' + K.t("Meer") + '">+</button></div>'; };
   K.c = c;
 
   /* ---------- toast / dialoog / paneel ---------- */
@@ -157,7 +265,8 @@
   K.confirm = (opts) => new Promise(resolve => {
     const o = typeof opts === "string" ? { text: opts } : (opts || {});
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
-    d.innerHTML = '<div class="box"><b style="font-size:15px">' + K.esc(o.title || "Bevestigen") + '</b><span class="muted">' + K.esc(o.text || "") + '</span><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || "Annuleren") + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
+    d.setAttribute("aria-labelledby", "kDialogTitle");
+    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kDialogTitle">' + K.esc(o.title || K.t("Bevestigen")) + '</b><span class="muted">' + K.esc(o.text || "") + '</span><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || K.t("Annuleren")) + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
     const done = v => { d.remove(); document.removeEventListener("keydown", key); resolve(v); };
     const key = e => { if (e.key === "Escape") done(false); };
     d.querySelector("[data-no]").onclick = () => done(false); d.querySelector("[data-yes]").onclick = () => done(true); d.onclick = e => { if (e.target === d) done(false); };
@@ -166,7 +275,8 @@
   K.prompt = (opts) => new Promise(resolve => {
     const o = opts || {};
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
-    d.innerHTML = '<div class="box"><b style="font-size:15px">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>Annuleren</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
+    d.setAttribute("aria-labelledby", "kPromptTitle");
+    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kPromptTitle">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" aria-labelledby="kPromptTitle" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>Annuleren</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
     const inp = d.querySelector("#kPrompt");
     const done = v => { d.remove(); resolve(v); };
     d.querySelector("[data-no]").onclick = () => done(null); d.querySelector("[data-yes]").onclick = () => done(inp.value); inp.addEventListener("keydown", e => { if (e.key === "Enter") done(inp.value); if (e.key === "Escape") done(null); });
@@ -175,7 +285,8 @@
   K.panel = (opts) => {
     const o = opts || {};
     const s = document.createElement("div"); s.className = "scrim"; s.setAttribute("role", "dialog"); s.setAttribute("aria-modal", "true");
-    s.innerHTML = '<div class="panel"' + (o.width ? ' style="width:min(' + o.width + ',100%)"' : "") + '><div class="panel-h"><div><h2 class="h2">' + K.esc(o.title || "") + '</h2>' + (o.sub ? '<p class="sub">' + K.esc(o.sub) + '</p>' : "") + '</div><button type="button" class="ibtn" data-close aria-label="Sluiten">' + K.icon("x") + '</button></div><div class="panel-b">' + (o.body || "") + '</div>' + (o.footer ? '<div class="panel-f">' + o.footer + '</div>' : "") + '</div>';
+    s.setAttribute("aria-labelledby", "kPanelTitle");
+    s.innerHTML = '<div class="panel"' + (o.width ? ' style="width:min(' + o.width + ',100%)"' : "") + '><div class="panel-h"><div><h2 class="h2" id="kPanelTitle">' + K.esc(o.title || "") + '</h2>' + (o.sub ? '<p class="sub">' + K.esc(o.sub) + '</p>' : "") + '</div><button type="button" class="ibtn" data-close aria-label="Sluiten">' + K.icon("x") + '</button></div><div class="panel-b">' + (o.body || "") + '</div>' + (o.footer ? '<div class="panel-f">' + o.footer + '</div>' : "") + '</div>';
     const close = () => { s.remove(); document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (o.onClose) o.onClose(); };
     const key = e => { if (e.key === "Escape") close(); };
     s.querySelector("[data-close]").onclick = close; s.onclick = e => { if (e.target === s) close(); };
@@ -205,6 +316,8 @@
   const NAV_STAFF_MORE = [["documenten.html", "Documenten", "doc"]];
   K.shell = function (opts) {
     const o = opts || {};
+    K.lang = "nl"; // personeel en beheer werken altijd in het Nederlands, ook op een toestel dat het klantportaal in het Frans toont
+    if (doc && doc.documentElement) doc.documentElement.lang = "nl";
     const here = (location.pathname.split("/").pop() || "").toLowerCase();
     const admin = K.staff.isAdmin();
     const portal = o.portal || (admin ? "beheer" : "personeel");
@@ -216,9 +329,10 @@
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       (admin ? '<a class="nav' + (here === "stock.html" ? " on" : "") + '" href="/stock.html">' + K.icon("stock") + '<span>Voorraad</span></a>' : "") +
-      '<div class="spacer"></div><a class="nav" href="/" style="font-size:12.5px">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
+      '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
       '<div class="user">' + c.avatar(admin ? "Beheerder" : "Personeel") + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500">' + (admin ? "Beheerder" : "Personeel") + '</b><div><a href="#" data-logout class="quiet" style="font-size:11px">Uitloggen</a></div></div></div></aside>';
-    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a><span class="avatar" style="width:30px;height:30px;font-size:11px">' + (admin ? "MB" : "PM") + '</span></div>';
+    // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
+    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' + c.avatar(admin ? "Beheerder" : "Personeel") + '<button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<div class="shell">' + side + '<div class="main">' + top + '<div id="page"></div></div></div>';
     K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
@@ -235,7 +349,7 @@
   };
   K.klantTabs = active => {
     const tabs = [["catalogus", "Catalogus", "list"], ["bestellingen", "Bestellingen", "orders"], ["favorieten", "Favorieten", "star"], ["account", "Account", "user"]];
-    return '<nav class="mtabs">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + l + '</a>').join("") + '</nav>';
+    return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + '</a>').join("") + '</nav>';
   };
   global.K = K;
 })(window);
