@@ -169,8 +169,8 @@ window.FamoDocuments=(()=>{
     const foot=credit
       ? 'Creditnota op factuur '+esc(order.factuurnummer||"—")+'.'+(cn.motif?' Reden: '+esc(cn.motif)+'.':'')+(terms?' '+terms:'')
       : (invoice
-        ? (terms?terms+' ':'')+'Intern document — geen automatische Peppol/Billtobox-verzending.'
-        : 'Handtekening klant: ______________________________<br><br>'+esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
+        ? terms
+        : esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
     const banners=(invoice&&COMPANY.exampleBank?'<div class="banner"><b>Voorbeeld bankgegevens.</b> '+(window.famoCompany?esc(famoCompany.EXAMPLE.label):'Vervang IBAN/BIC via Beheer vóór echte facturatie.')+'</div>':'');
     // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
     const mark='<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="#4876A2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25V1.75h9.5"/><path d="M3.75 8h3.05c1.5 0 1.85-1.4 3.35-1.4s1.6 1.4 3.1 1.4"/></g></svg>';
@@ -209,42 +209,42 @@ window.FamoDocuments=(()=>{
       '<div class="trow grand"><span>Totaal incl. btw</span><span>'+eur(total)+'</span></div>'+
       '</div>';
     const css='*{box-sizing:border-box}'+
-      'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#191512;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+      'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#232323;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
       'em{font-style:italic}'+
       '.mast{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}'+
       '.brand{display:flex;align-items:center;gap:12px}'+
       '.brand svg{display:block;flex:none}'+
       '.wordmark{font-size:14px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}'+
-      '.coords{text-align:right;font-size:10.5px;line-height:1.65;color:rgba(25,21,18,.62)}'+
+      '.coords{text-align:right;font-size:10.5px;line-height:1.65;color:rgba(35,35,35,.62)}'+
       'h1{margin:30px 0 0;font-family:Georgia,"Iowan Old Style",serif;font-size:26px;font-weight:500;letter-spacing:-.012em}'+
-      '.metaband{display:flex;flex-wrap:wrap;margin-top:14px;border-top:1px solid #E5DDD3;border-bottom:1px solid #E5DDD3}'+
+      '.metaband{display:flex;flex-wrap:wrap;margin-top:14px;border-top:1px solid #E3E0D6;border-bottom:1px solid #E3E0D6}'+
       '.metaband>div{padding:9px 20px 10px 0}'+
-      '.metaband>div+div{border-left:1px solid #E5DDD3;padding-left:20px}'+
-      '.metalabel{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
+      '.metaband>div+div{border-left:1px solid #E3E0D6;padding-left:20px}'+
+      '.metalabel{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
       '.metavalue{margin-top:3px;font-size:12px}'+
       '.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}'+
-      '.banner{margin-top:14px;padding:10px 13px;border:1px solid #E5DDD3;border-radius:12px;background:#FAF6F0;color:#8A6110;font-size:11px;line-height:1.5}'+
+      '.banner{margin-top:14px;padding:10px 13px;border:1px solid #E3E0D6;border-radius:12px;background:#FAF9F5;color:#7A5410;font-size:11px;line-height:1.5}'+
       '.party{margin-top:24px}'+
-      'h2{margin:0 0 6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
+      'h2{margin:0 0 6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
       '.partyname{font-size:14px;font-weight:600}'+
-      '.partymeta{margin-top:3px;font-size:11.5px;line-height:1.55;color:rgba(25,21,18,.70)}'+
+      '.partymeta{margin-top:3px;font-size:11.5px;line-height:1.55;color:rgba(35,35,35,.70)}'+
       'table{width:100%;border-collapse:collapse;margin-top:26px}'+
-      'thead th{padding:8px 10px;background:#F2ECE3;border-bottom:1px solid #E5DDD3;text-align:left;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
-      'td{padding:10px;border-bottom:1px solid #E5DDD3;text-align:left;vertical-align:top;font-size:12px}'+
-      'td small{display:block;margin-top:2px;font-size:10.5px;color:rgba(25,21,18,.62)}'+
+      'thead th{padding:8px 10px;background:#F1EFE8;border-bottom:1px solid #E3E0D6;text-align:left;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
+      'td{padding:10px;border-bottom:1px solid #E3E0D6;text-align:left;vertical-align:top;font-size:12px}'+
+      'td small{display:block;margin-top:2px;font-size:10.5px;color:rgba(35,35,35,.62)}'+
       '.num{text-align:right;white-space:nowrap}'+
       '.totals{width:280px;max-width:100%;margin:8px 0 0 auto}'+
-      '.trow{display:flex;justify-content:space-between;gap:16px;padding:6px 10px;color:rgba(25,21,18,.70)}'+
-      '.trow span:last-child{color:#191512}'+
-      '.grand{margin-top:4px;border-top:2px solid #191512;padding-top:10px;font-size:18px;font-weight:600;color:#191512}'+
-      '.bank{margin-top:24px;padding:13px 16px;border:1px solid #E5DDD3;border-radius:12px;background:#FAF6F0;font-size:11.5px;page-break-inside:avoid}'+
-      '.banklabel{margin-bottom:6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(25,21,18,.62)}'+
+      '.trow{display:flex;justify-content:space-between;gap:16px;padding:6px 10px;color:rgba(35,35,35,.70)}'+
+      '.trow span:last-child{color:#232323}'+
+      '.grand{margin-top:4px;border-top:2px solid #232323;padding-top:10px;font-size:18px;font-weight:600;color:#232323}'+
+      '.bank{margin-top:24px;padding:13px 16px;border:1px solid #E3E0D6;border-radius:12px;background:#FAF9F5;font-size:11.5px;page-break-inside:avoid}'+
+      '.banklabel{margin-bottom:6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
       '.bankrow{display:flex;gap:14px;padding:2px 0}'+
-      '.bankrow span{flex:none;width:92px;color:rgba(25,21,18,.62)}'+
+      '.bankrow span{flex:none;width:92px;color:rgba(35,35,35,.62)}'+
       '.bankrow b{font-weight:600}'+
-      '.bankexample{margin-top:6px;color:#8A6110}'+
-      '.foot{margin-top:30px;border-top:1px solid #E5DDD3;padding-top:10px;font-size:9px;line-height:1.7;color:rgba(25,21,18,.62)}'+
-      '.trow small{font-size:10px;color:rgba(25,21,18,.55)}'+
+      '.bankexample{margin-top:6px;color:#7A5410}'+
+      '.foot{margin-top:30px;border-top:1px solid #E3E0D6;padding-top:10px;font-size:9px;line-height:1.7;color:rgba(35,35,35,.62)}'+
+      '.trow small{font-size:10px;color:rgba(35,35,35,.55)}'+
       '.doc+.doc{margin-top:38px}'+
       '@media print{thead{display:table-header-group}tr{page-break-inside:avoid}.totals,.banner,.metaband{page-break-inside:avoid}.doc+.doc{margin-top:0}}';
     const body=mast+'<h1>'+title+'</h1>'+metaband+banners+klantBlock+table+

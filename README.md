@@ -4,13 +4,13 @@ Portail B2B de FAMO Seafood (grossiste poisson, Anvers) : le client commande en 
 
 ## Trois portails, une identité
 
-| Portail | Couleur | Pages | Accès |
-|---|---|---|---|
-| **Klant** | indigo | `/` (accueil + connexion), `/klant.html` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag.html`, `/wachtwoord.html` | gebruikersnaam + wachtwoord |
-| **Personeel** | vert | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html` | `STAFF_CODE` (cookie 8 h) |
-| **Beheer** | ambre | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, bedrijf, toegang, status), `/invoer.html`, `/stock.html` | `ADMIN_CODE` |
+| Portail | Pages | Accès |
+|---|---|---|
+| **Klant** | `/` (accueil + connexion), `/klant.html` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag.html`, `/wachtwoord.html` | gebruikersnaam + wachtwoord |
+| **Personeel** | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html`, `/invoer.html`, `/stock.html` | `STAFF_CODE` ou PIN personnel (cookie 8 h) |
+| **Beheer** | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, bedrijf, toegang, rapportage, status) + tout le personnel | `ADMIN_CODE` ou PIN beheerder |
 
-Les couleurs de statut sont identiques partout : orange ontvangen, bleu klaar, violet onderweg, vert geleverd, rouge te laat.
+Une seule peau « Crème » pour les trois portails, un seul bleu d'action (voir `DESIGN.md`). Les couleurs de statut sont identiques partout : ocre ontvangen, bleu klaar, bleu nuit onderweg, vert olive geleverd, gris gefactureerd, rouge te laat.
 
 ## Structure
 

@@ -56,7 +56,7 @@ Rayons **4 / 6 / 8 / 12** (`--r-xs`, `--r-sm`, `--r`, `--r-lg`) : 8px contrôles
 
 ## Nom
 
-« **FAMO Seafood** » à l'écran ; « **Famo Trading BV** » sur le papier (factures, bons de livraison, e-mails légaux).
+« **FAMO Seafood** » partout : écran, documents, e-mails. Le nom imprimé sur les documents et dans les e-mails vient de Beheer → Bedrijfsgegevens (`Bedrijfsnaam`). Si la société légale doit figurer sur la facture, on l'écrit dans ce même champ, par exemple « FAMO Seafood (Famo Trading BV) ». On ne l'écrit jamais en dur dans le code.
 
 ## Appareils
 
@@ -76,71 +76,58 @@ Prix négocié grand et serré, prix public petit et barré, « uw prijs » en *
 
 # Structure des écrans
 
-Toutes les pages du personnel partagent le même squelette :
+Chaque page HTML charge `assets/ui.css`, `assets/ui.js` puis son script `assets/pages/<page>.js`, qui dessine tout dans `#app`. La coque du personnel et de Beheer est produite par **`K.shell()`** (`assets/ui.js`) : barre latérale `.side` (desktop), rail (≤ 1180 px), bandeau (≤ 720 px), `.topbar`, onglets mobiles `.mtabs`.
 
-```
-staff-shell
-├── staff-sidebar        [data-famo-nav]         barre latérale (desktop)
-├── staff-mobile-nav     [data-famo-mobile-nav]  onglets bas (mobile)
-└── staff-main
-    └── staff-page
-        ├── staff-page-head    titre + actions
-        └── contenu spécifique
-```
+Menu (figé par les tests, section I de `scripts/workflow-check.js`) :
 
-La navigation est **générée par `staff-nav.js`**, jamais écrite dans les pages. Trois zones :
+- **Dagelijks** : Bestellingen · Magazijn · Leveringen (`NAV_DAILY`)
+- **Meer** (personnel) : Invoeren · Documenten (`NAV_STAFF_MORE`) ; **Beheer** (beheerder) : Invoeren · Documenten · Beheer (`NAV_ADMIN`)
+- **Voorraad** pour tous ; pied : Klantportaal, nom de la personne connectée, Uitloggen. Systeemstatus : beheerder seulement.
 
-- **Dagelijks** — Bestellingen · Magazijn · Leveringen
-- **Beheer** — Invoeren · Documenten · Beheer *(admin uniquement)*
-- pied — « Klantportaal bekijken ↗ » + identité de session
+Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone, en haut ≥ 1024 px) mais la même feuille de style.
 
-Le portail client (`/`) et `aanvraag.html` ont **leur propre CSS inline**, sans rapport avec `staff.css`. **C'est un défaut à corriger** : les trois interfaces doivent partager la même peau, seule la densité changeant.
+## Composants
 
-## Composants existants à reprendre
-
-| Classe | Rôle |
+| Élément | Où |
 |---|---|
-| `.staff-action` / `-secondary` / `.staff-ghost` | boutons, trois niveaux |
-| `.staff-field` / `.staff-select` | champs |
-| `.staff-chip` / `.staff-chips` | filtres avec compteur |
-| `.staff-status` | pastille de statut, couleur via `--status` |
-| `.staff-empty` / `.staff-error` / `.staff-loading` / `.staff-skeleton` | états de liste |
-| `.staff-setup-banner` / `.staff-request-banner` | bandeaux d'alerte |
-| `.staff-login-exit` | sorties injectées sous les écrans de connexion |
-| `.b-*` (dans `beheer.html`) | onglets, cartes, listes, formulaires, toast |
-
-Les `.b-*` de Beheer sont les plus récents et les plus propres — bonne base de densité pour l'admin, à harmoniser avec le reste.
+| Boutons `.btn` + `.btn-p` / `.btn-o` / `.btn-ghost` / `.btn-danger`, taille `.btn-sm` | `ui.css`, `K.c.btn` |
+| Champs `.field` / `.input`, erreurs `K.setErr` | `K.c.field`, `K.c.input` |
+| Statuts `.chip.st-*` (pastille) et `.cell-st.c-*` (cellule) | `K.stChip`, `K.stCell` |
+| Cartes `.card` (`.card-h`, `.card-b`), groupes `.grp`, tableaux `.tbl` | pages |
+| Bandeaux `.notice` (err / warn / ok), états vides `.state`, squelettes `.sk` | `K.c.error/warn/ok/empty/skeleton` |
+| Toast, dialogue, panneau latéral | `K.toast`, `K.confirm`, `K.prompt`, `K.panel` |
+| Icônes : SVG en ligne, trait 1,7, `currentColor` | `K.icon(name)` |
+| Tijdlijn `.tl`, stepper `.stepper`, cases `.check`, barre d'actions `.bulk`, barre panier `.cartbar` | `ui.css` |
 
 ---
 
 # Contraintes techniques — ne pas casser
 
-1. **HTML + CSS + JS pur.** Pas de framework, pas de build, pas de `package.json`.
-2. **Aucune dépendance externe** hors Google Fonts (seule origine tierce autorisée par la CSP). Ni librairie d'icônes, ni CDN de script.
-3. **Les icônes sont dans le CSS, pas dans le HTML.** `staff.css` lignes 19-20 et 51 : `.staff-nav-icon.orders::before{content:"□"}` etc. Le HTML est produit par `staff-nav.js` (`linkHtml`). Pour passer en SVG inline, modifier **ces deux fichiers**.
-4. **`esc()` obligatoire** sur toute page qui écrit dans `innerHTML` — vérifié automatiquement.
-5. **`alert()` / `confirm()` / `prompt()` natifs interdits** — modales et toasts maison.
-6. **Cibles tactiles ≥ 44px** partout où le personnel touche avec des gants.
-7. **Les `onclick` inline sont partout** et `scripts/check.js` vérifie que chaque fonction appelée existe. Il **ne comprend pas les appels chaînés** : `onclick="a.b()"` est signalé comme fonction manquante → passer par une fonction nommée.
-8. **Menu figé** : `PRIMARY` = exactement 3 items dans l'ordre Bestellingen · Magazijn · Leveringen ; `MEER` contient Invoeren **et** Documenten ; `SETUP.label` = `Beheer`. Changer cela impose de mettre à jour `scripts/check.js` dans le même commit.
-9. Chaque page staff doit inclure `staff-session.js`, `staff-i18n.js`, `staff-nav.js` et l'attribut `data-famo-nav`. `leveringen`/`entrepot` exigent en plus `staff-delivery.js` ; `documenten` exige `staff-doc-preview.js`.
-10. `node scripts/check.js` doit rester vert. `npx --yes eslint@9 api/` aussi (c'est ce que joue la CI).
+1. **HTML + CSS + JS pur.** Pas de framework, pas de build, pas de `package.json`. Une seule feuille : `assets/ui.css`.
+2. **Aucune dépendance externe** hors Google Fonts (seule origine tierce autorisée par la CSP de `vercel.json`). Ni librairie d'icônes, ni CDN de script.
+3. **Garder les noms de classes et de variables** : le balisage est produit par le JavaScript. Changer l'apparence = changer les valeurs dans `ui.css`.
+4. **`K.esc()` obligatoire** sur tout texte écrit dans `innerHTML`.
+5. **`alert()` / `confirm()` / `prompt()` natifs interdits** : `K.toast`, `K.confirm`, `K.prompt`, `K.panel`.
+6. **Cibles tactiles ≥ 44 px** partout où le personnel appuie (`--tap`).
+7. **Portail client bilingue** : tout texte visible passe par `K.t()` et a sa traduction dans `K.FR` (`assets/ui.js`) ; un test échoue sinon. Personnel, Beheer, documents et e-mails restent en néerlandais.
+8. **Documents** (`documents.js`) et **e-mails** (`lib/ordermail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Crème (encre `#232323`, filet `#E3E0D6`, fond `#FAF9F5`, bleu `#4876A2`). Pas de ligne de signature sur les documents.
+9. `node scripts/check.js` et `npx eslint@9 api/` doivent rester verts (la CI joue les deux).
 
 ---
 
-# Ce qui mérite le plus d'attention
+# Reste à faire côté design
 
-Par ordre d'impact réel sur les gens qui s'en servent :
-
-1. **Le catalogue client** — c'est là que la commande se fait ou se perd. Le couple de prix, l'ajout au panier sans ambiguïté.
-2. **Magazijn** — utilisé debout, au froid, dans l'urgence. Une seule action évidente à la fois.
-3. **Les documents imprimés** (`documents.js`) — bon de livraison et facture. **Seul artefact qui sort de l'écran et finit physiquement chez le client.** Purement fonctionnel aujourd'hui : c'est la vitrine de l'entreprise et elle ressemble à un tableur.
-4. **Identité Famo** — il n'y en a aucune : juste un « F » blanc dans un carré noir.
+1. **Personnel à 5 h du matin** : une variante très contrastée (fond sombre, texte clair, cibles plus grandes) pour Magazijn et Leveringen, activable sur l'appareil.
+2. **Documents A4** : couleurs alignées sur Crème, mais la mise en page n'a pas été redessinée. C'est l'objet qui arrive physiquement chez le client.
+3. **E-mails** : couleurs alignées, gabarit à retravailler (en-tête, pied, mode sombre de Gmail et d'Outlook).
+4. **Logo** : le monogramme « F-houle » bleu sert de favicon, de tuile et d'en-tête de document. Il reste à valider comme logo, avec un mot-symbole « FAMO Seafood ».
+5. **Styles en ligne** encore présents dans `index.html` et `klant.html` : à déplacer dans `ui.css`.
+6. **Design system sur claude.ai** (« FAMO Portail Design System ») : il porte encore « Famo Trading » et les valeurs d'avant Crème. À resynchroniser sur ce dépôt.
 
 # Ce qu'il ne faut pas faire
 
-- Inventer des produits pour remplir une maquette : le catalogue réel en a **huit**.
+- Inventer des produits pour remplir une maquette : le catalogue réel compte **4 produits actifs**.
 - Ajouter des écrans qui n'existent pas côté serveur.
-- Introduire du français visible.
-- Rendre le stock proéminent : il est volontairement hors menu tant qu'il n'est pas fiable.
+- Introduire du français visible chez le personnel ou dans Beheer.
+- Des dégradés, des cartes à bordure gauche colorée, des emojis, des pilules de 44 px comme boutons.
 - Prétendre avoir vérifié visuellement sans capture : la vérification passe par un audit navigateur (390 / 820 / 1280) sur `node scripts/dev.js`, le code et le calcul des contrastes.

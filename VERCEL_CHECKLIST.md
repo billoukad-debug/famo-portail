@@ -7,7 +7,7 @@
 | `ADMIN_CODE` | code admin fort | **obligatoire** — accès complet (config, IBAN, clients, prix, Invoeren, Voorraad, Documenten). |
 | `STAFF_CODE` | code personnel fort | optionnel — accès limité à Bestellingen/Magazijn/Leveringen. Peut être identique à `ADMIN_CODE` au démarrage. Plus de fallback `famo2026`. |
 | `RESEND_API_KEY` | clé Resend | optionnel — **sans elle, aucun e-mail n'est envoyé** et les commandes fonctionnent normalement. |
-| `MAIL_FROM` | `FAMO Seafood <bestellingen@famotrading.be>` | domaine **vérifié chez Resend** obligatoire. `onboarding@resend.dev` ne délivre qu'au propriétaire du compte Resend. |
+| `MAIL_FROM` | `FAMO Seafood <bestellingen@VOTRE-DOMAINE.be>` | domaine **vérifié chez Resend** obligatoire. `onboarding@resend.dev` ne délivre qu'au propriétaire du compte Resend. |
 
 Auth staff = cookie de session HttpOnly (`/api/session`). Les pages n’utilisent plus `?code=`.
 
@@ -37,7 +37,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://famo-portail.vercel.ap
 ## Mise en service des e-mails
 
 1. Créer un compte sur **resend.com** (gratuit : 100 e-mails/jour, 3 000/mois — soit ~50 commandes/jour à 2 e-mails chacune).
-2. Y ajouter le domaine `famotrading.be` et poser les enregistrements DNS (SPF + DKIM) chez le registrar.
+2. Y ajouter **votre domaine** (celui acheté pour FAMO Seafood, ex. `famoseafood.be`) et poser les enregistrements DNS (SPF + DKIM) chez le registrar.
 3. Attendre que Resend affiche le domaine comme **verified**.
 4. Poser `RESEND_API_KEY` et `MAIL_FROM` dans Vercel (Production + Preview), puis **Redeploy**.
 5. Beheer → Bedrijfsgegevens → **Bestelmeldingen** : renseigner la boîte interne qui reçoit les commandes.
