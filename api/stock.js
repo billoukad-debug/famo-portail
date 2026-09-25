@@ -90,14 +90,20 @@ module.exports = async (req, res) => {
       // « orpheline » : jamais déduite, jamais commandée. L'écran la signale et permet de la retirer.
       const cat = await atAll("Catalogue");
       const norm = s => String(s || "").toLowerCase().trim();
-      const names = new Set((cat.records || []).map(r => norm(r.fields["Produit"])));
-      return res.status(200).json({ items: (stock.records || []).map(record => ({
-        id: record.id,
-        product: record.fields["Produit"] || "",
-        quantity: Number(record.fields["Quantité disponible"] || 0),
-        lowThreshold: Number(record.fields["Seuil bas"] || 0),
-        inCatalogue: cat.error ? true : names.has(norm(record.fields["Produit"]))
-      })) });
+      const byName = new Map((cat.records || []).map(r => [norm(r.fields["Produit"]), r]));
+      return res.status(200).json({ items: (stock.records || []).map(record => {
+        const prod = byName.get(norm(record.fields["Produit"]));
+        return {
+          id: record.id,
+          product: record.fields["Produit"] || "",
+          quantity: Number(record.fields["Quantité disponible"] || 0),
+          lowThreshold: Number(record.fields["Seuil bas"] || 0),
+          inCatalogue: cat.error ? true : !!prod,
+          productId: prod ? prod.id : "",
+          // Un produit inactif reste dans Beheer → Producten mais plus dans la catalogue client.
+          actif: prod ? !!prod.fields["Actif"] : false
+        };
+      }) });
     }
 
     if (req.method !== "POST") return res.status(405).json({ error: "GET or POST only" });
