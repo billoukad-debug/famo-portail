@@ -1,3 +1,4 @@
+require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __prices = require("../lib/prices");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).

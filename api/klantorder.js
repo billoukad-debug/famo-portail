@@ -1,3 +1,4 @@
+require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 // Actions du client sur son propre compte et ses propres commandes.
 // POST {user, pw, action, ...}. Le client vérifié par authClient ne touche jamais
 // qu'à ses enregistrements (lien « Client »), jamais à un identifiant envoyé par le

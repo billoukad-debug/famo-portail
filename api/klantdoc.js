@@ -1,3 +1,4 @@
+require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 // Documenten voor de klant (leveringsbon, factuur) : de gegevens die nodig zijn om
 // het document in de browser op te bouwen, enkel voor de eigen bestellingen.
 // POST {user, pw, ref} -> {order, config}. Geen IBAN/BIC voor niet-gefactureerde bestellingen.
