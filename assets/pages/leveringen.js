@@ -30,8 +30,8 @@
     [route[i], route[j]] = [route[j], route[i]];
     K.$$("[data-move]", page).forEach(b => { b.disabled = true; });
     const changed = route.map((o, n) => ({ o, n: n + 1 })).filter(x => x.o.volgorde !== x.n);
-    let fail = "";
-    for (const x of changed) { try { await K.api("/api/updateorder", { json: { id: x.o.id, volgorde: x.n } }); x.o.volgorde = x.n; } catch (err) { fail = x.o.client + ": " + err.message; break; } }
+    const res = await K.pool(changed, 3, x => K.api("/api/updateorder", { json: { id: x.o.id, volgorde: x.n } }).then(() => { x.o.volgorde = x.n; }));
+    const bad = res.find(r => !r.ok); const fail = bad ? bad.item.o.client + ": " + bad.error.message : "";
     if (fail) K.toast(fail, { kind: "err" });
     try { await S.load(true); } catch (err) { K.toast(err.message, { kind: "err" }); }
     render();

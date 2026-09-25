@@ -8,13 +8,13 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273.5%27 fill=%27%234876A2%27/%3E%3Cpath d=%27M5 13V3h6M5 8h4%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/ui.css">
-<script src="/assets/ui.js"></script>
+<link rel="stylesheet" href="/assets/ui.css?v=2f1803d9db">
+<script src="/assets/ui.js?v=cdad95e664" defer></script>
 </head>
 <body class="portal-klant">
 <div id="app"></div>
 <script>
-(function(){
+document.addEventListener("DOMContentLoaded", function(){ // na de uitgestelde (defer) scripts
 // Nieuw wachtwoord : gebruikersnaam + e-mail van de zaak → /api/klantorder action "reset" (zonder wachtwoord).
 // De server antwoordt altijd neutraal (bestaat het account of niet) ; die tekst tonen we letterlijk.
 document.getElementById("app").innerHTML='<div style="max-width:480px;margin:0 auto;padding:24px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><a href="/" style="font-size:13px">'+K.t("← Aanmelden")+'</a>'+K.langSwitch()+'</div><h1 class="h1" style="margin-top:18px">'+K.t("Wachtwoord vergeten")+'</h1><p class="sub" style="white-space:normal">'+K.t("Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.")+'</p>'+
@@ -32,7 +32,7 @@ document.getElementById("f").addEventListener("submit",async e=>{
     document.getElementById("f").innerHTML=(d.mail===false?K.c.warn(K.t("E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.")):K.c.ok(K.errText(d.message||"Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord.")))+'<a class="btn btn-o" href="/" style="margin-top:12px">'+K.t("← Aanmelden")+'</a>';}
   catch(err){document.getElementById("msg").innerHTML=K.c.error(err.message);K.busy(btn,false);}
 });
-})();
+});
 </script>
 </body>
 </html>

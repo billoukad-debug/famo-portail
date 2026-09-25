@@ -94,7 +94,7 @@
     "Op die dag leveren we niet": "Nous ne livrons pas ce jour-là", "Op die dag zijn we gesloten": "Nous sommes fermés ce jour-là", "Ongeldige hoeveelheid": "Quantité invalide", "Artikel is niet beschikbaar": "Article indisponible",
     "Verzoek mislukt": "La demande a échoué", "Niets gewijzigd": "Rien n'a été modifié", "Opslaan mislukt": "Enregistrement impossible", "Annuleren mislukt": "Annulation impossible", "Onbekende actie": "Action inconnue",
     "Vul uw gebruikersnaam en e-mailadres in.": "Indiquez votre identifiant et votre adresse e-mail.", "Te veel aanvragen. Probeer over een uur opnieuw of bel ons.": "Trop de demandes. Réessayez dans une heure ou appelez-nous.",
-    "Wachtwoord vernieuwen mislukt. Bel ons.": "Le renouvellement du mot de passe a échoué. Appelez-nous.", "Aanvraag opslaan mislukt. Bel ons.": "L'enregistrement de la demande a échoué. Appelez-nous.",
+    "Wachtwoord vernieuwen mislukt. Bel ons.": "Le renouvellement du mot de passe a échoué. Appelez-nous.", "Documentmodule laden mislukt. Controleer de verbinding.": "Impossible de charger le module documents. Vérifiez la connexion.", "Sessie verlopen. Meld u opnieuw aan.": "Session expirée. Reconnectez-vous.", "Voor vandaag kan niet meer besteld worden. Kies een latere leverdag.": "Il n'est plus possible de commander pour aujourd'hui. Choisissez un jour plus tard.", "Serverfout. Probeer opnieuw.": "Erreur du serveur. Réessayez.", "Opslaan of lezen mislukt. Probeer opnieuw.": "L'enregistrement ou la lecture a échoué. Réessayez.", "Catalogus laden mislukt. Probeer opnieuw.": "Le chargement du catalogue a échoué. Réessayez.", "Aanvraag opslaan mislukt. Bel ons.": "L'enregistrement de la demande a échoué. Appelez-nous.",
     "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons.": "L'envoi de la demande a échoué. Réessayez plus tard ou appelez-nous.",
     "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord.": "Si les données sont correctes, vous recevrez dans quelques minutes un e-mail avec un nouveau mot de passe.",
     // leveringsregels (uit Configuratie) — {t} = deadline, {n} = dagen, {d} = dagenlijst, {m}/{r} = bedragen
@@ -128,7 +128,7 @@
     "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe."
   };
   // Servermeldingen met een getal erin : één patroon per melding, vertaald bij het tonen.
-  const FR_PAT = [[/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
+  const FR_PAT = [[/^Na (\d{2}:\d{2}) kan niet meer voor morgen besteld worden\. Kies een latere leverdag\.$/, "Après $1, il n'est plus possible de commander pour demain. Choisissez un jour plus tard."], [/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
   // K.t met plaatshouders : K.tt("Nog {n}", {n: 3}).
   K.tt = (s, vars) => Object.entries(vars || {}).reduce((out, [k, v]) => out.split("{" + k + "}").join(String(v)), K.t(s));
   K.langSwitch = () => '<div class="lang" role="group" aria-label="Taal / Langue">' + ["nl", "fr"].map(l => '<button type="button" data-lang="' + l + '"' + (K.lang === l ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l.toUpperCase() + '</button>').join("") + '</div>';
@@ -205,6 +205,31 @@
     del(k) { try { sessionStorage.removeItem(k); } catch (e) { /* ignore */ } }
   };
 
+  // Voert fn uit voor elk item, hoogstens n tegelijk (bv. 3 facturen op betaald) ; geeft [{item, ok, error}] terug.
+  K.pool = async (items, n, fn) => { const out = new Array(items.length); let i = 0; const worker = async () => { while (i < items.length) { const k = i++; try { out[k] = { item: items[k], ok: true, value: await fn(items[k]) }; } catch (error) { out[k] = { item: items[k], ok: false, error }; } } }; await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker)); return out; };
+  // Wacht tot er even niet getypt wordt (zoekvelden) : één render per pauze, niet per toets.
+  K.debounce = (fn, ms) => { let t = 0; return function (...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms || 150); }; };
+
+  /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
+  // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
+  // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
+  K.DOCS_VER = "aa7fc5aaf2";
+  let docsLoading = null;
+  K.docs = function () {
+    if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
+    if (docsLoading) return docsLoading;
+    const one = src => new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = src + "?v=" + K.DOCS_VER; el.async = false;
+      el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
+      document.head.appendChild(el);
+    });
+    docsLoading = ["/staff-i18n.js", "/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
+      .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
+      .catch(e => { docsLoading = null; throw e; });
+    return docsLoading;
+  };
+
   /* ---------- API ---------- */
   const ERR = { "Code invalide": "Ongeldige personeelscode", "POST only": "Alleen POST toegestaan" };
   K.errText = m => { if (m && typeof m === "object") m = m.message || m.error || JSON.stringify(m); const raw = String(m || "").trim(); if (!raw) return K.t("Onbekende fout"); if (ERR[raw]) return K.t(ERR[raw]); const nl = raw.replace(/\bcaisse\b/gi, "kassa").replace(/\bpièce\b/gi, "stuk"); if (K.lang !== "fr") return nl; const pat = FR_PAT.find(([re]) => re.test(nl)); return K.FR[raw] || K.FR[nl] || (pat ? nl.replace(pat[0], pat[1]) : nl); };
@@ -213,6 +238,8 @@
     const o = Object.assign({ credentials: "include" }, opts || {});
     const retry = !!o.retry; delete o.retry;
     if (o.json !== undefined) { o.method = o.method || "POST"; o.headers = Object.assign({ "Content-Type": "application/json" }, o.headers || {}); o.body = JSON.stringify(o.json); delete o.json; }
+    // Elke wijziging aan bestellingen maakt de gedeelde lijst-cache (staff-common) ongeldig.
+    if (o.method && o.method !== "GET" && /^\/api\/(updateorder|staff|onboarding)\b/.test(url)) K.session.del("famoOrdersCache");
     const once = async () => {
       let r;
       try { r = await fetch(url, o); } catch (e) { const err = new Error(K.t("Geen verbinding. Controleer het netwerk en probeer opnieuw.")); err.network = true; throw err; }

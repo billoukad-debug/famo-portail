@@ -51,6 +51,7 @@ for (const f of htmlPages) { const html = read(f); if (/<meta http-equiv="refres
 ok("Pages : couche partagée + viewport");
 
 // 7. Tests unitaires (Node --test) s'il y en a.
+{ const r = require("child_process").spawnSync(process.execPath, [path.join(ROOT, "scripts", "assets-version.js"), "--check"], { cwd: ROOT, encoding: "utf8" }); if (r.status !== 0) fail("Versions des fichiers statiques périmées : lancer node scripts/assets-version.js\n" + (r.stderr || "")); else ok("Versions des fichiers statiques (cache) à jour"); }
 if (fs.existsSync(path.join(ROOT, "test"))) { const r = require("child_process").spawnSync(process.execPath, ["--test", ...fs.readdirSync(path.join(ROOT, "test")).filter(f => f.endsWith(".test.js")).map(f => "test/" + f)], { cwd: ROOT, stdio: "inherit" }); if (r.status !== 0) fail("node --test a échoué"); else ok("Tests unitaires"); }
 
 // 8. Scénarios métier hérités de la v1, adaptés aux contrats frontend v2.

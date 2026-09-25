@@ -58,7 +58,7 @@
   function render() {
     const list = filtered();
     page.innerHTML = header() + '<div class="content" style="padding-top:4px">' + (view === "bord" ? bord(list) : view === "kalender" ? kalender(list) : tabel(list)) + '</div>' + bulkBar();
-    const q = page.querySelector("#q"); q.addEventListener("input", () => { filter.q = q.value; const pos = q.selectionStart; render(); const n = page.querySelector("#q"); n.focus(); n.setSelectionRange(pos, pos); });
+    const q = page.querySelector("#q"); q.addEventListener("input", K.debounce(() => { filter.q = q.value; const pos = q.selectionStart; render(); const n = page.querySelector("#q"); n.focus(); n.setSelectionRange(pos, pos); }, 150));
     page.querySelector("#fStatus").onchange = e => { filter.status = e.target.value; render(); };
     const fc = page.querySelector("#fClient"); if (fc) fc.onchange = e => { filter.client = e.target.value; render(); };
     const ck = page.querySelector("#clearKlant"); if (ck) ck.onclick = () => { filter.clientId = ""; history.replaceState(null, "", location.pathname + location.hash); render(); };
@@ -79,8 +79,10 @@
       // Eén betaalwijze voor de hele selectie ; één aanroep per bestelling, na elkaar, de server beslist telkens.
       const todo = list.filter(o => o.statut === "Facturée" && o.paiement !== "Payé"); if (!todo.length) return;
       const mode = await S.askMode("Markeer betaald (" + todo.length + ")", todo.length + " facturen · " + K.eur(todo.reduce((s, o) => s + S.totals(o).incl, 0)) + " incl. btw"); if (!mode) return;
+      // 3 tegelijk : snel, en binnen de limiet van de database (geen voorraad in het spel).
+      const res = await K.pool(todo, 3, o => K.api("/api/updateorder", { json: { id: o.id, paiement: "Payé", modePaiement: mode } }));
       let ok = 0; const fail = [];
-      for (const o of todo) { try { await K.api("/api/updateorder", { json: { id: o.id, paiement: "Payé", modePaiement: mode } }); ok++; sel.delete(o.id); } catch (err) { fail.push(o.client + ": " + err.message); } }
+      res.forEach(r => { if (r.ok) { ok++; sel.delete(r.item.id); } else fail.push(r.item.client + ": " + r.error.message); });
       try { await S.load(true); } catch (err) { K.toast(err.message, { kind: "err" }); }
       render(); K.toast(ok + " van " + todo.length + " gemarkeerd als betaald (" + mode + ")" + (fail.length ? " · mislukt: " + fail.join(" · ") : ""), { kind: fail.length ? "err" : "", ms: fail.length ? 9000 : 4500 });
     }
