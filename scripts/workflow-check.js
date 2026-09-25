@@ -1178,6 +1178,9 @@ async function main() {
     assert.equal(sandboxFR.K.status("Facturée"), "Livrée"); assert.equal(sandboxFR.K.cat("Poisson"), "Poissons"); assert.equal(sandboxFR.K.date("2026-09-30"), "mer 30/09");
     assert.match(readF("assets/pages/beheer.js"), /action: "deleteProduct"/, "AN10 product verwijderen in Beheer");
     assert.match(readF("assets/pages/stock.js"), /inCatalogue === false/, "AN10 orphelins in Voorraad");
+    assert.match(readF("assets/pages/stock.js"), /action: "deleteProduct", id: i\.productId/, "AN10 Voorraad verwijdert het product zelf");
+    assert.match(readF("api/stock.js"), /actif: prod \? !!prod\.fields\["Actif"\]/, "AN10 Voorraad kent de actief-status");
+    assert.ok(!/Catalogue\?filterByFormula=\$\{encodeURIComponent\("\{Actif\}=1"\)\}`\),\n    atAll\("Clients"\)/.test(readF("api/onboarding.js")), "AN10 Beheer laadt ook inactieve producten");
   }
   console.log("✓ AN. Corrections (terug, annuleren, herstellen, bewerken), klant annuleert, product verwijderen, FR/NL klantportaal");
 

@@ -104,7 +104,8 @@ async function statusPayload() {
   };
 
   const [cat, clients, prices, stock, orders, aanvragen] = await Promise.all([
-    atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`),
+    // Tous les produits, inactifs compris : Beheer → Producten doit pouvoir les réactiver ou les supprimer.
+    atAll("Catalogue"),
     atAll("Clients"),
     atAll(encodeURIComponent("Prix négociés")),
     atAll("Stock"),
@@ -176,7 +177,7 @@ async function statusPayload() {
     status: {
       identiteit: !!(config.bedrijfsnaam && config.btw && config.iban && config.bic),
       ibanOntbreekt: !config.iban || !config.bic,
-      catalogue: products.length,
+      catalogue: products.filter(p => p.actif).length,
       clients: clientList.length,
       prijzen: priceList.length,
       stock: stockList.length,
