@@ -109,10 +109,11 @@
   }
   function renderCatalogus() {
     // Catégorie affichée = traduction (K.cat) ; la valeur Airtable reste la clé de filtre.
-    const products = (cat.products || []).filter(p => (!q || (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat)).toLowerCase().includes(q)) && (catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : K.cat(p.cat) === catFilter)));
-    const cats = ["Alles", "Favorieten", ...Array.from(new Set((cat.products || []).map(p => K.cat(p.cat)))).sort((a, b) => a.localeCompare(b, "nl"))];
+    const byCat = K.catOrder(cat.products, p => K.cat(p.cat));
+    const products = (cat.products || []).slice().sort(K.byVolgorde).filter(p => (!q || (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat)).toLowerCase().includes(q)) && (catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : K.cat(p.cat) === catFilter)));
+    const cats = ["Alles", "Favorieten", ...Array.from(new Set((cat.products || []).map(p => K.cat(p.cat)))).sort(byCat)];
     const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" && !q ? "Favorieten" : K.cat(p.cat)); (groups[g] = groups[g] || []).push(p); });
-    const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : a.localeCompare(b, "nl")));
+    const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : byCat(a, b)));
     const top = '<div class="mtop"><div class="mrow"><span class="logo">F</span><div style="min-width:0;flex:1"><b style="display:block;font-size:15px">' + K.t("Catalogus") + '</b><span class="quiet" style="font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(cat.client.nom) + ' · ' + K.esc(K.tt("bestel vóór {t} voor morgen", { t: deadline() })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div>' +
       '<label class="search" style="max-width:none">' + K.icon("search") + '<input id="q" placeholder="' + K.t("Zoek een product…") + '" value="' + K.esc(q) + '" autocomplete="off"></label>' +
       '<div class="cats">' + cats.map(c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on"' : "") + '>' + K.esc(K.t(c)) + '</button>').join("") + '</div></div>';

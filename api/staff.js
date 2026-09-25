@@ -145,7 +145,8 @@ module.exports = async (req, res) => {
       unite: r.fields["Unité"] || "",
       base: r.fields["Prix de base"] || 0,
       prix: __prices.unitPrice(r, negMap),
-      kaliber: String(r.fields["Kaliber"] || "").trim()
+      kaliber: String(r.fields["Kaliber"] || "").trim(),
+      volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
     }));
     const rules = await __lev.loadRules(at);
     return res.status(200).json({ products, levering: __lev.publicRules(rules) });

@@ -172,6 +172,11 @@
   K.pay = v => dict().pay[v] || v || K.t("Openstaand");
   K.unit = v => dict().unit[String(v || "").toLowerCase()] || v || "";
   K.move = v => K.NL.move[v] || v;
+  // Ordre du catalogue : Volgorde (Beheer, glisser-déposer) puis nom ; une catégorie se place
+  // selon le plus petit Volgorde de ses produits, puis alphabétiquement.
+  const VO = p => (p && p.volgorde != null && Number.isFinite(Number(p.volgorde)) ? Number(p.volgorde) : 1e9);
+  K.byVolgorde = (a, b) => VO(a) - VO(b) || String(a.nom || "").localeCompare(String(b.nom || ""), "nl");
+  K.catOrder = (products, keyOf) => { const m = new Map(); (products || []).forEach(p => { const k = keyOf(p); m.set(k, Math.min(m.has(k) ? m.get(k) : 1e9, VO(p))); }); return (a, b) => (m.has(a) ? m.get(a) : 1e9) - (m.has(b) ? m.get(b) : 1e9) || String(a).localeCompare(String(b), "nl"); };
   K.cat = v => { const k = String(v || "").trim().toLowerCase(); return dict().cat[k] || String(v || "").trim() || K.t("Algemeen"); };
   K.STATUSES = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
   K.CANCELLED = "Annulée";
@@ -302,6 +307,7 @@
     stock: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
     ext: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    grip: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
     bell: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5M12 17h.01"/>',
     table: '<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"/>',

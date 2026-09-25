@@ -1744,6 +1744,33 @@ async function main() {
     assert.equal(r.res.statusCode, 401, "AX5 jeton falsifié → refusé sans lecture"); assert.equal(r.calls.length, 0);
     assert.equal(ca.readToken("k.recL.1.abc.def"), null, "AX5 jeton périmé refusé");
   }
+  // --- AY. Ordre du catalogue (glisser-déposer Beheer) : validation, seuls les changements écrits ---
+  {
+    const ob = require(path.join(ROOT, "api", "onboarding.js"));
+    const EMPTY = Array.from({ length: 12 }, () => ({ records: [] }));
+    let r = await call(ob, { action: "reorderProducts", order: ["recA", "recB"] }, [], { headers: cookieHdr });
+    assert.equal(r.res.statusCode, 401, "AY1 personeel → geweigerd (enkel beheerder)");
+    for (const bad of [[], ["recA", "recA"], ["../Clients/x"], "recA"]) {
+      r = await call(ob, { action: "reorderProducts", order: bad }, [], { headers: adminCookieHdr });
+      assert.equal(r.res.statusCode, 400, "AY2 ongeldige volgorde : " + JSON.stringify(bad)); assert.equal(r.calls.length, 0);
+    }
+    const CATY = { records: [{ id: "recA", fields: { Volgorde: 2 } }, { id: "recB", fields: { Volgorde: 1 } }, { id: "recC", fields: {} }] };
+    r = await call(ob, { action: "reorderProducts", order: ["recA", "recD"] }, [CATY], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 409, "AY3 onbekend product (lijst intussen gewijzigd) → 409"); assert.equal(r.calls.length, 1, "AY3 niets geschreven");
+    r = await call(ob, { action: "reorderProducts", order: ["recB", "recC", "recA"] }, [CATY, { records: [] }, ...EMPTY], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 200, "AY4 volgorde bewaard"); assert.equal(r.res.payload.changed, 2, "AY4 enkel wat verandert");
+    const pa = r.calls.filter(c => /\/Catalogue$/.test(c.url) && (c.options.method || "").toUpperCase() === "PATCH");
+    assert.equal(pa.length, 1, "AY4 één lot van ≤ 10");
+    assert.deepEqual(JSON.parse(pa[0].options.body).records, [{ id: "recC", fields: { Volgorde: 2 } }, { id: "recA", fields: { Volgorde: 3 } }], "AY4 recB blijft 1, recC → 2, recA → 3");
+    // tri partagé (front) : Volgorde puis nom, catégorie selon son plus petit numéro
+    const ctx = { window: {}, document: { documentElement: { lang: "nl" }, addEventListener() {}, querySelector() { return null; } }, localStorage: { getItem() { return null; }, setItem() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} }, navigator: { language: "nl" }, location: { search: "", pathname: "/", hash: "" } };
+    ctx.window = ctx; vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(ROOT, "assets", "ui.js"), "utf8"), ctx);
+    const KK = ctx.K;
+    const ps = [{ nom: "Zalm", volgorde: null, cat: "Vis" }, { nom: "Kreeft", volgorde: 2, cat: "Schaal" }, { nom: "Mossel", volgorde: 1, cat: "Schelp" }, { nom: "Aal", volgorde: null, cat: "Vis" }];
+    assert.deepEqual(ps.slice().sort(KK.byVolgorde).map(p => p.nom), ["Mossel", "Kreeft", "Aal", "Zalm"], "AY5 volgorde, daarna alfabetisch");
+    assert.deepEqual(["Vis", "Schaal", "Schelp"].sort(KK.catOrder(ps, p => p.cat)), ["Schelp", "Schaal", "Vis"], "AY5 categorie volgens kleinste volgorde");
+  }
+  console.log("✓ AY. Volgorde catalogus : enkel beheerder, validatie, enkel wijzigingen, gedeelde sortering");
   console.log("✓ AX. Numéro de facture unique, stock compensé, lignes + départ refusés, mots de passe hachés (migration), jeton client");
 
   console.log("✓ Regles release candidate (validation explicite, 405 GET, 410 cadrage)");

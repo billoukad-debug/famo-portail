@@ -45,7 +45,7 @@
       '<div class="panel-f"><button type="button" class="btn btn-o" id="reset">Wissen</button><button type="button" class="btn btn-p" id="place" style="flex:1"' + (clientId && total() > 0 && !dayErr ? "" : " disabled") + '>Bestelling plaatsen</button></div></div></div>';
     if (window.innerWidth < 900) page.querySelector("#two").style.gridTemplateColumns = "1fr";
     K.setErr("fDay", dayErr);
-    page.querySelector("#client").onchange = async e => { clientId = e.target.value; items = {}; products = []; render(); if (clientId) { try { const d = await K.api("/api/staff?client=" + encodeURIComponent(clientId)); products = d.products || []; if (d.levering) rules = Object.assign(rules, d.levering); } catch (err) { K.toast(err.message, { kind: "err" }); } render(); } };
+    page.querySelector("#client").onchange = async e => { clientId = e.target.value; items = {}; products = []; render(); if (clientId) { try { const d = await K.api("/api/staff?client=" + encodeURIComponent(clientId)); products = (d.products || []).slice().sort(K.byVolgorde); if (d.levering) rules = Object.assign(rules, d.levering); } catch (err) { K.toast(err.message, { kind: "err" }); } render(); } };
     const qi = page.querySelector("#q"); qi.addEventListener("input", () => { q = qi.value.toLowerCase(); const pos = qi.selectionStart; render(); const n = page.querySelector("#q"); n.focus(); n.setSelectionRange(pos, pos); });
     K.$$("[data-bron]", page).forEach(b => { b.onclick = () => { bron = b.dataset.bron; render(); }; });
     page.querySelector("#day").onchange = e => { day = e.target.value || firstDay(); render(); };

@@ -301,3 +301,19 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 .cats{gap:12px}.cats button{padding:0 4px;min-width:44px;justify-content:center}
 .mtop .mrow>a{min-height:44px;display:inline-flex;align-items:center;gap:4px}
 .nav.on,.tool.on,.avatar{color:var(--p-deep)}
+/* ---------- glisser-déposer (assets/drag.js) ---------- */
+.drag-ghost{position:fixed;z-index:500;pointer-events:none;margin:0;box-shadow:var(--shadow);opacity:.96;transform-origin:center;border-radius:var(--r-lg)}
+.drag-ghost.ocard,.drag-ghost.stop,.drag-ghost.prow{background:var(--card)}
+.drag-ph{border:1.5px dashed var(--p);border-radius:var(--r-lg);background:var(--p-soft);margin:0}
+.drag-src{display:none!important}
+html.dragging,html.dragging *{cursor:grabbing!important;user-select:none!important}
+.drop-on{outline:2px solid var(--p-soft);outline-offset:4px;border-radius:var(--r-lg)}
+.ocard,.stop[data-route],.prow{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.grip{display:grid;place-items:center;width:28px;height:44px;color:var(--ink-3);cursor:grab;flex:none;touch-action:none}
+.grip svg{width:18px;height:18px;fill:currentColor;stroke:none}
+.ocard{cursor:grab}
+.prow{display:flex;align-items:center;gap:10px;min-height:52px;padding:4px 14px 4px 6px;border-bottom:1px solid var(--line-soft);background:var(--card)}
+.prow:last-child{border-bottom:0}
+.drag-ghost.ccat{background:var(--card)}
+/* Leveringen op telefoon : slepen aan de greep vervangt ▲▼ (die blijven op tablet/pc voor het toetsenbord) */
+@media (max-width:560px){.stop .mv{display:none!important}.stop>div[style*="flex:1"]{flex:1 1 calc(100% - 90px)!important}}

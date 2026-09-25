@@ -1,5 +1,5 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const { at, atAll, escapeFormula } = require("../lib/airtable");
+const { at, atAll, atBatch, escapeFormula } = require("../lib/airtable");
 const __ca = require("../lib/clientauth");
 const crypto = require("crypto");
 const TOKEN = process.env.AIRTABLE_TOKEN;
@@ -126,7 +126,8 @@ async function statusPayload() {
     kaliber: String(r.fields["Kaliber"] || "").trim(),
     btwTarief: Number(r.fields["BTW-tarief"]) > 0 ? Number(r.fields["BTW-tarief"]) : null,
     foto: (Array.isArray(r.fields["Foto"]) && r.fields["Foto"][0] && /^https:/.test(String(r.fields["Foto"][0].url || ""))) ? String((r.fields["Foto"][0].thumbnails && r.fields["Foto"][0].thumbnails.large && r.fields["Foto"][0].thumbnails.large.url) || r.fields["Foto"][0].url) : "",
-    actif: !!r.fields["Actif"]
+    actif: !!r.fields["Actif"],
+    volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
   const clientList = (clients.records || []).map(r => ({
@@ -395,6 +396,22 @@ module.exports = async (req, res) => {
       const j = await r.json().catch(() => ({}));
       if (!r.ok || j.error) return res.status(500).json({ error: (j.error && j.error.message) || "Foto uploaden mislukt" });
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
+    // Ordre du catalogue (glisser-déposer dans Beheer → Producten) : la liste complète des
+    // produits dans l'ordre voulu ; Volgorde = position (1, 2, 3…). Seuls les produits dont
+    // la position change sont écrits (par paquets de 10). L'ordre des catégories suit.
+    if (action === "reorderProducts") {
+      const ids = Array.isArray(body.order) ? body.order.map(String) : [];
+      if (!ids.length || ids.length > 2000 || ids.some(id => !REC.test(id)) || new Set(ids).size !== ids.length) return res.status(400).json({ error: "Ongeldige volgorde" });
+      const cat = await atAll("Catalogue?fields%5B%5D=Volgorde");
+      if (cat.error) return res.status(500).json({ error: "Catalogus onleesbaar" });
+      const known = new Map((cat.records || []).map(r => [r.id, r.fields["Volgorde"]]));
+      if (ids.some(id => !known.has(id))) return res.status(409).json({ error: "De productlijst is intussen gewijzigd. Herlaad de pagina." });
+      const changes = ids.map((id, i) => ({ id, fields: { "Volgorde": i + 1 } })).filter(u => known.get(u.id) !== u.fields["Volgorde"]);
+      const saved = await atBatch("Catalogue", "PATCH", changes, false);
+      if (saved.error) return res.status(500).json({ error: "Volgorde opslaan mislukt (" + saved.done.length + " van " + changes.length + " bewaard). Probeer opnieuw." });
+      return res.status(200).json({ ok: true, changed: changes.length, ...(await statusPayload()) });
     }
 
     // Supprimer un produit : refusé s'il figure encore dans une bestelling ouverte (les

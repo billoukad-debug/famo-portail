@@ -109,7 +109,8 @@ module.exports = async (req, res) => {
         base: r.fields["Prix de base"] || 0,
         prix: __prices.unitPrice(r, negMap),
         kaliber: String(r.fields["Kaliber"] || "").trim(),
-        foto: photoOf(r.fields["Foto"])
+        foto: photoOf(r.fields["Foto"]),
+        volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
       };
       if (stockByName && stockByName.has(key)) p.voorraad = stockByName.get(key);
       return p;

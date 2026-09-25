@@ -42,7 +42,7 @@
   }
   function bord(list) {
     const cols = [["Reçue", "Ontvangen", "var(--st-new)"], ["Prête", "Klaar", "var(--st-ready)"], ["Sortie en livraison", "Onderweg", "var(--st-road)"], ["Facturée", "Geleverd", "var(--st-done)"]];
-    return '<div class="board">' + cols.map(([st, label, color]) => { const rows = list.filter(o => o.statut === st).sort((a, b) => (a.day || "").localeCompare(b.day || "")); return '<div class="col"><div class="colh"><i style="background:' + color + '"></i>' + label + '<b>' + rows.length + '</b></div>' + (rows.length ? rows.map(S.orderCard).join("") : '<div class="empty">' + ({ "Reçue": "Niets ontvangen.", "Prête": "Niets klaargezet. Valideer artikelen in het Magazijn.", "Sortie en livraison": "Geen ronde onderweg.", "Facturée": "Nog niets geleverd." })[st] + '</div>') + '</div>'; }).join("") + '</div>';
+    return '<div class="board">' + cols.map(([st, label, color]) => { const rows = list.filter(o => o.statut === st).sort((a, b) => (a.day || "").localeCompare(b.day || "")); return '<div class="col" data-st="' + st + '"><div class="colh"><i style="background:' + color + '"></i>' + label + '<b>' + rows.length + '</b></div>' + (rows.length ? rows.map(S.orderCard).join("") : '<div class="empty">' + ({ "Reçue": "Niets ontvangen.", "Prête": "Niets klaargezet. Valideer artikelen in het Magazijn.", "Sortie en livraison": "Geen ronde onderweg.", "Facturée": "Nog niets geleverd." })[st] + '</div>') + '</div>'; }).join("") + '</div>';
   }
   function kalender(list) {
     const d0 = K.parseDate(week0); const mon = new Date(d0); mon.setDate(d0.getDate() - ((d0.getDay() + 6) % 7)); const days = Array.from({ length: 7 }, (_, i) => K.isoDay(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i)));
@@ -88,6 +88,19 @@
     }
   });
   S.bindActions(page, () => render());
+  // Bord : een kaart naar de volgende kolom slepen = dezelfde stap als de knop (valideren, vertrekken,
+  // ontvangst bevestigen) ; één kolom terug = Corrigeren (met reden). Andere sprongen worden geweigerd.
+  const FLOW = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
+  K.sortable(page, { items: ".col .ocard", zones: ".col[data-st]", onDrop: ({ item, from, to }) => {
+    const o = S.byId(item.dataset.oid);
+    const a = FLOW.indexOf(from.dataset.st), b = FLOW.indexOf(to.dataset.st);
+    if (!o || a === b) return false;
+    const refresh = () => render();
+    if (b === a + 1) { if (b === 1) S.validatePanel(o, refresh); else if (b === 2) S.depart(o, refresh); else S.confirmDelivery(o, refresh); }
+    else if (b === a - 1) S.correctPanel(o, refresh);
+    else K.toast("Eén stap per keer: sleep naar de volgende kolom.", { kind: "err" });
+    return false; // de kaart verhuist pas na bevestiging (render na de stap)
+  } });
   window.addEventListener("hashchange", () => { const h = K.hashParams(); if (h.path && h.path !== view) { view = h.path; K.store.set("famoOrdersView", view); render(); } });
   async function load(force, all) {
     try { await S.load(force, all); render(); }
