@@ -169,8 +169,8 @@ window.FamoDocuments=(()=>{
     const foot=credit
       ? 'Creditnota op factuur '+esc(order.factuurnummer||"—")+'.'+(cn.motif?' Reden: '+esc(cn.motif)+'.':'')+(terms?' '+terms:'')
       : (invoice
-        ? (terms?terms+' ':'')+'Intern document — geen automatische Peppol/Billtobox-verzending.'
-        : 'Handtekening klant: ______________________________<br><br>'+esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
+        ? terms
+        : esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
     const banners=(invoice&&COMPANY.exampleBank?'<div class="banner"><b>Voorbeeld bankgegevens.</b> '+(window.famoCompany?esc(famoCompany.EXAMPLE.label):'Vervang IBAN/BIC via Beheer vóór echte facturatie.')+'</div>':'');
     // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
     const mark='<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="#0C6157" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25V1.75h9.5"/><path d="M3.75 8h3.05c1.5 0 1.85-1.4 3.35-1.4s1.6 1.4 3.1 1.4"/></g></svg>';
