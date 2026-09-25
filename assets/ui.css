@@ -1,22 +1,22 @@
 /* FAMO · Crème — één stijl voor de drie portalen. Warm canvas, één blauw voor elke actie, statussen overal gelijk.
    Radius 4 · 6 · 8 · 12 (geen pillen op wat je aanraakt). Plus Jakarta Sans. Klassen en variabelen blijven dezelfde als v2. */
 :root{
-  --p:#4876A2;--p-soft:#E4EDF5;--p-deep:#3F6690;
-  --ink:#232323;--ink-2:#6A6A6A;--ink-3:#737169;--line:#E3E0D6;--line-soft:#EDEBE4;--line-strong:#C7C3B7;--canvas:#FAF9F5;--soft:#F1EFE8;--card:#FFFFFF;
+  --p:#4F7DAA;--p-soft:#E4EDF5;--p-deep:#436C95;
+  --ink:#232323;--ink-2:#6A6A6A;--ink-3:#85837D;--line:#E3E0D6;--line-soft:#EDEBE4;--line-strong:#C7C3B7;--canvas:#FAF9F5;--soft:#F1EFE8;--card:#FFFFFF;
   --st-new:#B7841A;--st-new-bg:#F5EEDC;--st-new-ink:#7A5410;
-  --st-ready:#4876A2;--st-ready-bg:#E4EDF5;--st-ready-ink:#36597D;
+  --st-ready:#4F7DAA;--st-ready-bg:#E4EDF5;--st-ready-ink:#36597D;
   --st-road:#2E4F70;--st-road-bg:#E1E7EE;--st-road-ink:#2E4F70;
   --st-done:#5F7A48;--st-done-bg:#E8EEE0;--st-done-ink:#4A6137;
   --st-inv:#8A8883;--st-inv-bg:#EFEDE6;--st-inv-ink:#5E5E5E;
-  --danger:#B8432E;--danger-bg:#F7E6E1;--danger-line:#EBC7BD;--warn-line:#EADCB8;--ok-line:#CFDCC0;--gold:#AD5830;--klei:#AD5830;
+  --danger:#B8432E;--danger-bg:#F7E6E1;--danger-line:#EBC7BD;--warn-line:#EADCB8;--ok-line:#CFDCC0;--gold:#C2653A;--klei:#C2653A;
   --neutral-300:#D2CEC4;--th-bg:#F6F4EE;--row-hover:#F6F4EE;--row-ok:#EEF3E9;--day-wk:#F6F4EE;--sk-a:#EFEDE6;--sk-b:#F8F7F2;
-  --p-klant:#4876A2;--p-personeel:#4876A2;--p-beheer:#4876A2;
+  --p-klant:#4F7DAA;--p-personeel:#4F7DAA;--p-beheer:#4F7DAA;
   --r-xs:4px;--r-sm:6px;--r:8px;--r-lg:12px;--tap:44px;--side:240px;--rail:88px;
   --shadow:0 0 0 1px rgba(20,20,19,.03),0 2px 6px rgba(20,20,19,.05),0 8px 24px rgba(20,20,19,.10);
   --lift:0 0 0 1px rgba(20,20,19,.03),0 2px 6px rgba(20,20,19,.05),0 4px 10px rgba(20,20,19,.08);
   --sans:"Plus Jakarta Sans",-apple-system,"Segoe UI",system-ui,sans-serif;--monof:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
 }
-.portal-klant,.portal-personeel,.portal-beheer{--p:#4876A2;--p-soft:#E4EDF5;--p-deep:#3F6690}
+.portal-klant,.portal-personeel,.portal-beheer{--p:#4F7DAA;--p-soft:#E4EDF5;--p-deep:#436C95}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--canvas);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
@@ -292,12 +292,3 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 .tbl td{max-width:230px}
 @media (max-width:1440px){.tbl td{max-width:200px}}
 .tbl th:first-child .check,.tbl td:first-child .check{margin:0}
-.tbl td.fill{max-width:0;width:100%}
-.portal-personeel .check:not(.big),.portal-beheer .check:not(.big){position:relative;border:0;background:transparent}
-.portal-personeel .check:not(.big)::before,.portal-beheer .check:not(.big)::before{content:"";position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);border:1.5px solid var(--line-strong);border-radius:var(--r-xs);background:var(--card);box-sizing:border-box}
-.portal-personeel .check.on:not(.big)::before,.portal-beheer .check.on:not(.big)::before{background:var(--p);border-color:var(--p)}
-.portal-personeel .check:not(.big) svg,.portal-beheer .check:not(.big) svg{position:relative;width:16px;height:16px}
-.portal-personeel .check:not(.big):focus-visible,.portal-beheer .check:not(.big):focus-visible{outline:2px solid var(--p);outline-offset:-8px}
-.cats{gap:12px}.cats button{padding:0 4px;min-width:44px;justify-content:center}
-.mtop .mrow>a{min-height:44px;display:inline-flex;align-items:center;gap:4px}
-.nav.on,.tool.on,.avatar{color:var(--p-deep)}
