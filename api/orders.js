@@ -1,28 +1,10 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const { at, atAll } = require("../lib/airtable");
 // Bestellingen van de aangemelde klant. POST {user, pw} -> {orders}.
 // Détail suffisant pour une fiche côté client (nota, factuur, betaling, annulation),
 // jamais rien d'interne (Correcties, boîte ops, notes préfixées d'une source restent
 // visibles telles quelles : ce sont les notes du client lui-même).
-const TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE = "appcdduLth9iGX8I0";
 const { authClient } = require("./catalogue");
-
-async function at(path){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
-  return r.json();
-}
-
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
-}
 
 // Ouvert + 365 jours d'historique (voir api/allorders.js). Le lien « Client » ne se
 // filtre pas par id dans une formule Airtable : le tri par client reste côté serveur en JS.
@@ -36,7 +18,7 @@ module.exports = async (req, res) => {
     let q = req.body;
     if (typeof q === "string") q = JSON.parse(q || "{}");
     if (!q) q = {};
-    const client = await authClient(q.user, q.pw);
+    const client = await authClient(q.user, q.pw, q.token);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
 
@@ -65,6 +47,6 @@ module.exports = async (req, res) => {
       }));
     res.status(200).json({ orders });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    { console.error("[orders]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

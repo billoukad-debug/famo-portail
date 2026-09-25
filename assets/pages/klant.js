@@ -84,9 +84,10 @@
     const cached = K.session.get(CAT_KEY, null);
     if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; return cat; }
     const d = await api("/api/catalogue", { json: creds(), retry: true });
+    if (d.token) K.klant.setToken(d.token); // jeton renouvelé à chaque ouverture du catalogue
     cat = { at: Date.now(), products: d.products || [], client: d.client, company: d.company };
     K.session.set(CAT_KEY, cat);
-    K.klant.set(Object.assign({}, sess, { client: d.client, company: d.company }));
+    K.klant.set(Object.assign({}, K.klant.get() || sess, { client: d.client, company: d.company }));
     adoptFavs(d.client);
     return cat;
   }
@@ -344,9 +345,9 @@
       const btn = p.el.querySelector("#pwOk"); sending = true; K.busy(btn, true, K.t("Wijzigen…"));
       try {
         // Rechtstreeks K.api : een 401 betekent hier « huidig wachtwoord fout », niet « sessie verlopen ».
-        await K.api("/api/klantwachtwoord", { json: { user: sess.user, pw: huidig, nieuw } });
-        // Les appels suivants renvoient le mot de passe : sans cette mise à jour ils échoueraient en 401.
-        sess.pw = nieuw; K.klant.set(Object.assign({}, K.klant.get() || sess, { pw: nieuw }));
+        const changed = await K.api("/api/klantwachtwoord", { json: { user: sess.user, pw: huidig, nieuw } });
+        // L'ancien jeton ne vaut plus (il dépend du mot de passe) : le nouveau le remplace.
+        K.klant.setToken(changed.token);
         p.close();
         K.toast(K.t("Wachtwoord gewijzigd. Gebruik voortaan uw nieuwe wachtwoord."));
       } catch (err) {

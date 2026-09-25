@@ -253,13 +253,15 @@
   K.saveReturn = () => K.session.set(K.RETURN, location.pathname + location.search + location.hash);
   K.takeReturn = fb => { const v = K.session.get(K.RETURN, null); K.session.del(K.RETURN); return v && v.startsWith("/") && !v.startsWith("//") ? v : (fb || null); };
 
-  /* ---------- klant sessie (gebruikersnaam + wachtwoord, enkel in dit tabblad) ---------- */
+  /* ---------- klant sessie (ondertekend token, enkel in dit tabblad ; nooit het wachtwoord) ---------- */
   K.klant = {
     KEY: "famoKlant",
     get() { return K.session.get(K.klant.KEY, null); },
     set(v) { K.session.set(K.klant.KEY, v); },
     clear() { K.session.del(K.klant.KEY); },
-    creds() { const c = K.klant.get(); return c ? { user: c.user, pw: c.pw } : null; }
+    // Oude sessie (van vóór het token) : wachtwoord nog één keer meesturen, daarna vervangt het token het.
+    creds() { const c = K.klant.get(); return c ? (c.token ? { token: c.token } : { user: c.user, pw: c.pw }) : null; },
+    setToken(token) { const c = K.klant.get(); if (!c || !token) return; const n = Object.assign({}, c, { token }); delete n.pw; K.klant.set(n); }
   };
 
   /* ---------- iconen (één stijl, 24-grid, stroke) ---------- */

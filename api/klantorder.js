@@ -1,4 +1,6 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const { at, escapeFormula } = require("../lib/airtable");
+const __ca = require("../lib/clientauth");
 // Actions du client sur son propre compte et ses propres commandes.
 // POST {user, pw, action, ...}. Le client vérifié par authClient ne touche jamais
 // qu'à ses enregistrements (lien « Client »), jamais à un identifiant envoyé par le
@@ -7,18 +9,9 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 //   profile   {email, tel}           met à jour e-mail et téléphone de contact
 //   favorites {favorieten, standaard} sauvegarde favoris + commande type (JSON) — synchro entre appareils
 //   reset     (sans pw) {user, email} nouveau mot de passe envoyé à l'adresse connue
-const TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE = "appcdduLth9iGX8I0";
 const crypto = require("crypto");
 const { authClient } = require("./catalogue");
 const __mail = require("../lib/ordermail");
-
-async function at(path, opts){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, Object.assign({
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }
-  }, opts || {}));
-  return r.json();
-}
 
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -41,7 +34,7 @@ function genPassword() {
 const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
 
 async function findOwnOrder(client, ref){
-  const safe = String(ref || "").replace(/'/g, "").slice(0, 40);
+  const safe = escapeFormula(String(ref || "").slice(0, 40));
   if (!safe) return null;
   const found = await at(`Commandes?filterByFormula=${encodeURIComponent(`{Référence}='${safe}'`)}&maxRecords=1`);
   const rec = ((found && found.records) || [])[0];
@@ -59,25 +52,25 @@ module.exports = async (req, res) => {
 
     // ---- Mot de passe oublié : sans mot de passe, mais gebruikersnaam + e-mail connu doivent concorder.
     if (action === "reset") {
-      const user = String(q.user || "").toLowerCase().trim().replace(/'/g, "");
+      const user = String(q.user || "").toLowerCase().trim().slice(0, 80);
       const email = String(q.email || "").toLowerCase().trim();
       if (!user || !isEmail(email)) return res.status(400).json({ error: "Vul uw gebruikersnaam en e-mailadres in." });
       if (rateLimited("reset:" + user, 3, 3600000)) return res.status(429).json({ error: "Te veel aanvragen. Probeer over een uur opnieuw of bel ons." });
       // Même réponse dans tous les cas : ne jamais révéler si un compte existe.
       const neutral = { ok: true, message: "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord." };
       if (!__mail.enabled()) return res.status(200).json(Object.assign({}, neutral, { mail: false }));
-      const cl = await at(`Clients?filterByFormula=${encodeURIComponent(`LOWER({Gebruikersnaam})='${user}'`)}&maxRecords=1`);
+      const cl = await at(`Clients?filterByFormula=${encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(user)}'`)}&maxRecords=1`);
       const rec = ((cl && cl.records) || [])[0];
       if (!rec || rec.fields["Gearchiveerd"] || String(rec.fields["Email"] || "").toLowerCase().trim() !== email) return res.status(200).json(neutral);
       const password = genPassword();
-      const saved = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": password } }) });
+      const saved = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": __ca.hashPassword(password) } }) });
       if (saved.error) return res.status(500).json({ error: "Wachtwoord vernieuwen mislukt. Bel ons." });
       const cfg = await __mail.loadMailConfig(at);
       await __mail.notifyReset({ klant: __mail.clientFrom(rec), credentials: { user: rec.fields["Gebruikersnaam"] || user, password }, password, portalUrl: __mail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
       return res.status(200).json(neutral);
     }
 
-    const client = await authClient(q.user, q.pw);
+    const client = await authClient(q.user, q.pw, q.token);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
 
     if (action === "cancel") {
@@ -136,6 +129,6 @@ module.exports = async (req, res) => {
 
     return res.status(400).json({ error: "Onbekende actie" });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    { console.error("[klantorder]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

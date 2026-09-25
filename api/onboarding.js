@@ -1,4 +1,6 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const { at, atAll, escapeFormula } = require("../lib/airtable");
+const __ca = require("../lib/clientauth");
 const crypto = require("crypto");
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
@@ -8,25 +10,6 @@ const __ordermail = require("../lib/ordermail");
 const __lev = require("../lib/levering");
 const BASE = "appcdduLth9iGX8I0";
 const REC = /^[A-Za-z0-9]{1,40}$/;
-
-async function at(path, opts) {
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, Object.assign({
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }
-  }, opts || {}));
-  return r.json();
-}
-
-async function atAll(path) {
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
-}
 
 function parseBody(req) {
   let body = req.body;
@@ -61,7 +44,7 @@ function genPassword() {
 async function uniqueUsername(base) {
   let candidate = base;
   for (let i = 0; i < 20; i++) {
-    const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${candidate.replace(/'/g, "")}'`);
+    const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(candidate)}'`);
     const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
     if (!(hit.records || []).length) return candidate;
     candidate = base.slice(0, 14) + "." + (i + 2);
@@ -451,7 +434,7 @@ module.exports = async (req, res) => {
       const generate = body.generate !== false;
       if (!user) user = await uniqueUsername(slugUser(nom));
       else {
-        const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${user.replace(/'/g, "")}'`);
+        const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(user)}'`);
         const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
         const other = (hit.records || [])[0];
         if (other && other.id !== body.id) {
@@ -469,7 +452,7 @@ module.exports = async (req, res) => {
         "Klantnummer": clean(body.klantnr, 40),
         "Email": clean(body.email, 120).toLowerCase(),
         "Gebruikersnaam": user,
-        "Wachtwoord": password
+        "Wachtwoord": __ca.hashPassword(password)
       };
       if (fields["Email"] && !__mail.isEmail(fields["Email"])) {
         return res.status(400).json({ error: "Ongeldig e-mailadres voor deze klant" });
@@ -546,7 +529,7 @@ module.exports = async (req, res) => {
       if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
       const saved = await at(`Clients/${body.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ fields: { "Wachtwoord": password } })
+        body: JSON.stringify({ fields: { "Wachtwoord": __ca.hashPassword(password) } })
       });
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Wachtwoord wijzigen mislukt" });
       let mail = null;

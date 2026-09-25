@@ -1,14 +1,6 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const { at } = require("../lib/airtable");
 const auth = require("../lib/staffauth");
-const TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE = "appcdduLth9iGX8I0";
-
-async function at(path, opts) {
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, Object.assign({
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }
-  }, opts || {}));
-  return r.json();
-}
 
 // Codes enregistres depuis Beheer (haches). Lecture uniquement a la connexion :
 // les gardes des autres endpoints restent synchrones (verification du cookie).

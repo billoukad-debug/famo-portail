@@ -8,6 +8,8 @@ const fs = require("fs");
 const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..");
+// Mots de passe clients tels qu'ils sont stockés : empreinte scrypt (lib/clientauth.js).
+const HP = (() => { const cache = {}; return pw => cache[pw] || (cache[pw] = require(path.join(ROOT, "lib/clientauth")).hashPassword(pw)); })();
 
 function json(payload) {
   return { json: async () => payload };
@@ -103,7 +105,7 @@ async function main() {
     user: "test", pw: "pass", total: 0,
     items: [{ productId: "prod1", quantity: 2, price: 0 }]
   }, [
-    { records: [{ id: "client1", fields: { "Wachtwoord": "pass" } }] },
+    { records: [{ id: "client1", fields: { "Wachtwoord": HP("pass") } }] },
     { records: [] },
     { records: [{ id: "prod1", fields: { "Produit": "Zalm", "Prix de base": 12.5, "Unité": "kg" } }] },
     { records: [] },
@@ -120,7 +122,7 @@ async function main() {
     user: "test", pw: "pass",
     items: [{ productId: "prod1", quantity: 0.5 }]
   }, [
-    { records: [{ id: "client1", fields: { "Wachtwoord": "pass" } }] },
+    { records: [{ id: "client1", fields: { "Wachtwoord": HP("pass") } }] },
     { records: [] },
     { records: [{ id: "prod1", fields: { "Produit": "Mosselen", "Prix de base": 12.5, "Unité": "caisse" } }] },
     { records: [] }
@@ -549,7 +551,7 @@ async function main() {
       "Bedrijfsnaam": "Famo Trading BV", "Telefoon": "03 111 11 11",
       "E-mail": "info@famotrading.be", "Bestellingen e-mail": "ops@famo.test"
     } }] };
-    const CLIENT_OK = { records: [{ id: "client1", fields: { "Wachtwoord": "pass", "Nom": "Resto Test", "Email": "chef@resto.test" } }] };
+    const CLIENT_OK = { records: [{ id: "client1", fields: { "Wachtwoord": HP("pass"), "Nom": "Resto Test", "Email": "chef@resto.test" } }] };
     const CAT = { records: [{ id: "prod1", fields: { "Produit": "Mosselen", "Prix de base": 28, "Unité": "caisse" } }] };
     const ORDER_BODY = { user: "test", pw: "pass", items: [{ productId: "prod1", quantity: 2 }], notes: "INTERNE-NOTITIE" };
 
@@ -597,7 +599,7 @@ async function main() {
     });
 
     // M2d — echappement (nom client hostile) + traduction des unites.
-    const XSS = { records: [{ id: "client1", fields: { "Wachtwoord": "pass", "Nom": "<img src=x onerror=alert(1)>", "Email": "chef@resto.test" } }] };
+    const XSS = { records: [{ id: "client1", fields: { "Wachtwoord": HP("pass"), "Nom": "<img src=x onerror=alert(1)>", "Email": "chef@resto.test" } }] };
     const rX = await call(createOrderM, ORDER_BODY, [
       XSS, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }, { id: "m2" }
     ]);
@@ -630,7 +632,7 @@ async function main() {
     }
 
     // M4 — client sans e-mail : seule l'equipe est prevenue.
-    const NO_MAIL = { records: [{ id: "client1", fields: { "Wachtwoord": "pass", "Nom": "Resto Test" } }] };
+    const NO_MAIL = { records: [{ id: "client1", fields: { "Wachtwoord": HP("pass"), "Nom": "Resto Test" } }] };
     const r4 = await call(createOrderM, ORDER_BODY, [
       NO_MAIL, { records: [] }, CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "order1" }] }, CFG, { id: "m1" }
     ]);
@@ -810,7 +812,7 @@ async function main() {
     assert.strictEqual(pricesLib.negotiatedValue("0"), 0, "P1 \"0\" saisi reste 0");
     assert.strictEqual(pricesLib.negotiatedValue(9.5), 9.5, "P1 prix saisi");
 
-    const CLIENT_P = { records: [{ id: "clientPrix", fields: { "Nom": "Resto Prijs", "Wachtwoord": "pass" } }] };
+    const CLIENT_P = { records: [{ id: "clientPrix", fields: { "Nom": "Resto Prijs", "Wachtwoord": HP("pass") } }] };
     const CAT_P = { records: [
       { id: "pZero", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 12.5 } },
       { id: "pVide", fields: { "Produit": "Mosselen", "Unité": "caisse", "Prix de base": 28 } },
@@ -914,7 +916,7 @@ async function main() {
   // vérifier (gebruikersnaam + mot de passe actuel), jamais un identifiant du navigateur.
   {
     const klantPw = require(path.join(ROOT, "api", "klantwachtwoord.js"));
-    const clientRec = (id, user, pw) => ({ records: [{ id, fields: { "Nom": "Resto " + user, "Gebruikersnaam": user, "Wachtwoord": pw } }] });
+    const clientRec = (id, user, pw) => ({ records: [{ id, fields: { "Nom": "Resto " + user, "Gebruikersnaam": user, "Wachtwoord": pw ? HP(pw) : pw } }] });
     const patchesAL = calls => calls.filter(c => (c.options.method || "GET").toUpperCase() === "PATCH");
     const lookupAL = calls => decodeURIComponent((calls.find(c => /\/Clients\?filterByFormula=/.test(c.url)) || { url: "" }).url);
 
@@ -924,11 +926,16 @@ async function main() {
       { id: "recAnna", fields: { "Wachtwoord": "nieuw-wachtwoord" } }
     ]);
     assert.equal(r.res.statusCode, 200, "AL1 ancien mot de passe correct → changement accepté");
-    assert.deepEqual(r.res.payload, { ok: true }, "AL1 le mot de passe n'est jamais renvoyé");
+    assert.equal(r.res.payload.ok, true, "AL1 ok");
+    assert.ok(!JSON.stringify(r.res.payload).includes("wachtwoord"), "AL1 le mot de passe n'est jamais renvoyé");
+    assert.match(String(r.res.payload.token), /^k\.recAnna\./, "AL1 nouveau jeton client (l'ancien ne vaut plus)");
     assert.match(lookupAL(r.calls), /LOWER\(\{Gebruikersnaam\}\)='anna'/, "AL1 le client est retrouvé par son gebruikersnaam");
     assert.equal(patchesAL(r.calls).length, 1, "AL1 exactement un PATCH");
     assert.match(patchesAL(r.calls)[0].url, /\/Clients\/recAnna$/, "AL1 PATCH sur le client vérifié");
-    assert.deepEqual(JSON.parse(patchesAL(r.calls)[0].options.body), { fields: { "Wachtwoord": "nieuw-wachtwoord" } }, "AL1 même champ Wachtwoord qu'aujourd'hui, rien d'autre");
+    const al1 = JSON.parse(patchesAL(r.calls)[0].options.body);
+    assert.deepEqual(Object.keys(al1.fields), ["Wachtwoord"], "AL1 seul le champ Wachtwoord change");
+    assert.match(al1.fields.Wachtwoord, /^scrypt\$/, "AL1 stocké haché, jamais en clair");
+    assert.ok(require(path.join(ROOT, "lib/clientauth")).checkPassword(al1.fields.Wachtwoord, "nieuw-wachtwoord"), "AL1 l'empreinte correspond au nouveau mot de passe");
 
     // AL2 — ancien mot de passe faux (ou client inconnu) : 401, aucune écriture.
     r = await call(klantPw, { user: "anna", pw: "fout-wachtwoord", nieuw: "nieuw-wachtwoord" }, [clientRec("recAnna", "anna", "oud-wachtwoord")]);
@@ -969,7 +976,7 @@ async function main() {
     // AL4c : apostrophes dans le gebruikersnaam → pas d'injection dans la formule Airtable.
     r = await call(klantPw, { user: "bert' OR '1'='1", pw: "oud-wachtwoord", nieuw: "overgenomen-1" }, [{ records: [] }]);
     assert.equal(r.res.statusCode, 401, "AL4c injection de formule → refusée");
-    assert.equal((lookupAL(r.calls).match(/'/g) || []).length, 2, "AL4c apostrophes retirées de la formule");
+    assert.equal((lookupAL(r.calls).replace(/\\'/g, "").match(/'/g) || []).length, 2, "AL4c apostrophes échappées dans la formule");
     // AL4d : garde statique — la route ne lit aucun identifiant de client dans le body.
     const srcAL = fs.readFileSync(path.join(ROOT, "api", "klantwachtwoord.js"), "utf8");
     assert.ok(!/q\.(id|clientId|client|recordId)\b/.test(srcAL), "AL4d aucun identifiant client lu dans la requête");
@@ -1150,7 +1157,7 @@ async function main() {
     // 8. Klant annuleert zelf : enkel Reçue, enkel eigen bestelling
     clearModule("api/catalogue.js"); clearModule("api/klantorder.js");
     const ko = require(path.join(ROOT, "api", "klantorder.js"));
-    const CLI = { records: [{ id: "cli1", fields: { Gebruikersnaam: "aloha", Wachtwoord: "welkom123", Nom: "Aloha" } }] };
+    const CLI = { records: [{ id: "cli1", fields: { Gebruikersnaam: "aloha", Wachtwoord: HP("welkom123"), Nom: "Aloha" } }] };
     r = await call(ko, { user: "aloha", pw: "welkom123", action: "cancel", ref: "CMD-1" }, [CLI, { records: [{ id: "o7", fields: { Client: ["cli1"], Statut: "Reçue", "Référence": "CMD-1" } }] }, { fields: {} }]);
     assert.equal(r.res.statusCode, 200, "AN8 klant annuleert Reçue");
     b = patchOf(r); assert.equal(b.fields.Statut, "Annulée"); assert.equal(b.fields["Motif annulation"], "Geannuleerd door klant"); assert.match(b.fields.Correcties, /Geannuleerd · klant/);
@@ -1241,7 +1248,7 @@ async function main() {
   {
     clearModule("api/order.js");
     const co = require(path.join(ROOT, "api", "order.js"));
-    const CLI = { records: [{ id: "cliAP", fields: { Wachtwoord: "pass", Nom: "Resto AP" } }] };
+    const CLI = { records: [{ id: "cliAP", fields: { Wachtwoord: HP("pass"), Nom: "Resto AP" } }] };
     const CAT = { records: [{ id: "pAP", fields: { Produit: "Zalm", "Prix de base": 12.5, "Unité": "kg" } }] };
     const CFG = f => ({ records: [{ id: "cfg", fields: f }] });
     const order = (qty, extra) => Object.assign({ user: "ap", pw: "pass", items: [{ productId: "pAP", quantity: qty }] }, extra || {});
@@ -1260,9 +1267,24 @@ async function main() {
     r = await call(co, order(4, { dateLivraison: sundayX }), [CLI]);
     assert.equal(r.res.statusCode, 400, "AP4 dimanche"); assert.match(r.res.payload.error, /zondag/); assert.equal(r.calls.length, 1, "AP4 contrôle de forme avant la configuration");
     if (dowX(todayX) !== 0) {
-      r = await call(co, order(4, { dateLivraison: todayX }), [CLI, CFG({ Besteldeadline: "00:01" }), CAT, { records: [] }, NO_ORDER_REFS, { records: [{ id: "oAP" }] }]);
-      assert.equal(r.res.statusCode, 200, "AP5 la coupure horaire n'est pas rejouée côté serveur : aujourd'hui reste accepté");
-      assert.equal(JSON.parse(r.calls[5].options.body).records[0].fields["Date livraison souhaitée"], todayX);
+      r = await call(co, order(4, { dateLivraison: todayX }), [CLI, CFG({})]);
+      assert.equal(r.res.statusCode, 400, "AP5 commande client pour aujourd'hui refusée par le serveur");
+      assert.match(r.res.payload.error, /vandaag/); assert.equal(r.calls.length, 2, "AP5 refusé avant toute écriture");
+    }
+    // AP6 — heure limite (Bruxelles) avec 15 min de tolérance, testée à heure fixe.
+    {
+      const lev = require(path.join(ROOT, "lib", "levering"));
+      const rules = lev.rulesFrom({ Besteldeadline: "22:00" });
+      const today = lev.brusselsToday();
+      const d = new Date(today + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1); const tomorrow = d.toISOString().slice(0, 10);
+      d.setUTCDate(d.getUTCDate() + 1); const after = d.toISOString().slice(0, 10);
+      // Heures « Bruxelles » : 21:59 et 22:10 passent, 22:16 refuse (UTC+1/+2 selon la saison).
+      const at = hhmm => { const [h, m] = hhmm.split(":").map(Number); for (let off = 0; off < 3; off++) { const t = new Date(today + "T00:00:00Z"); t.setUTCMinutes(h * 60 + m - off * 60); const s2 = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(t); if (s2 === hhmm) return t; } return null; };
+      assert.equal(lev.checkCutoff(tomorrow, rules, at("21:59")), "", "AP6 21:59 → morgen OK");
+      assert.equal(lev.checkCutoff(tomorrow, rules, at("22:10")), "", "AP6 22:10 → tolérance");
+      assert.match(lev.checkCutoff(tomorrow, rules, at("22:16")), /Na 22:00/, "AP6 22:16 → morgen refusé");
+      assert.equal(lev.checkCutoff(after, rules, at("23:30")), "", "AP6 overmorgen toujours OK");
+      assert.match(lev.checkCutoff(today, rules, at("08:00")), /vandaag/, "AP6 aujourd'hui toujours refusé");
     }
   }
   console.log("✓ AP. Commande client : minimum (Configuratie), jour fermé / non livré / dimanche refusés avant écriture");
@@ -1323,7 +1345,7 @@ async function main() {
     r = await call(uo, cn("Mosselen × 3"), [FACT()], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AQ5 te veel"); assert.match(r.res.payload.error, /tussen 0 en 2/);
     r = await call(uo, cn("Mosselen × 1", { motif: "x" }), [FACT()], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AQ5 reden verplicht");
     r = await call(uo, cn(""), [FACT()], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AQ5 minstens één artikel");
-    r = await call(uo, cn("Mosselen × 1\nZalm × 0.5 kg"), [FACT(), { records: [{ fields: { "Creditnota nummer": "CN-" + yearX + "-0002" } }, { fields: { Factuurnummer: "FA-" + yearX + "-0044" } }] }, { fields: {} }], { headers: adminCookieHdr });
+    r = await call(uo, cn("Mosselen × 1\nZalm × 0.5 kg"), [FACT(), { records: [{ fields: { "Creditnota nummer": "CN-" + yearX + "-0002" } }, { fields: { Factuurnummer: "FA-" + yearX + "-0044" } }] }, { fields: {} }, { records: [{ id: "o5" }] }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ5 creditnota OK");
     assert.equal(r.res.payload.creditnota.nummer, "CN-" + yearX + "-0003", "AQ5 nummer volgt de CN-reeks, niet de FA-reeks"); assert.equal(r.res.payload.creditnota.montant, 38);
     assert.ok(decodeURIComponent(r.calls[1].url).includes("fields[]=Creditnota nummer"), "AQ5 numérotation lue sur la bonne colonne");
@@ -1334,7 +1356,7 @@ async function main() {
     assert.equal(r.calls.filter(c => /Stock|Mouvements/.test(c.url)).length, 0, "AQ5 zonder retourStock blijft de voorraad onaangeroerd");
     r = await call(uo, cn("Mosselen × 1"), [FACT({ "Creditnota nummer": "CN-2026-0001" })], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 409, "AQ5 één creditnota per factuur"); assert.match(r.res.payload.error, /CN-2026-0001/);
-    r = await call(uo, cn("Mosselen × 1", { retourStock: true }), [FACT(), { records: [] }, { records: [{ id: "stk", fields: { Produit: "Mosselen", "Quantité disponible": 4 } }] }, { records: [] }, { records: [] }, { fields: {} }], { headers: adminCookieHdr });
+    r = await call(uo, cn("Mosselen × 1", { retourStock: true }), [FACT(), { records: [] }, { records: [{ id: "stk", fields: { Produit: "Mosselen", "Quantité disponible": 4 } }] }, { records: [] }, { records: [] }, { fields: {} }, { records: [{ id: "o5" }] }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ5 retour in voorraad");
     assert.equal(JSON.parse(r.calls.find(c => /\/Stock$/.test(c.url) && (c.options.method || "").toUpperCase() === "PATCH").options.body).records[0].fields["Quantité disponible"], 5, "AQ5 voorraad +1");
     const mv = JSON.parse(r.calls.find(c => /Mouvements/.test(c.url)).options.body).records[0].fields;
@@ -1351,12 +1373,23 @@ async function main() {
     // 7. normalizeLines : prijs [€x] blijft, toegevoegde lijn krijgt onderhandelde prijs of basisprijs, totaal herberekend.
     const CATQ = { records: [{ id: "pM", fields: { Produit: "Mosselen", "Unité": "caisse", "Prix de base": 28 } }, { id: "pZ", fields: { Produit: "Zalm", "Unité": "kg", "Prix de base": 20, Actif: false } }, { id: "pK", fields: { Produit: "Kreeft", "Unité": "pièce", "Prix de base": 40 } }] };
     const NEGQ = { records: [{ fields: { Client: ["cliAQ"], Produit: ["pZ"], "Prix négocié": 18 } }, { fields: { Client: ["ander"], Produit: ["pK"], "Prix négocié": 1 } }] };
-    r = await call(uo, { id: "o7", lignes: "mosselen × 3 caisse [€25.00] (schoon)\nZalm × 2 kg\nKreeft × 1", total: 1 }, [{ fields: { Statut: "Reçue", Client: ["cliAQ"] } }, CATQ, NEGQ, { fields: {} }], { headers: cookieHdr });
+    const STORED7 = { Statut: "Reçue", Client: ["cliAQ"], "Lignes (produits / quantités)": "Mosselen × 3 caisse [€25.00]" };
+    r = await call(uo, { id: "o7", lignes: "mosselen × 3 caisse [€25.00] (schoon)\nZalm × 2 kg\nKreeft × 1", total: 1 }, [{ fields: STORED7 }, CATQ, NEGQ, { fields: {} }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ7 lijnen bewerkt"); b = cmdPatch(r);
     assert.equal(b.fields["Lignes (produits / quantités)"], "Mosselen × 3 caisse [€25.00] (schoon)\nZalm × 2 kg [€18.00]\nKreeft × 1 pièce [€40.00]", "AQ7 figé / onderhandeld / basis, naam uit de catalogus");
     assert.equal(b.fields.Total, 151, "AQ7 totaal server-side, nooit dat van de browser");
-    r = await call(uo, { id: "o7", lignes: "Mosselen × 3 caisse [€25.00]" }, [{ fields: { Statut: "Reçue", Client: ["cliAQ"] } }, CATQ, { fields: {} }], { headers: cookieHdr });
+    r = await call(uo, { id: "o7", lignes: "Mosselen × 3 caisse [€25.00]" }, [{ fields: STORED7 }, CATQ, { fields: {} }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 200); assert.equal(r.calls.filter(c => /Prix/.test(c.url)).length, 0, "AQ7 alle prijzen figé → Prix négociés nooit gelezen");
+    // Le personnel ne fixe pas le prix : [€1] envoyé est ignoré, le prix figé enregistré reste.
+    r = await call(uo, { id: "o7", lignes: "Mosselen × 3 caisse [€1.00]" }, [{ fields: STORED7 }, CATQ, { fields: {} }], { headers: cookieHdr });
+    assert.equal(r.res.statusCode, 200); assert.equal(cmdPatch(r).fields["Lignes (produits / quantités)"], "Mosselen × 3 caisse [€25.00]", "AQ7 prijs van de browser genegeerd voor personeel");
+    assert.equal(cmdPatch(r).fields.Total, 75, "AQ7 totaal op de figé prijs");
+    // Nouvelle ligne avec [€x] du personnel : prix négocié/base, jamais celui du navigateur.
+    r = await call(uo, { id: "o7", lignes: "Kreeft × 1 [€1.00]" }, [{ fields: { Statut: "Reçue", Client: ["cliAQ"] } }, CATQ, NEGQ, { fields: {} }], { headers: cookieHdr });
+    assert.equal(cmdPatch(r).fields.Total, 40, "AQ7 nieuwe lijn : basisprijs, niet die van de browser");
+    // Un beheerder peut accorder une remise volontaire sur la ligne.
+    r = await call(uo, { id: "o7", lignes: "Mosselen × 3 caisse [€20.00]" }, [{ fields: STORED7 }, CATQ, { fields: {} }], { headers: adminCookieHdr });
+    assert.equal(cmdPatch(r).fields.Total, 60, "AQ7 beheerder mag de prijs aanpassen");
     r = await call(uo, { id: "o7", lignes: "Kreeft × 1" }, [{ fields: { Statut: "Reçue" } }, { records: [] }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 400, "AQ7 onbekend artikel"); assert.match(r.res.payload.error, /niet gevonden in de catalogus: Kreeft/);
     r = await call(uo, { id: "o7", lignes: "Kreeft × 1.5" }, [{ fields: { Statut: "Reçue" } }, CATQ], { headers: cookieHdr });
@@ -1371,7 +1404,7 @@ async function main() {
   {
     clearModule("api/catalogue.js"); clearModule("api/klantorder.js");
     let ko = require(path.join(ROOT, "api", "klantorder.js"));
-    const CLI = { records: [{ id: "cliAR", fields: { Gebruikersnaam: "aloha", Wachtwoord: "welkom123", Nom: "Aloha", Email: "keuken@aloha.test" } }] };
+    const CLI = { records: [{ id: "cliAR", fields: { Gebruikersnaam: "aloha", Wachtwoord: HP("welkom123"), Nom: "Aloha", Email: "keuken@aloha.test" } }] };
     const me = extra => Object.assign({ user: "aloha", pw: "welkom123" }, extra);
     let r = await call(ko, me({ action: "profile", email: "geen-adres" }), [CLI]);
     assert.equal(r.res.statusCode, 400, "AR1 e-mail ongeldig"); assert.match(r.res.payload.error, /Ongeldig e-mailadres/); assert.equal(methodCallsX(r, "PATCH").length, 0);
@@ -1408,10 +1441,12 @@ async function main() {
     assert.equal(r.res.statusCode, 200, "AR4 gearchiveerd → neutraal"); assert.equal(r.calls.length, 1, "AR4 gearchiveerd : geen PATCH");
     r = await call(ko, { action: "reset", user: "ALOHA2", email: "Keuken@Aloha.test" }, [{ records: [{ id: "cliAR2", fields: { Gebruikersnaam: "aloha2", Email: " keuken@aloha.test ", Nom: "Aloha" } }] }, { fields: {} }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }, { id: "m1" }]);
     assert.equal(r.res.statusCode, 200, "AR4 match → nieuw wachtwoord"); assert.match(r.res.payload.message, /Als de gegevens kloppen/);
-    const pw = patchOfX(r, /Clients\/cliAR2$/).fields.Wachtwoord;
-    assert.equal(typeof pw, "string"); assert.equal(pw.length, 10, "AR4 wachtwoord van 10 tekens");
+    const storedAR = patchOfX(r, /Clients\/cliAR2$/).fields.Wachtwoord;
+    assert.match(storedAR, /^scrypt\$/, "AR4 opgeslagen als empreinte, nooit in klare tekst");
     const sent = r.calls.filter(c => /api\.resend\.com/.test(c.url));
-    assert.equal(sent.length, 1, "AR4 één mail, naar het gekende adres"); assert.ok(sent[0].options.body.includes(pw), "AR4 het wachtwoord staat in de mail"); assert.ok(sent[0].options.body.includes("keuken@aloha.test"));
+    assert.equal(sent.length, 1, "AR4 één mail, naar het gekende adres"); assert.ok(sent[0].options.body.includes("keuken@aloha.test"));
+    const pw = (String(JSON.parse(sent[0].options.body).text || sent[0].options.body).match(/[A-HJ-NP-Za-km-z2-9]{10}/g) || []).find(c => require(path.join(ROOT, "lib/clientauth")).checkPassword(storedAR, c));
+    assert.equal(typeof pw, "string", "AR4 het wachtwoord (10 tekens) staat in de mail en past bij de empreinte");
     assert.ok(!JSON.stringify(r.res.payload).includes(pw), "AR4 het wachtwoord komt nooit in het antwoord");
     if (savedKey === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = savedKey;
     mailMods.forEach(clearModule);
@@ -1548,7 +1583,7 @@ async function main() {
     r = await call(ob, { action: "saveClient", nom: "O'Reilly", user: "O'Reilly", password: "geheim123", generate: false }, [{ records: [] }, { records: [{ id: "c9" }] }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT6 klant aangemaakt");
     const cf = JSON.parse(r.calls[1].options.body).records[0].fields;
-    assert.equal(cf.Gebruikersnaam, "oreilly"); assert.equal(cf.Wachtwoord, "geheim123"); assert.equal(cf.Nom, "O'Reilly"); assert.equal(cf.Gearchiveerd, undefined);
+    assert.equal(cf.Gebruikersnaam, "oreilly"); assert.ok(require(path.join(ROOT, "lib/clientauth")).checkPassword(cf.Wachtwoord, "geheim123"), "wachtwoord gehasht opgeslagen"); assert.match(cf.Wachtwoord, /^scrypt\$/); assert.equal(cf.Nom, "O'Reilly"); assert.equal(cf.Gearchiveerd, undefined);
     assert.deepEqual(r.res.payload.credentials, { id: "c9", nom: "O'Reilly", user: "oreilly", password: "geheim123" });
     r = await call(ob, { action: "saveClient", nom: "Ander", user: "oreilly", password: "geheim123", generate: false }, [{ records: [{ id: "c9" }] }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 409, "AT6 gebruikersnaam al in gebruik door een ander");
@@ -1623,9 +1658,9 @@ async function main() {
       const r = await call(h, body, [ARCH]);
       assert.equal(r.res.statusCode, 401, "AW1 gearchiveerd → 401 op " + name); assert.equal(r.calls.length, 1, "AW1 niets anders gelezen op " + name);
     }
-    const ACT = fav => ({ records: [{ id: "a", fields: { Gebruikersnaam: "aloha", Wachtwoord: "w", Nom: "Aloha", Favorieten: fav } }] });
+    const ACT = fav => ({ records: [{ id: "a", fields: { Gebruikersnaam: "aloha", Wachtwoord: HP("w"), Nom: "Aloha", Favorieten: fav } }] });
     const CATZ = { records: [{ id: "pz", fields: { Produit: "Zalm", "Prix de base": 10, "Unité": "kg" } }] };
-    let r = await call(cat, { user: "aloha", pw: "w" }, [ACT(JSON.stringify({ favorieten: ["recAAAAAAAAAAAAAA"], standaard: { recAAAAAAAAAAAAAA: 2 } })), CATZ, { records: [] }, { records: [{ fields: { "Voorraad afboeken": true, IBAN: "BE68539007547034", Leverdagen: "di" } }] }, { records: [{ fields: { Produit: " zalm", "Quantité disponible": 3 } }] }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }]);
+    let r = await call(cat, { user: "aloha", pw: "w" }, [ACT(JSON.stringify({ favorieten: ["recAAAAAAAAAAAAAA"], standaard: { recAAAAAAAAAAAAAA: 2 } })), CATZ, { records: [] }, { records: [{ fields: { "Voorraad afboeken": true, IBAN: "BE68539007547034", Leverdagen: "di", Bedrijfsnaam: "Famo" } }] }, { records: [{ fields: { Produit: " zalm", "Quantité disponible": 3 } }] }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }]);
     assert.equal(r.res.statusCode, 200, "AW2 actieve klant");
     assert.deepEqual(r.res.payload.client.favorieten, { favorieten: ["recAAAAAAAAAAAAAA"], standaard: { recAAAAAAAAAAAAAA: 2 } }, "AW2 favorieten meegegeven");
     assert.equal(r.res.payload.products[0].voorraad, 3, "AW2 voorraad zichtbaar (op naam) wanneer afboeken aan staat");
@@ -1635,6 +1670,81 @@ async function main() {
     assert.deepEqual(r.res.payload.client.favorieten, { favorieten: [], standaard: {} }, "AW3 onleesbare favorieten → leeg");
   }
   console.log("✓ AW. Klantportaal : gearchiveerde klant 401 (catalogue, orders, klantorder) ; favorieten ; voorraad enkel met afboeken");
+
+  // --- AX. Lot sécurité / argent : numéro unique, stock compensé, verrou, mots de passe, jeton client ---
+  {
+    const uo = require(path.join(ROOT, "api", "updateorder.js"));
+    const ca = require(path.join(ROOT, "lib", "clientauth"));
+    const yearAX = require(path.join(ROOT, "lib", "staffauth")).brusselsYear();
+    const isPatch = c => (c.options.method || "GET").toUpperCase() === "PATCH";
+    // AX1 — deux confirmations simultanées lisent le même maximum : l'enregistrement au plus
+    // grand identifiant cède et reprend le numéro suivant.
+    const PRETE_OUT = { fields: { Statut: "Sortie en livraison", "Livraison confirmée": false, "Lignes (produits / quantités)": "Mosselen × 1 caisse [€28.00]", Client: ["c1"] } };
+    let r = await call(uo, { id: "recZZ", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
+      PRETE_OUT,
+      { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0007" } }] }, // nextNumber → 0008
+      { fields: {} },                                                         // PATCH commande
+      { records: [{ id: "recAA" }, { id: "recZZ" }] },                        // 0008 existe deux fois
+      { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0008" } }] }, // nextNumber → 0009
+      { fields: {} },                                                         // PATCH nouveau numéro
+      { records: [{ id: "recZZ" }] }                                          // 0009 unique
+    ], { headers: cookieHdr });
+    assert.equal(r.res.statusCode, 200, "AX1 réception confirmée");
+    assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0009", "AX1 doublon détecté → numéro suivant");
+    assert.equal(JSON.parse(r.calls.filter(isPatch).pop().options.body).fields.Factuurnummer, "FA-" + yearAX + "-0009", "AX1 le nouveau numéro est écrit");
+    r = await call(uo, { id: "recAA", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
+      PRETE_OUT, { records: [] }, { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
+    ], { headers: cookieHdr });
+    assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0001", "AX1 le plus petit identifiant garde son numéro");
+    assert.equal(r.calls.filter(isPatch).length, 1, "AX1 aucune renumérotation pour celui qui garde");
+
+    // AX2 — le stock est déduit puis l'écriture de la commande échoue : le stock est remis.
+    r = await call(uo, { id: "recS1", statut: "Sortie en livraison" }, [
+      { fields: { Statut: "Prête", "Préparation validée": true, "Lignes (produits / quantités)": "Mosselen × 2 caisse", "Référence": "CMD-9" } },
+      { records: [{ fields: { "Voorraad afboeken": true } }] },
+      { records: [{ id: "stk1", fields: { Produit: "Mosselen", "Quantité disponible": 10 } }] },
+      { records: [] },                                           // PATCH Stock 10 → 8
+      { error: { type: "SERVER_ERROR", message: "boom" } },      // PATCH commande échoue
+      { records: [{ id: "stk1", fields: { Produit: "Mosselen", "Quantité disponible": 8 } }] },
+      { records: [] }                                            // PATCH Stock 8 → 10
+    ], { headers: cookieHdr });
+    assert.equal(r.res.statusCode, 500, "AX2 échec signalé");
+    const stockWrites = r.calls.filter(c => /\/Stock$/.test(c.url) && isPatch(c)).map(c => JSON.parse(c.options.body).records[0].fields["Quantité disponible"]);
+    assert.deepEqual(stockWrites, [8, 10], "AX2 déduction puis remise : un nouvel essai ne déduira qu'une fois");
+    assert.equal(r.calls.filter(c => /Mouvements/.test(c.url)).length, 0, "AX2 aucun mouvement journalisé pour une sortie annulée");
+
+    // AX3 — lignes modifiées + départ dans la même requête : refusé (à revalider d'abord).
+    r = await call(uo, { id: "recS2", statut: "Sortie en livraison", lignes: "Mosselen × 9 caisse" }, [{ fields: { Statut: "Prête", "Préparation validée": true } }], { headers: cookieHdr });
+    assert.equal(r.res.statusCode, 409, "AX3 lignes + départ → 409"); assert.match(r.res.payload.error, /Valideer eerst/);
+
+    // AX4 — mots de passe : empreinte, ancien texte clair migré à la première connexion.
+    const h = ca.hashPassword("geheim-123");
+    assert.ok(ca.isHashed(h) && ca.checkPassword(h, "geheim-123") && !ca.checkPassword(h, "geheim-124"), "AX4 empreinte scrypt vérifiable");
+    assert.ok(ca.checkPassword("oud-klaar", "oud-klaar") && !ca.checkPassword("oud-klaar", "oud-klaa"), "AX4 ancien texte clair encore accepté (migration)");
+    const cat = require(path.join(ROOT, "api", "catalogue.js"));
+    const LEGACY = { records: [{ id: "recL", fields: { Gebruikersnaam: "legacy", Wachtwoord: "oud-klaar", Nom: "Legacy" } }] };
+    r = await call(cat, { user: "legacy", pw: "oud-klaar" }, [LEGACY, { fields: {} }, { records: [] }, { records: [] }, { records: [{ fields: {} }] }]);
+    assert.equal(r.res.statusCode, 200, "AX4 connexion avec l'ancien mot de passe");
+    const up = r.calls.find(c => /Clients\/recL$/.test(c.url) && isPatch(c));
+    assert.ok(up, "AX4 migration écrite"); const upPw = JSON.parse(up.options.body).fields.Wachtwoord;
+    assert.ok(ca.isHashed(upPw) && ca.checkPassword(upPw, "oud-klaar"), "AX4 le texte clair est remplacé par son empreinte");
+
+    // AX5 — jeton client : valable, lié au mot de passe, refusé s'il est modifié ou périmé.
+    const tok = r.res.payload.token;
+    assert.match(String(tok), /^k\.recL\./, "AX5 jeton renvoyé à la connexion");
+    assert.ok(!JSON.stringify(r.res.payload).includes("oud-klaar"), "AX5 jamais le mot de passe dans la réponse");
+    const REC_H = { id: "recL", fields: { Gebruikersnaam: "legacy", Wachtwoord: upPw, Nom: "Legacy" } };
+    r = await call(cat, { token: tok }, [REC_H, { records: [] }, { records: [] }, { records: [{ fields: {} }] }]);
+    assert.equal(r.res.statusCode, 200, "AX5 jeton accepté sans mot de passe");
+    assert.match(r.calls[0].url, /\/Clients\/recL$/, "AX5 le client vient du jeton signé");
+    r = await call(cat, { token: tok }, [{ id: "recL", fields: { Gebruikersnaam: "legacy", Wachtwoord: ca.hashPassword("nieuw-pw-1") } }]);
+    assert.equal(r.res.statusCode, 401, "AX5 mot de passe changé → ancien jeton refusé"); assert.equal(r.res.payload.expired, true);
+    const forged = tok.replace(/^k\.recL\./, "k.recX.");
+    r = await call(cat, { token: forged }, []);
+    assert.equal(r.res.statusCode, 401, "AX5 jeton falsifié → refusé sans lecture"); assert.equal(r.calls.length, 0);
+    assert.equal(ca.readToken("k.recL.1.abc.def"), null, "AX5 jeton périmé refusé");
+  }
+  console.log("✓ AX. Numéro de facture unique, stock compensé, lignes + départ refusés, mots de passe hachés (migration), jeton client");
 
   console.log("✓ Regles release candidate (validation explicite, 405 GET, 410 cadrage)");
   console.log("✓ Règles métier commande, préparation et livraison");
@@ -1792,7 +1902,7 @@ async function main() {
     // S1 — API catalogue client : Kaliber et Foto exposés proprement.
     const catalogueS = require(path.join(ROOT, "api", "catalogue.js"));
     const AT = "https://v5.airtableusercontent.com/";
-    const CLIENT_S = { records: [{ id: "clientFoto", fields: { "Nom": "Resto Foto", "Wachtwoord": "pass" } }] };
+    const CLIENT_S = { records: [{ id: "clientFoto", fields: { "Nom": "Resto Foto", "Wachtwoord": HP("pass") } }] };
     const CAT_S = { records: [
       { id: "s1", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 12.5, "Kaliber": "  3–4 kg  ",
         "Foto": [{ url: AT + "zalm.jpg", type: "image/jpeg", thumbnails: { small: { url: AT + "zalm-s.jpg" }, large: { url: AT + "zalm-l.jpg" } } }] } },
@@ -1921,7 +2031,7 @@ async function main() {
     }
 
     // T6 — portail client et saisie staff partagent la même séquence.
-    const CLIENT_T = { records: [{ id: "clientT", fields: { "Nom": "Resto T", "Wachtwoord": "pass" } }] };
+    const CLIENT_T = { records: [{ id: "clientT", fields: { "Nom": "Resto T", "Wachtwoord": HP("pass") } }] };
     const CAT_T = { records: [{ id: "pT", fields: { "Produit": "Zalm", "Unité": "kg", "Prix de base": 10 } }] };
     const ITEMS_T = [{ productId: "pT", quantity: 1 }];
     let rT = await call(createOrder, { user: "tnum", pw: "pass", items: ITEMS_T }, [CLIENT_T, { records: [] }, CAT_T, { records: [] }, refRecord(`CMD-${year}-0007`), { records: [{ id: "orderT" }] }]);

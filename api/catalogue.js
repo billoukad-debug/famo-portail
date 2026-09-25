@@ -1,52 +1,54 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const TOKEN = process.env.AIRTABLE_TOKEN;
 const __prices = require("../lib/prices");
-// Anti-abus minimal (memoire d'instance, best-effort sur serverless).
+const __ca = require("../lib/clientauth");
+const { at, atAll, escapeFormula } = require("../lib/airtable");
+// Anti-abus (mémoire d'instance, best-effort sur serverless : chaque instance a sa propre
+// table ; combiné au hachage scrypt, qui rend chaque essai coûteux).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
   const now = Date.now();
   const e = _rl.get(key) || { n: 0, t: now };
   if (now - e.t > windowMs) { e.n = 0; e.t = now; }
   e.n++; _rl.set(key, e);
+  if (_rl.size > 5000) _rl.clear(); // borne mémoire
   return e.n > max;
 }
-
-const BASE = "appcdduLth9iGX8I0";
-
-async function at(path){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
-  return r.json();
+function ipOf(req){
+  return String((req && req.headers && (req.headers["x-forwarded-for"] || req.headers["x-real-ip"])) || "").split(",")[0].trim() || "?";
 }
 
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
-}
-
-// Authentifie par gebruikersnaam + wachtwoord. Renvoie l'enregistrement client ou null.
-// Partagé par catalogue, orders, klantdoc, klantorder et order : la limite anti-force
-// brute (5 échecs / 30 s par gebruikersnaam) vaut donc pour TOUS les endpoints client,
-// pas seulement pour l'écran de connexion. Un compte bloqué répond comme un mauvais
-// mot de passe (rien à apprendre pour l'attaquant), la limite se lève après 30 s.
+// Authentifie un client. Deux façons :
+//  - jeton signé (lib/clientauth.js) : ce que le portail envoie après la connexion ;
+//  - gebruikersnaam + wachtwoord : l'écran de connexion et le changement de mot de passe.
+// Partagé par catalogue, orders, klantdoc, klantorder, order et klantwachtwoord : la limite
+// anti-force brute (5 échecs / 30 s par gebruikersnaam) vaut pour TOUS les endpoints
+// client. Un compte bloqué répond comme un mauvais mot de passe.
+// Un mot de passe encore stocké en clair est remplacé par son empreinte dès qu'il sert.
 const AUTH_MAX_FAILS = 5, AUTH_WINDOW_MS = 30000;
-async function authClient(user, pw){
+async function authClient(user, pw, token){
+  if (token) {
+    const t = __ca.readToken(token);
+    if (!t) return null;
+    const rec = await at(`Clients/${t.id}`);
+    const stored = rec && !rec.error && rec.fields && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"];
+    if (!stored || __ca.fingerprint(stored) !== t.fp) return null;
+    return rec;
+  }
   if (!user || !pw) return null;
   const key = "auth:" + String(user).toLowerCase().trim();
   const e = _rl.get(key);
   if (e && e.n >= AUTH_MAX_FAILS && Date.now() - e.t <= AUTH_WINDOW_MS) return null;
-  const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${String(user).toLowerCase().replace(/'/g, "")}'`);
+  const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(String(user).toLowerCase().trim())}'`);
   const cl = await at(`Clients?filterByFormula=${f}`);
   const rec = cl.records && cl.records[0];
   const stored = rec && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"]; // archivé : plus de connexion, historique conservé
-  if (!stored || String(stored) !== String(pw)) { rateLimited(key, AUTH_MAX_FAILS, AUTH_WINDOW_MS); return null; }
+  if (!stored || !__ca.checkPassword(stored, pw)) { rateLimited(key, AUTH_MAX_FAILS, AUTH_WINDOW_MS); return null; }
   _rl.delete(key);
+  if (!__ca.isHashed(stored)) {
+    const hashed = __ca.hashPassword(pw);
+    const up = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": hashed } }) });
+    if (up && !up.error) rec.fields["Wachtwoord"] = hashed;
+  }
   return rec;
 }
 module.exports.authClient = authClient;
@@ -73,11 +75,13 @@ module.exports = async (req, res) => {
     if (typeof q === "string") q = JSON.parse(q || "{}");
     if (!q) q = {};
     const rlKey = "login:" + String(q.user || "").toLowerCase();
-    if (rateLimited(rlKey, 5, 30000)) {
+    // Par identifiant (5 / 30 s) ET par adresse IP (30 / 5 min, contre l'essai d'un même
+    // mot de passe sur beaucoup d'identifiants). Un jeton valide ne compte pas.
+    if (!q.token && (rateLimited(rlKey, 5, 30000) || rateLimited("ip:" + ipOf(req), 30, 300000))) {
       return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
     }
-    const client = await authClient(q.user, q.pw);
-    if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
+    const client = await authClient(q.user, q.pw, q.token);
+    if (!client) return res.status(401).json({ error: q.token && !q.pw ? "Sessie verlopen. Meld u opnieuw aan." : "Ongeldige gebruikersnaam of wachtwoord", expired: !!(q.token && !q.pw) });
     _rl.delete(rlKey);
     const clientId = client.id;
 
@@ -116,27 +120,25 @@ module.exports = async (req, res) => {
     res.status(200).json({
       client: { id: clientId, nom: client.fields["Nom"], adresse: client.fields["Lieu de livraison"] || "", email: (client.fields["Email"] || "").trim(), tel: client.fields["Téléphone"] || "", klantnr: client.fields["Klantnummer"] || "", btw: client.fields["BTW-nummer"] || "", favorieten },
       products,
-      company: Object.assign(await loadCompany(), { levering: __lev.publicRules(rules), iban: rules ? (cfgFields["IBAN"] || "").trim() : "", bic: (cfgFields["BIC"] || "").trim() })
+      token: __ca.issueToken(client),
+      company: Object.assign(companyFrom(cfgFields), { levering: __lev.publicRules(rules), iban: rules ? (cfgFields["IBAN"] || "").trim() : "", bic: (cfgFields["BIC"] || "").trim() })
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    console.error("[catalogue]", e && e.message || e);
+    res.status(500).json({ error: "Catalogus laden mislukt. Probeer opnieuw." });
   }
 };
 
-async function loadCompany(){
-  try {
-    const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
-    const c = ((conf.records || [])[0] || {}).fields || {};
-    return {
-      bedrijfsnaam: c["Bedrijfsnaam"] || "FAMO Seafood",
-      adres: c["Adres"] || "",
-      plaats: c["Postcode en plaats"] || "",
-      btw: c["BTW-nummer"] || "",
-      telefoon: c["Telefoon"] || "",
-      email: c["E-mail"] || ""
-    };
-  } catch (_) {
-    return { bedrijfsnaam: "FAMO Seafood", adres: "", plaats: "", btw: "", telefoon: "", email: "" };
-  }
+// Configuratie déjà lue plus haut : pas de deuxième requête.
+function companyFrom(c){
+  c = c || {};
+  return {
+    bedrijfsnaam: c["Bedrijfsnaam"] || "FAMO Seafood",
+    adres: c["Adres"] || "",
+    plaats: c["Postcode en plaats"] || "",
+    btw: c["BTW-nummer"] || "",
+    telefoon: c["Telefoon"] || "",
+    email: c["E-mail"] || ""
+  };
 }
 module.exports.authClient = authClient;

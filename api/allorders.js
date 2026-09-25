@@ -1,29 +1,11 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const TOKEN = process.env.AIRTABLE_TOKEN;
+const { at, atAll } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
   return false;
 }
-const BASE = "appcdduLth9iGX8I0";
-async function at(path){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
-  return r.json();
-}
-
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
-}
-
 // Fenêtre par défaut : tout ce qui est ouvert + 365 jours d'historique. Au-delà, le
 // quota Airtable (plan gratuit) et le temps de chargement montent avec chaque commande.
 // ?all=1 lève la limite (export comptable, recherche ancienne).
@@ -96,6 +78,6 @@ module.exports = async (req, res) => {
     }));
     res.status(200).json({ orders, btwPerProduct, window: String(q.all || "") === "1" ? 0 : WINDOW_DAYS });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    { console.error("[allorders]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

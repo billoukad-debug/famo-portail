@@ -1,4 +1,5 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const { at, atAll } = require("../lib/airtable");
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
@@ -15,23 +16,6 @@ function rateLimited(key, max, windowMs){
 }
 
 const BASE = "appcdduLth9iGX8I0";
-
-async function at(path){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
-  return r.json();
-}
-
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
-}
 
 // Même authentification que les autres endpoints client (client archivé refusé,
 // limite anti-force brute partagée) : une seule implémentation à maintenir.
@@ -128,7 +112,7 @@ module.exports = async (req, res) => {
     if (!body) body = {};
 
     // Le client est identifié côté serveur : on ne fait jamais confiance au clientId envoyé.
-    const client = await authClient(body.user, body.pw);
+    const client = await authClient(body.user, body.pw, body.token);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
     // Contrôle de forme AVANT le compteur anti-abus : une date impossible dans un
@@ -141,7 +125,7 @@ module.exports = async (req, res) => {
     }
     const rules = await __lev.loadRules(at);
     if (dateLivraison) {
-      const dateErr = __lev.checkDate(dateLivraison, rules);
+      const dateErr = __lev.checkDate(dateLivraison, rules) || __lev.checkCutoff(dateLivraison, rules);
       if (dateErr) return res.status(400).json({ error: dateErr });
     }
 
@@ -179,7 +163,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({ records: [{ fields }] })
     });
     const j = await r.json();
-    if (j.error) return res.status(500).json(j);
+    if (j.error) { console.error("[order]", j.error.message || j.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
 
     // Notification e-mail : la commande est DEJA enregistree ici. Le .catch est
     // structurel — sans lui, un echec d'envoi remonterait au catch general qui
@@ -193,7 +177,7 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    { console.error("[order]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };
 module.exports.checkDeliveryDate = checkDeliveryDate;

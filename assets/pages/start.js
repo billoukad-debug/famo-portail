@@ -44,7 +44,7 @@
     document.getElementById("loginErr").innerHTML = "";
     try {
       const d = await K.api("/api/catalogue", { json: { user, pw } });
-      K.klant.set({ user, pw, client: d.client, company: d.company });
+      K.klant.set({ user, token: d.token, client: d.client, company: d.company });
       K.session.set("famoKlantCatalogus", { at: Date.now(), products: d.products, client: d.client, company: d.company });
       location.href = "/klant.html#/catalogus";
     } catch (err) {

@@ -6,11 +6,11 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 // + mot de passe actuel). Aucun identifiant de client n'est lu dans le body : sans le
 // mot de passe actuel d'un autre client, impossible de toucher à son compte.
 //
-// Stockage inchangé : champ texte « Wachtwoord » en clair, comme à la création depuis
-// Beheer. Hachage + session client à faire plus tard (IDEAS.md, B3).
-const TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE = "appcdduLth9iGX8I0";
+// Stockage : empreinte scrypt (lib/clientauth.js), jamais le texte clair. La réponse
+// contient un nouveau jeton : l'ancien cesse de valoir dès que le mot de passe change.
 const { authClient } = require("./catalogue");
+const { at } = require("../lib/airtable");
+const __ca = require("../lib/clientauth");
 
 const MIN_LEN = 8;
 const MAX_LEN = 80;
@@ -51,17 +51,16 @@ module.exports = async (req, res) => {
     const client = await authClient(q.user, pw);
     if (!client) return res.status(401).json({ error: "Uw huidige wachtwoord klopt niet." });
 
-    const r = await fetch(`https://api.airtable.com/v0/${BASE}/Clients/${encodeURIComponent(client.id)}`, {
+    const hashed = __ca.hashPassword(nieuw);
+    const saved = await at(`Clients/${encodeURIComponent(client.id)}`, {
       method: "PATCH",
-      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ fields: { "Wachtwoord": nieuw } })
+      body: JSON.stringify({ fields: { "Wachtwoord": hashed } })
     });
-    const saved = await r.json();
     if (!saved || saved.error) {
       return res.status(500).json({ error: "Wachtwoord wijzigen mislukt. Probeer het later opnieuw." });
     }
     _rl.delete(rlKey);
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, token: __ca.issueToken({ id: client.id, fields: { "Wachtwoord": hashed } }) });
   } catch (e) {
     return res.status(500).json({ error: "Wachtwoord wijzigen mislukt. Probeer het later opnieuw." });
   }
