@@ -21,12 +21,12 @@ const SCHEMA = {
     selects: { "Unité": ["kg", "pièce", "caisse"] }, primary: "Produit"
   },
   Commandes: {
-    fields: { "Référence": "text", "Date": "date", "Lignes (produits / quantités)": "text", "Statut": "select", "Statut paiement": "select", "Total": "number", "Photo préparation": "attachments", "Notes": "text", "Client": "links", "Date livraison souhaitée": "date", "Factuurnummer": "text", "Stock afgeboekt": "checkbox", "Préparation validée": "checkbox", "Préparée le": "datetime", "Livrée le": "datetime", "Preuve de livraison": "attachments", "Facturée le": "datetime", "Réceptionné par": "text", "Livraison confirmée": "checkbox" },
-    selects: { "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée"], "Statut paiement": ["En attente", "Payé"] },
+    fields: { "Référence": "text", "Date": "date", "Lignes (produits / quantités)": "text", "Statut": "select", "Statut paiement": "select", "Total": "number", "Photo préparation": "attachments", "Notes": "text", "Client": "links", "Date livraison souhaitée": "date", "Factuurnummer": "text", "Stock afgeboekt": "checkbox", "Préparation validée": "checkbox", "Préparée le": "datetime", "Livrée le": "datetime", "Preuve de livraison": "attachments", "Facturée le": "datetime", "Réceptionné par": "text", "Livraison confirmée": "checkbox", "Annulée le": "datetime", "Motif annulation": "text", "Correcties": "text" },
+    selects: { "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"] },
     fieldIds: { fldjCdOntoPXPKLIb: "Preuve de livraison", fld4P0uySgGI6P6yE: "Photo préparation" }, primary: "Référence"
   },
   Stock: { fields: { "Produit": "text", "Quantité disponible": "number", "Seuil bas": "number", "Produit lié": "links" }, primary: "Produit" },
-  "Mouvements de stock": { fields: { "Mouvement": "text", "Date et heure": "datetime", "Type": "select", "Produit": "text", "Quantité": "number", "Stock avant": "number", "Stock après": "number", "Référence commande": "text", "Note": "text" }, selects: { "Type": ["Sortie livraison", "Correction inventaire", "Entrée stock", "Retour client"] }, primary: "Mouvement" },
+  "Mouvements de stock": { fields: { "Mouvement": "text", "Date et heure": "datetime", "Type": "select", "Produit": "text", "Quantité": "number", "Stock avant": "number", "Stock après": "number", "Référence commande": "text", "Note": "text" }, selects: { "Type": ["Sortie livraison", "Correction inventaire", "Entrée stock", "Retour client", "Annulation sortie"] }, primary: "Mouvement" },
   "Prix négociés": { fields: { "Libellé": "text", "Client": "links", "Produit": "links", "Prix négocié": "number" }, primary: "Libellé" },
   Configuratie: {
     fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text" },

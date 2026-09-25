@@ -140,6 +140,65 @@ async function deductStock(lignes){
   return report;
 }
 
+// Remet en stock ce qui avait été déduit au départ (retour arrière ou annulation
+// après « Sortie en livraison »). Même appariement par nom que deductStock ; un
+// produit disparu du stock est ignoré mais signalé (report.missing).
+async function restoreStock(lignes, reference){
+  const report = { done: [], missing: [] };
+  const items = parseLines(lignes);
+  if (!items.length) return report;
+  const st = await atAll("Stock");
+  const recs = st.records || [];
+  const norm = s => String(s || "").toLowerCase().trim();
+  const requested = new Map();
+  for (const item of items) {
+    if (item.qty <= 0) continue;
+    const key = norm(item.nom);
+    const previous = requested.get(key) || { nom: item.nom, qty: 0 };
+    previous.qty += item.qty;
+    requested.set(key, previous);
+  }
+  const updates = [];
+  for (const it of requested.values()) {
+    const rec = recs.find(r => norm(r.fields["Produit"]) === norm(it.nom));
+    if (!rec) { report.missing.push(it.nom); continue; }
+    const cur = numberOf(rec.fields["Quantité disponible"]);
+    const next = Math.round((cur + it.qty) * 1000) / 1000;
+    updates.push({ id: rec.id, fields: { "Quantité disponible": next } });
+    report.done.push({ nom: it.nom, qty: it.qty, van: cur, naar: next });
+  }
+  if (updates.length) {
+    const saved = await at("Stock", { method: "PATCH", body: JSON.stringify({ records: updates }) });
+    if (saved.error) return { ...report, error: saved.error.message || "Voorraad kon niet worden teruggezet" };
+    const now = new Date().toISOString();
+    // typecast : l'option « Annulation sortie » est créée dans Airtable au premier usage.
+    const journal = await at(encodeURIComponent("Mouvements de stock"), {
+      method: "POST",
+      body: JSON.stringify({ typecast: true, records: report.done.map(item => ({ fields: {
+        "Mouvement": `${reference} — ${item.nom} (terug)`,
+        "Date et heure": now,
+        "Type": "Annulation sortie",
+        "Produit": item.nom,
+        "Quantité": item.qty,
+        "Stock avant": item.van,
+        "Stock après": item.naar,
+        "Référence commande": reference
+      }})) })
+    });
+    if (journal.error) report.journalWarning = journal.error.message || "Journal de stock non enregistré";
+  }
+  return report;
+}
+
+// Ligne de journal ajoutée au champ « Correcties » : date Bruxelles · action · rôle — raison.
+function correctionLine(label, role, reden){
+  const when = new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date()).replace(",", "");
+  return `${when} · ${label} · ${role}${reden ? " — " + reden : ""}`;
+}
+
+const CANCELLED = "Annulée";
+const CORRECTIONS = ["terug", "annuleren", "herstellen", "bewerken"];
+
 // Numéro de facture séquentiel : FA-2026-0001
 async function nextInvoiceNumber(){
   const year = __auth.brusselsYear();
@@ -154,6 +213,99 @@ async function nextInvoiceNumber(){
   return `FA-${year}-${String(max + 1).padStart(4, "0")}`;
 }
 
+async function applyCorrection(req, res, id, f, body, statuses){
+  const isAdmin = __auth.adminOk(req);
+  const role = isAdmin ? "beheerder" : "personeel";
+  const correction = String(body.correction || "");
+  const reden = String(body.reden || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+  if (!CORRECTIONS.includes(correction)) return res.status(400).json({ error: "Onbekende correctie" });
+  if (reden.length < 3) return res.status(400).json({ error: "Geef een reden op (minstens 3 tekens)" });
+
+  const current = f["Statut"] || "Reçue";
+  const idx = statuses.indexOf(current);
+  const ref = f["Référence"] || id;
+  const fields = {};
+  let stockReport = null, label = "", target = current;
+
+  if (correction === "terug") {
+    if (current === CANCELLED) return res.status(409).json({ error: "Geannuleerde bestelling: gebruik Herstellen" });
+    if (idx <= 0) return res.status(409).json({ error: "Deze bestelling staat al bij de eerste stap (Ontvangen)" });
+    target = statuses[idx - 1];
+    if (current === "Prête") {
+      fields["Préparation validée"] = false; fields["Préparée le"] = null;
+      label = "Terug naar te bereiden";
+    } else if (current === "Sortie en livraison") {
+      if (f["Stock afgeboekt"]) {
+        stockReport = await restoreStock(f["Lignes (produits / quantités)"], ref);
+        if (stockReport.error) return res.status(500).json({ error: stockReport.error });
+        fields["Stock afgeboekt"] = false;
+      }
+      label = "Terug naar klaar (vertrek ongedaan)";
+    } else if (current === "Facturée") {
+      if (!isAdmin) return res.status(403).json({ error: "Enkel een beheerder kan een ontvangst ongedaan maken" });
+      if (f["Statut paiement"] === "Payé") return res.status(409).json({ error: "Deze factuur staat op betaald. Zet ze eerst terug op openstaand." });
+      fields["Livraison confirmée"] = false; fields["Réceptionné par"] = ""; fields["Livrée le"] = null; fields["Preuve de livraison"] = [];
+      // Le factuurnummer reste sur la commande : il est réutilisé à la prochaine
+      // confirmation, jamais réattribué à une autre commande (pas de trou, pas de doublon).
+      label = "Ontvangst ongedaan gemaakt (factuur " + (f["Factuurnummer"] || "—") + " blijft voorbehouden)";
+    }
+    fields["Statut"] = target;
+  }
+
+  if (correction === "annuleren") {
+    if (current === CANCELLED) return res.status(409).json({ error: "Deze bestelling is al geannuleerd" });
+    if (current === "Facturée") return res.status(409).json({ error: "Een gefactureerde bestelling kan niet geannuleerd worden. Maak een creditnota." });
+    if (current === "Sortie en livraison") {
+      if (!isAdmin) return res.status(403).json({ error: "Enkel een beheerder kan een bestelling annuleren die al onderweg is" });
+      if (f["Stock afgeboekt"]) {
+        stockReport = await restoreStock(f["Lignes (produits / quantités)"], ref);
+        if (stockReport.error) return res.status(500).json({ error: stockReport.error });
+        fields["Stock afgeboekt"] = false;
+      }
+    }
+    target = CANCELLED;
+    fields["Statut"] = CANCELLED;
+    fields["Annulée le"] = new Date().toISOString();
+    fields["Motif annulation"] = reden;
+    label = "Geannuleerd";
+  }
+
+  if (correction === "herstellen") {
+    if (current !== CANCELLED) return res.status(409).json({ error: "Alleen een geannuleerde bestelling kan hersteld worden" });
+    target = "Reçue";
+    fields["Statut"] = "Reçue";
+    fields["Annulée le"] = null; fields["Motif annulation"] = "";
+    fields["Préparation validée"] = false; fields["Préparée le"] = null;
+    label = "Hersteld (terug naar te bereiden)";
+  }
+
+  if (correction === "bewerken") {
+    if (current === CANCELLED) return res.status(409).json({ error: "Geannuleerde bestelling: herstel ze eerst" });
+    if (idx >= 2) return res.status(409).json({ error: "Deze levering is al onderweg: leverdag en nota liggen vast" });
+    const changes = [];
+    if (typeof body.dateLivraison === "string" && body.dateLivraison !== (f["Date livraison souhaitée"] || "")) {
+      const iso = body.dateLivraison.slice(0, 10);
+      const err = require("./order").checkDeliveryDate(iso);
+      if (err) return res.status(400).json({ error: err });
+      fields["Date livraison souhaitée"] = iso;
+      changes.push("leverdag " + (f["Date livraison souhaitée"] || "—") + " → " + iso);
+    }
+    if (typeof body.notes === "string" && body.notes !== (f["Notes"] || "")) {
+      fields["Notes"] = String(body.notes).slice(0, 500);
+      changes.push("nota gewijzigd");
+    }
+    if (!changes.length) return res.status(400).json({ error: "Niets gewijzigd" });
+    label = changes.join(", ");
+  }
+
+  const journal = correctionLine(label, role, reden);
+  fields["Correcties"] = (f["Correcties"] ? f["Correcties"] + "\n" : "") + journal;
+  // typecast : le statut « Annulée » est créé dans Airtable au premier usage.
+  const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) });
+  if (j.error) return res.status(500).json(j);
+  return res.status(200).json({ ok: true, statut: target, correctie: journal, stock: stockReport });
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "Alleen POST toegestaan" });
   if (!staffCodeReady(res)) return;
@@ -161,7 +313,7 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl, skipStock } = body;
+    const { id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl, skipStock, correction } = body;
     if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
     if (!id) return res.status(400).json({ error: "Bestelling-id ontbreekt" });
 
@@ -170,6 +322,17 @@ module.exports = async (req, res) => {
     const f = cur.fields || {};
     const statuses = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
     const departed = statuses.indexOf(f["Statut"] || "Reçue") >= 2;
+
+    // ---- Corrections (retour arrière, annulation, restauration, leverdag/nota) ----
+    // Toujours avec une raison, toujours journalisées dans « Correcties ». Le
+    // navigateur ne choisit jamais le statut cible : une seule marche arrière par appel.
+    if (correction !== undefined) {
+      const done = await applyCorrection(req, res, id, f, body, statuses);
+      return done;
+    }
+    if (f["Statut"] === CANCELLED) {
+      return res.status(409).json({ error: "Deze bestelling is geannuleerd. Herstel ze eerst (Corrigeren → Herstellen)." });
+    }
 
     // Once goods left the warehouse, changing quantities would no longer match
     // the stock movement and the delivery note. Create a correction instead.

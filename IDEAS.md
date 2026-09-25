@@ -100,7 +100,7 @@ Quand les docs internes ne suffisent plus.
 **Effort :** élevé · **Risque :** dépend du prestataire
 
 ### C2. Annulation / creditnota métier
-**Problème :** statut strictement croissant ; creditnota = impression cosmétique ; retours stock manuels.  
+**Problème :** creditnota = impression cosmétique ; retours stock manuels. (Fait depuis : marche arrière de statut, annulation avec raison et journal, restauration du stock au retour arrière.)  
 **Idée :** flux « retour partiel / total » après facture : creditnota numérotée + mouvement `Retour client` auto + lien vers commande d’origine.  
 **DoD :** retour 2 kg sur une commande facturée → stock + document + trace sans correction manuelle opaque.  
 **Effort :** élevé · **Risque :** moyen (nécessite B4 de préférence)
@@ -118,7 +118,7 @@ Le client `/` a été volontairement laissé hors redesign staff. Idées ciblée
 
 | Idée | Pourquoi |
 |---|---|
-| **D1. Modifier / annuler avant préparation** | Évite les appels téléphone tant que statut = Reçue |
+| ~~**D1. Modifier / annuler avant préparation**~~ | Fait : le client annule tant que statut = Reçue, puis recommande |
 | **D2. Télécharger LB / facture** | Même composant PDF staff, côté client authentifié |
 | **D3. Favoris synchronisés** | Aujourd’hui `localStorage` ; perdu entre appareils |
 | **D4. Créneau / note de livraison visible** | Transparence sans tracking GPS |

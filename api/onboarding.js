@@ -305,6 +305,33 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // Supprimer un produit : refusé s'il figure encore dans une bestelling ouverte (les
+    // lignes sont du texte apparié par nom ; le magasin ne pourrait plus corriger les
+    // aantallen). Sinon : prix négociés du produit, ligne(s) de stock du même nom, puis
+    // la fiche. Un produit déjà livré reste lisible dans l'historique (texte).
+    if (action === "deleteProduct") {
+      if (!body.id) return res.status(400).json({ error: "Product-id ontbreekt" });
+      const cur = await at(`Catalogue/${body.id}`);
+      if (cur.error) return res.status(404).json({ error: "Product niet gevonden" });
+      const nom = cur.fields["Produit"] || "";
+      const norm = s => String(s || "").toLowerCase().trim();
+      const orders = await atAll("Commandes");
+      const inUse = (orders.records || []).filter(r => !["Facturée", "Annulée"].includes(r.fields["Statut"] || "Reçue") && String(r.fields["Lignes (produits / quantités)"] || "").split("\n").some(l => norm(l.split(/\s*[×x]\s*[\d]/)[0]) === norm(nom)));
+      if (inUse.length) return res.status(409).json({ error: `Nog in ${inUse.length} open bestelling${inUse.length === 1 ? "" : "en"} (${inUse.slice(0, 3).map(r => r.fields["Référence"]).join(", ")}). Zet het product op inactief, of lever die bestellingen eerst.` });
+      const neg = await atAll(encodeURIComponent("Prix négociés"));
+      const linked = (neg.records || []).filter(r => (r.fields["Produit"] || []).includes(body.id)).map(r => r.id);
+      for (let i = 0; i < linked.length; i += 10) {
+        await at(`${encodeURIComponent("Prix négociés")}?${linked.slice(i, i + 10).map(id => "records[]=" + id).join("&")}`, { method: "DELETE" });
+      }
+      const stock = await atAll("Stock");
+      for (const r of (stock.records || []).filter(r => norm(r.fields["Produit"]) === norm(nom))) {
+        await at(`Stock/${r.id}`, { method: "DELETE" });
+      }
+      const del = await at(`Catalogue/${body.id}`, { method: "DELETE" });
+      if (del.error) return res.status(500).json({ error: del.error.message || "Product verwijderen mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
     // ---- Client + credentials ----
     if (action === "saveClient") {
       const nom = clean(body.nom, 120);
@@ -376,6 +403,21 @@ module.exports = async (req, res) => {
         },
         ...(await statusPayload())
       });
+    }
+
+    // Bloquer l'accès d'un client (fin de collaboration, compte compromis) : le mot de
+    // passe est effacé, la connexion échoue, la fiche et l'historique restent intacts.
+    // « Nieuw wachtwoord » rend l'accès.
+    if (action === "revokeAccess") {
+      if (!body.id) return res.status(400).json({ error: "Klant-id ontbreekt" });
+      const cur = await at(`Clients/${body.id}`);
+      if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const saved = await at(`Clients/${body.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ fields: { "Wachtwoord": "" } })
+      });
+      if (saved.error) return res.status(500).json({ error: saved.error.message || "Toegang blokkeren mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
     // ---- Codes d'accès (Instellingen) ----

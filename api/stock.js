@@ -86,15 +86,31 @@ module.exports = async (req, res) => {
     if (req.method === "GET") {
       const stock = await atAll("Stock?sort%5B0%5D%5Bfield%5D=Produit&sort%5B0%5D%5Bdirection%5D=asc");
       if (stock.error) return res.status(500).json(stock);
+      // Une ligne de stock sans produit au catalogue (renommé, supprimé à la main) est
+      // « orpheline » : jamais déduite, jamais commandée. L'écran la signale et permet de la retirer.
+      const cat = await atAll("Catalogue");
+      const norm = s => String(s || "").toLowerCase().trim();
+      const names = new Set((cat.records || []).map(r => norm(r.fields["Produit"])));
       return res.status(200).json({ items: (stock.records || []).map(record => ({
         id: record.id,
         product: record.fields["Produit"] || "",
         quantity: Number(record.fields["Quantité disponible"] || 0),
-        lowThreshold: Number(record.fields["Seuil bas"] || 0)
+        lowThreshold: Number(record.fields["Seuil bas"] || 0),
+        inCatalogue: cat.error ? true : names.has(norm(record.fields["Produit"]))
       })) });
     }
 
     if (req.method !== "POST") return res.status(405).json({ error: "GET or POST only" });
+
+    // Retirer une ligne de stock (orpheline). Aucun mouvement : rien n'est vendu ni reçu.
+    if (body.delete === true) {
+      if (!body.id) return res.status(400).json({ error: "Artikel-id ontbreekt" });
+      const cur = await at(`Stock/${body.id}`);
+      if (cur.error) return res.status(404).json({ error: "Artikel niet gevonden" });
+      const del = await at(`Stock/${body.id}`, { method: "DELETE" });
+      if (del.error) return res.status(500).json(del);
+      return res.status(200).json({ ok: true, deleted: body.id });
+    }
     const quantity = amount(body.quantity);
     if (!body.id || quantity == null || quantity < 0 || quantity > 1000000) {
       return res.status(400).json({ error: "Ongeldige voorraadhoeveelheid" });

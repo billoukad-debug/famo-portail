@@ -1,8 +1,9 @@
 window.FamoDocuments=(()=>{
   const esc=value=>String(value||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
-  const eur=value=>"€ "+Number(value||0).toFixed(2).replace(".",",");
+  const eur=value=>{const n=Number(value||0);const s=Math.abs(n).toFixed(2).replace(".",",").replace(/\B(?=(\d{3})+(?!\d))/g,".");return "€ "+(n<0?"-":"")+s;};
+  const qtyTxt=value=>{const n=Number(String(value==null?"":value).replace(",","."));return Number.isFinite(n)?String(Math.round(n*1000)/1000).replace(".",","):String(value||"");};
   const parse=lines=>String(lines||"").split("\n").filter(Boolean).map(raw=>{const m=raw.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)(.*)$/);if(!m)return{name:raw,qty:"",unit:"",price:null,comment:""};const tail=m[4]||"",price=tail.match(/\[€\s*([\d.,]+)\]/),comment=tail.match(/\((.*?)\)/);return{name:m[1].trim(),qty:m[2],unit:m[3].trim(),price:price?Number(price[1].replace(",",".")):null,comment:comment?comment[1]:""}});
-  const date=value=>{if(!value)return"—";const d=new Date(String(value).includes("T")?value:value+"T00:00:00");return Number.isNaN(d)?value:d.toLocaleDateString("nl-BE")};
+  const date=value=>{if(!value)return"—";const d=new Date(String(value).includes("T")?value:value+"T00:00:00");if(Number.isNaN(d.getTime()))return String(value);const p=n=>String(n).padStart(2,"0");return p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear();};
   // Company identity from /api/config. Missing IBAN/BIC → temporary example bank (banner on invoice).
   let COMPANY={
     nom:"",
@@ -98,7 +99,7 @@ window.FamoDocuments=(()=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
       const sub=unitPrice==null?null:unitPrice*qty;
-      return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+'</td><td class="num">'+esc(row.qty)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
+      return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+'</td><td class="num">'+esc(qtyTxt(row.qty))+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
     const bank='<div class="bank"><div class="banklabel">Bankgegevens</div>'+
       '<div class="bankrow"><span>Begunstigde</span><b>'+esc(COMPANY.nom)+'</b></div>'+
