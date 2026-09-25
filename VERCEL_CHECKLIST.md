@@ -7,7 +7,7 @@
 | `ADMIN_CODE` | code admin fort | **obligatoire** — accès complet (config, IBAN, clients, prix, Invoeren, Voorraad, Documenten). |
 | `STAFF_CODE` | code personnel fort | optionnel — accès limité à Bestellingen/Magazijn/Leveringen. Peut être identique à `ADMIN_CODE` au démarrage. Plus de fallback `famo2026`. |
 | `RESEND_API_KEY` | clé Resend | optionnel — **sans elle, aucun e-mail n'est envoyé** et les commandes fonctionnent normalement. |
-| `MAIL_FROM` | `Famo Trading <bestellingen@famotrading.be>` | domaine **vérifié chez Resend** obligatoire. `onboarding@resend.dev` ne délivre qu'au propriétaire du compte Resend. |
+| `MAIL_FROM` | `FAMO Seafood <bestellingen@famotrading.be>` | domaine **vérifié chez Resend** obligatoire. `onboarding@resend.dev` ne délivre qu'au propriétaire du compte Resend. |
 
 Auth staff = cookie de session HttpOnly (`/api/session`). Les pages n’utilisent plus `?code=`.
 

@@ -42,7 +42,7 @@ async function main() {
     };
     process.env.AIRTABLE_TOKEN = "dev-token";
     process.env.RESEND_API_KEY = "dev-resend";
-    process.env.MAIL_FROM = process.env.MAIL_FROM || "Famo Trading <bestellingen@famotrading.be>";
+    process.env.MAIL_FROM = process.env.MAIL_FROM || "FAMO Seafood <bestellingen@famotrading.be>";
     process.env.ADMIN_CODE = process.env.ADMIN_CODE || "beheer-dev-code";
     process.env.STAFF_CODE = process.env.STAFF_CODE || "team-dev-code";
     process.env.FAMO_DEV = "1";

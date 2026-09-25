@@ -100,7 +100,7 @@ async function loadCompany(){
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};
     return {
-      bedrijfsnaam: c["Bedrijfsnaam"] || "Famo Trading BV",
+      bedrijfsnaam: c["Bedrijfsnaam"] || "FAMO Seafood",
       adres: c["Adres"] || "",
       plaats: c["Postcode en plaats"] || "",
       btw: c["BTW-nummer"] || "",
@@ -108,7 +108,7 @@ async function loadCompany(){
       email: c["E-mail"] || ""
     };
   } catch (_) {
-    return { bedrijfsnaam: "Famo Trading BV", adres: "", plaats: "", btw: "", telefoon: "", email: "" };
+    return { bedrijfsnaam: "FAMO Seafood", adres: "", plaats: "", btw: "", telefoon: "", email: "" };
   }
 }
 module.exports.authClient = authClient;

@@ -116,6 +116,25 @@ async function notifyOrderMail(ctx) {
   });
 }
 
+// Jour de livraison demandé par le client. Aujourd'hui = date civile à Bruxelles
+// (Vercel tourne en UTC). Le serveur ne rejoue pas la coupure de 22:00 : une
+// commande passée à 21:59 côté client ne doit pas être refusée parce que la
+// requête arrive à 22:00:30. Il refuse seulement l'impossible.
+function brusselsToday() {
+  try { return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
+  catch (e) { return new Date().toISOString().slice(0, 10); }
+}
+function checkDeliveryDate(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "Ongeldige leverdag";
+  const d = new Date(iso + "T12:00:00Z");
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso) return "Ongeldige leverdag";
+  const today = brusselsToday();
+  if (iso < today) return "De leverdag ligt in het verleden";
+  const max = new Date(today + "T12:00:00Z"); max.setUTCDate(max.getUTCDate() + 60);
+  if (iso > max.toISOString().slice(0, 10)) return "Kies een leverdag binnen de komende 60 dagen";
+  if (d.getUTCDay() === 0) return "Op zondag leveren we niet";
+  return "";
+}
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   try {
@@ -127,11 +146,18 @@ module.exports = async (req, res) => {
     const client = await authClient(body.user, body.pw);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
+    // Contrôle bon marché AVANT le compteur anti-abus et l'appel Airtable : une
+    // date invalide dans un panier ne doit pas consommer d'essai ni de quota.
+    const { notes } = body;
+    const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
+    if (dateLivraison) {
+      const dateErr = checkDeliveryDate(dateLivraison);
+      if (dateErr) return res.status(400).json({ error: dateErr });
+    }
+
     if (rateLimited("order:" + clientId, 10, 3600000)) {
       return res.status(429).json({ error: "Te veel bestellingen in korte tijd. Wacht even en probeer opnieuw, of bel ons." });
     }
-
-    const { notes, dateLivraison } = body;
     let order;
     try {
       order = await buildOrderLines(clientId, body.items);
@@ -176,3 +202,4 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 };
+module.exports.checkDeliveryDate = checkDeliveryDate;

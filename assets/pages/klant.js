@@ -14,7 +14,13 @@
   const cartTotal = () => Object.entries(cart.items).reduce((s, [id, q]) => { const p = byId(id); return s + (p ? p.prix * Number(q) : 0); }, 0);
   const isKg = p => /kg/i.test(p.unite || "");
   const unitLabel = p => K.unit(p.unite);
-  const nextDays = () => { const out = []; let d = K.addDays(K.today(), 1); while (out.length < 6) { const dt = K.parseDate(d); if (dt.getDay() !== 0) out.push(d); d = K.addDays(d, 1); } return out; };
+  // Levering: nooit op zondag; vóór 22:00 besteld = morgen, daarna = overmorgen (zelfde regel als de server).
+  const CUTOFF_HOUR = 22, MAX_DAYS_AHEAD = 60;
+  const isSunday = iso => { const dt = K.parseDate(iso); return !dt || dt.getDay() === 0; };
+  const firstDay = () => { let d = K.addDays(K.today(), new Date().getHours() >= CUTOFF_HOUR ? 2 : 1); while (isSunday(d)) d = K.addDays(d, 1); return d; };
+  const lastDay = () => K.addDays(K.today(), MAX_DAYS_AHEAD);
+  const dayOk = iso => /^\d{4}-\d{2}-\d{2}$/.test(iso || "") && K.isoDay(iso) === iso && iso >= firstDay() && iso <= lastDay() && !isSunday(iso);
+  const nextDays = () => { const out = []; let d = firstDay(); while (out.length < 6) { if (!isSunday(d)) out.push(d); d = K.addDays(d, 1); } return out; };
 
   function shell(active, inner, top) {
     app.innerHTML = '<div class="kwrap">' + (top || "") + inner + K.klantTabs(active) + '</div>';
@@ -79,10 +85,12 @@
   /* ---------- winkelmand ---------- */
   function renderWinkelmand() {
     const ids = Object.keys(cart.items).filter(id => byId(id) && Number(cart.items[id]) > 0);
-    const days = nextDays(); if (!cart.day || !days.includes(cart.day)) { cart.day = days[0]; saveCart(); }
+    const days = nextDays(); if (!dayOk(cart.day)) { cart.day = days[0]; saveCart(); }
+    const otherDay = !days.includes(cart.day);
     const total = cartTotal();
     const body = ids.length ? '<div class="mcard">' + ids.map(id => { const p = byId(id); return '<div class="li"><div class="n"><b>' + K.esc(p.nom) + '</b><div class="quiet" style="font-size:12px">' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + '</div></div>' + K.c.stepper(p.id, cart.items[id], { step: isKg(p) ? 0.5 : 1 }) + '<b class="mono t">' + K.eur(p.prix * cart.items[id]) + '</b><input class="input c" style="min-height:38px;font-size:12px" placeholder="Opmerking (bv. dikke moot)" data-comment="' + p.id + '" value="' + K.esc(cart.comments[id] || "") + '" maxlength="120"></div>'; }).join("") + '</div>' +
-      '<div class="mcard" style="display:flex;flex-direction:column;gap:10px"><div class="field"><label>Leverdag</label><div class="opt">' + days.map(d => '<button type="button" data-day="' + d + '"' + (d === cart.day ? ' class="on"' : "") + '>' + K.esc(K.date(d)) + '</button>').join("") + '</div></div>' +
+      '<div class="mcard" style="display:flex;flex-direction:column;gap:10px"><div class="field"><label>Leverdag</label><div class="opt">' + days.map(d => '<button type="button" data-day="' + d + '"' + (d === cart.day ? ' class="on"' : "") + '>' + K.esc(K.date(d)) + '</button>').join("") + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap"><label for="otherDay" style="font-size:13px;margin:0">Andere dag</label><input type="date" class="input" id="otherDay" style="flex:1;min-width:160px' + (otherDay ? ";border-color:var(--p);color:var(--p)" : "") + '" min="' + firstDay() + '" max="' + lastDay() + '" value="' + (otherDay ? cart.day : "") + '"></div><div id="dayErr"></div><span class="quiet" style="font-size:12px">Geen levering op zondag. Vóór 22:00 besteld = morgen geleverd.</span></div>' +
       '<div class="field"><label>Leveradres</label><div class="input" style="display:flex;align-items:center;white-space:pre-line;min-height:44px;padding:8px 12px;font-size:13px">' + K.esc(cat.client.adresse || "Adres bij Famo bekend") + '</div><span class="quiet" style="font-size:12px">Ander adres? Zet het in de opmerking.</span></div>' +
       '<div class="field"><label>Opmerking voor Famo</label><textarea class="input" id="note" rows="2" placeholder="bv. graag achteraan bellen">' + K.esc(cart.note || "") + '</textarea></div></div>' +
       '<div class="mcard" style="display:flex;flex-direction:column;gap:6px;font-size:13px"><div style="display:flex;justify-content:space-between"><span>Totaal excl. btw</span><b class="mono">' + K.eur(total) + '</b></div><div class="quiet" style="font-size:12px">De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór 22:00 voor levering morgen.</div></div>' +
@@ -91,7 +99,13 @@
       : K.c.empty("Uw winkelmand is leeg", "Kies producten in de catalogus.", '<a class="btn btn-p btn-sm" href="#/catalogus" style="margin-top:6px">Naar de catalogus</a>');
     shell("catalogus", '<div class="mlist">' + body + '</div>', '<div class="mtop"><div class="mrow"><a href="#/catalogus" style="font-size:13px">' + K.icon("back") + ' Catalogus</a><span class="spacer"></span><b style="font-size:16px">Winkelmand</b><span class="spacer"></span>' + (ids.length ? '<button type="button" class="btn btn-ghost btn-sm" id="clearCart">Leegmaken</button>' : "") + '</div></div>');
     bindSteppers(app, () => renderWinkelmand());
-    K.on(app, "click", "[data-day]", (e, t) => { cart.day = t.dataset.day; saveCart(); K.$$("[data-day]", app).forEach(b => b.classList.toggle("on", b === t)); });
+    K.on(app, "click", "[data-day]", (e, t) => { cart.day = t.dataset.day; saveCart(); K.$$("[data-day]", app).forEach(b => b.classList.toggle("on", b === t)); const od = document.getElementById("otherDay"); if (od) { od.value = ""; od.style.borderColor = ""; od.style.color = ""; } document.getElementById("dayErr").innerHTML = ""; });
+    const od = document.getElementById("otherDay"); if (od) od.addEventListener("change", () => {
+      const v = od.value; const errBox = document.getElementById("dayErr");
+      if (!v) { errBox.innerHTML = ""; return; }
+      if (!dayOk(v)) { errBox.innerHTML = '<span style="display:block;font-size:12.5px;color:var(--danger);margin-top:4px">' + K.esc(isSunday(v) ? "Op zondag leveren we niet. Kies een andere dag." : (v < firstDay() ? "Die dag is te vroeg: bestel vóór 22:00 voor levering morgen." : "Kies een dag binnen de komende " + MAX_DAYS_AHEAD + " dagen.")) + '</span>'; od.value = ""; return; }
+      errBox.innerHTML = ""; cart.day = v; saveCart(); K.$$("[data-day]", app).forEach(b => b.classList.toggle("on", b.dataset.day === v)); od.style.borderColor = "var(--p)"; od.style.color = "var(--p)";
+    });
     K.on(app, "input", "[data-comment]", (e, t) => { cart.comments[t.dataset.comment] = t.value; saveCart(); });
     const note = document.getElementById("note"); if (note) note.addEventListener("input", () => { cart.note = note.value; saveCart(); });
     const clear = document.getElementById("clearCart"); if (clear) clear.onclick = async () => { if (await K.confirm({ title: "Winkelmand leegmaken?", text: "Alle artikelen worden verwijderd.", yes: "Leegmaken", danger: true })) { cart.items = {}; cart.comments = {}; saveCart(); renderWinkelmand(); } };
@@ -202,7 +216,7 @@
     const cl = cat.client || {}, co = cat.company || {};
     const body = '<div class="mcard"><div class="row"><div>Zaak<small>' + K.esc(cl.nom || "") + '</small></div></div><div class="row"><div>Leveradres<small style="white-space:pre-line">' + K.esc(cl.adresse || "—") + '</small></div></div><div class="row"><div>Gebruikersnaam<small>' + K.esc(sess.user) + '</small></div></div></div>' +
       '<div class="mcard"><div class="row"><div>Documenten<small>Leveringsbonnen en facturen per bestelling</small></div><a href="#/bestellingen" class="btn btn-o btn-sm" data-goto="geleverd">Openen</a></div></div><div class="mcard"><div class="row"><div>Gegevens wijzigen<small>Adres, contact, e-mail: bel of mail Famo</small></div></div><div class="row"><div>Wachtwoord<small>Wijzig uw wachtwoord zelf, met uw huidige wachtwoord</small></div><button type="button" class="btn btn-o btn-sm" id="pwChange">Wijzigen</button></div></div>' +
-      '<div class="mcard"><b>' + K.esc(co.bedrijfsnaam || "Famo Trading") + '</b><div class="quiet" style="font-size:12.5px;margin-top:4px">' + K.esc([co.adres, co.plaats].filter(Boolean).join(", ")) + '</div><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (co.telefoon ? '<a class="btn btn-o btn-sm" href="tel:' + K.esc(co.telefoon.replace(/\s+/g, "")) + '">' + K.icon("phone") + K.esc(co.telefoon) + '</a>' : "") + (co.email ? '<a class="btn btn-o btn-sm" href="mailto:' + K.esc(co.email) + '">' + K.esc(co.email) + '</a>' : "") + '</div></div>' +
+      '<div class="mcard"><b>' + K.esc(co.bedrijfsnaam || "FAMO Seafood") + '</b><div class="quiet" style="font-size:12.5px;margin-top:4px">' + K.esc([co.adres, co.plaats].filter(Boolean).join(", ")) + '</div><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (co.telefoon ? '<a class="btn btn-o btn-sm" href="tel:' + K.esc(co.telefoon.replace(/\s+/g, "")) + '">' + K.icon("phone") + K.esc(co.telefoon) + '</a>' : "") + (co.email ? '<a class="btn btn-o btn-sm" href="mailto:' + K.esc(co.email) + '">' + K.esc(co.email) + '</a>' : "") + '</div></div>' +
       '<button type="button" class="btn btn-o btn-block" id="logout" style="color:var(--danger)">Uitloggen</button>';
     shell("account", '<div class="mlist">' + body + '</div>', topbar("Account", cl.nom || ""));
     K.on(app, "click", "[data-goto]", () => { ordFilter = "geleverd"; });
