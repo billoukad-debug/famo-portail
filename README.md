@@ -111,7 +111,7 @@ Le code métier parle le protocole REST d'Airtable. `lib/datastore.js` (premièr
 | `postgres` | Neon, table unique `famo_records`, via `DATABASE_URL` | production après bascule |
 | `sqlite` | SQLite intégré à Node (`DB_SQLITE_FILE`, défaut en mémoire) | tests et banc local : `DB_BACKEND=sqlite node scripts/dev.js` |
 
-`lib/at-engine.js` rejoue le contrat Airtable (formules via `lib/at-formula.js`, partagé avec le faux Airtable du banc local ; tri, pages, lots de 10, champs vides effacés, 404/422) et gère la concurrence par numéro de version. `lib/sql.js` parle à Neon en HTTPS avec le `fetch` natif : toujours aucune dépendance npm. Limite connue : l'upload de photo produit répond 501 en mode Postgres (stockage de fichiers à brancher, par exemple Vercel Blob).
+`lib/at-engine.js` rejoue le contrat Airtable (formules via `lib/at-formula.js`, partagé avec le faux Airtable du banc local ; tri, pages, lots de 10, champs vides effacés, 404/422) et gère la concurrence par numéro de version. `lib/sql.js` parle à Neon en HTTPS avec le `fetch` natif : toujours aucune dépendance npm. Photos produit : en mode Postgres, elles sont stockées dans la table `famo_files` et servies par `/api/foto?id=att…` (cache d'un an, un nouvel id à chaque photo). Beheer les réduit dans le navigateur à 1600 px (JPEG 85 %) avant l'envoi. Une nouvelle photo remplace l'ancienne, dont le fichier est supprimé ; supprimer un produit supprime aussi sa photo.
 
 **Bascule, dans l'ordre :**
 1. Vercel → Storage → Neon relié au projet (fournit `DATABASE_URL`), puis redéployer.

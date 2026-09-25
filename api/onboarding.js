@@ -142,7 +142,7 @@ async function statusPayload() {
     base: Number(r.fields["Prix de base"] || 0),
     kaliber: String(r.fields["Kaliber"] || "").trim(),
     btwTarief: Number(r.fields["BTW-tarief"]) > 0 ? Number(r.fields["BTW-tarief"]) : null,
-    foto: (Array.isArray(r.fields["Foto"]) && r.fields["Foto"][0] && /^https:/.test(String(r.fields["Foto"][0].url || ""))) ? String((r.fields["Foto"][0].thumbnails && r.fields["Foto"][0].thumbnails.large && r.fields["Foto"][0].thumbnails.large.url) || r.fields["Foto"][0].url) : "",
+    foto: require("../lib/photo").photoUrl(r.fields["Foto"]),
     actif: !!r.fields["Actif"]
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
@@ -405,6 +405,10 @@ module.exports = async (req, res) => {
       const data = String(body.base64 || "").replace(/^data:[^;]+;base64,/, "");
       if (!data || data.length > 4200000) return res.status(400).json({ error: "Foto te groot (max 3 MB)" });
       const filename = clean(body.filename, 80).replace(/[^\w.\-]+/g, "-") || "foto.jpg";
+      // Une seule photo par produit : l'upload Airtable AJOUTE au champ, et le catalogue
+      // montre la première. Sans ce vidage, changer de photo ne changeait rien à l'écran.
+      const cleared = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Foto": [] } }) });
+      if (cleared.error) return res.status(cleared.error.type === "NOT_FOUND" ? 404 : 500).json({ error: cleared.error.type === "NOT_FOUND" ? "Product niet gevonden" : (cleared.error.message || "Foto uploaden mislukt") });
       const r = await fetch(`https://content.airtable.com/v0/${BASE}/${body.id}/${encodeURIComponent("Foto")}/uploadAttachment`, {
         method: "POST", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({ contentType: type, filename, file: data })
