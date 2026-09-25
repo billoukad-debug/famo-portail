@@ -1048,7 +1048,8 @@ async function main() {
     const plusAM = n => { const d = new Date(todayAM + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
     let okDay = plusAM(1); while (new Date(okDay + "T12:00:00Z").getUTCDay() === 0) okDay = plusAM(2);
     assert.equal(chk(okDay), "", "AM1 morgen (ou lundi) accepté");
-    assert.equal(chk(todayAM), "", "AM1 aujourd'hui accepté côté serveur (la coupure 22:00 est côté client)");
+    if (new Date(todayAM + "T12:00:00Z").getUTCDay() !== 0) assert.equal(chk(todayAM), "", "AM1 aujourd'hui accepté côté serveur (la coupure 22:00 est côté client)");
+    else assert.match(chk(todayAM), /zondag/, "AM1 aujourd'hui = dimanche → refusé");
     assert.match(chk(plusAM(-1)), /verleden/, "AM2 hier refusé");
     assert.match(chk("2026-13-45"), /Ongeldig/, "AM2 date impossible refusée");
     assert.match(chk("2026-02-30"), /Ongeldig/, "AM2 30 février refusé");
@@ -1056,6 +1057,8 @@ async function main() {
     let sun = plusAM(1); while (new Date(sun + "T12:00:00Z").getUTCDay() !== 0) sun = new Date(sun + "T12:00:00Z").toISOString().slice(0, 10) && (() => { const d = new Date(sun + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
     assert.match(chk(sun), /zondag/, "AM3 dimanche refusé");
     assert.match(chk(plusAM(61)), /60 dagen/, "AM4 au-delà de 60 jours refusé");
+    const orderSrc = fs.readFileSync(path.join(ROOT, "api", "order.js"), "utf8");
+    assert.ok(orderSrc.indexOf("checkDeliveryDate(dateLivraison)") < orderSrc.indexOf('rateLimited("order:"'), "AM4 la date est contrôlée avant le compteur anti-abus et Airtable");
     const klantSrc = fs.readFileSync(path.join(ROOT, "assets", "pages", "klant.js"), "utf8");
     assert.match(klantSrc, /type="date" class="input" id="otherDay"/, "AM5 le panier propose un champ date libre");
     assert.match(klantSrc, /CUTOFF_HOUR = 22/, "AM5 coupure 22:00 côté client");

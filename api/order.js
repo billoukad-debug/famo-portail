@@ -146,12 +146,18 @@ module.exports = async (req, res) => {
     const client = await authClient(body.user, body.pw);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
+    // Contrôle bon marché AVANT le compteur anti-abus et l'appel Airtable : une
+    // date invalide dans un panier ne doit pas consommer d'essai ni de quota.
+    const { notes } = body;
+    const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
+    if (dateLivraison) {
+      const dateErr = checkDeliveryDate(dateLivraison);
+      if (dateErr) return res.status(400).json({ error: dateErr });
+    }
+
     if (rateLimited("order:" + clientId, 10, 3600000)) {
       return res.status(429).json({ error: "Te veel bestellingen in korte tijd. Wacht even en probeer opnieuw, of bel ons." });
     }
-
-    const { notes } = body;
-    const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
     let order;
     try {
       order = await buildOrderLines(clientId, body.items);
@@ -171,12 +177,7 @@ module.exports = async (req, res) => {
       "Notes": notes || "",
       "Client": [clientId]
     };
-    if (dateLivraison) {
-      // Datum zoals de klant ze koos: geldig, niet in het verleden (Brussel), geen zondag, max 60 dagen vooruit.
-      const err = checkDeliveryDate(dateLivraison);
-      if (err) return res.status(400).json({ error: err });
-      fields["Date livraison souhaitée"] = dateLivraison;
-    }
+    if (dateLivraison) fields["Date livraison souhaitée"] = dateLivraison;
 
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Commandes`, {
       method: "POST",
