@@ -304,10 +304,10 @@
   /* ---------- status ---------- */
   async function status() {
     const st = D.status, c = D.config;
-    page.innerHTML = head("Alles wat het portaal nodig heeft om te draaien", '<button type="button" class="btn btn-o btn-sm" id="recheck">' + K.icon("refresh") + 'Nu controleren</button>') + '<div class="content" style="padding-top:16px"><div class="kpis" id="cards">' + K.c.skeleton(1) + '</div><div id="health"></div></div>';
+    page.innerHTML = head("Alles wat het portaal nodig heeft om te draaien", '<button type="button" class="btn btn-o btn-sm" id="recheck">' + K.icon("refresh") + 'Nu controleren</button>') + '<div class="content" style="padding-top:16px"><div class="kpis" id="cards">' + K.c.skeleton(1) + '</div><div id="health"></div><div id="dbcard"></div></div>';
     const t0 = Date.now(); let api = null, apiMs = 0; try { api = await K.api("/api/config?status=1"); apiMs = Date.now() - t0; } catch (e) { api = { error: e.message }; }
     const cards = [
-      ["Gegevens (Airtable)", api && !api.error ? "ok" : "bad", api && !api.error ? "Antwoord " + apiMs + " ms · " + (api.status.orders || 0) + " bestellingen · " + (api.status.clients || 0) + " klanten" : "Geen verbinding: " + (api && api.error), "Let op: het gratis Airtable-plan heeft een maandelijkse API-limiet. Bij overschrijding weigert Airtable tot de volgende maand."],
+      ["Gegevens", api && !api.error ? "ok" : "bad", api && !api.error ? "Antwoord " + apiMs + " ms · " + (api.status.orders || 0) + " bestellingen · " + (api.status.clients || 0) + " klanten" : "Geen verbinding: " + (api && api.error), "Let op: het gratis Airtable-plan heeft een maandelijkse API-limiet. Bij overschrijding weigert Airtable tot de volgende maand."],
       ["E-mail (Resend)", st.mailEnabled ? (st.mailReady ? "ok" : "warn") : "bad", st.mailEnabled ? (st.mailReady ? "Actief · interne postbus " + c.bestellingenEmail : (!c.mailFromConfigured ? "Sleutel aanwezig, maar MAIL_FROM (afzender) ontbreekt op Vercel" : "Sleutel aanwezig, maar geen interne postbus ingesteld")) : "RESEND_API_KEY ontbreekt op Vercel", "Klanten krijgen enkel mail als het afzenderdomein bij Resend geverifieerd is."],
       ["Hosting (Vercel)", "ok", "Deze pagina laadt, dus de hosting draait", "Versies en logboek: vercel.com → project famo-portail."],
       ["Toegang", c.adminCodeCustom && c.staffCodeCustom ? "ok" : "warn", (c.adminCodeCustom && c.staffCodeCustom ? "Aparte codes voor beheerder en personeel" : "Codes nog niet apart ingesteld") + " · " + (st.medewerkers || 0) + " medewerker" + (st.medewerkers === 1 ? "" : "s") + " met PIN", ""]
@@ -317,6 +317,43 @@
     if (st.ibanOntbreekt) issues.push(["IBAN of BIC ontbreekt", "#/bedrijf"]); if (st.klantenZonderEmail) issues.push([st.klantenZonderEmail + " klant(en) zonder e-mail", "#/klanten"]); if (!(c.adminCodeCustom && c.staffCodeCustom)) issues.push(["Codes personeel en beheerder niet apart", "#/toegang"]); if (!st.stock) issues.push(["Voorraadtabel leeg" + (c.voorraadAfboeken ? " — afboeken staat aan" : " — voorraad wordt niet afgetrokken"), "/stock.html"]); if (st.aanvragen) issues.push([st.aanvragen + " nieuwe aanvraag/aanvragen", "#/aanvragen"]);
     page.querySelector("#health").innerHTML = '<div class="card" style="margin-top:16px"><div class="card-h"><h2 class="h2">Gezondheid van de gegevens</h2></div>' + (issues.length ? issues.map(([t, h]) => '<div class="stop" style="min-height:48px"><span class="chip st-new"><i></i>!</span><span style="flex:1">' + K.esc(t) + '</span><a class="btn btn-o btn-sm" href="' + h + '">Bekijken</a></div>').join("") : '<div class="card-b">' + K.c.ok("Alles in orde.") + '</div>') + '</div><p class="quiet" style="font-size:12.5px;margin-top:12px">Wie te bellen: ontwikkelaar Ayoub · eigenaar Bilal.</p>';
     page.querySelector("#recheck").onclick = () => render(true);
+    dbCard();
+  }
+
+  /* ---------- database (Airtable -> Postgres) : api/dbadmin.js ---------- */
+  const DB_LABEL = { airtable: "Airtable", postgres: "Postgres (Neon)", sqlite: "SQLite (lokaal)" };
+  function dbReport(rep) {
+    return '<div class="tblwrap"><table class="tbl"><thead><tr><th>Tabel</th><th class="num">Airtable</th><th class="num">Nieuwe database</th><th>Resultaat</th></tr></thead><tbody>' + rep.map(r => '<tr><td>' + K.esc(r.table) + '</td><td class="num mono">' + r.airtable + '</td><td class="num mono">' + r.postgres + '</td><td>' + (r.ok ? '<span class="cell-st c-done">OK</span>' : '<span class="cell-st c-late">Verschil</span>') + (r.onlyAirtable || r.onlyPostgres ? ' <small class="quiet">' + (r.onlyAirtable || 0) + ' enkel Airtable · ' + (r.onlyPostgres || 0) + ' enkel nieuw</small>' : "") + (r.totalAirtable !== undefined ? ' <small class="quiet">totaal ' + K.eur(r.totalAirtable) + ' / ' + K.eur(r.totalPostgres) + '</small>' : "") + '</td></tr>').join("") + '</tbody></table></div>';
+  }
+  async function dbCard(withAirtable) {
+    const box = page.querySelector("#dbcard"); if (!box) return;
+    box.innerHTML = '<div class="card" style="margin-top:16px"><div class="card-h"><h2 class="h2">Database</h2></div><div class="card-b">' + K.c.skeleton(1) + '</div></div>';
+    let d; try { d = await K.api("/api/dbadmin" + (withAirtable ? "?airtable=1" : "")); } catch (e) { box.querySelector(".card-b").innerHTML = K.c.error(e.message); return; }
+    const onNew = d.backend !== "airtable";
+    const counts = Object.entries(d.counts || {}).map(([t, n]) => K.esc(t) + " " + n).join(" · ") || "nog leeg";
+    const at = d.airtable ? '<p class="sub">In Airtable: ' + Object.entries(d.airtable).map(([t, n]) => K.esc(t) + " " + n).join(" · ") + '</p>' : "";
+    box.querySelector(".card-b").innerHTML =
+      '<p style="margin:0 0 6px"><b>Actief:</b> ' + K.esc(DB_LABEL[d.backend] || d.backend) + (onNew ? "" : ' <small class="quiet">(de portaal leest en schrijft in Airtable)</small>') + '</p>' +
+      (d.target ? '<p class="sub" style="margin:0 0 6px">Nieuwe database: ' + (d.reachable ? '<span class="cell-st c-done">bereikbaar</span>' : '<span class="cell-st c-late">niet bereikbaar</span>') + ' · ' + counts + '</p>' : "") +
+      (d.targetError ? K.c.error(d.targetError) : "") + at +
+      '<div id="dbout"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+        '<button type="button" class="btn btn-o btn-sm" id="dbCount">Tellen in Airtable</button>' +
+        (d.target && d.reachable ? '<button type="button" class="btn btn-o btn-sm" id="dbVerify">Vergelijken</button>' : "") +
+        (d.target && d.reachable && !onNew ? '<button type="button" class="btn btn-p btn-sm" id="dbCopy">Kopieer Airtable naar de nieuwe database</button>' : "") +
+      '</div>' +
+      '<p class="sub" style="margin-top:10px">' + (onNew ? "De portaal draait op de nieuwe database. Terug naar Airtable: zet DB_BACKEND op airtable in Vercel en redeploy." : "Kopiëren overschrijft de nieuwe database met de inhoud van Airtable; Airtable zelf blijft onaangeroerd. Omschakelen: DB_BACKEND=postgres in Vercel, dan redeploy.") + '</p>';
+    const out = box.querySelector("#dbout");
+    box.querySelector("#dbCount").onclick = () => dbCard(true);
+    const v = box.querySelector("#dbVerify");
+    if (v) v.onclick = async () => { K.busy(v, true, "Vergelijken…"); try { const r = await K.api("/api/dbadmin", { json: { action: "verify" } }); out.innerHTML = (r.ok ? K.c.ok("Airtable en de nieuwe database zijn gelijk.") : K.c.warn("Er zijn verschillen: zie de tabel.")) + dbReport(r.report); } catch (e) { out.innerHTML = K.c.error(e.message); } K.busy(v, false); };
+    const cp = box.querySelector("#dbCopy");
+    if (cp) cp.onclick = async () => {
+      if (!(await K.confirm({ title: "Alles kopiëren naar de nieuwe database?", text: "De nieuwe database wordt volledig vervangen door de huidige inhoud van Airtable. Airtable zelf verandert niet. De portaal blijft op Airtable draaien tot je omschakelt.", yes: "Kopiëren" }))) return;
+      K.busy(cp, true, "Kopiëren…");
+      try { const r = await K.api("/api/dbadmin", { json: { action: "copy" } }); K.toast(r.ok ? "Kopie klaar" : "Kopie met verschillen"); await dbCard(); box.querySelector("#dbout").innerHTML = (r.ok ? K.c.ok("Kopie klaar: alle tabellen hebben evenveel regels.") : K.c.warn("Kopie klaar, maar met verschillen.")) + dbReport(r.report); }
+      catch (e) { out.innerHTML = K.c.error(e.message); K.busy(cp, false); }
+    };
   }
 
   async function render(force) {

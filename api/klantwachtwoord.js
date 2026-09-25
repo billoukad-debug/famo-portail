@@ -1,3 +1,4 @@
+require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 // Le client change lui-même son mot de passe (Klant → Account).
 // POST {user, pw, nieuw} : pw = le mot de passe ACTUEL, retapé par le client.
 //

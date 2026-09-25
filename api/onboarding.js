@@ -1,3 +1,4 @@
+require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const crypto = require("crypto");
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");

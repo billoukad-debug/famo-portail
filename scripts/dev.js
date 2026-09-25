@@ -48,6 +48,13 @@ async function main() {
     process.env.FAMO_DEV = "1";
     globalThis.__famoDev = { db, box, at, rs, seed: () => { seed(db); box.reset(); } };
     console.log("Nagebootste Airtable op " + at.url + " · postvak " + rs.url + "/inbox");
+    // DB_BACKEND=sqlite : le portail tourne sur le moteur Postgres/SQL (lib/at-engine.js),
+    // amorcé avec les mêmes données de démo. C'est la répétition générale de la bascule.
+    if (String(process.env.DB_BACKEND || "").toLowerCase() === "sqlite") {
+      const ds = require("../lib/datastore");
+      for (const [tbl, recs] of Object.entries(db.data)) await ds.state.store.replaceAll(tbl, recs);
+      console.log("Database: SQLite (" + (process.env.DB_SQLITE_FILE || ":memory:") + ") via lib/at-engine.js");
+    }
     console.log("Codes: personeel = team-dev-code · beheer = beheer-dev-code · klant: aloha / welkom123");
   }
   process.env.FAMO_INSECURE_COOKIES = "1";
