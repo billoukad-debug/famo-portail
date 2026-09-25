@@ -116,6 +116,25 @@ async function notifyOrderMail(ctx) {
   });
 }
 
+// Jour de livraison demandé par le client. Aujourd'hui = date civile à Bruxelles
+// (Vercel tourne en UTC). Le serveur ne rejoue pas la coupure de 22:00 : une
+// commande passée à 21:59 côté client ne doit pas être refusée parce que la
+// requête arrive à 22:00:30. Il refuse seulement l'impossible.
+function brusselsToday() {
+  try { return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
+  catch (e) { return new Date().toISOString().slice(0, 10); }
+}
+function checkDeliveryDate(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "Ongeldige leverdag";
+  const d = new Date(iso + "T12:00:00Z");
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso) return "Ongeldige leverdag";
+  const today = brusselsToday();
+  if (iso < today) return "De leverdag ligt in het verleden";
+  const max = new Date(today + "T12:00:00Z"); max.setUTCDate(max.getUTCDate() + 60);
+  if (iso > max.toISOString().slice(0, 10)) return "Kies een leverdag binnen de komende 60 dagen";
+  if (d.getUTCDay() === 0) return "Op zondag leveren we niet";
+  return "";
+}
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   try {
@@ -131,7 +150,8 @@ module.exports = async (req, res) => {
       return res.status(429).json({ error: "Te veel bestellingen in korte tijd. Wacht even en probeer opnieuw, of bel ons." });
     }
 
-    const { notes, dateLivraison } = body;
+    const { notes } = body;
+    const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
     let order;
     try {
       order = await buildOrderLines(clientId, body.items);
@@ -151,7 +171,12 @@ module.exports = async (req, res) => {
       "Notes": notes || "",
       "Client": [clientId]
     };
-    if (dateLivraison) fields["Date livraison souhaitée"] = dateLivraison;
+    if (dateLivraison) {
+      // Datum zoals de klant ze koos: geldig, niet in het verleden (Brussel), geen zondag, max 60 dagen vooruit.
+      const err = checkDeliveryDate(dateLivraison);
+      if (err) return res.status(400).json({ error: err });
+      fields["Date livraison souhaitée"] = dateLivraison;
+    }
 
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Commandes`, {
       method: "POST",
@@ -176,3 +201,4 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 };
+module.exports.checkDeliveryDate = checkDeliveryDate;

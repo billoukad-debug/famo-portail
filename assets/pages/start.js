@@ -4,7 +4,7 @@
   app.innerHTML = '<div class="start">' +
     '<header class="start-hd"><a class="brand" href="/"><span class="logo" style="width:36px;height:36px">F</span><span><b style="font-size:16px">Famo Trading</b><small>Verse vis en zeevruchten · Antwerpen</small></span></a>' +
     '<nav class="mini"><a href="/aanvraag.html">Toegang aanvragen</a></nav></header>' +
-    '<main class="start-body"><section class="hero"><h1>Vers van de kade,<br>aan uw prijs.</h1><p>Bestel vóór de deadline en wij leveren de volgende ochtend in Antwerpen en omstreken. Uw afgesproken prijzen, uw leveringsbonnen en facturen, altijd bij de hand.</p>' +
+    '<main class="start-body"><section class="hero"><h1>Verse vis bestellen,<br>zo simpel als een berichtje.</h1><p>Bestel vandaag vóór 22:00 en wij leveren morgen in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug in het portaal.</p>' +
     '<div class="proof" id="proof"></div></section>' +
     '<form class="card login" id="loginForm" novalidate><div><h2 class="h1" style="font-size:22px">Klantportaal</h2><p class="sub">Aanmelden met uw gebruikersnaam</p></div>' +
     (denied ? K.c.ok("U bent afgemeld.") : "") +
@@ -19,7 +19,7 @@
     const c = d.config || {};
     document.getElementById("foot").textContent = [c.bedrijfsnaam, c.adres, c.plaats, c.btw].filter(Boolean).join(" · ");
   }).catch(() => {});
-  document.getElementById("proof").innerHTML = '<div><b>07:00</b>eerste levering</div><div><b>22:00</b>besteldeadline</div><div><b>ma–za</b>levering</div>';
+  document.getElementById("proof").innerHTML = '<div><b>22:00</b>besteldeadline</div><div><b>ma–za</b>levering, niet op zondag</div><div><b>Gratis</b>levering</div>';
 
   document.getElementById("togglePw").onclick = () => { const p = document.getElementById("pw"); p.type = p.type === "password" ? "text" : "password"; document.getElementById("togglePw").textContent = p.type === "password" ? "Tonen" : "Verbergen"; };
   document.getElementById("loginForm").addEventListener("submit", async e => {

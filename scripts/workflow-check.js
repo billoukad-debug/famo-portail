@@ -1038,6 +1038,33 @@ async function main() {
     assert.match(seen[0], /REGEX_MATCH/, "V2 numérotation filtrée côté Airtable");
   }
   console.log("✓ V2. Contrats frontend (workflow, documents, beheer, stock, numérotation)");
+
+  // --- AM. Leverdag vrij gekozen : formaat, verleden, zondag, 60 dagen ; front = zelfde regels ---
+  {
+    delete require.cache[require.resolve(path.join(ROOT, "api", "order.js"))];
+    const chk = require(path.join(ROOT, "api", "order.js")).checkDeliveryDate;
+    assert.equal(typeof chk, "function", "AM0 api/order.js exporte checkDeliveryDate");
+    const todayAM = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const plusAM = n => { const d = new Date(todayAM + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    let okDay = plusAM(1); while (new Date(okDay + "T12:00:00Z").getUTCDay() === 0) okDay = plusAM(2);
+    assert.equal(chk(okDay), "", "AM1 morgen (ou lundi) accepté");
+    assert.equal(chk(todayAM), "", "AM1 aujourd'hui accepté côté serveur (la coupure 22:00 est côté client)");
+    assert.match(chk(plusAM(-1)), /verleden/, "AM2 hier refusé");
+    assert.match(chk("2026-13-45"), /Ongeldig/, "AM2 date impossible refusée");
+    assert.match(chk("2026-02-30"), /Ongeldig/, "AM2 30 février refusé");
+    assert.match(chk("demain"), /Ongeldig/, "AM2 texte refusé");
+    let sun = plusAM(1); while (new Date(sun + "T12:00:00Z").getUTCDay() !== 0) sun = new Date(sun + "T12:00:00Z").toISOString().slice(0, 10) && (() => { const d = new Date(sun + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+    assert.match(chk(sun), /zondag/, "AM3 dimanche refusé");
+    assert.match(chk(plusAM(61)), /60 dagen/, "AM4 au-delà de 60 jours refusé");
+    const klantSrc = fs.readFileSync(path.join(ROOT, "assets", "pages", "klant.js"), "utf8");
+    assert.match(klantSrc, /type="date" class="input" id="otherDay"/, "AM5 le panier propose un champ date libre");
+    assert.match(klantSrc, /CUTOFF_HOUR = 22/, "AM5 coupure 22:00 côté client");
+    assert.match(klantSrc, /Op zondag leveren we niet/, "AM5 message zondag côté client");
+    const beheerSrc = fs.readFileSync(path.join(ROOT, "assets", "pages", "beheer.js"), "utf8");
+    assert.match(beheerSrc, /action: "resetPassword", id: cl\.id, password/, "AM6 Beheer peut choisir le mot de passe client");
+  }
+  console.log("✓ AM. Leverdag vrij (serveur + panier) et wachtwoord au choix dans Beheer");
+
   console.log("✓ Regles release candidate (validation explicite, 405 GET, 410 cadrage)");
   console.log("✓ Règles métier commande, préparation et livraison");
   return;
@@ -2276,6 +2303,7 @@ async function main() {
     }
   }
   console.log("✓ AK. Totaux signalés hors TVA (portail, e-mails, Invoeren, fiche, Magazijn, Bestellingen, Documenten)");
+
 
 
   // silence unused after restore

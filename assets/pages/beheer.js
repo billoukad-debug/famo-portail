@@ -76,7 +76,15 @@
     K.on(page, "input", "[data-price]", (e, t) => { changed.set(t.dataset.price, t.value); page.querySelector("#savePrices").disabled = !changed.size; page.querySelector("#savePrices").textContent = "Prijzen opslaan (" + changed.size + ")"; });
     const sp = page.querySelector("#savePrices"); if (sp) sp.onclick = async () => { K.busy(sp, true, "Opslaan…"); try { const d = await post({ action: "saveClientPrices", clientId: c.id, prices: Array.from(changed.entries()).map(([productId, prix]) => ({ productId, prix: String(prix).replace(",", ".") })) }); const bad = (d.results || []).filter(r => !r.ok); if (bad.length) K.toast(bad.length + " prijs(en) niet opgeslagen: " + bad[0].error, { kind: "err" }); else K.toast("Prijzen opgeslagen"); render(); } catch (err) { K.toast(err.message, { kind: "err" }); K.busy(sp, false); } };
     K.on(page, "click", "[data-edit]", (e, t) => clientPanel(clientById(t.dataset.edit)));
-    K.on(page, "click", "[data-reset]", async (e, t) => { const cl = clientById(t.dataset.reset); if (!(await K.confirm({ title: "Nieuw wachtwoord voor " + cl.nom + "?", text: "Het oude wachtwoord werkt daarna niet meer.", yes: "Nieuw wachtwoord" }))) return; try { const d = await post({ action: "resetPassword", id: cl.id }); render(); const box = document.createElement("div"); box.innerHTML = credsBox(d.credentials); page.querySelector("#detail").prepend(box.firstChild); } catch (err) { K.toast(err.message, { kind: "err" }); } });
+    K.on(page, "click", "[data-reset]", async (e, t) => {
+      const cl = clientById(t.dataset.reset);
+      // Leeg laten = Famo maakt er een aan; zelf typen = dat wachtwoord (minstens 6 tekens).
+      const typed = await K.prompt({ title: "Nieuw wachtwoord voor " + cl.nom, text: "Laat leeg om automatisch een wachtwoord aan te maken, of typ zelf een wachtwoord (minstens 6 tekens). Het oude wachtwoord werkt daarna niet meer.", placeholder: "Leeg = automatisch", yes: "Wachtwoord instellen" });
+      if (typed === null) return;
+      const password = typed.trim();
+      if (password && password.length < 6) { K.toast("Minstens 6 tekens.", { kind: "err" }); return; }
+      try { const d = await post(password ? { action: "resetPassword", id: cl.id, password } : { action: "resetPassword", id: cl.id }); render(); const box = document.createElement("div"); box.innerHTML = credsBox(d.credentials); page.querySelector("#detail").prepend(box.firstChild); } catch (err) { K.toast(err.message, { kind: "err" }); }
+    });
   }
 
   /* ---------- producten ---------- */
