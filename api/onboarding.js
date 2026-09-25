@@ -3,7 +3,10 @@ const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
 const __prices = require("../lib/prices");
+const __ordermail = require("../lib/ordermail");
+const __lev = require("../lib/levering");
 const BASE = "appcdduLth9iGX8I0";
+const REC = /^[A-Za-z0-9]{1,40}$/;
 
 async function at(path, opts) {
   const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, Object.assign({
@@ -100,17 +103,28 @@ async function statusPayload() {
     bestellingenEmail: (c["Bestellingen e-mail"] || "").trim(),
     // On expose seulement l'EXISTENCE d'un code personnalisé, jamais l'empreinte.
     adminCodeCustom: !!String(c["Beheerderscode hash"] || "").trim(),
-    staffCodeCustom: !!String(c["Personeelscode hash"] || "").trim()
+    staffCodeCustom: !!String(c["Personeelscode hash"] || "").trim(),
+    mailFromConfigured: !!String(process.env.MAIL_FROM || "").trim(),
+    // Règles de livraison et de facturation (lib/levering) — modifiables ici, lues partout.
+    besteldeadline: String(c["Besteldeadline"] || "").trim(),
+    leverdagen: String(c["Leverdagen"] || "").trim(),
+    geslotenDagen: String(c["Gesloten dagen"] || "").trim(),
+    minimumBestelling: Number(c["Minimum bestelling"]) > 0 ? Number(c["Minimum bestelling"]) : 0,
+    betaaltermijnDagen: Number(c["Betaaltermijn dagen"]) > 0 ? Number(c["Betaaltermijn dagen"]) : 14,
+    voorraadAfboeken: !!c["Voorraad afboeken"]
   };
+  config.levering = __lev.publicRules(__lev.rulesFrom(c));
 
-  const [cat, clients, prices, stock, orders, aanvragen] = await Promise.all([
+  const [cat, clients, prices, stock, orders, aanvragen, medewerkers] = await Promise.all([
     // Tous les produits, inactifs compris : Beheer → Producten doit pouvoir les réactiver ou les supprimer.
     atAll("Catalogue"),
     atAll("Clients"),
     atAll(encodeURIComponent("Prix négociés")),
     atAll("Stock"),
     atAll("Commandes?maxRecords=5"),
-    atAll(`Aanvragen?filterByFormula=${encodeURIComponent("{Status}='Nieuw'")}`)
+    // Toutes les demandes : les traitées restent consultables (historique).
+    atAll("Aanvragen"),
+    atAll("Medewerkers").catch(() => ({ records: [] }))
   ]);
 
   if (cat.error) throw new Error(cat.error.message || "Catalogue");
@@ -126,6 +140,8 @@ async function statusPayload() {
     unite: r.fields["Unité"] || "",
     base: Number(r.fields["Prix de base"] || 0),
     kaliber: String(r.fields["Kaliber"] || "").trim(),
+    btwTarief: Number(r.fields["BTW-tarief"]) > 0 ? Number(r.fields["BTW-tarief"]) : null,
+    foto: (Array.isArray(r.fields["Foto"]) && r.fields["Foto"][0] && /^https:/.test(String(r.fields["Foto"][0].url || ""))) ? String((r.fields["Foto"][0].thumbnails && r.fields["Foto"][0].thumbnails.large && r.fields["Foto"][0].thumbnails.large.url) || r.fields["Foto"][0].url) : "",
     actif: !!r.fields["Actif"]
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
@@ -138,7 +154,8 @@ async function statusPayload() {
     klantnr: r.fields["Klantnummer"] || "",
     email: (r.fields["Email"] || "").trim(),
     user: r.fields["Gebruikersnaam"] || "",
-    hasPassword: !!r.fields["Wachtwoord"]
+    hasPassword: !!r.fields["Wachtwoord"],
+    gearchiveerd: !!r.fields["Gearchiveerd"]
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
   const priceList = (prices.records || []).map(r => ({
@@ -156,7 +173,7 @@ async function statusPayload() {
   })).sort((a, b) => a.product.localeCompare(b.product, "nl"));
 
   const aanvraagList = (aanvragen.records || [])
-    .sort((a, b) => new Date(a.createdTime) - new Date(b.createdTime))
+    .sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime))
     .map(r => ({
       id: r.id,
       bedrijfsnaam: r.fields["Bedrijfsnaam"] || "",
@@ -164,8 +181,13 @@ async function statusPayload() {
       email: r.fields["Email"] || "",
       telefoon: r.fields["Telefoon"] || "",
       adres: r.fields["Adres"] || "",
-      notities: r.fields["Notities"] || ""
+      notities: r.fields["Notities"] || "",
+      status: r.fields["Status"] || "Nieuw",
+      ontvangen: r.createdTime || ""
     }));
+  const medewerkerList = ((medewerkers && medewerkers.records) || []).map(r => ({
+    id: r.id, naam: r.fields["Naam"] || "", rol: r.fields["Rol"] || "personeel", actief: !!r.fields["Actief"], laatste: r.fields["Laatste aanmelding"] || ""
+  })).sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
 
   return {
     config,
@@ -174,19 +196,22 @@ async function statusPayload() {
     prices: priceList,
     stock: stockList,
     aanvragen: aanvraagList,
+    medewerkers: medewerkerList,
     status: {
       identiteit: !!(config.bedrijfsnaam && config.btw && config.iban && config.bic),
       ibanOntbreekt: !config.iban || !config.bic,
       catalogue: products.filter(p => p.actif).length,
-      clients: clientList.length,
+      clients: clientList.filter(c => !c.gearchiveerd).length,
       prijzen: priceList.length,
       stock: stockList.length,
       orders: (orders.records || []).length,
-      credentials: clientList.filter(c => c.user && c.hasPassword).length,
-      aanvragen: aanvraagList.length,
+      credentials: clientList.filter(c => !c.gearchiveerd && c.user && c.hasPassword).length,
+      aanvragen: aanvraagList.filter(a => a.status === "Nieuw").length,
       mailEnabled: __mail.enabled(),
-      mailReady: __mail.enabled() && !!config.bestellingenEmail,
-      klantenZonderEmail: clientList.filter(c => !c.email).length
+      // Sans MAIL_FROM, Resend n'envoie qu'au propriétaire du compte : pas « prêt ».
+      mailReady: __mail.enabled() && !!config.bestellingenEmail && config.mailFromConfigured,
+      klantenZonderEmail: clientList.filter(c => !c.gearchiveerd && !c.email).length,
+      medewerkers: medewerkerList.filter(m => m.actief).length
     }
   };
 }
@@ -239,6 +264,27 @@ module.exports = async (req, res) => {
       if (!fields["Bedrijfsnaam"] || !fields["BTW-nummer"]) {
         return res.status(400).json({ error: "Bedrijfsnaam en BTW-nummer zijn verplicht" });
       }
+      // Contrôles de forme des identifiants bancaires et TVA : ils s'impriment sur chaque facture.
+      const ibanOk = v => { const s = String(v || ""); if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(s)) return false; const r = (s.slice(4) + s.slice(0, 4)).replace(/[A-Z]/g, ch => String(ch.charCodeAt(0) - 55)); let m = 0; for (const d of r) m = (m * 10 + Number(d)) % 97; return m === 1; };
+      if (fields["IBAN"] && !ibanOk(fields["IBAN"])) return res.status(400).json({ error: "Ongeldig IBAN (controlecijfers kloppen niet)" });
+      if (fields["BIC"] && !/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(fields["BIC"])) return res.status(400).json({ error: "Ongeldige BIC" });
+      const btwDigits = fields["BTW-nummer"].replace(/[^0-9]/g, "");
+      if (/^BE/i.test(fields["BTW-nummer"]) && !(btwDigits.length === 10 && 97 - (Number(btwDigits.slice(0, 8)) % 97) === Number(btwDigits.slice(8)))) return res.status(400).json({ error: "Ongeldig Belgisch BTW-nummer (controlecijfers kloppen niet)" });
+      // Règles de livraison et de facturation.
+      const dl = String(body.besteldeadline || "").trim();
+      if (dl && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(dl)) return res.status(400).json({ error: "Besteldeadline: uur als UU:MM" });
+      fields["Besteldeadline"] = dl;
+      fields["Leverdagen"] = String(body.leverdagen || "").toLowerCase().split(/[,\s;]+/).filter(d => __lev.DAY_KEYS.includes(d)).join(",");
+      const closed = String(body.geslotenDagen || "").split(/[\n,;\s]+/).map(s => s.trim()).filter(Boolean);
+      if (closed.some(d => !/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(new Date(d + "T12:00:00Z").getTime()))) return res.status(400).json({ error: "Gesloten dagen: één datum per regel, JJJJ-MM-DD" });
+      fields["Gesloten dagen"] = Array.from(new Set(closed)).sort().join("\n");
+      const minimum = Number(String(body.minimumBestelling || "0").replace(",", "."));
+      if (!Number.isFinite(minimum) || minimum < 0 || minimum > 100000) return res.status(400).json({ error: "Ongeldig minimumbedrag" });
+      fields["Minimum bestelling"] = Math.round(minimum * 100) / 100;
+      const termijn = Number(body.betaaltermijnDagen);
+      if (body.betaaltermijnDagen !== undefined && body.betaaltermijnDagen !== "" && (!Number.isInteger(termijn) || termijn < 0 || termijn > 120)) return res.status(400).json({ error: "Betaaltermijn: 0 tot 120 dagen" });
+      if (Number.isInteger(termijn) && termijn > 0) fields["Betaaltermijn dagen"] = termijn;
+      fields["Voorraad afboeken"] = body.voorraadAfboeken === true;
       const existing = await getConfigRecord();
       if (existing && existing.error) return res.status(500).json(existing);
       let saved;
@@ -265,6 +311,7 @@ module.exports = async (req, res) => {
       const cat = clean(body.cat, 80) || "Algemeen";
       if (!nom) return res.status(400).json({ error: "Productnaam is verplicht" });
       if (!Number.isFinite(base) || base < 0) return res.status(400).json({ error: "Ongeldige basisprijs" });
+      if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig product-id" });
       const fields = {
         "Produit": nom,
         "Catégorie": cat,
@@ -274,19 +321,40 @@ module.exports = async (req, res) => {
       };
       // Kaliber : écrit seulement s'il est envoyé, pour que « Uit catalogus » ne l'efface pas.
       if (body.kaliber !== undefined) fields["Kaliber"] = clean(body.kaliber, 60);
-      let saved;
+      // TVA par produit (6 ou 21) ; vide = taux par défaut de Configuratie.
+      if (body.btwTarief !== undefined) {
+        const t = Number(body.btwTarief);
+        if (body.btwTarief === "" || body.btwTarief === null) fields["BTW-tarief"] = null;
+        else if (Number.isFinite(t) && t >= 0 && t <= 100) fields["BTW-tarief"] = t;
+        else return res.status(400).json({ error: "Ongeldig btw-tarief" });
+      }
+      const norm = s => String(s || "").toLowerCase().trim();
+      let oldName = "";
       if (body.id) {
-        saved = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
+        const before = await at(`Catalogue/${body.id}`);
+        if (before.error) return res.status(404).json({ error: "Product niet gevonden" });
+        oldName = String(before.fields["Produit"] || "");
+        // Un nom déjà pris par un autre produit casserait l'appariement par nom des lignes et du stock.
+        const dup = await atAll("Catalogue");
+        if ((dup.records || []).some(r => r.id !== body.id && norm(r.fields["Produit"]) === norm(nom))) return res.status(409).json({ error: "Er bestaat al een product met die naam" });
       } else {
-        saved = await at("Catalogue", { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
+        const dup = await atAll("Catalogue");
+        if ((dup.records || []).some(r => norm(r.fields["Produit"]) === norm(nom))) return res.status(409).json({ error: "Er bestaat al een product met die naam" });
+      }
+      let saved;
+      // typecast : une unité nouvelle (doos/carton) est créée dans Airtable au lieu d'une erreur anglaise.
+      if (body.id) {
+        saved = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) });
+      } else {
+        saved = await at("Catalogue", { method: "POST", body: JSON.stringify({ typecast: true, records: [{ fields }] }) });
       }
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Product opslaan mislukt" });
+      const renamed = oldName && norm(oldName) !== norm(nom);
 
       // Sync / create stock row by product name (existing Airtable Stock table).
       const stock = await atAll("Stock");
       if (!stock.error) {
-        const norm = s => String(s || "").toLowerCase().trim();
-        const existingStock = (stock.records || []).find(r => norm(r.fields["Produit"]) === norm(nom));
+        const existingStock = (stock.records || []).find(r => norm(r.fields["Produit"]) === norm(renamed ? oldName : nom)) || (stock.records || []).find(r => norm(r.fields["Produit"]) === norm(nom));
         const qtyRaw = body.stock;
         const qty = Number(qtyRaw);
         const low = Number(body.lowThreshold);
@@ -294,8 +362,17 @@ module.exports = async (req, res) => {
         if (Number.isFinite(qty) && qty >= 0) stockFields["Quantité disponible"] = Math.round(qty * 1000) / 1000;
         if (Number.isFinite(low) && low >= 0) stockFields["Seuil bas"] = low;
         if (existingStock) {
-          if (Object.keys(stockFields).length > 1) {
+          const before = Number(existingStock.fields["Quantité disponible"] || 0);
+          if (Object.keys(stockFields).length > 1 || renamed) {
             await at(`Stock/${existingStock.id}`, { method: "PATCH", body: JSON.stringify({ fields: stockFields }) });
+          }
+          // Toute variation de stock passe par le journal, comme sur l'écran Voorraad.
+          if (Number.isFinite(stockFields["Quantité disponible"]) && stockFields["Quantité disponible"] !== before) {
+            await at(encodeURIComponent("Mouvements de stock"), { method: "POST", body: JSON.stringify({ records: [{ fields: {
+              "Mouvement": `Correction inventaire — ${nom}`, "Date et heure": new Date().toISOString(), "Type": "Correction inventaire", "Produit": nom,
+              "Quantité": Math.round((stockFields["Quantité disponible"] - before) * 1000) / 1000, "Stock avant": before, "Stock après": stockFields["Quantité disponible"],
+              "Note": "Aangepast via Beheer → Producten"
+            }}] }) });
           }
         } else {
           if (!Number.isFinite(stockFields["Quantité disponible"])) stockFields["Quantité disponible"] = 0;
@@ -303,6 +380,36 @@ module.exports = async (req, res) => {
           await at("Stock", { method: "POST", body: JSON.stringify({ records: [{ fields: stockFields }] }) });
         }
       }
+      // Renommage : les lignes des commandes OUVERTES suivent (appariées par nom), les
+      // commandes livrées gardent le nom de l'époque (document figé).
+      if (renamed) {
+        const orders = await atAll("Commandes");
+        const updates = [];
+        for (const r of orders.records || []) {
+          if (["Facturée", "Annulée"].includes(r.fields["Statut"] || "Reçue")) continue;
+          const lines = String(r.fields["Lignes (produits / quantités)"] || "");
+          const next = lines.split("\n").map(l => { const m = l.match(/^(.*?)(\s*[×x]\s*[\d.,].*)$/); return m && norm(m[1]) === norm(oldName) ? nom + m[2] : l; }).join("\n");
+          if (next !== lines) updates.push({ id: r.id, fields: { "Lignes (produits / quantités)": next } });
+        }
+        for (let i = 0; i < updates.length; i += 10) await at("Commandes", { method: "PATCH", body: JSON.stringify({ records: updates.slice(i, i + 10) }) });
+      }
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
+    // Photo produit depuis Beheer (pièce jointe Airtable, upload direct en base64).
+    if (action === "uploadFoto") {
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig product-id" });
+      const type = String(body.contentType || "");
+      if (!/^image\/(jpeg|png|webp)$/.test(type)) return res.status(400).json({ error: "Enkel JPEG, PNG of WebP" });
+      const data = String(body.base64 || "").replace(/^data:[^;]+;base64,/, "");
+      if (!data || data.length > 4200000) return res.status(400).json({ error: "Foto te groot (max 3 MB)" });
+      const filename = clean(body.filename, 80).replace(/[^\w.\-]+/g, "-") || "foto.jpg";
+      const r = await fetch(`https://content.airtable.com/v0/${BASE}/${body.id}/${encodeURIComponent("Foto")}/uploadAttachment`, {
+        method: "POST", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType: type, filename, file: data })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) return res.status(500).json({ error: (j.error && j.error.message) || "Foto uploaden mislukt" });
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -311,7 +418,7 @@ module.exports = async (req, res) => {
     // aantallen). Sinon : prix négociés du produit, ligne(s) de stock du même nom, puis
     // la fiche. Un produit déjà livré reste lisible dans l'historique (texte).
     if (action === "deleteProduct") {
-      if (!body.id) return res.status(400).json({ error: "Product-id ontbreekt" });
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Product-id ontbreekt" });
       const cur = await at(`Catalogue/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Product niet gevonden" });
       const nom = cur.fields["Produit"] || "";
@@ -337,7 +444,8 @@ module.exports = async (req, res) => {
     if (action === "saveClient") {
       const nom = clean(body.nom, 120);
       if (!nom) return res.status(400).json({ error: "Klantnaam is verplicht" });
-      let user = clean(body.user, 40).toLowerCase();
+      if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig klant-id" });
+      let user = clean(body.user, 40).toLowerCase().replace(/['"\s]+/g, "");
       let password = clean(body.password, 80);
       const generate = body.generate !== false;
       if (!user) user = await uniqueUsername(slugUser(nom));
@@ -350,7 +458,7 @@ module.exports = async (req, res) => {
         }
       }
       if (generate || !password) password = genPassword();
-      if (password.length < 6) return res.status(400).json({ error: "Wachtwoord minstens 6 tekens" });
+      if (password.length < 8) return res.status(400).json({ error: "Wachtwoord minstens 8 tekens" });
 
       const fields = {
         "Nom": nom,
@@ -376,17 +484,63 @@ module.exports = async (req, res) => {
       }
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Klant opslaan mislukt" });
       const id = body.id || (saved.records && saved.records[0] && saved.records[0].id);
+      // E-mail de bienvenue avec les identifiants, si le client a une adresse et qu'un
+      // (nouveau) mot de passe vient d'être créé. Jamais bloquant.
+      let mail = null;
+      const newCreds = !body.id || generate || !!clean(body.password, 80);
+      if (newCreds && fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
+        mail = await (async () => {
+          const cfg = await __ordermail.loadMailConfig(at);
+          return __ordermail.notifyWelcome({ klant: { nom, email: fields["Email"] }, credentials: { user, password }, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+        })().catch(() => null);
+      }
       return res.status(200).json({
         ok: true,
         credentials: { id, nom, user, password },
+        mail,
         ...(await statusPayload())
       });
     }
 
+    // Archiver / réactiver un client : plus de connexion ni de présence dans les listes,
+    // fiche, prix et historique conservés. Rien n'est jamais supprimé.
+    if (action === "archiveClient" || action === "unarchiveClient") {
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Klant-id ontbreekt" });
+      const cur = await at(`Clients/${body.id}`);
+      if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const saved = await at(`Clients/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Gearchiveerd": action === "archiveClient" } }) });
+      if (saved.error) return res.status(500).json({ error: saved.error.message || "Opslaan mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
+    // ---- Medewerkers (comptes individuels, PIN haché) ----
+    if (action === "saveMedewerker") {
+      const naam = clean(body.naam, 60);
+      const rol = body.rol === "beheerder" ? "beheerder" : "personeel";
+      const pin = String(body.pin || "");
+      if (!naam) return res.status(400).json({ error: "Naam is verplicht" });
+      if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
+      if (!body.id && pin.length < 4) return res.status(400).json({ error: "PIN: minstens 4 tekens" });
+      if (pin && (pin.length < 4 || pin.length > 40)) return res.status(400).json({ error: "PIN: 4 tot 40 tekens" });
+      const fields = { "Naam": naam, "Rol": rol, "Actief": body.actief !== false };
+      if (pin) fields["PIN hash"] = __auth.hashCode(pin);
+      const saved = body.id
+        ? await at(`Medewerkers/${body.id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) })
+        : await at("Medewerkers", { method: "POST", body: JSON.stringify({ typecast: true, records: [{ fields }] }) });
+      if (saved.error) return res.status(500).json({ error: saved.error.message || "Medewerker opslaan mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+    if (action === "deleteMedewerker") {
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
+      const del = await at(`Medewerkers/${body.id}`, { method: "DELETE" });
+      if (del.error) return res.status(500).json({ error: del.error.message || "Verwijderen mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
     if (action === "resetPassword") {
-      if (!body.id) return res.status(400).json({ error: "Klant-id ontbreekt" });
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Klant-id ontbreekt" });
       const password = body.password ? clean(body.password, 80) : genPassword();
-      if (password.length < 6) return res.status(400).json({ error: "Wachtwoord minstens 6 tekens" });
+      if (password.length < 8) return res.status(400).json({ error: "Wachtwoord minstens 8 tekens" });
       const cur = await at(`Clients/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
       const saved = await at(`Clients/${body.id}`, {
@@ -394,6 +548,13 @@ module.exports = async (req, res) => {
         body: JSON.stringify({ fields: { "Wachtwoord": password } })
       });
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Wachtwoord wijzigen mislukt" });
+      let mail = null;
+      if (cur.fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
+        mail = await (async () => {
+          const cfg = await __ordermail.loadMailConfig(at);
+          return __ordermail.notifyReset({ klant: __ordermail.clientFrom(cur), credentials: { user: cur.fields["Gebruikersnaam"] || "", password }, password, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+        })().catch(() => null);
+      }
       return res.status(200).json({
         ok: true,
         credentials: {
@@ -402,6 +563,7 @@ module.exports = async (req, res) => {
           user: cur.fields["Gebruikersnaam"] || "",
           password
         },
+        mail,
         ...(await statusPayload())
       });
     }
@@ -410,7 +572,7 @@ module.exports = async (req, res) => {
     // passe est effacé, la connexion échoue, la fiche et l'historique restent intacts.
     // « Nieuw wachtwoord » rend l'accès.
     if (action === "revokeAccess") {
-      if (!body.id) return res.status(400).json({ error: "Klant-id ontbreekt" });
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Klant-id ontbreekt" });
       const cur = await at(`Clients/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
       const saved = await at(`Clients/${body.id}`, {

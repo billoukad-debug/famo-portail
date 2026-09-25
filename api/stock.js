@@ -59,14 +59,18 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const q = req.query || {};
-    if (!__auth.adminOk(req)) return res.status(401).json({ error: "Enkel voor beheerders" });
+    // Le magasin reçoit les livraisons fournisseur et compte : lecture et corrections
+    // pour tout le personnel ; supprimer une ligne reste réservé au beheerder.
+    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     if (req.method === "GET" && String(q.history || "") === "1") {
       const product = String(q.product || "").trim();
-      let path = `${encodeURIComponent("Mouvements de stock")}?sort%5B0%5D%5Bfield%5D=${encodeURIComponent("Date et heure")}&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=40`;
-      if (product) {
-        path += `&filterByFormula=${encodeURIComponent(`{Produit}='${escapeFormula(product)}'`)}`;
-      }
+      const days = Math.min(365, Math.max(1, Number(q.days) || 30));
+      const limit = Math.min(500, Math.max(10, Number(q.limit) || 100));
+      let path = `${encodeURIComponent("Mouvements de stock")}?sort%5B0%5D%5Bfield%5D=${encodeURIComponent("Date et heure")}&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=${limit}`;
+      const clauses = [`IS_AFTER({Date et heure},DATEADD(NOW(),-${days},'days'))`];
+      if (product) clauses.push(`{Produit}='${escapeFormula(product)}'`);
+      path += `&filterByFormula=${encodeURIComponent("AND(" + clauses.join(",") + ")")}`;
       const moves = await at(path);
       if (moves.error) return res.status(500).json(moves);
       return res.status(200).json({
@@ -110,6 +114,7 @@ module.exports = async (req, res) => {
 
     // Retirer une ligne de stock (orpheline). Aucun mouvement : rien n'est vendu ni reçu.
     if (body.delete === true) {
+      if (!__auth.adminOk(req)) return res.status(403).json({ error: "Enkel een beheerder kan een voorraadregel verwijderen" });
       if (!body.id) return res.status(400).json({ error: "Artikel-id ontbreekt" });
       const cur = await at(`Stock/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Artikel niet gevonden" });

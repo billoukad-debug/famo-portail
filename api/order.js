@@ -2,6 +2,7 @@ const TOKEN = process.env.AIRTABLE_TOKEN;
 const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
 const __orderNumber = require("../lib/ordernumber");
+const __lev = require("../lib/levering");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -31,16 +32,9 @@ async function atAll(path){
   return { records };
 }
 
-async function authClient(user, pw){
-  if (!user || !pw) return null;
-  const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${String(user).toLowerCase().replace(/'/g, "")}'`);
-  const cl = await at(`Clients?filterByFormula=${f}`);
-  if (!cl.records || !cl.records.length) return null;
-  const rec = cl.records[0];
-  const stored = rec.fields["Wachtwoord"];
-  if (!stored || String(stored) !== String(pw)) return null;
-  return rec;
-}
+// Même authentification que les autres endpoints client (client archivé refusé,
+// limite anti-force brute partagée) : une seule implémentation à maintenir.
+const { authClient } = require("./catalogue");
 
 function roundMoney(value){
   return Math.round((Number(value) || 0) * 100) / 100;
@@ -120,20 +114,10 @@ async function notifyOrderMail(ctx) {
 // (Vercel tourne en UTC). Le serveur ne rejoue pas la coupure de 22:00 : une
 // commande passée à 21:59 côté client ne doit pas être refusée parce que la
 // requête arrive à 22:00:30. Il refuse seulement l'impossible.
-function brusselsToday() {
-  try { return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
-  catch (e) { return new Date().toISOString().slice(0, 10); }
-}
-function checkDeliveryDate(iso) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "Ongeldige leverdag";
-  const d = new Date(iso + "T12:00:00Z");
-  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso) return "Ongeldige leverdag";
-  const today = brusselsToday();
-  if (iso < today) return "De leverdag ligt in het verleden";
-  const max = new Date(today + "T12:00:00Z"); max.setUTCDate(max.getUTCDate() + 60);
-  if (iso > max.toISOString().slice(0, 10)) return "Kies een leverdag binnen de komende 60 dagen";
-  if (d.getUTCDay() === 0) return "Op zondag leveren we niet";
-  return "";
+// Règles par défaut (sans Configuratie) : même fonction que lib/levering, gardée ici
+// pour les appelants qui n'ont pas encore chargé la configuration.
+function checkDeliveryDate(iso, rules) {
+  return __lev.checkDate(iso, rules);
 }
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
@@ -146,12 +130,17 @@ module.exports = async (req, res) => {
     const client = await authClient(body.user, body.pw);
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
-    // Contrôle bon marché AVANT le compteur anti-abus et l'appel Airtable : une
-    // date invalide dans un panier ne doit pas consommer d'essai ni de quota.
+    // Contrôle de forme AVANT le compteur anti-abus : une date impossible dans un
+    // panier ne doit pas consommer d'essai. Les règles Configuratie (jours, fermetures,
+    // minimum) sont relues juste après, une seule fois.
     const { notes } = body;
     const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
+    if (dateLivraison && checkDeliveryDate(dateLivraison)) {
+      return res.status(400).json({ error: checkDeliveryDate(dateLivraison) });
+    }
+    const rules = await __lev.loadRules(at);
     if (dateLivraison) {
-      const dateErr = checkDeliveryDate(dateLivraison);
+      const dateErr = __lev.checkDate(dateLivraison, rules);
       if (dateErr) return res.status(400).json({ error: dateErr });
     }
 
@@ -165,8 +154,12 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: String(e.message || e) });
     }
 
+    if (rules.minimum > 0 && order.total < rules.minimum) {
+      return res.status(400).json({ error: `Minimum bestelling: € ${rules.minimum.toFixed(2).replace(".", ",")} excl. btw (nu € ${order.total.toFixed(2).replace(".", ",")})` });
+    }
+
     const ref = await __orderNumber.nextOrderRef(at);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = __lev.brusselsToday();
     const fields = {
       "Référence": ref,
       "Date": today,

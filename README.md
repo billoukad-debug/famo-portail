@@ -45,8 +45,15 @@ node scripts/check.js
 1. Le client commande (`/api/order`) — le serveur recalcule les prix.
 2. Personnel : **valider article par article** puis Klaarzetten (`Prête`).
 3. **Vertrekt** (`Sortie en livraison`) — la commande est verrouillée.
-4. **Ontvangst bevestigen** (nom du réceptionnaire obligatoire) → `Facturée`, numéro `FA-AAAA-0001`, facture disponible pour le personnel et le client.
-5. Betaald / openstaand se gère séparément (Documenten ou fiche).
+4. **Ontvangst bevestigen** (nom du réceptionnaire obligatoire, éventuellement une exception : Afwezig / Geweigerd / Gedeeltelijk / Beschadigd + note) → `Facturée`, numéro `FA-AAAA-0001`, facture disponible pour le personnel et le client ; e-mail « geleverd » au client avec échéance et communication.
+5. **Betaald** (uniquement sur une commande facturée) : mode obligatoire (Contant / Overschrijving / Bancontact / Andere), `Payé le` horodaté, journalisé dans `Correcties`. En lot depuis Bestellingen.
+6. **Creditnota** (beheerder, commande facturée) : lignes ⊆ lignes livrées, motif, retour en stock optionnel → numéro `CN-AAAA-0001`, montant aux prix figés, document Creditnota pour le personnel et le client.
+
+Le stock n'est déduit au départ que si Beheer → Bedrijfsgegevens → **Voorraad automatisch afboeken** est coché (le navigateur ne décide plus). La déduction et les retours (`Annulation sortie`, `Retour client`) passent tous par la table des mouvements.
+
+### Règles de livraison (Beheer → Bedrijfsgegevens, table `Configuratie`)
+
+`Besteldeadline` (HH:MM, Bruxelles), `Leverdagen`, `Gesloten dagen` (une date ISO par ligne), `Minimum bestelling` (€), `Betaaltermijn dagen` (échéance sur la facture). `lib/levering.js` applique les mêmes règles au panier client, à Invoeren (personnel) et à « Leverdag aanpassen » ; le serveur refuse ce que l'écran laisserait passer.
 
 ### Corriger une erreur (bouton « Corrigeren », partout où la commande s'affiche)
 
@@ -70,20 +77,36 @@ Bouton NL | FR sur l'accueil, la demande d'accès, « mot de passe oublié » et
 
 ### Produits et stock
 
-Beheer → Producten → Bewerken → **Verwijderen** supprime le produit, ses prix négociés et sa ligne de stock ; refusé tant qu'il figure dans une commande ouverte (mettre inactif à la place). Voorraad signale les lignes « niet in catalogus » (produit renommé ou supprimé à la main) et permet de les retirer. Beheer → Klanten → **Toegang blokkeren** efface le mot de passe d'un client sans toucher à sa fiche.
+Beheer → Producten → Bewerken → **Verwijderen** supprime le produit, ses prix négociés et sa ligne de stock ; refusé tant qu'il figure dans une commande ouverte (mettre inactif à la place). Renommer un produit renomme aussi sa ligne de stock et les lignes des commandes ouvertes. Chaque produit peut porter un `BTW-tarief` propre (sinon le taux de Configuratie) — la facture affiche une ligne de TVA par taux — et une photo (`Foto`, upload depuis Beheer, ≤ 3 Mo). Voorraad signale les lignes « niet in catalogus » (produit renommé ou supprimé à la main) et permet de les retirer ; l'historique se filtre par produit et période.
+
+### Clients (Beheer → Klanten)
+
+**Archiveren** ferme l'accès et sort le client des listes (Invoeren, statistiques) en gardant tout l'historique ; **Herstellen** le réactive. **Toegang blokkeren** efface le mot de passe sans toucher à la fiche. À la création d'un accès avec e-mail, un mail de bienvenue part avec les identifiants (désactivable). « Bestellingen » ouvre Bestellingen filtré sur ce client.
+
+### Comptes du personnel (Beheer → Toegang, table `Medewerkers`)
+
+En plus des deux codes partagés, chaque personne peut avoir un **PIN personnel** (haché, ≥ 4 chiffres, rôle personeel ou beheerder, activable). Une session ouverte par PIN porte le prénom : le journal `Correcties`, les paiements, annulations et creditnotas indiquent qui a agi au lieu de « personeel ».
+
+### Rapportage (Beheer)
+
+Chiffre d'affaires facturé par mois, par client et par produit, impayés, TVA par taux ; calculé dans le navigateur depuis `/api/allorders?all=1` (par défaut les listes ne chargent que l'ouvert + 365 jours). Export CSV, cellules protégées contre l'injection de formule.
 
 ## Comptes clients
 
 Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Il n'y a pas de session serveur : l'onglet garde les deux et les renvoie à chaque appel, le serveur revérifie à chaque fois.
 
 - **Changer son mot de passe** : Klant → Account → Wachtwoord → Wijzigen (`/api/klantwachtwoord`). Le client retape son mot de passe actuel, vérifié côté serveur ; seul le compte qui vient d'être vérifié est modifié, jamais un identifiant envoyé par le navigateur. Nouveau mot de passe : 8 à 80 caractères, différent de l'actuel ; 5 essais ratés par 30 s.
-- **Mot de passe oublié** : `/wachtwoord.html`, Famo en remet un depuis Beheer.
+- **Mot de passe oublié** : `/wachtwoord.html` → gebruikersnaam + e-mail connu → nouveau mot de passe envoyé par e-mail (`/api/klantorder`, action `reset`, réponse neutre, 3 demandes par heure). Sans `RESEND_API_KEY`, Famo le remet depuis Beheer.
+- **Compte** : e-mail et téléphone modifiables par le client ; favoris et « standaardbestelling » synchronisés entre appareils (`Favorieten`, JSON) ; relevé des factures ouvertes avec IBAN/BIC et communication ; détail de chaque commande (statut, facture, livraison, exception, creditnota) ; annulation ou modification (annule + remet au panier) tant que la commande est « Reçue ».
+- **Anti-force brute** : 5 échecs par 30 s par gebruikersnaam, sur tous les endpoints client (`authClient` partagé) ; un client archivé ne peut plus se connecter.
 - **À faire** : les mots de passe restent stockés **en clair** dans `Wachtwoord` (choix assumé pour l'instant). Hachage et session client : voir `IDEAS.md`, B3.
 
 ## Variables d'environnement Vercel
 
-`AIRTABLE_TOKEN`, `ADMIN_CODE`, `STAFF_CODE` (obligatoires), `RESEND_API_KEY` + `MAIL_FROM` (e-mails), `PORTAL_URL` (liens dans les e-mails). Voir `VERCEL_CHECKLIST.md`.
+`AIRTABLE_TOKEN`, `ADMIN_CODE`, `STAFF_CODE` (obligatoires), `RESEND_API_KEY` + `MAIL_FROM` (e-mails : confirmation, annulation, onderweg, geleverd + facture, bienvenue, nouvelle demande d'accès, mot de passe), `PORTAL_URL` (liens dans les e-mails). En local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff pour tester depuis une IP du réseau. Voir `VERCEL_CHECKLIST.md`.
 
-## Pas dans cette version (v2 proposée)
+`vercel.json` pose une Content-Security-Policy (scripts et connexions du site uniquement, images https/data/blob pour les photos Airtable et les PDF, pas d'iframe externe).
 
-Optimisation de tournée, carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, upload de photos de preuve, déduction automatique du stock (désactivée tant que la table n'est pas fiable).
+## Pas dans cette version
+
+Optimisation automatique de tournée (l'ordre se règle à la main dans Leveringen), carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, Peppol, session client par cookie et hachage des mots de passe clients.

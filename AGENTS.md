@@ -21,8 +21,10 @@ Airtable is the only data backend; there is no local database. There is **no
   reproduces the Vercel function contract (`req.query`, JSON `req.body`,
   `res.status().json()`); it exists because `vercel dev` requires Vercel login/linking
   that isn't available headless.
-- Staff auth: `POST /api/session` with `{"code": "..."}`. `STAFF_CODE` env var, or
-  fallback `famo2026` if unset (temporary product decision, see `lib/staffauth.js`).
+- Staff auth: `POST /api/session` with `{"code": "..."}`. `STAFF_CODE` / `ADMIN_CODE` env
+  vars are mandatory (fail-closed, no fallback; see `lib/staffauth.js`). Codes stored from
+  Beheer → Toegang (hashed in Configuratie) and personal PINs (table `Medewerkers`) are
+  also accepted. `node scripts/dev.js` seeds `team-dev-code` / `beheer-dev-code`.
   The session is an HttpOnly+Secure cookie; browsers treat `http://localhost` as a
   secure context, so the cookie works over plain http locally.
 - `AIRTABLE_TOKEN` is required for real Clients/Catalogue/Commandes/Stock data. Without

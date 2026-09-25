@@ -3,6 +3,7 @@ const __auth = require("../lib/staffauth");
 const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
 const __orderNumber = require("../lib/ordernumber");
+const __lev = require("../lib/levering");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -76,9 +77,16 @@ module.exports = async (req, res) => {
       let body = req.body;
       if (typeof body === "string") body = JSON.parse(body || "{}");
       if (!body) body = {};
-      if (!__auth.adminOk(req)) return res.status(401).json({ error: "Enkel voor beheerders" });
-      const { clientId, notes, dateLivraison, bron } = body;
+      // Le personnel prend aussi les commandes par téléphone : session staff suffit.
+      if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+      const { clientId, notes, bron } = body;
+      const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
       if (!clientId) return res.status(400).json({ error: "Klant en artikelen vereist" });
+      if (dateLivraison) {
+        const rules = await __lev.loadRules(at);
+        const dateErr = __lev.checkDate(dateLivraison, rules);
+        if (dateErr) return res.status(400).json({ error: dateErr });
+      }
       let order;
       try { order = await buildOrderLines(clientId, body.items); }
       catch (e) { return res.status(400).json({ error: String(e.message || e) }); }
@@ -91,7 +99,7 @@ module.exports = async (req, res) => {
         "Statut": "Reçue",
         "Statut paiement": "En attente",
         "Total": order.total,
-        "Notes": (bron ? "[" + bron + "] " : "") + (notes || ""),
+        "Notes": (bron ? "[" + bron + "] " : "") + String(notes || "").slice(0, 500),
         "Client": [clientId]
       };
       if (dateLivraison) fields["Date livraison souhaitée"] = dateLivraison;
@@ -127,14 +135,14 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
     }
 
-    if (!__auth.adminOk(req)) return res.status(401).json({ error: "Enkel voor beheerders" });
+    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     // ---------- GET ----------
     const q = req.query || {};
     // Liste des clients
     if (!q.client) {
       const cl = await atAll("Clients");
-      const clients = (cl.records || []).map(r => ({
+      const clients = (cl.records || []).filter(r => !r.fields["Gearchiveerd"]).map(r => ({
         id: r.id,
         nom: r.fields["Nom"] || "",
         adresse: r.fields["Lieu de livraison"] || "",
@@ -155,9 +163,11 @@ module.exports = async (req, res) => {
       cat: r.fields["Catégorie"] || "",
       unite: r.fields["Unité"] || "",
       base: r.fields["Prix de base"] || 0,
-      prix: __prices.unitPrice(r, negMap)
+      prix: __prices.unitPrice(r, negMap),
+      kaliber: String(r.fields["Kaliber"] || "").trim()
     }));
-    return res.status(200).json({ products });
+    const rules = await __lev.loadRules(at);
+    return res.status(200).json({ products, levering: __lev.publicRules(rules) });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
