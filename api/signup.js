@@ -50,6 +50,7 @@ module.exports = async (req, res) => {
       "Telefoon": telefoon,
       "Adres": adres,
       "Notities": notities,
+      "Taal": String(body.taal || "").toUpperCase() === "FR" ? "FR" : "NL",
       "Status": "Nieuw"
     };
 

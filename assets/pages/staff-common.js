@@ -2,20 +2,49 @@
 (function (global) {
   const S = { orders: [], config: null, loadedAt: 0, btw: {}, window: 0, all: false };
   // all = true → ?all=1 : volledige historiek (export, oude zoekopdracht) ; anders het venster van de server (window dagen).
+  // Cache 60 s partagé entre les pages (sessionStorage, cet onglet seulement) : passer de
+  // Bestellingen à Magazijn ne relit plus toute la liste. Toute modification (S.update) force la relecture.
+  const CACHE_KEY = "famoOrdersCache", TTL = 60 * 1000;
   S.load = async function (force, all) {
     if (all && !S.all) { S.all = true; force = true; }
-    if (!force && S.orders.length && Date.now() - S.loadedAt < 60 * 1000) return S;
-    const [o, c] = await Promise.all([K.api("/api/allorders" + (S.all ? "?all=1" : "")), S.config ? Promise.resolve({ config: S.config }) : K.api("/api/config").catch(() => ({ config: null }))]);
+    if (!force && S.orders.length && Date.now() - S.loadedAt < TTL) return S;
+    const hit = !force && K.session.get(CACHE_KEY, null);
+    const fresh = hit && Date.now() - hit.at < TTL && !!hit.all === !!S.all ? hit : null;
+    const [o, c] = fresh ? [fresh.o, { config: fresh.config }] : await Promise.all([K.api("/api/allorders" + (S.all ? "?all=1" : "")), S.config ? Promise.resolve({ config: S.config }) : K.api("/api/config").catch(() => ({ config: null }))]);
+    if (!fresh) K.session.set(CACHE_KEY, { at: Date.now(), all: S.all, o, config: c.config || S.config });
     S.orders = (o.orders || []).map(x => Object.assign(x, { late: K.isLate(x), day: x.dateLiv || x.date || "" }));
     S.btw = o.btwPerProduct && typeof o.btwPerProduct === "object" ? o.btwPerProduct : {};
     S.window = Number(o.window) || 0;
-    S.config = c.config || S.config; S.loadedAt = Date.now();
+    S.config = c.config || S.config; S.loadedAt = fresh ? fresh.at : Date.now();
     if (global.FamoDocuments && S.config) FamoDocuments.setCompany(S.config);
     return S;
   };
   S.byId = id => S.orders.find(o => o.id === id);
+  // Automatisch vernieuwen (elke 60 s) : enkel als het tabblad zichtbaar is en niemand bezig is
+  // (paneel open, slepen, typen). Nieuwe bestellingen → melding + teller in de tabtitel.
+  // Er wordt enkel opnieuw getekend als er echt iets veranderde.
+  S.autoRefresh = function (render, everyMs) {
+    const known = new Set(S.orders.map(o => o.id)), base = document.title.replace(/^\(\d+\) /, "");
+    const sig = () => S.orders.map(o => [o.id, o.statut, o.paiement, o.total, o.volgorde, o.lignes].join("|")).join("\n");
+    let last = sig(), fresh = 0;
+    const busy = () => document.hidden || document.querySelector(".scrim, .dialog, .drag-ghost") || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+    const tick = async () => {
+      if (busy()) return;
+      try { await S.load(true); } catch (e) { return; }
+      const nieuw = S.orders.filter(o => !known.has(o.id) && o.statut === "Reçue");
+      S.orders.forEach(o => known.add(o.id));
+      if (nieuw.length) {
+        fresh += nieuw.length; document.title = "(" + fresh + ") " + base;
+        K.toast(nieuw.length === 1 ? "Nieuwe bestelling: " + nieuw[0].client : nieuw.length + " nieuwe bestellingen", { action: "Bekijken", ms: 12000, onAction: () => { location.href = "/order.html?id=" + encodeURIComponent(nieuw[0].id); } });
+      }
+      const now = sig(); if (now !== last && !busy()) { last = now; render(); }
+    };
+    setInterval(tick, everyMs || 60000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) { fresh = 0; document.title = base; tick(); } });
+  };
   S.counts = () => { const t = K.today(); return { today: S.orders.filter(o => o.day === t && !K.isClosed(o)).length, prep: S.orders.filter(o => o.statut === "Reçue").length, ready: S.orders.filter(o => o.statut === "Prête").length, road: S.orders.filter(o => o.statut === "Sortie en livraison").length, late: S.orders.filter(o => o.late).length, unpaid: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").length, unpaidSum: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").reduce((s, o) => s + Number(o.total || 0), 0) }; };
-  S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); await S.load(true); return d; };
+  S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); K.session.del(CACHE_KEY); await S.load(true); return d; };
+  S.invalidate = () => K.session.del(CACHE_KEY);
   S.lineTxt = o => K.linesSummary(o.lignes);
   // Mailresultaat van de server (nooit blokkerend) in één woord voor de toast.
   S.mailTxt = m => m && m.ok ? " · klant gemaild" : (m && m.skipped === "no-recipient" ? " · geen e-mailadres bij klant" : "");
@@ -35,8 +64,10 @@
   S.docOrder = o => Object.assign({}, o, { btwPerLine: S.btwPerLine(o) });
 
   /* ---------- documenten ---------- */
+  // Module documents (≈ 35 Ko) chargé au premier document ouvert, pas à chaque page.
+  const withDocs = run => (global.FamoDocuments && global.famoDocPreview) ? true : (K.docs().then(run, e => K.toast(e.message || "Documentmodule niet geladen.", { kind: "err" })), false);
   S.openDoc = function (o, type) {
-    if (!global.FamoDocuments || !global.famoDocPreview) { K.toast("Documentmodule niet geladen.", { kind: "err" }); return; }
+    if (!withDocs(() => S.openDoc(o, type))) return;
     if (S.config) FamoDocuments.setCompany(S.config);
     try {
       const html = FamoDocuments.build(S.docOrder(o), type);
@@ -45,7 +76,7 @@
   };
   // Bundel : alle leveringsbonnen / facturen van een selectie in één document (één PDF).
   S.openDocs = function (orders, type) {
-    if (!global.FamoDocuments || !global.famoDocPreview) { K.toast("Documentmodule niet geladen.", { kind: "err" }); return; }
+    if (!withDocs(() => S.openDocs(orders, type))) return;
     if (S.config) FamoDocuments.setCompany(S.config);
     const list = (orders || []).filter(o => o.statut !== K.CANCELLED && (type !== "invoice" || o.factuurnummer) && (type !== "credit" || o.creditnota));
     if (!list.length) { K.toast("Geen documenten in deze selectie."); return; }
@@ -61,7 +92,7 @@
     const rows = Array.from(agg.values()).sort((a, b) => a.name.localeCompare(b.name, "nl"));
     return '<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Verzamellijst</title><style>body{font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#111;padding:32px}h1{font-size:20px;margin:0 0 4px}p{margin:0 0 16px;color:#666}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666;border-bottom:1px solid #ccc;padding:6px 4px}td{padding:9px 4px;border-bottom:1px solid #eee;vertical-align:top}.n{text-align:right;font-weight:600;font-size:15px;white-space:nowrap}.box{width:16px;height:16px;border:2px solid #333;display:inline-block;border-radius:3px}</style></head><body><h1>Verzamellijst · ' + K.esc(dayLabel) + '</h1><p>' + orders.length + ' bestelling' + (orders.length === 1 ? "" : "en") + ' · ' + rows.length + ' product' + (rows.length === 1 ? "" : "en") + ' · afgedrukt ' + K.esc(K.dateLong(K.today())) + '</p><table><thead><tr><th></th><th>Product</th><th>Voor</th><th style="text-align:right">Nodig</th></tr></thead><tbody>' + rows.map(r => '<tr><td><span class="box"></span></td><td>' + K.esc(r.name) + '</td><td>' + K.esc(Array.from(r.orders).join(", ")) + '</td><td class="n">' + K.esc(K.qty(r.qty) + " " + K.unit(r.unit)) + '</td></tr>').join("") + '</tbody></table><h1 style="margin-top:28px;font-size:16px">Per bestelling</h1><table><thead><tr><th>Klant</th><th>Artikelen</th><th>Ref.</th></tr></thead><tbody>' + orders.map(o => '<tr><td><b>' + K.esc(o.client) + '</b><br><span style="color:#666">' + K.esc((o.klant && o.klant.adresse || "").replace(/\n/g, ", ")) + '</span></td><td>' + K.parseLines(o.lignes).map(l => K.esc(K.qty(l.qty) + " " + K.unit(l.unit) + " " + l.name + (l.comment ? " — " + l.comment : ""))).join("<br>") + (o.notes ? '<br><i style="color:#7A5410">' + K.esc(o.notes) + '</i>' : "") + '</td><td>' + K.esc(o.ref) + '</td></tr>').join("") + '</tbody></table></body></html>';
   };
-  S.openPicking = function (orders, dayLabel) { if (!global.famoDocPreview) return; famoDocPreview.open({ html: S.pickingHtml(orders, dayLabel), filename: famoDocPreview.filenameFor("picking", { date: dayLabel }), title: "Verzamellijst", meta: dayLabel }); };
+  S.openPicking = function (orders, dayLabel) { if (!withDocs(() => S.openPicking(orders, dayLabel))) return; famoDocPreview.open({ html: S.pickingHtml(orders, dayLabel), filename: famoDocPreview.filenameFor("picking", { date: dayLabel }), title: "Verzamellijst", meta: dayLabel }); };
   // CSV : puntkomma, BOM voor Excel, cellen tussen aanhalingstekens. Een cel die met = + - @ tab of CR
   // begint krijgt een apostrof vooraan : anders voert een rekenblad ze als formule uit.
   S.csvCell = v => { let s = String(v == null ? "" : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
@@ -167,7 +198,14 @@
   // Vertrek : de server beslist over de voorraad (Beheer → « Voorraad afboeken ») en mailt de klant.
   S.depart = async function (o, onDone) {
     if (!(await K.confirm({ title: "Ronde vertrekt?", text: o.client + " · " + o.ref + " gaat op Onderweg. Daarna kunnen de artikelen niet meer gewijzigd worden.", yes: "Vertrekken" }))) return;
-    try { const d = await S.update(o.id, { statut: "Sortie en livraison" }); K.toast(o.client + " is onderweg" + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad afgeboekt" : "") + S.mailTxt(d.mail)); if (onDone) onDone(d); } catch (err) { K.toast(err.message, { kind: "err" }); }
+    try {
+      const d = await S.update(o.id, { statut: "Sortie en livraison" });
+      // Ongedaan maken = de gewone correctie « terug » (voorraad teruggeboekt, regel in het journaal).
+      K.toast(o.client + " is onderweg" + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad afgeboekt" : "") + S.mailTxt(d.mail), { action: "Ongedaan maken", ms: 9000, onAction: async () => {
+        try { await S.update(o.id, { correction: "terug", reden: "Vertrek meteen ongedaan gemaakt" }); K.toast(o.client + " staat terug op Klaar"); if (onDone) onDone(); } catch (err) { K.toast(err.message, { kind: "err" }); }
+      } });
+      if (onDone) onDone(d);
+    } catch (err) { K.toast(err.message, { kind: "err" }); }
   };
   // Betaalwijze kiezen (één keer, ook voor een groepsactie). null = geannuleerd.
   S.askMode = (title, text) => new Promise(resolve => {
@@ -186,7 +224,13 @@
       return;
     }
     const mode = await S.askMode("Markeren als betaald", o.client + " · " + (o.factuurnummer || o.ref) + " · " + K.eur(t.incl) + " incl. btw"); if (!mode) return;
-    try { await S.update(o.id, { paiement: "Payé", modePaiement: mode }); K.toast("Gemarkeerd als betaald (" + mode + ")"); if (onDone) onDone(); } catch (err) { K.toast(err.message, { kind: "err" }); }
+    try {
+      await S.update(o.id, { paiement: "Payé", modePaiement: mode });
+      K.toast("Gemarkeerd als betaald (" + mode + ")", { action: "Ongedaan maken", ms: 9000, onAction: async () => {
+        try { await S.update(o.id, { paiement: "En attente", reden: "Betaling meteen ongedaan gemaakt" }); K.toast("Terug op openstaand"); if (onDone) onDone(); } catch (err) { K.toast(err.message, { kind: "err" }); }
+      } });
+      if (onDone) onDone();
+    } catch (err) { K.toast(err.message, { kind: "err" }); }
   };
   /* ---------- creditnota (paneel, enkel beheerder, enkel op een gefactureerde bestelling) ---------- */
   S.creditnotaPanel = function (o, onDone) {
@@ -302,6 +346,6 @@
       else if (act === "open") location.href = "/order.html?id=" + encodeURIComponent(o.id);
     });
   };
-  S.orderCard = o => '<a class="ocard" href="/order.html?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + (o.statut === "Annulée" ? "inv" : K.stKey(o.statut)) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Openstaand</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
+  S.orderCard = o => '<a class="ocard" draggable="false" data-oid="' + K.esc(o.id) + '" href="/order.html?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + (o.statut === "Annulée" ? "inv" : K.stKey(o.statut)) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Openstaand</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
   global.S = S;
 })(window);

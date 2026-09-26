@@ -15,7 +15,7 @@ test("parseLines lit le format des commandes", () => {
 test("formatLine ↔ parseLines aller-retour", () => { const s = "Scampi × 3 caisse [€15.00] (opm)"; assert.equal(K.formatLine(K.parseLines(s)[0]), s); });
 test("unités traduites en néerlandais", () => { assert.equal(K.unit("caisse"), "kassa"); assert.equal(K.unit("pièce"), "stuk"); assert.equal(K.unit("kg"), "kg"); });
 test("statuts et paiements en néerlandais", () => { assert.equal(K.status("Reçue"), "Ontvangen"); assert.equal(K.status("Facturée"), "Geleverd"); assert.equal(K.pay("Payé"), "Betaald"); });
-test("eur au format belge", () => { assert.equal(K.eur(1284.5), "€ 1.284,50"); assert.equal(K.eur(9.5), "€ 9,50"); });
+test("eur au format belge", () => { assert.equal(K.eur(1284.5), "€\u00a01.284,50"); assert.equal(K.eur(9.5), "€\u00a09,50"); });
 test("isLate : livraison passée et pas livrée", () => { assert.equal(K.isLate({ statut: "Reçue", dateLiv: "2000-01-01" }), true); assert.equal(K.isLate({ statut: "Facturée", dateLiv: "2000-01-01" }), false); assert.equal(K.isLate({ statut: "Reçue", dateLiv: "" }), ""); });
 test("K.on remplace un gestionnaire délégué identique au lieu de le cumuler", () => {
   const listeners = new Map();

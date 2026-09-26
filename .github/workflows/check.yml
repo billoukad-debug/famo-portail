@@ -20,4 +20,4 @@ jobs:
       - name: Verifier les API et scripts HTML
         run: node scripts/check.js
       - name: Verifier les variables API
-        run: npx --yes eslint@9 api/
+        run: npx --yes eslint@9 .

@@ -11,9 +11,9 @@ Airtable is the default data backend; Postgres (Neon) and SQLite are available t
 ### Test / lint / build
 - Test (business rules + syntax): `node scripts/check.js`. This is the primary gate
   (mocks `fetch`, needs no external services). CI runs the same on push/PR to `main`.
-- Lint: `npx eslint@9 api/` (flat config in `eslint.config.js`; only `api/`).
+- Lint: `npx eslint@9 .` (flat config in `eslint.config.js`; server AND browser code, vendor excluded).
 - Build: none — nothing is compiled or bundled.
-- Pre-push (from `CONTRIBUER.md`): `node scripts/check.js && npx eslint api/`.
+- Pre-push (from `CONTRIBUER.md`): `node scripts/assets-version.js && node scripts/check.js && npx eslint@9 .`.
 
 ### Run locally
 - `node scripts/dev-server.js` serves the static pages and routes `/api/*` to the

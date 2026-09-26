@@ -1,30 +1,10 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const TOKEN = process.env.AIRTABLE_TOKEN;
+const { at, atAll, REC } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
   return false;
-}
-const BASE = "appcdduLth9iGX8I0";
-
-async function at(path, opts){
-  const response = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, Object.assign({
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }
-  }, opts || {}));
-  return response.json();
-}
-
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
 }
 
 async function logCorrection(record, after, note, movementType){
@@ -73,7 +53,7 @@ module.exports = async (req, res) => {
       if (product) clauses.push(`{Produit}='${escapeFormula(product)}'`);
       path += `&filterByFormula=${encodeURIComponent("AND(" + clauses.join(",") + ")")}`;
       const moves = await at(path);
-      if (moves.error) return res.status(500).json(moves);
+      if (moves.error) { console.error("[stock]", moves.error.message || moves.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
       return res.status(200).json({
         movements: (moves.records || []).map(record => ({
           id: record.id,
@@ -90,7 +70,7 @@ module.exports = async (req, res) => {
 
     if (req.method === "GET") {
       const stock = await atAll("Stock?sort%5B0%5D%5Bfield%5D=Produit&sort%5B0%5D%5Bdirection%5D=asc");
-      if (stock.error) return res.status(500).json(stock);
+      if (stock.error) { console.error("[stock]", stock.error.message || stock.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
       // Une ligne de stock sans produit au catalogue (renommé, supprimé à la main) est
       // « orpheline » : jamais déduite, jamais commandée. L'écran la signale et permet de la retirer.
       const cat = await atAll("Catalogue");
@@ -116,15 +96,15 @@ module.exports = async (req, res) => {
     // Retirer une ligne de stock (orpheline). Aucun mouvement : rien n'est vendu ni reçu.
     if (body.delete === true) {
       if (!__auth.adminOk(req)) return res.status(403).json({ error: "Enkel een beheerder kan een voorraadregel verwijderen" });
-      if (!body.id) return res.status(400).json({ error: "Artikel-id ontbreekt" });
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Artikel-id ontbreekt of is ongeldig" });
       const cur = await at(`Stock/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Artikel niet gevonden" });
       const del = await at(`Stock/${body.id}`, { method: "DELETE" });
-      if (del.error) return res.status(500).json(del);
+      if (del.error) { console.error("[stock]", del.error.message || del.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
       return res.status(200).json({ ok: true, deleted: body.id });
     }
     const quantity = amount(body.quantity);
-    if (!body.id || quantity == null || quantity < 0 || quantity > 1000000) {
+    if (!body.id || !REC.test(String(body.id)) || quantity == null || quantity < 0 || quantity > 1000000) {
       return res.status(400).json({ error: "Ongeldige voorraadhoeveelheid" });
     }
     const note = String(body.note || "").trim().slice(0, 200);
@@ -155,7 +135,7 @@ module.exports = async (req, res) => {
       method: "PATCH",
       body: JSON.stringify({ fields })
     });
-    if (saved.error) return res.status(500).json(saved);
+    if (saved.error) { console.error("[stock]", saved.error.message || saved.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
 
     let journalWarning = null;
     if (rounded !== before) {

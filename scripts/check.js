@@ -14,7 +14,7 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
 const list = (dir, re) => fs.existsSync(path.join(ROOT, dir)) ? fs.readdirSync(path.join(ROOT, dir)).filter(f => re.test(f)).map(f => path.join(dir, f)) : [];
 
 const htmlPages = fs.readdirSync(ROOT).filter(f => f.endsWith(".html"));
-const jsFiles = [...list("api", /\.js$/), ...list("lib", /\.js$/), ...list("assets", /\.js$/), ...list("assets/pages", /\.js$/), "documents.js", "staff-doc-preview.js", "staff-company.js", "staff-i18n.js", ...list("scripts", /\.js$/)];
+const jsFiles = [...list("api", /\.js$/), ...list("lib", /\.js$/), ...list("assets", /\.js$/), ...list("assets/pages", /\.js$/), "documents.js", "staff-doc-preview.js", "staff-company.js", ...list("scripts", /\.js$/)];
 
 // 1. Syntaxe de tout le JS et des <script> inline.
 let synErr = 0;
@@ -51,6 +51,7 @@ for (const f of htmlPages) { const html = read(f); if (/<meta http-equiv="refres
 ok("Pages : couche partagée + viewport");
 
 // 7. Tests unitaires (Node --test) s'il y en a.
+{ const r = require("child_process").spawnSync(process.execPath, [path.join(ROOT, "scripts", "assets-version.js"), "--check"], { cwd: ROOT, encoding: "utf8" }); if (r.status !== 0) fail("Versions des fichiers statiques périmées : lancer node scripts/assets-version.js\n" + (r.stderr || "")); else ok("Versions des fichiers statiques (cache) à jour"); }
 if (fs.existsSync(path.join(ROOT, "test"))) { const r = require("child_process").spawnSync(process.execPath, ["--test", ...fs.readdirSync(path.join(ROOT, "test")).filter(f => f.endsWith(".test.js")).map(f => "test/" + f)], { cwd: ROOT, stdio: "inherit" }); if (r.status !== 0) fail("node --test a échoué"); else ok("Tests unitaires"); }
 
 // 8. Scénarios métier hérités de la v1, adaptés aux contrats frontend v2.

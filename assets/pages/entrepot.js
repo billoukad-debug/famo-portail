@@ -41,12 +41,17 @@
     page.querySelector("#print").onclick = () => S.openPicking(list, K.dateLong(day));
     // Vertrek : de server beslist over de voorraad (Beheer → « Voorraad afboeken ») ; een 409 (al vertrokken, niet gevalideerd, voorraad te kort) komt per bestelling in een toast.
     const ad = page.querySelector("#allDepart"); if (ad) ad.onclick = async () => { const ready = list.filter(o => o.statut === "Prête"); if (!(await K.confirm({ title: ready.length + " bestellingen vertrekken?", text: "Ze gaan allemaal op Onderweg. Artikelen kunnen daarna niet meer gewijzigd worden." + (S.config && S.config.voorraadAfboeken ? " De voorraad wordt afgeboekt." : ""), yes: "Vertrekken" }))) return; let ok = 0; for (const o of ready) { try { await K.api("/api/updateorder", { json: { id: o.id, statut: "Sortie en livraison" } }); ok++; } catch (err) { K.toast(o.client + ": " + err.message, { kind: "err", ms: 8000 }); } } try { await S.load(true); } catch (err) { K.toast(err.message, { kind: "err" }); } render(); K.toast(ok + " van " + ready.length + " onderweg"); };
-    const cnt = () => { const done = K.store.get("famoPick:" + day, {}); const n = K.$$("[data-pick]", page).length, d = K.$$("[data-pick].on", page).length; const el = page.querySelector("#pickCount"); if (el) el.textContent = d + " van " + n + " verzameld"; }; cnt();
+    const cnt = () => { const n = K.$$("[data-pick]", page).length, d = K.$$("[data-pick].on", page).length; const el = page.querySelector("#pickCount"); if (el) el.textContent = d + " van " + n + " verzameld"; }; cnt();
     K.on(page, "click", "[data-pick]", (e, t) => { const done = K.store.get("famoPick:" + day, {}); const k = t.dataset.pick; done[k] = !done[k]; K.store.set("famoPick:" + day, done); K.setOn(t, !!done[k]); cnt(); });
     const f = focusId && page.querySelector("#o-" + CSS.escape(focusId)); if (f) f.scrollIntoView({ block: "center" });
   }
   S.bindActions(page, render);
   window.addEventListener("hashchange", () => { const h = K.hashParams(); if (h.path && h.path !== view) { view = h.path; K.store.set("famoMagView", view); render(); } });
   page.innerHTML = '<div class="page-h"><h1 class="h1">Magazijn</h1></div><div class="content">' + K.c.skeleton(3) + '</div>';
-  try { await S.load(); render(); } catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message) + '</div>'; }
+  async function first(force) {
+    try { await S.load(force); render(); return true; }
+    catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message, true) + '</div>'; return false; }
+  }
+  K.on(page, "click", "[data-retry]", async e => { e.preventDefault(); if (await first(true)) S.autoRefresh(render); });
+  if (await first()) S.autoRefresh(render);
 })();

@@ -177,10 +177,31 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 .cats{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}.cats::-webkit-scrollbar{display:none}
 .cats button{min-height:44px;padding:0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;font-size:14px;font-weight:500;color:var(--ink-2);display:flex;align-items:center;white-space:nowrap;cursor:pointer;flex:none}
 .cats button:hover{color:var(--ink)}.cats button.on{color:var(--p);border-bottom-color:var(--p);font-weight:600;background:transparent}
-.prod{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px;display:flex;gap:12px;align-items:center;min-width:0}
-.prod.on{border-color:var(--p);box-shadow:inset 0 0 0 1px var(--p)}
-.ph{width:64px;height:64px;border-radius:var(--r);background:var(--soft);display:grid;place-items:center;flex:none;overflow:hidden}.ph img{width:100%;height:100%;object-fit:cover}.ph svg{width:26px;height:26px;stroke:var(--ink-3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
-.pi{flex:1;min-width:0}.pn{font-weight:600;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+/* ---------- productregel (klantcatalogus) : compact, openklappen voor foto en details ---------- */
+.prod{background:var(--card);border-bottom:1px solid var(--line-soft);display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"x fav st" "pp fav st" "d d d";column-gap:6px;align-items:center;padding:8px 0 8px 4px;min-width:0;content-visibility:auto;contain-intrinsic-size:auto 76px}
+.prod.on{background:var(--p-soft)}.prod.on .pn{color:var(--p-deep)}
+.pr-x{grid-area:x;display:flex;align-items:flex-start;gap:6px;min-width:0;border:0;background:transparent;padding:4px 0;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:44px}
+.pr-x:focus-visible{outline:2px solid var(--p);outline-offset:2px;border-radius:var(--r-xs)}
+.pr-chev{width:18px;height:18px;flex:none;margin-top:1px;stroke:var(--ink-3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform:rotate(-90deg);transition:transform .16s cubic-bezier(.23,1,.32,1)}
+.prod.open .pr-chev{transform:none;stroke:var(--p)}
+.pr-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pn{font-weight:600;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+.pm{font-size:12.5px;color:var(--ink-2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pr-k,.pr-u,.prhead{display:none}
+.prod>.pp{grid-area:pp;padding-left:24px}
+.prod>.fav{grid-area:fav;width:44px;height:44px}
+.prod>.stepper{grid-area:st}
+.pr-d{grid-area:d;display:flex;gap:14px;padding:8px 8px 6px 24px;min-width:0}.pr-d[hidden]{display:none}
+.pr-ph{width:120px;height:120px;border-radius:var(--r);background:var(--soft);display:grid;place-items:center;flex:none;overflow:hidden}.pr-ph img{width:100%;height:100%;object-fit:cover}.pr-ph svg{width:36px;height:36px;stroke:var(--ink-3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.pr-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.pr-desc{margin:0;color:var(--ink);text-wrap:pretty}
+.pr-info dl{margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 16px}.pr-info dt{font-size:11.5px;color:var(--ink-3)}.pr-info dd{margin:0;font-weight:500}
+.pr-c{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2)}.pr-c .input{min-height:38px;font-size:13px}
+@media (max-width:480px){.pr-d{flex-direction:column;padding-left:4px}.pr-ph{width:100%;height:180px}}
+@media (prefers-reduced-motion:reduce){.pr-chev{transition:none}}
+.kcount{font-size:11.5px;color:var(--ink-3);font-weight:500;margin-left:6px;font-variant-numeric:tabular-nums}
+.ktitle{font-size:15px;font-weight:700;margin:0;line-height:1.3}.ksub{font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mlist>.sec:first-of-type{margin-top:0}
 .cartbar{position:fixed;left:16px;right:16px;bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--p);color:#fff;border-radius:var(--r);padding:8px 8px 8px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);z-index:110;gap:10px;min-height:56px}
 .cartbar>*{min-width:0}
 .sec{font-size:13px;font-weight:700;color:var(--ink);margin:10px 0 0}
@@ -272,10 +293,6 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 /* ---------- kleine schermen : stappen scrollen i.p.v. te overlappen, keuzeknoppen in de paginakop lopen door ---------- */
 @media (max-width:900px){.steps{justify-content:flex-start}.step{flex:0 0 auto}.step:not(:last-child)::after{flex:0 0 24px}}
 @media (max-width:720px){.page-h .opt{flex:1 1 100%!important;max-width:100%}.page-h .opt button{flex:1 1 auto;padding:0 10px}}
-/* ---------- productkaart : foto links, naam over de volle breedte, aantal rechtsonder ---------- */
-.prod{display:grid;grid-template-columns:64px minmax(0,1fr);grid-template-areas:"ph pi" "ph st";column-gap:12px;row-gap:10px;align-items:start}
-.prod>.ph{grid-area:ph;align-self:center}.prod>.pi{grid-area:pi}.prod>.stepper,.prod>:last-child:not(.pi):not(.ph){grid-area:st;justify-self:end}
-.prod .pn{text-wrap:balance}
 /* bestelregels : op smalle schermen gaat de toelichting onder de naam, het bedrag blijft rechts */
 @media (max-width:560px){
   .line{grid-template-columns:44px minmax(0,1fr) auto;row-gap:2px}
@@ -301,3 +318,49 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 .cats{gap:12px}.cats button{padding:0 4px;min-width:44px;justify-content:center}
 .mtop .mrow>a{min-height:44px;display:inline-flex;align-items:center;gap:4px}
 .nav.on,.tool.on,.avatar{color:var(--p-deep)}
+/* ---------- glisser-déposer (assets/drag.js) ---------- */
+.drag-ghost{position:fixed;z-index:500;pointer-events:none;margin:0;box-shadow:var(--shadow);opacity:.96;transform-origin:center;border-radius:var(--r-lg)}
+.drag-ghost.ocard,.drag-ghost.stop,.drag-ghost.prow{background:var(--card)}
+.drag-ph{border:1.5px dashed var(--p);border-radius:var(--r-lg);background:var(--p-soft);margin:0}
+.drag-src{display:none!important}
+html.dragging,html.dragging *{cursor:grabbing!important;user-select:none!important}
+.drop-on{outline:2px solid var(--p-soft);outline-offset:4px;border-radius:var(--r-lg)}
+.ocard,.stop[data-route],.prow{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.grip{display:grid;place-items:center;width:28px;height:44px;color:var(--ink-3);cursor:grab;flex:none;touch-action:none}
+.grip svg{width:18px;height:18px;fill:currentColor;stroke:none}
+.ocard{cursor:grab}
+.prow{display:flex;align-items:center;gap:10px;min-height:52px;padding:4px 14px 4px 6px;border-bottom:1px solid var(--line-soft);background:var(--card)}
+.prow:last-child{border-bottom:0}
+.drag-ghost.ccat{background:var(--card)}
+/* Leveringen op telefoon : slepen aan de greep vervangt ▲▼ (die blijven op tablet/pc voor het toetsenbord) */
+/* INT-08 : sur téléphone ▲▼ restent disponibles (alternative au glisser), empilés pour laisser la place au nom */
+@media (max-width:560px){.stop .mv{flex-direction:column!important;gap:0!important}.stop .mv .ibtn{width:44px;height:36px}.stop>div[style*="flex:1"]{flex:1 1 calc(100% - 140px)!important}}
+/* zoeklijst bovenaan (K.shell → globalSearch) */
+.gs-list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:6px;max-height:min(420px,70vh);overflow:auto}
+.gs-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 10px;border-radius:var(--r);color:var(--ink);text-decoration:none;font-size:13.5px;min-height:44px}
+.gs-item span:last-child{grid-column:1/-1;font-size:12px}.gs-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.gs-item:hover,.gs-item.on{background:var(--p-soft);text-decoration:none;color:var(--ink)}
+.gs-empty{padding:12px 10px;font-size:13px}
+.th-sort{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:2px;min-height:40px;font:inherit;font-weight:700;color:inherit}
+.th-sort:hover{color:var(--p)}.th-sort:focus-visible{outline:2px solid var(--p);outline-offset:2px;border-radius:4px}
+.tbl th.num .th-sort{justify-content:flex-end;width:100%}
+/* ---------- checklist UX (docs/CHECKLIST-UX.md) ---------- */
+/* ACC-04 : lien d'évitement, visible seulement au clavier */
+.skip{position:absolute;left:12px;top:-60px;z-index:1000;background:var(--p);color:#fff;padding:10px 14px;border-radius:var(--r-sm);font-weight:600;text-decoration:none}.skip:focus{top:12px;color:#fff;text-decoration:none}
+main:focus{outline:0}.panel:focus{outline:0}
+/* CLA-03 / MEP-05 : rien de collant ne cache l'élément focalisé ou une ancre */
+html{scroll-padding-top:84px}
+/* MEP-01 : pas de mot orphelin dans les titres */
+h1,h2,h3,.h1,.h2{text-wrap:balance}p{text-wrap:pretty}
+/* MOU-01 : mouvement réduit = aucune animation ni transition */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+/* MOU-06 : retour de pression discret sur les boutons */
+.btn:active:not(:disabled){transform:scale(.98)}
+/* INT-01 : une action est un bouton (plus de <a href="#">) ; il garde l'allure d'un lien */
+.linkbtn{border:0;background:none;padding:0;margin:0;font:inherit;color:var(--p);cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:32px;display:inline-flex;align-items:center}.linkbtn:hover{color:var(--p-deep)}
+/* INT-03 : liens isolés (hors phrase) = cible de 44 px au tactile */
+.tlink{display:inline-flex;align-items:center;min-height:44px}
+.kv-favorieten .btn{white-space:normal;text-align:center;line-height:1.25;padding-top:8px;padding-bottom:8px;height:auto}
+/* INT-03 : au tactile, toute commande fait au moins 44 px de haut (Fitts, WCAG 2.5.8) */
+@media (pointer:coarse){.stepper{height:46px}.btn,.btn-sm,.opt>button,.lang>button,.linkbtn,.th-sort,.brand,.cats button{min-height:44px}.skip{padding:13px 16px}}
+.mvbtns{display:inline-flex;gap:2px;margin-left:auto;flex:none}.mvbtns .ibtn{width:36px;height:36px;font-size:12px}@media (pointer:coarse){.mvbtns .ibtn{width:44px;height:44px}}

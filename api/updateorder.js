@@ -1,5 +1,5 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const TOKEN = process.env.AIRTABLE_TOKEN;
+const { at, atAll, atBatch, escapeFormula, REC } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const __prices = require("../lib/prices");
 const __lev = require("../lib/levering");
@@ -9,40 +9,8 @@ function staffCodeReady(res){
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
   return false;
 }
-const BASE = "appcdduLth9iGX8I0";
-// Identifiant Airtable : alphanumérique seulement (jamais de « ../ » vers une autre table).
-const REC = /^[A-Za-z0-9]{1,40}$/;
-
-async function at(path, opts){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, Object.assign({
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }
-  }, opts || {}));
-  return r.json();
-}
-
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
-}
 
 // Airtable accepte 10 enregistrements par requête : au-delà, tout est découpé.
-async function atBatch(table, method, records, typecast){
-  for (let i = 0; i < records.length; i += 10) {
-    const body = { records: records.slice(i, i + 10) };
-    if (typecast) body.typecast = true;
-    const r = await at(table, { method, body: JSON.stringify(body) });
-    if (r.error) return r;
-  }
-  return { ok: true };
-}
-
 function numberOf(value){
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -66,11 +34,18 @@ function formatLine(l){
 
 // Lignes modifiées par le magasin : chaque article doit exister au catalogue (actif ou
 // non : un produit désactivé entre-temps reste livrable), les quantités décimales
-// seulement au kg. Le prix reste celui FIGÉ dans la ligne ([€x]) ; une ligne ajoutée
-// sans prix reçoit le prix négocié du client, sinon le prix de base. Renvoie les lignes
-// normalisées (toutes avec prix) et le total, recalculés ici — jamais ceux du navigateur.
-async function normalizeLines(txt, clientId){
-  const lines = parseLines(txt);
+// seulement au kg. Prix de chaque ligne :
+//   1. celui FIGÉ dans la commande enregistrée (même article) ;
+//   2. sinon le prix négocié du client, sinon le prix de base.
+// Le prix [€x] envoyé par le navigateur n'est accepté que d'un beheerder (remise
+// volontaire) ; pour le personnel il est ignoré. Total recalculé ici, jamais celui du navigateur.
+async function normalizeLines(txt, clientId, storedTxt, allowPriceOverride){
+  const frozen = new Map(parseLines(storedTxt).filter(l => l.price != null).map(l => [norm(l.nom), l.price]));
+  const lines = parseLines(txt).map(l => {
+    const keep = frozen.has(norm(l.nom)) ? frozen.get(norm(l.nom)) : null;
+    const price = allowPriceOverride && l.price != null ? l.price : keep;
+    return Object.assign({}, l, { price });
+  });
   if (!lines.length || lines.some(line => line.qty <= 0)) throw new Error("Ongeldige hoeveelheid in de voorbereiding");
   const catalogue = await atAll("Catalogue");
   if (catalogue.error) throw new Error(catalogue.error.message || "Catalogus kon niet worden gelezen");
@@ -142,12 +117,47 @@ async function moveStock(lignes, sign){
   if (sign < 0 && (report.missing.length || report.insufficient.length)) return report;
   if (updates.length) {
     const saved = await atBatch("Stock", "PATCH", updates, false);
-    if (saved.error) return { ...report, error: saved.error.message || "Voorraad kon niet worden bijgewerkt" };
+    if (saved.error) {
+      // Écriture interrompue en cours de lot : les paquets déjà écrits reprennent leur valeur.
+      const before = new Map(report.done.map((d, i) => [updates[i].id, d.van]));
+      if (saved.done && saved.done.length) await atBatch("Stock", "PATCH", saved.done.map(u => ({ id: u.id, fields: { "Quantité disponible": before.get(u.id) } })), false);
+      return { ...report, done: [], error: saved.error.message || "Voorraad kon niet worden bijgewerkt" };
+    }
   }
   return report;
 }
 
+// Annule un mouvement de stock déjà écrit quand l'enregistrement de la commande échoue
+// ensuite : sans ça, un nouvel essai déduirait (ou remettrait) une deuxième fois.
+async function undoStock(report, sign){
+  if (!report || !report.done || !report.done.length) return;
+  const lines = report.done.map(d => formatLine({ nom: d.nom, qty: d.qty, unit: "", price: null, comment: "" })).join("\n");
+  try { await moveStock(lines, -sign); } catch (e) { console.error("[updateorder] undoStock", e && e.message || e); }
+}
+
+// Double tap sur la même instance : une seule requête à la fois par commande.
+const inflight = new Set();
+
 // Numéros séquentiels FA-2026-0001 / CN-2026-0001 : max + 1 sur l'année (Bruxelles).
+// Airtable n'a pas de transaction : deux validations simultanées peuvent lire le même
+// maximum. D'où ensureUnique() juste APRÈS l'écriture : si le numéro existe deux fois,
+// l'enregistrement à l'identifiant le plus petit le garde, l'autre en reprend un
+// nouveau (jusqu'à 5 fois). Résultat : jamais deux factures sous le même numéro.
+async function ensureUnique(id, field, prefix, number){
+  let current = number;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const f = encodeURIComponent(`{${field}}='${escapeFormula(current)}'`);
+    const same = await at(`Commandes?filterByFormula=${f}&fields%5B%5D=${encodeURIComponent(field)}`);
+    if (same.error) return current; // lecture impossible : le numéro écrit reste, rien de pire
+    const ids = (same.records || []).map(r => r.id).sort();
+    if (ids.length <= 1 || ids[0] === id) return current;
+    current = await nextNumber(field, prefix);
+    const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: { [field]: current } }) });
+    if (j.error) throw new Error(j.error.message || "Nummering bijwerken mislukt");
+  }
+  throw new Error("Nummering bezet: probeer opnieuw");
+}
+
 async function nextNumber(field, prefix){
   const year = __auth.brusselsYear();
   const j = await atAll(`Commandes?fields%5B%5D=${encodeURIComponent(field)}`);
@@ -283,7 +293,7 @@ async function applyCorrection(req, res, id, f, body, statuses){
 
   fields["Correcties"] = journal(f, correctionLine(label, actor, reden));
   const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) });
-  if (j.error) return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" });
+  if (j.error) { await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" }); }
   const mail = mailStatus ? await notifyStatus(req, f, mailStatus, { reden }) : null;
   return res.status(200).json({ ok: true, statut: target, correctie: fields["Correcties"].split("\n").pop(), stock: stockReport, mail });
 }
@@ -324,7 +334,9 @@ async function makeCreditnota(req, res, id, f, body){
     const w = await createStockMovements(stockReport, f["Référence"] || id, "Retour client"); if (w) stockReport.journalWarning = w;
   }
   const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-  if (j.error) return res.status(500).json({ error: j.error.message || "Creditnota opslaan mislukt" });
+  if (j.error) { await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Creditnota opslaan mislukt" }); }
+  const finalNummer = await ensureUnique(id, "Creditnota nummer", "CN", nummer);
+  if (finalNummer !== nummer) return res.status(200).json({ ok: true, creditnota: { nummer: finalNummer, lignes: out.join("\n"), montant, le: fields["Creditnota le"], motif }, stock: stockReport });
   return res.status(200).json({ ok: true, creditnota: { nummer, lignes: out.join("\n"), montant, le: fields["Creditnota le"], motif }, stock: stockReport });
 }
 
@@ -335,10 +347,22 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
-    const { id, statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl, correction } = body;
+    const { id } = body;
     if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
     if (!id || !REC.test(String(id))) return res.status(400).json({ error: "Bestelling-id ontbreekt of is ongeldig" });
 
+    if (inflight.has(id)) return res.status(409).json({ error: "Deze bestelling wordt al bijgewerkt. Even geduld." });
+    inflight.add(id);
+    try { return await handle(req, res, body, id); } finally { inflight.delete(id); }
+  } catch (e) {
+    console.error("[updateorder]", e && e.message || e);
+    res.status(500).json({ error: "Bijwerken mislukt. Probeer opnieuw." });
+  }
+};
+
+async function handle(req, res, body, id){
+  {
+    const { statut, paiement, lignes, total, preparationValidee, deliveryConfirmed, recipient, proofUrl, correction } = body;
     const cur = await at(`Commandes/${id}`);
     if (cur.error) return res.status(cur.error.type === "NOT_FOUND" || /not found/i.test(String(cur.error.message || "")) ? 404 : 500).json({ error: cur.error.message || "Bestelling onleesbaar" });
     const f = cur.fields || {};
@@ -365,6 +389,11 @@ module.exports = async (req, res) => {
     if (departed && (typeof lignes === "string" || typeof total === "number" || preparationValidee)) {
       return res.status(409).json({ error: "Deze levering is al onderweg en kan niet meer worden gewijzigd" });
     }
+    // Lignes modifiées et départ dans la même requête : les nouvelles lignes n'ont pas été
+    // validées article par article — elles le seront d'abord (panneau de validation).
+    if (typeof lignes === "string" && statut === "Sortie en livraison") {
+      return res.status(409).json({ error: "Valideer eerst de gewijzigde artikelen vóór vertrek" });
+    }
 
     const fields = {};
     if (paiement && !["Payé", "En attente"].includes(paiement)) return res.status(400).json({ error: "Ongeldige betaalstatus" });
@@ -385,11 +414,14 @@ module.exports = async (req, res) => {
     if (typeof lignes === "string") {
       let normalized;
       try {
-        normalized = await normalizeLines(lignes, (f["Client"] || [])[0]);
+        normalized = await normalizeLines(lignes, (f["Client"] || [])[0], f["Lignes (produits / quantités)"], __auth.adminOk(req));
       } catch (error) {
         return res.status(400).json({ error: String(error.message || error) });
       }
       fields["Lignes (produits / quantités)"] = normalized.lignes;
+      if (f["Préparation validée"] && preparationValidee !== true && normalized.lignes !== f["Lignes (produits / quantités)"]) {
+        fields["Préparation validée"] = false; // lignes changées après validation : à revalider
+      }
       // Le total envoye par le navigateur n'est jamais utilise : prix figés des lignes,
       // prix négocié pour une ligne ajoutée.
       fields["Total"] = normalized.total;
@@ -434,8 +466,6 @@ module.exports = async (req, res) => {
           });
         }
         fields["Stock afgeboekt"] = true;
-        const movementError = await createStockMovements(stockReport, f["Référence"] || id, "Sortie livraison");
-        if (movementError) stockReport.journalWarning = movementError;
       }
     }
 
@@ -479,7 +509,12 @@ module.exports = async (req, res) => {
     if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets om bij te werken" });
 
     const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-    if (j.error) return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" });
+    if (j.error) { await undoStock(stockReport, -1); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" }); }
+    if (stockReport && fields["Stock afgeboekt"]) {
+      const movementError = await createStockMovements(stockReport, f["Référence"] || id, "Sortie livraison");
+      if (movementError) stockReport.journalWarning = movementError;
+    }
+    if (factuurnummer) factuurnummer = await ensureUnique(id, "Factuurnummer", "FA", factuurnummer);
 
     // E-mails de statut (jamais bloquants) : onderweg au départ, geleverd + factuur à la réception.
     if (statut === "Sortie en livraison" && !departed) mail = await notifyStatus(req, f, "onderweg");
@@ -492,10 +527,7 @@ module.exports = async (req, res) => {
       mail = await notifyStatus(req, f, "geleverd", { factuurnummer: nr, ontvangenDoor: fields["Réceptionné par"], vervaldatum: __mail.vervaldatum(__lev.brusselsToday(), rules.betaaltermijn), mededeling });
     }
     res.status(200).json({ ok: true, stock: stockReport, factuurnummer, mail });
-  } catch (e) {
-    console.error("[updateorder]", e && e.message || e);
-    res.status(500).json({ error: "Bijwerken mislukt. Probeer opnieuw." });
   }
-};
+}
 module.exports.parseLines = parseLines;
 module.exports.formatLine = formatLine;

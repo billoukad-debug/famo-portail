@@ -1,24 +1,8 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const TOKEN = process.env.AIRTABLE_TOKEN;
+const { at, atAll } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const __lev = require("../lib/levering");
-const BASE = "appcdduLth9iGX8I0";
 
-async function at(path){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
-  return r.json();
-}
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
-}
 // Pagine sur toute la table : au-dela de 100 lignes, un simple pageSize=100
 // mentait sur le compte (plafonne silencieusement).
 async function count(table, formula){
@@ -114,6 +98,6 @@ module.exports = async (req, res) => {
     }
     res.status(200).json({ config });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    { console.error("[config]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

@@ -1,5 +1,5 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const TOKEN = process.env.AIRTABLE_TOKEN;
+const { at, atAll, REC } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
@@ -9,26 +9,6 @@ function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
   return false;
-}
-const BASE = "appcdduLth9iGX8I0";
-
-async function at(path, opts){
-  const r = await fetch(`https://api.airtable.com/v0/${BASE}/${path}`, Object.assign({
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" }
-  }, opts || {}));
-  return r.json();
-}
-
-async function atAll(path){
-  let offset = "", records = [];
-  do {
-    const sep = path.includes("?") ? "&" : "?";
-    const page = await at(path + (offset ? sep + "offset=" + encodeURIComponent(offset) : ""));
-    if (page.error) return page;
-    records = records.concat(page.records || []);
-    offset = page.offset || "";
-  } while (offset);
-  return { records };
 }
 
 function numberOf(value){
@@ -82,7 +62,7 @@ module.exports = async (req, res) => {
       if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
       const { clientId, notes, bron } = body;
       const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
-      if (!clientId) return res.status(400).json({ error: "Klant en artikelen vereist" });
+      if (!clientId || !REC.test(String(clientId))) return res.status(400).json({ error: "Klant en artikelen vereist" });
       if (dateLivraison) {
         const rules = await __lev.loadRules(at);
         const dateErr = __lev.checkDate(dateLivraison, rules);
@@ -95,7 +75,7 @@ module.exports = async (req, res) => {
       const ref = await __orderNumber.nextOrderRef(at);
       const fields = {
         "Référence": ref,
-        "Date": new Date().toISOString().slice(0, 10),
+        "Date": __lev.brusselsToday(), // jour de Bruxelles, pas UTC (00:00–02:00 = même jour)
         "Lignes (produits / quantités)": order.lignes,
         "Statut": "Reçue",
         "Statut paiement": "En attente",
@@ -106,7 +86,7 @@ module.exports = async (req, res) => {
       if (dateLivraison) fields["Date livraison souhaitée"] = dateLivraison;
 
       const j = await at("Commandes", { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
-      if (j.error) return res.status(500).json(j);
+      if (j.error) { console.error("[staff]", j.error.message || j.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
 
       // Le client n'est jamais charge dans ce handler : on le lit APRES la
       // creation, pour qu'un echec de lecture ne puisse jamais bloquer
@@ -165,11 +145,12 @@ module.exports = async (req, res) => {
       unite: r.fields["Unité"] || "",
       base: r.fields["Prix de base"] || 0,
       prix: __prices.unitPrice(r, negMap),
-      kaliber: String(r.fields["Kaliber"] || "").trim()
+      kaliber: String(r.fields["Kaliber"] || "").trim(),
+      volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
     }));
     const rules = await __lev.loadRules(at);
     return res.status(200).json({ products, levering: __lev.publicRules(rules) });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    { console.error("[staff]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };
