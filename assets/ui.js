@@ -6,7 +6,7 @@
 
   /* ---------- basis ---------- */
   K.esc = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  K.eur = v => "€ " + (Number(v) || 0).toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  K.eur = v => "€\u00a0" + (Number(v) || 0).toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   K.num = v => String(Number(v) || 0).replace(".", ",");
   K.qty = v => { const n = Number(v) || 0; return Number.isInteger(n) ? String(n) : n.toLocaleString("nl-BE", { maximumFractionDigits: 3 }); };
   /* ---------- taal / langue (klantportaal : NL of FR ; personeel en beheer : altijd NL) ----------
@@ -20,7 +20,7 @@
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
     "Vandaag": "Aujourd'hui", "Morgen": "Demain", "Gisteren": "Hier", "Algemeen": "Général", "Ontvangen": "Reçue", "Openstaand": "À payer",
-    "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Annuleren": "Annuler",
+    "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Bezig…": "En cours…", "Naar de inhoud": "Aller au contenu", "Annuleren": "Annuler",
     "Laden…": "Chargement…", "Openen": "Ouvrir", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
     // start
     "Verse vis en zeevruchten · Antwerpen": "Poissons et fruits de mer frais · Anvers", "Toegang aanvragen": "Demander un accès",
@@ -344,10 +344,10 @@
 
   /* ---------- componenten ---------- */
   const c = {};
-  c.field = (label, inputHtml, opts) => { const o = opts || {}; return '<div class="field"' + (o.id ? ' id="' + o.id + '"' : "") + '><label' + (o.for ? ' for="' + o.for + '"' : "") + '>' + K.esc(label) + (o.req ? ' <span style="color:var(--danger)">*</span>' : "") + '</label>' + inputHtml + (o.hint ? '<span class="quiet" style="font-size:12px">' + K.esc(o.hint) + '</span>' : "") + '<span class="err" data-err></span></div>'; };
+  c.field = (label, inputHtml, opts) => { const o = Object.assign({}, opts); if (!o.for) { const m = /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"/.exec(inputHtml || ""); if (m) o.for = m[1]; } return '<div class="field"' + (o.id ? ' id="' + o.id + '"' : "") + '><label' + (o.for ? ' for="' + o.for + '"' : "") + '>' + K.esc(label) + (o.req ? ' <span style="color:var(--danger)">*</span>' : "") + '</label>' + inputHtml + (o.hint ? '<span class="quiet" style="font-size:12px">' + K.esc(o.hint) + '</span>' : "") + '<span class="err" data-err></span></div>'; };
   c.input = (id, opts) => { const o = opts || {}; return '<input class="input" id="' + id + '" type="' + (o.type || "text") + '"' + (o.value != null ? ' value="' + K.esc(o.value) + '"' : "") + (o.placeholder ? ' placeholder="' + K.esc(o.placeholder) + '"' : "") + (o.attrs || "") + '>'; };
   c.empty = (title, text, action) => '<div class="state"><div class="ic">' + K.icon("orders") + '</div><b>' + K.esc(title) + '</b>' + (text ? '<p class="sub" style="max-width:320px;white-space:normal">' + K.esc(text) + '</p>' : "") + (action || "") + '</div>';
-  c.error = (text, retry) => '<div class="notice err" role="alert"><i>!</i><div><b>' + K.t("Er ging iets mis.") + '</b> ' + K.esc(text) + (retry ? ' <a href="#" data-retry>' + K.t("Opnieuw proberen") + '</a>' : "") + '</div></div>';
+  c.error = (text, retry) => '<div class="notice err" role="alert"><i>!</i><div><b>' + K.t("Er ging iets mis.") + '</b> ' + K.esc(text) + (retry ? ' <button type="button" class="linkbtn" data-retry>' + K.t("Opnieuw proberen") + '</button>' : "") + '</div></div>';
   c.warn = html => '<div class="notice warn"><i>!</i><div>' + html + '</div></div>';
   c.ok = html => '<div class="notice ok"><i>✓</i><div>' + html + '</div></div>';
   c.skeleton = n => '<div style="display:flex;flex-direction:column;gap:10px">' + Array.from({ length: n || 3 }, () => '<div class="card card-b" style="display:flex;flex-direction:column;gap:8px"><div class="sk" style="width:40%"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:55%"></div></div>').join("") + '</div>';
@@ -361,38 +361,75 @@
   K.c = c;
 
   /* ---------- toast / dialoog / paneel ---------- */
-  function toasts() { let t = document.querySelector(".toasts"); if (!t) { t = document.createElement("div"); t.className = "toasts"; t.setAttribute("aria-live", "polite"); document.body.appendChild(t); } return t; }
-  K.toast = (msg, opts) => { const o = opts || {}; const el = document.createElement("div"); el.className = "toast" + (o.kind ? " " + o.kind : ""); el.innerHTML = K.esc(msg) + (o.action ? '<button type="button">' + K.esc(o.action) + '</button>' : ""); if (o.action && o.onAction) el.querySelector("button").onclick = () => { o.onAction(); el.remove(); }; toasts().appendChild(el); setTimeout(() => el.remove(), o.ms || 4500); return el; };
+  // Zone permanente (role=status) : un message inséré dans une zone déjà montée est lu par les lecteurs d'écran.
+  function toasts() { let t = document.querySelector(".toasts"); if (!t) { t = document.createElement("div"); t.className = "toasts"; t.setAttribute("role", "status"); t.setAttribute("aria-live", "polite"); document.body.appendChild(t); } return t; }
+  if (doc && typeof doc.createElement === "function" && doc.addEventListener) { if (doc.body) toasts(); else doc.addEventListener("DOMContentLoaded", toasts); }
+  // Lien d'évitement : les pages routent sur le « # » ; on déplace donc le focus sans toucher à l'URL.
+  if (doc && doc.addEventListener) doc.addEventListener("click", e => {
+    const a = e.target && e.target.closest && e.target.closest("a.skip"); if (!a) return;
+    e.preventDefault(); const t = doc.querySelector(a.getAttribute("href")); if (t) { t.focus(); if (t.scrollIntoView) t.scrollIntoView({ block: "start" }); }
+  });
+  K.toast = (msg, opts) => { const o = opts || {}; const el = document.createElement("div"); el.className = "toast" + (o.kind ? " " + o.kind : ""); el.innerHTML = K.esc(msg) + (o.action ? '<button type="button">' + K.esc(o.action) + '</button>' : ""); if (o.action && o.onAction) el.querySelector("button").onclick = () => { o.onAction(); el.remove(); }; toasts().appendChild(el); setTimeout(() => el.remove(), o.ms || (o.action ? 6000 : 4500)); return el; };
+  // Dialogen en panelen (motif APG « dialog modal ») : Tab reste dedans, Échap ne ferme que le plus haut,
+  // et le focus revient à l'élément qui l'a ouvert.
+  const modals = [];
+  const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  function modal(el, onEsc) {
+    const back = document.activeElement, entry = { el };
+    modals.push(entry);
+    const key = e => {
+      if (modals[modals.length - 1] !== entry) return;
+      if (e.key === "Escape") { e.preventDefault(); onEsc(); return; }
+      if (e.key !== "Tab") return;
+      const f = Array.from(el.querySelectorAll(FOCUSABLE)).filter(x => x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1], cur = document.activeElement, inside = el.contains(cur);
+      if (e.shiftKey && (cur === first || !inside)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (cur === last || !inside)) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      const i = modals.indexOf(entry); if (i >= 0) modals.splice(i, 1);
+      if (back && back.isConnected && back.focus) try { back.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    };
+  }
+  // Clavier physique (souris/trackpad) : focus au premier champ ; tactile : pas de clavier qui surgit.
+  const finePointer = () => !!(global.matchMedia && global.matchMedia("(pointer: fine)").matches);
   K.confirm = (opts) => new Promise(resolve => {
     const o = typeof opts === "string" ? { text: opts } : (opts || {});
-    const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
-    d.setAttribute("aria-labelledby", "kDialogTitle");
-    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kDialogTitle">' + K.esc(o.title || K.t("Bevestigen")) + '</b><span class="muted">' + K.esc(o.text || "") + '</span><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || K.t("Annuleren")) + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
-    const done = v => { d.remove(); document.removeEventListener("keydown", key); resolve(v); };
-    const key = e => { if (e.key === "Escape") done(false); };
+    const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", o.danger ? "alertdialog" : "dialog"); d.setAttribute("aria-modal", "true");
+    d.setAttribute("aria-labelledby", "kDialogTitle"); d.setAttribute("aria-describedby", "kDialogText");
+    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kDialogTitle">' + K.esc(o.title || K.t("Bevestigen")) + '</b><span class="muted" id="kDialogText">' + K.esc(o.text || "") + '</span><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || K.t("Annuleren")) + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
+    let release = null;
+    const done = v => { d.remove(); if (release) release(); resolve(v); };
     d.querySelector("[data-no]").onclick = () => done(false); d.querySelector("[data-yes]").onclick = () => done(true); d.onclick = e => { if (e.target === d) done(false); };
-    document.addEventListener("keydown", key); document.body.appendChild(d); d.querySelector("[data-yes]").focus();
+    release = modal(d, () => done(false)); document.body.appendChild(d);
+    // Action destructive : le focus va sur « Annuler », jamais sur le bouton qui détruit.
+    d.querySelector(o.danger ? "[data-no]" : "[data-yes]").focus();
   });
   K.prompt = (opts) => new Promise(resolve => {
     const o = opts || {};
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
     d.setAttribute("aria-labelledby", "kPromptTitle");
-    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kPromptTitle">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" aria-labelledby="kPromptTitle" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Annuleren") + '</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || "OK") + '</button></div></div>';
+    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kPromptTitle">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" aria-labelledby="kPromptTitle" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Annuleren") + '</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
     const inp = d.querySelector("#kPrompt");
-    const done = v => { d.remove(); resolve(v); };
-    d.querySelector("[data-no]").onclick = () => done(null); d.querySelector("[data-yes]").onclick = () => done(inp.value); inp.addEventListener("keydown", e => { if (e.key === "Enter") done(inp.value); if (e.key === "Escape") done(null); });
-    document.body.appendChild(d); inp.focus();
+    let release = null;
+    const done = v => { d.remove(); if (release) release(); resolve(v); };
+    d.querySelector("[data-no]").onclick = () => done(null); d.querySelector("[data-yes]").onclick = () => done(inp.value); inp.addEventListener("keydown", e => { if (e.key === "Enter") done(inp.value); });
+    release = modal(d, () => done(null)); document.body.appendChild(d); inp.focus();
   });
   K.panel = (opts) => {
     const o = opts || {};
     const s = document.createElement("div"); s.className = "scrim"; s.setAttribute("role", "dialog"); s.setAttribute("aria-modal", "true");
     s.setAttribute("aria-labelledby", "kPanelTitle");
-    s.innerHTML = '<div class="panel"' + (o.width ? ' style="width:min(' + o.width + ',100%)"' : "") + '><div class="panel-h"><div><h2 class="h2" id="kPanelTitle">' + K.esc(o.title || "") + '</h2>' + (o.sub ? '<p class="sub">' + K.esc(o.sub) + '</p>' : "") + '</div><button type="button" class="ibtn" data-close aria-label="' + K.t("Sluiten") + '">' + K.icon("x") + '</button></div><div class="panel-b">' + (o.body || "") + '</div>' + (o.footer ? '<div class="panel-f">' + o.footer + '</div>' : "") + '</div>';
-    const close = () => { s.remove(); document.removeEventListener("keydown", key); document.body.style.overflow = ""; if (o.onClose) o.onClose(); };
-    const key = e => { if (e.key === "Escape") close(); };
+    s.innerHTML = '<div class="panel" tabindex="-1"' + (o.width ? ' style="width:min(' + o.width + ',100%)"' : "") + '><div class="panel-h"><div><h2 class="h2" id="kPanelTitle">' + K.esc(o.title || "") + '</h2>' + (o.sub ? '<p class="sub">' + K.esc(o.sub) + '</p>' : "") + '</div><button type="button" class="ibtn" data-close aria-label="' + K.t("Sluiten") + '">' + K.icon("x") + '</button></div><div class="panel-b">' + (o.body || "") + '</div>' + (o.footer ? '<div class="panel-f">' + o.footer + '</div>' : "") + '</div>';
+    let release = null, open = true;
+    const close = () => { if (!open) return; open = false; s.remove(); if (release) release(); document.body.style.overflow = ""; if (o.onClose) o.onClose(); };
     s.querySelector("[data-close]").onclick = close; s.onclick = e => { if (e.target === s) close(); };
-    document.addEventListener("keydown", key); document.body.style.overflow = "hidden"; document.body.appendChild(s);
-    const first = s.querySelector("input,select,textarea,button:not([data-close])"); if (first) try { first.focus(); } catch (e) { /* ignore */ }
+    release = modal(s, close); document.body.style.overflow = "hidden"; document.body.appendChild(s);
+    const first = finePointer() && s.querySelector(".panel-b input:not([type=hidden]),.panel-b select,.panel-b textarea");
+    try { (first || s.querySelector(".panel")).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
     return { el: s, close, body: s.querySelector(".panel-b"), footer: s.querySelector(".panel-f") };
   };
   const delegated = new WeakMap();
@@ -406,7 +443,8 @@
   K.$ = (sel, root) => (root || document).querySelector(sel);
   K.$$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
   K.setErr = (fieldId, msg) => { const f = document.getElementById(fieldId); if (!f) return; const e = f.querySelector("[data-err]"); if (e) e.textContent = msg || ""; const i = f.querySelector(".input"); if (i) { if (msg) i.setAttribute("aria-invalid", "true"); else i.removeAttribute("aria-invalid"); } };
-  K.busy = (btn, on, label) => { if (!btn) return; if (on) { btn.dataset.label = btn.textContent; btn.disabled = true; btn.textContent = label || "Bezig…"; } else { btn.disabled = false; if (btn.dataset.label) btn.textContent = btn.dataset.label; } };
+  // Bouton en cours : désactivé, aria-busy, largeur gelée (pas de saut de mise en page), libellé « …ing… ».
+  K.busy = (btn, on, label) => { if (!btn) return; if (on) { btn.dataset.label = btn.textContent; btn.style.minWidth = btn.offsetWidth ? btn.offsetWidth + "px" : ""; btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = label || K.t("Bezig…"); } else { btn.disabled = false; btn.removeAttribute("aria-busy"); btn.style.minWidth = ""; if (btn.dataset.label) btn.textContent = btn.dataset.label; } };
   K.hashParams = () => { const h = location.hash.replace(/^#\/?/, ""); const [path, q] = h.split("?"); const p = {}; new URLSearchParams(q || "").forEach((v, k) => { p[k] = v; }); return { path: path || "", params: p }; };
   K.go = (path, params) => { const q = params ? "?" + new URLSearchParams(params).toString() : ""; location.hash = "#/" + path + q; };
 
@@ -434,12 +472,12 @@
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       link(["stock.html", "Voorraad", "stock"]) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
-      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><a href="#" data-logout class="quiet" style="font-size:11px">Uitloggen</a></div></div></div></aside>';
+      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></aside>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
     const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
-    app.innerHTML = '<div class="shell">' + side + '<div class="main">' + top + '<div id="page"></div></div></div>';
+    app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
     globalSearch(app);
     return document.getElementById("page");

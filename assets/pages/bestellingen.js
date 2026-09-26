@@ -24,7 +24,7 @@
       '<label class="quiet" style="font-size:12px;display:inline-flex;align-items:center;gap:4px">van <input type="date" class="input tool" id="fVan" aria-label="Leverdag vanaf" value="' + K.esc(filter.van) + '" style="width:auto;min-width:150px"></label>' +
       '<label class="quiet" style="font-size:12px;display:inline-flex;align-items:center;gap:4px">tot <input type="date" class="input tool" id="fTot" aria-label="Leverdag tot en met" value="' + K.esc(filter.tot) + '" style="width:auto;min-width:150px"></label>' +
       (filter.q || filter.client || filter.van || filter.tot || filter.status !== "open" || sort.key ? '<button type="button" class="tool" id="fReset">' + K.icon("x") + 'Filters wissen</button>' : "") +
-      '<span class="spacer"></span>' + (S.window ? '<span class="quiet" style="font-size:12px">open + laatste ' + S.window + ' dagen · <a href="#" id="loadAll">Alles laden</a></span>' : '<span class="quiet" style="font-size:12px">volledige historiek</span>') + '<button type="button" class="tool" id="reload">' + K.icon("refresh") + 'Vernieuwen</button></div>';
+      '<span class="spacer"></span>' + (S.window ? '<span class="quiet" style="font-size:12px">open + laatste ' + S.window + ' dagen · <button type="button" class="linkbtn" id="loadAll">Alles laden</button></span>' : '<span class="quiet" style="font-size:12px">volledige historiek</span>') + '<button type="button" class="tool" id="reload">' + K.icon("refresh") + 'Vernieuwen</button></div>';
   }
   function filtered() {
     const q = filter.q.toLowerCase();

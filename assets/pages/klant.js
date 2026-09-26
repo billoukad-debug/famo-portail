@@ -76,7 +76,7 @@
   // Kop : op de telefoon enkel de tabbalk onderaan ; op de computer één kopbalk met merk, tabs en winkelmand.
   function shell(active, inner, top) {
     const co = (cat && cat.company) || {};
-    app.innerHTML = '<div class="kwrap kv-' + (K.hashParams().path || active) + '"><header class="khead"><a class="kbrand" href="#/catalogus"><span class="logo">F</span><b>' + K.esc(co.bedrijfsnaam || "FAMO Seafood") + '</b></a>' + K.klantTabs(active) + '<a class="kcartlink" id="kcartlink" href="#/winkelmand">' + cartLinkHtml() + '</a></header>' + (top || "") + inner + '</div>';
+    app.innerHTML = '<a class="skip" href="#kmain">' + K.t("Naar de inhoud") + '</a><div class="kwrap kv-' + (K.hashParams().path || active) + '"><header class="khead"><a class="kbrand" href="#/catalogus"><span class="logo">F</span><b>' + K.esc(co.bedrijfsnaam || "FAMO Seafood") + '</b></a>' + K.klantTabs(active) + '<a class="kcartlink" id="kcartlink" href="#/winkelmand">' + cartLinkHtml() + '</a></header><main class="kmain" id="kmain" tabindex="-1">' + (top || "") + inner + '</main></div>';
   }
   function cartLinkHtml() {
     const n = cartCount();

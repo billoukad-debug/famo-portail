@@ -6,6 +6,8 @@ node scripts/check.js
 npx --yes eslint@9 .
 ```
 
+Changement d'interface : passer aussi `docs/CHECKLIST-UX.md` ; ses contrôles automatiques tournent avec `node scripts/ux-audit.js` (portail de dev lancé par `node scripts/dev.js`, Playwright requis).
+
 Vert = déployable. `check.js` refuse une version de fichier périmée (sinon un navigateur garderait l'ancien script en cache). Le même contrôle tourne sur GitHub à chaque push (onglet Actions).
 
 ## Ce qui est vérifié

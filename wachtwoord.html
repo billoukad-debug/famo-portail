@@ -8,8 +8,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273.5%27 fill=%27%234876A2%27/%3E%3Cpath d=%27M5 13V3h6M5 8h4%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/ui.css?v=a804015424">
-<script src="/assets/ui.js?v=b38fa61d24" defer></script>
+<link rel="stylesheet" href="/assets/ui.css?v=082879493b">
+<script src="/assets/ui.js?v=b4b2745acf" defer></script>
 </head>
 <body class="portal-klant">
 <div id="app"></div>
@@ -17,10 +17,10 @@
 document.addEventListener("DOMContentLoaded", function(){ // na de uitgestelde (defer) scripts
 // Nieuw wachtwoord : gebruikersnaam + e-mail van de zaak → /api/klantorder action "reset" (zonder wachtwoord).
 // De server antwoordt altijd neutraal (bestaat het account of niet) ; die tekst tonen we letterlijk.
-document.getElementById("app").innerHTML='<div style="max-width:480px;margin:0 auto;padding:24px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><a href="/" style="font-size:13px">'+K.t("← Aanmelden")+'</a>'+K.langSwitch()+'</div><h1 class="h1" style="margin-top:18px">'+K.t("Wachtwoord vergeten")+'</h1><p class="sub" style="white-space:normal">'+K.t("Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.")+'</p>'+
+document.getElementById("app").innerHTML='<div style="max-width:480px;margin:0 auto;padding:24px 16px"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><a class="tlink" href="/" style="font-size:13px">'+K.t("← Aanmelden")+'</a>'+K.langSwitch()+'</div><h1 class="h1" style="margin-top:18px">'+K.t("Wachtwoord vergeten")+'</h1><p class="sub" style="white-space:normal">'+K.t("Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.")+'</p>'+
 '<form id="f" class="card card-b" style="margin-top:16px;display:flex;flex-direction:column;gap:12px" novalidate>'+K.c.field(K.t("Gebruikersnaam"),K.c.input("user",{attrs:' autocomplete="username" autocapitalize="none" spellcheck="false" required'}),{id:"fUser",for:"user"})+K.c.field(K.t("E-mailadres van uw zaak"),K.c.input("email",{type:"email",attrs:' autocomplete="email" inputmode="email" required'}),{id:"fMail",for:"email"})+'<div id="msg"></div><button type="submit" class="btn btn-p" id="btn" style="min-height:50px;font-size:15px">'+K.t("Nieuw wachtwoord aanvragen")+'</button></form>'+
 '<div class="card card-b" style="margin-top:16px;display:flex;flex-direction:column;gap:8px" id="contact"><b>FAMO Seafood</b><span class="muted">'+K.t("Gegevens laden…")+'</span></div></div>';
-K.api("/api/config?public=1").then(d=>{const c=d.config||{};document.getElementById("contact").innerHTML="<b>"+K.esc(c.bedrijfsnaam||"FAMO Seafood")+"</b><span class=\"muted\">"+K.t("Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.")+"</span>"+(c.telefoon?"<a href=\"tel:"+K.esc(String(c.telefoon).replace(/\s+/g,""))+"\">"+K.esc(c.telefoon)+"</a>":"")+(c.email?"<a href=\"mailto:"+K.esc(c.email)+"\">"+K.esc(c.email)+"</a>":"")+"<span class=\"quiet\" style=\"font-size:12px\">"+K.esc([c.adres,c.plaats].filter(Boolean).join(", "))+"</span>"}).catch(()=>{});
+K.api("/api/config?public=1").then(d=>{const c=d.config||{};document.getElementById("contact").innerHTML="<b>"+K.esc(c.bedrijfsnaam||"FAMO Seafood")+"</b><span class=\"muted\">"+K.t("Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.")+"</span>"+(c.telefoon?"<a class=\"tlink\" href=\"tel:"+K.esc(String(c.telefoon).replace(/\s+/g,""))+"\">"+K.esc(c.telefoon)+"</a>":"")+(c.email?"<a class=\"tlink\" href=\"mailto:"+K.esc(c.email)+"\">"+K.esc(c.email)+"</a>":"")+"<span class=\"quiet\" style=\"font-size:12px\">"+K.esc([c.adres,c.plaats].filter(Boolean).join(", "))+"</span>"}).catch(()=>{});
 document.getElementById("f").addEventListener("submit",async e=>{
   e.preventDefault();
   const user=document.getElementById("user").value.trim(),email=document.getElementById("email").value.trim();

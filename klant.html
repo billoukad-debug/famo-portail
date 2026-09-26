@@ -8,8 +8,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273.5%27 fill=%27%234876A2%27/%3E%3Cpath d=%27M5 13V3h6M5 8h4%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/ui.css?v=a804015424">
-<script src="/assets/ui.js?v=b38fa61d24" defer></script>
+<link rel="stylesheet" href="/assets/ui.css?v=082879493b">
+<script src="/assets/ui.js?v=b4b2745acf" defer></script>
 </head>
 <body class="portal-klant">
 <div id="app"></div>
@@ -30,10 +30,10 @@
   .khead .mtab{flex-direction:row;gap:8px;font-size:14.5px;padding:0 14px;border-bottom:2px solid transparent}.khead .mtab svg{width:18px;height:18px}.khead .mtab.on{border-bottom-color:var(--p)}
   .kcartlink{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:var(--r);color:var(--ink);font-size:14px;font-weight:500;white-space:nowrap;text-decoration:none}.kcartlink:hover{text-decoration:none;border-color:var(--p)}
   .kcartlink .ico{width:18px;height:18px}.kbadge{background:var(--p);color:#fff;border-radius:999px;min-width:22px;height:22px;display:inline-grid;place-items:center;font-size:12px;padding:0 6px}
-  .kwrap>.mtop{position:static;background:transparent;border-bottom:0;padding:24px 0 16px;flex-direction:row;align-items:center;gap:24px}
-  .kwrap>.mtop>.mrow{flex:1;min-width:0}.kwrap>.mtop .mrow>.logo,.kwrap>.mtop .mrow>.avatar{display:none}
+  .kmain>.mtop{position:static;background:transparent;border-bottom:0;padding:24px 0 16px;flex-direction:row;align-items:center;gap:24px}
+  .kmain>.mtop>.mrow{flex:1;min-width:0}.kmain>.mtop .mrow>.logo,.kmain>.mtop .mrow>.avatar{display:none}
   .ktitle{font-size:24px;letter-spacing:-.3px}.ksub{font-size:13.5px}
-  .kwrap>.mtop .search{flex:0 1 420px;width:420px}
+  .kmain>.mtop .search{flex:0 1 420px;width:420px}
   .kv-catalogus .mtop .cats{display:none}
   .mlist{padding:0 0 32px}
   .cartbar{display:none}
@@ -67,7 +67,7 @@
   /* computer tot 1599 px : kaliber en eenheid onder de naam (de naam krijgt de breedte) */
   @media (max-width:1359px){.kgrid{grid-template-columns:190px minmax(0,1fr) 300px;gap:24px}}
   /* 1024–1199 : geen zijbalk, de categorieën staan weer als tabs boven de lijst */
-  @media (max-width:1199px){.kgrid{grid-template-columns:minmax(0,1fr) 300px}.kside{display:none}.kwrap>.mtop{flex-wrap:wrap;row-gap:12px}.kv-catalogus .mtop .cats{display:flex;flex:1 1 100%;border-bottom:1px solid var(--line-soft)}}
+  @media (max-width:1199px){.kgrid{grid-template-columns:minmax(0,1fr) 300px}.kside{display:none}.kmain>.mtop{flex-wrap:wrap;row-gap:12px}.kv-catalogus .mtop .cats{display:flex;flex:1 1 100%;border-bottom:1px solid var(--line-soft)}}
   @media (max-width:1599px){
     .prhead,.prod{grid-template-columns:minmax(0,1fr) 130px 44px 136px}
     .prod{grid-template-areas:"x pp fav st" "d d d d"}
@@ -83,6 +83,6 @@
   .kv-account .mlist,.kv-favorieten .mlist{max-width:1100px}
 }
 </style>
-<script src="/assets/pages/klant.js?v=c949099e07" defer></script>
+<script src="/assets/pages/klant.js?v=4ac5badb5e" defer></script>
 </body>
 </html>

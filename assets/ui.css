@@ -333,7 +333,8 @@ html.dragging,html.dragging *{cursor:grabbing!important;user-select:none!importa
 .prow:last-child{border-bottom:0}
 .drag-ghost.ccat{background:var(--card)}
 /* Leveringen op telefoon : slepen aan de greep vervangt ▲▼ (die blijven op tablet/pc voor het toetsenbord) */
-@media (max-width:560px){.stop .mv{display:none!important}.stop>div[style*="flex:1"]{flex:1 1 calc(100% - 90px)!important}}
+/* INT-08 : sur téléphone ▲▼ restent disponibles (alternative au glisser), empilés pour laisser la place au nom */
+@media (max-width:560px){.stop .mv{flex-direction:column!important;gap:0!important}.stop .mv .ibtn{width:44px;height:36px}.stop>div[style*="flex:1"]{flex:1 1 calc(100% - 140px)!important}}
 /* zoeklijst bovenaan (K.shell → globalSearch) */
 .gs-list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:6px;max-height:min(420px,70vh);overflow:auto}
 .gs-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 10px;border-radius:var(--r);color:var(--ink);text-decoration:none;font-size:13.5px;min-height:44px}
@@ -343,3 +344,23 @@ html.dragging,html.dragging *{cursor:grabbing!important;user-select:none!importa
 .th-sort{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:2px;min-height:40px;font:inherit;font-weight:700;color:inherit}
 .th-sort:hover{color:var(--p)}.th-sort:focus-visible{outline:2px solid var(--p);outline-offset:2px;border-radius:4px}
 .tbl th.num .th-sort{justify-content:flex-end;width:100%}
+/* ---------- checklist UX (docs/CHECKLIST-UX.md) ---------- */
+/* ACC-04 : lien d'évitement, visible seulement au clavier */
+.skip{position:absolute;left:12px;top:-60px;z-index:1000;background:var(--p);color:#fff;padding:10px 14px;border-radius:var(--r-sm);font-weight:600;text-decoration:none}.skip:focus{top:12px;color:#fff;text-decoration:none}
+main:focus{outline:0}.panel:focus{outline:0}
+/* CLA-03 / MEP-05 : rien de collant ne cache l'élément focalisé ou une ancre */
+html{scroll-padding-top:84px}
+/* MEP-01 : pas de mot orphelin dans les titres */
+h1,h2,h3,.h1,.h2{text-wrap:balance}p{text-wrap:pretty}
+/* MOU-01 : mouvement réduit = aucune animation ni transition */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+/* MOU-06 : retour de pression discret sur les boutons */
+.btn:active:not(:disabled){transform:scale(.98)}
+/* INT-01 : une action est un bouton (plus de <a href="#">) ; il garde l'allure d'un lien */
+.linkbtn{border:0;background:none;padding:0;margin:0;font:inherit;color:var(--p);cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:24px;display:inline-flex;align-items:center}.linkbtn:hover{color:var(--p-deep)}
+/* INT-03 : liens isolés (hors phrase) = cible de 44 px au tactile */
+.tlink{display:inline-flex;align-items:center;min-height:44px}
+.kv-favorieten .btn{white-space:normal;text-align:center;line-height:1.25;padding-top:8px;padding-bottom:8px;height:auto}
+/* INT-03 : au tactile, toute commande fait au moins 44 px de haut (Fitts, WCAG 2.5.8) */
+@media (pointer:coarse){.stepper{height:46px}.btn,.btn-sm,.opt>button,.lang>button,.linkbtn,.th-sort,.brand,.cats button{min-height:44px}.skip{padding:13px 16px}}
+.mvbtns{display:inline-flex;gap:2px;margin-left:auto;flex:none}.mvbtns .ibtn{width:36px;height:36px;font-size:12px}@media (pointer:coarse){.mvbtns .ibtn{width:44px;height:44px}}
