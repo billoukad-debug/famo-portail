@@ -100,6 +100,7 @@ module.exports = async (req, res) => {
         base: r.fields["Prix de base"] || 0,
         prix: __prices.unitPrice(r, negMap),
         kaliber: String(r.fields["Kaliber"] || "").trim(),
+        omschrijving: String(r.fields["Omschrijving"] || "").trim(),
         foto: photoOf(r.fields["Foto"]),
         volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
       };

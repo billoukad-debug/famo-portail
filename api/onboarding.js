@@ -124,6 +124,7 @@ async function statusPayload() {
     unite: r.fields["Unité"] || "",
     base: Number(r.fields["Prix de base"] || 0),
     kaliber: String(r.fields["Kaliber"] || "").trim(),
+    omschrijving: String(r.fields["Omschrijving"] || "").trim(),
     btwTarief: Number(r.fields["BTW-tarief"]) > 0 ? Number(r.fields["BTW-tarief"]) : null,
     foto: require("../lib/photo").photoUrl(r.fields["Foto"]),
     actif: !!r.fields["Actif"],
@@ -308,6 +309,8 @@ module.exports = async (req, res) => {
       };
       // Kaliber : écrit seulement s'il est envoyé, pour que « Uit catalogus » ne l'efface pas.
       if (body.kaliber !== undefined) fields["Kaliber"] = clean(body.kaliber, 60);
+      // Omschrijving : texte libre montré au client quand il déplie le produit (même règle d'écriture).
+      if (body.omschrijving !== undefined) fields["Omschrijving"] = clean(body.omschrijving, 400);
       // TVA par produit (6 ou 21) ; vide = taux par défaut de Configuratie.
       if (body.btwTarief !== undefined) {
         const t = Number(body.btwTarief);

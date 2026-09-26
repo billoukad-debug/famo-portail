@@ -37,6 +37,7 @@
     "Niets gevonden voor": "Aucun résultat pour", "Nog geen favorieten": "Pas encore de favoris", "Probeer een ander woord of kies een categorie.": "Essayez un autre mot ou choisissez une catégorie.",
     "Tik op de ster bij een product om het hier te zien.": "Touchez l'étoile d'un produit pour le voir ici.", "Tik op de ster bij een product in de catalogus.": "Touchez l'étoile d'un produit dans le catalogue.",
     // winkelmand
+    "Categorieën": "Catégories", "Product": "Produit", "Kaliber": "Calibre", "Eenheid": "Unité", "Prijs excl. btw": "Prix HTVA", "Categorie": "Catégorie", "Beschikbaar": "Disponible", "Bestellen per": "Commander par", "0,5 kg": "0,5 kg", "Opmerking bij dit artikel": "Remarque pour cet article", "bv. dikke moot…": "ex. tranche épaisse…", "Nog niets gekozen. Gebruik + bij een product.": "Rien choisi pour l’instant. Utilisez + sur un produit.", "{p} verwijderd": "{p} retiré", "Ongedaan maken": "Annuler", "Verwijderen": "Retirer",
     "Winkelmand": "Panier", "Leegmaken": "Vider", "Opmerking (bv. dikke moot)": "Remarque (ex. tranche épaisse)", "Leverdag": "Jour de livraison", "Andere dag": "Autre jour",
     "Geen levering op zondag. Vóór 22:00 besteld = morgen geleverd.": "Pas de livraison le dimanche. Commandé avant 22 h = livré demain.",
     "Leveradres": "Adresse de livraison", "Adres bij Famo bekend": "Adresse connue de Famo", "Ander adres? Zet het in de opmerking.": "Autre adresse ? Indiquez-la dans la remarque.",
@@ -328,6 +329,7 @@
     map: '<path d="M12 21s-6-5.5-6-11a6 6 0 0112 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.5"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    cart: '<path d="M3 4h2l2.4 11h11.2L21 7H6.2"/><circle cx="9" cy="19.5" r="1.3"/><circle cx="18" cy="19.5" r="1.3"/>',
     chev: '<path d="M6 9l6 6 6-6"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     list: '<path d="M4 6h16M4 12h16M4 18h16"/>',
