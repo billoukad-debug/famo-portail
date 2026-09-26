@@ -54,17 +54,8 @@ async function authClient(user, pw, token){
 module.exports.authClient = authClient;
 const __lev = require("../lib/levering");
 
-// Photo du produit (champ pièce jointe « Foto ») : première image, en vignette
-// « large » d'Airtable si elle existe (plus légère), sinon le fichier. Uniquement
-// des liens https. Les liens Airtable expirent après quelques heures : ils sont
-// relus à chaque ouverture du catalogue, jamais stockés.
-function photoOf(attachments) {
-  const image = (Array.isArray(attachments) ? attachments : [])
-    .find(a => a && /^image\//i.test(String(a.type || "")));
-  if (!image) return "";
-  const url = (image.thumbnails && image.thumbnails.large && image.thumbnails.large.url) || image.url || "";
-  return /^https:\/\//i.test(String(url)) ? String(url) : "";
-}
+// Photo du produit : lib/photo.js (Airtable https ou /api/foto de la base Postgres).
+const photoOf = require("../lib/photo").photoUrl;
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {

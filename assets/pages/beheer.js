@@ -124,6 +124,29 @@
   function productPanel(p) {
     const v = Object.assign({ nom: "", cat: "", unite: "caisse", base: "", kaliber: "", btwTarief: null, foto: "", actif: true }, p || {});
     const stockRow = (D.stock || []).find(s => s.product.toLowerCase() === String(v.nom).toLowerCase());
+
+  // Lit un fichier image et le renvoie en base64, réduit à 1600 px de côté max (JPEG 85 %)
+  // s'il dépasse 600 kB ; sinon tel quel. Repli : fichier d'origine si le canvas échoue.
+  function shrinkFoto(file) {
+    const asIs = () => new Promise((ok, ko) => { const r = new FileReader(); r.onerror = () => ko(new Error("Foto kon niet gelezen worden.")); r.onload = () => ok({ type: file.type, name: file.name, base64: String(r.result).replace(/^data:[^;]+;base64,/, "") }); r.readAsDataURL(file); });
+    if (file.size <= 600 * 1024) return asIs();
+    return new Promise((ok) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onerror = () => { URL.revokeObjectURL(url); ok(asIs()); };
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+          const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+          const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+          const data = c.toDataURL("image/jpeg", 0.85);
+          if (!/^data:image\/jpeg;base64,/.test(data)) return ok(asIs());
+          ok({ type: "image/jpeg", name: file.name.replace(/\.[a-z0-9]+$/i, "") + ".jpg", base64: data.replace(/^data:[^;]+;base64,/, "") });
+        } catch (e) { ok(asIs()); }
+      };
+      img.src = url;
+    });
+  }
     const fotoHtml = f => (f ? '<img src="' + K.esc(f) + '" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:none">' : '<span class="avatar" style="width:56px;height:56px;border-radius:8px">' + K.icon("camera") + '</span>');
     const pn = K.panel({ title: p ? p.nom : "Nieuw product", sub: p ? "Product bewerken" : "Verschijnt in de klantcatalogus zodra actief", body:
       K.c.field("Naam (zoals de klant het ziet)", K.c.input("pNom", { value: v.nom }), { id: "fPNom", req: true, hint: p ? "Hernoemen? Voorraad en open bestellingen worden mee hernoemd; geleverde bestellingen houden de oude naam." : undefined }) +
@@ -131,22 +154,22 @@
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Categorie", K.c.input("pCat", { value: v.cat, placeholder: "bv. Vis, Schelpdieren, Schaaldieren", attrs: ' list="cats"' }) + '<datalist id="cats">' + Array.from(new Set((D.products || []).map(x => x.cat).filter(Boolean))).map(x => '<option value="' + K.esc(x) + '">').join("") + '</datalist>', {}) + K.c.field("BTW-tarief (%)", K.c.input("pBtw", { value: v.btwTarief == null ? "" : v.btwTarief, placeholder: "standaard " + D.config.btwTarief + " %", attrs: ' inputmode="decimal"' }), { id: "fPBtw", hint: "Leeg = standaardtarief uit Bedrijfsgegevens." }) + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Voorraad (optioneel)", K.c.input("pStock", { value: stockRow ? stockRow.quantity : "", attrs: ' inputmode="decimal"' }), { hint: D.config.voorraadAfboeken ? "Wordt bij vertrek automatisch afgeboekt." : "Wordt niet automatisch afgetrokken (instelbaar in Bedrijfsgegevens)." }) + K.c.field("Drempel", K.c.input("pLow", { value: stockRow ? stockRow.lowThreshold : "", attrs: ' inputmode="decimal"' }), {}) + '</div>' +
       '<label style="display:flex;gap:10px;align-items:center;font-size:13px"><button type="button" class="toggle' + (v.actif ? " on" : "") + '" id="pActif" aria-pressed="' + (v.actif ? "true" : "false") + '"></button>Actief in de catalogus</label>' +
-      '<div class="notice" style="font-size:12.5px;align-items:center" id="pFotoBox">' + fotoHtml(v.foto) + '<div style="flex:1;min-width:0"><b>Foto</b><div class="quiet" style="font-size:12px">' + (p ? "JPEG, PNG of WebP, max. 3 MB. Verschijnt meteen in de catalogus." : "Sla het product eerst op, daarna kunt u een foto toevoegen.") + '</div>' + (p ? '<input type="file" id="pFoto" accept="image/jpeg,image/png,image/webp" style="font-size:12px;margin-top:6px;max-width:100%">' : "") + '</div></div><div id="pErr"></div>',
+      '<div class="notice" style="font-size:12.5px;align-items:center" id="pFotoBox">' + fotoHtml(v.foto) + '<div style="flex:1;min-width:0"><b>Foto</b><div class="quiet" style="font-size:12px">' + (p ? "JPEG, PNG of WebP. Grote foto's worden automatisch verkleind. Verschijnt meteen in de catalogus." : "Sla het product eerst op, daarna kunt u een foto toevoegen.") + '</div>' + (p ? '<input type="file" id="pFoto" accept="image/jpeg,image/png,image/webp" style="font-size:12px;margin-top:6px;max-width:100%">' : "") + '</div></div><div id="pErr"></div>',
       footer: (p ? '<button type="button" class="btn btn-ghost" id="pDel" style="color:var(--danger);margin-right:auto">Verwijderen</button>' : "") + '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="pOk">Opslaan</button>' });
     let actif = !!v.actif; const tg = pn.el.querySelector("#pActif"); tg.onclick = () => { actif = !actif; K.setOn(tg, actif); };
     pn.el.querySelector("[data-cancel]").onclick = pn.close;
     const fi = pn.el.querySelector("#pFoto"); if (fi) fi.onchange = () => {
       const f = fi.files && fi.files[0]; if (!f) return; const err = pn.el.querySelector("#pErr"); err.innerHTML = "";
       if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { err.innerHTML = K.c.error("Enkel JPEG, PNG of WebP."); fi.value = ""; return; }
-      if (f.size > 3 * 1024 * 1024) { err.innerHTML = K.c.error("Foto te groot (max 3 MB)."); fi.value = ""; return; }
-      const r = new FileReader(); fi.disabled = true;
-      r.onerror = () => { err.innerHTML = K.c.error("Foto kon niet gelezen worden."); fi.disabled = false; };
-      r.onload = async () => {
-        try { const d = await post({ action: "uploadFoto", id: p.id, contentType: f.type, filename: f.name, base64: String(r.result).replace(/^data:[^;]+;base64,/, "") }); const np = (d.products || []).find(x => x.id === p.id); const img = pn.el.querySelector("#pFotoBox").firstElementChild; img.outerHTML = fotoHtml(np && np.foto ? np.foto : String(r.result)); K.toast("Foto opgeslagen"); }
-        catch (e) { err.innerHTML = K.c.error(e.message); }
-        fi.disabled = false; fi.value = "";
-      };
-      r.readAsDataURL(f);
+      if (f.size > 12 * 1024 * 1024) { err.innerHTML = K.c.error("Foto te groot (max 12 MB)."); fi.value = ""; return; }
+      fi.disabled = true;
+      // Verkleind in de browser (max 1600 px, JPEG 85 %) : een gsm-foto van 5 MB wordt ~300 kB,
+      // zodat de catalogus snel laadt op 4G. Kleine bestanden blijven zoals ze zijn.
+      shrinkFoto(f).then(async (s) => {
+        if (s.base64.length > 4200000) throw new Error("Foto te groot, ook na verkleinen (max 3 MB).");
+        const d = await post({ action: "uploadFoto", id: p.id, contentType: s.type, filename: s.name, base64: s.base64 });
+        const np = (d.products || []).find(x => x.id === p.id); const img = pn.el.querySelector("#pFotoBox").firstElementChild; img.outerHTML = fotoHtml(np && np.foto ? np.foto : "data:" + s.type + ";base64," + s.base64); K.toast("Foto opgeslagen");
+      }).catch(e => { err.innerHTML = K.c.error(e.message || "Foto kon niet gelezen worden."); }).then(() => { fi.disabled = false; fi.value = ""; });
     };
     const del = pn.el.querySelector("#pDel"); if (del) del.onclick = async () => {
       if (!(await K.confirm({ title: "„" + p.nom + "” verwijderen?", text: "Het product verdwijnt uit de catalogus, samen met zijn prijsafspraken en voorraadregel. Geleverde bestellingen blijven leesbaar. Enkel tijdelijk uit de catalogus? Zet het op inactief.", yes: "Verwijderen", danger: true }))) return;

@@ -96,7 +96,7 @@ test("PATCH fusionne et efface, PUT remplace, DELETE simple et groupé", async (
   assert.deepEqual(await ok(engine, "DELETE", U("Commandes/" + rec.id)), { id: rec.id, deleted: true });
   assert.equal((await engine.handle("DELETE", U("Commandes/" + rec.id))).status, 404);
   const up = await engine.handle("POST", "https://content.airtable.com/v0/" + BASE + "/" + rec.id + "/Foto/uploadAttachment", { file: "x" });
-  assert.equal(up.status, 501, "upload de photo : message clair, pas de plantage");
+  assert.equal(up.status, 422, "upload sans type d'image valide : refusé proprement");
 });
 
 test("concurrence : une écriture concurrente n'est jamais perdue", async () => {
@@ -246,4 +246,55 @@ test("migration : copie Airtable -> base, refus sans force une fois basculé, v�
   } finally {
     ds.state.realFetch = saved;
   }
+});
+
+test("photos produit : stockées en base, une seule par produit, servies par /api/foto et le catalogue", async () => {
+  const auth = require(path.join(ROOT, "lib", "staffauth.js"));
+  const cookie = "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600000, "admin", ""));
+  // Le test de migration a remplacé les tables : on recharge les données de démo.
+  const { FakeAirtable } = require(path.join(ROOT, "scripts", "fake-airtable.js"));
+  const { seed } = require(path.join(ROOT, "scripts", "seed.js"));
+  const demo = new FakeAirtable();
+  seed(demo);
+  for (const [tbl, recs] of Object.entries(demo.data)) await ds.state.store.replaceAll(tbl, recs);
+  const prod = (await (await fetch(U("Catalogue?maxRecords=1&filterByFormula=" + encodeURIComponent("{Actif}=1")))).json()).records[0];
+  assert.ok(prod, "un produit actif existe");
+  const png1 = Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0005000201ffa6c1f10000000049454e44ae426082", "hex");
+  const png2 = Buffer.concat([png1, Buffer.from([0])]);
+  const upload = (buf, name) => callApi("onboarding", { method: "POST", headers: { cookie }, body: { action: "uploadFoto", id: prod.id, contentType: "image/png", filename: name, base64: buf.toString("base64") } });
+  const r1 = await upload(png1, "zalm 1.png");
+  assert.equal(r1.statusCode, 200, JSON.stringify(r1.body));
+  const first = (await ds.state.store.get("Catalogue", prod.id)).fields.Foto;
+  assert.equal(first.length, 1);
+  assert.match(first[0].url, /^\/api\/foto\?id=att[A-Za-z0-9]{14}$/);
+  assert.equal(first[0].filename, "zalm-1.png");
+  const r2 = await upload(png2, "zalm-2.png");
+  assert.equal(r2.statusCode, 200, JSON.stringify(r2.body));
+  const second = (await ds.state.store.get("Catalogue", prod.id)).fields.Foto;
+  assert.equal(second.length, 1, "la nouvelle photo remplace l'ancienne");
+  assert.notEqual(second[0].id, first[0].id);
+  assert.equal(await ds.state.store.getFile(first[0].id), null, "l'ancien fichier est supprimé");
+
+  const res = mkRes();
+  let sent = null;
+  res.end = (b) => { sent = b; return res; };
+  await require(path.join(ROOT, "api", "foto.js"))({ method: "GET", headers: {}, query: { id: second[0].id } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers["content-type"], "image/png");
+  assert.match(res.headers["cache-control"], /immutable/);
+  assert.ok(Buffer.isBuffer(sent) && sent.equals(png2), "le fichier servi est exactement celui envoyé");
+  const bad = await callApi("foto", { query: { id: "../etc" } });
+  assert.equal(bad.statusCode, 400);
+  const missing = await callApi("foto", { query: { id: "attAAAAAAAAAAAAAA" } });
+  assert.equal(missing.statusCode, 404);
+
+  const refused = await callApi("onboarding", { method: "POST", headers: { cookie }, body: { action: "uploadFoto", id: prod.id, contentType: "image/gif", filename: "x.gif", base64: "R0lGOD" } });
+  assert.equal(refused.statusCode, 400);
+
+  const cat = await callApi("catalogue", { method: "POST", body: { user: "aloha", pw: "welkom123" } });
+  const shown = cat.body.products.find((p) => p.id === prod.id);
+  assert.equal(shown.foto, second[0].url, "le client voit la nouvelle photo");
+  const { photoUrl } = require(path.join(ROOT, "lib", "photo.js"));
+  assert.equal(photoUrl([{ type: "image/png", url: "data:image/png;base64,AAAA" }]), "", "jamais de data: ni de lien arbitraire");
+  assert.equal(photoUrl([{ type: "image/png", url: "https://dl.airtable.com/x.png" }]), "https://dl.airtable.com/x.png");
 });
