@@ -53,5 +53,22 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/aan-de-slag.html",
+      "destination": "/beheer.html",
+      "permanent": true
+    },
+    {
+      "source": "/dagprep.html",
+      "destination": "/entrepot.html?view=dag",
+      "permanent": true
+    },
+    {
+      "source": "/overzicht.html",
+      "destination": "/bestellingen.html",
+      "permanent": true
+    }
   ]
 }

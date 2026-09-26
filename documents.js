@@ -53,12 +53,6 @@ window.FamoDocuments=(()=>{
     return "";
   }
   function usingExampleBank(){ return !!COMPANY.exampleBank; }
-  function companyBlock(){
-    if(!COMPANY.nom) return "<em>Bedrijfsgegevens niet geladen</em>";
-    return esc(COMPANY.nom)+"<br>"+esc(COMPANY.adresse)+"<br>"+esc(COMPANY.cp)+
-      (COMPANY.tva?"<br>BTW "+esc(COMPANY.tva):"")+
-      (COMPANY.tel?"<br>"+esc(COMPANY.tel):"");
-  }
   // Gestructureerde mededeling (OGM) afgeleid van het factuurnummer : FA-2026-0001 → +++202/6000/00192+++.
   // Basis = jaar + volgnummer op 6 cijfers, controle = basis mod 97 (0 → 97). Onbekend formaat → leeg.
   const structuredRef=invoiceNumber=>{

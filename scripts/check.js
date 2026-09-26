@@ -14,7 +14,7 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
 const list = (dir, re) => fs.existsSync(path.join(ROOT, dir)) ? fs.readdirSync(path.join(ROOT, dir)).filter(f => re.test(f)).map(f => path.join(dir, f)) : [];
 
 const htmlPages = fs.readdirSync(ROOT).filter(f => f.endsWith(".html"));
-const jsFiles = [...list("api", /\.js$/), ...list("lib", /\.js$/), ...list("assets", /\.js$/), ...list("assets/pages", /\.js$/), "documents.js", "staff-doc-preview.js", "staff-company.js", "staff-i18n.js", ...list("scripts", /\.js$/)];
+const jsFiles = [...list("api", /\.js$/), ...list("lib", /\.js$/), ...list("assets", /\.js$/), ...list("assets/pages", /\.js$/), "documents.js", "staff-doc-preview.js", "staff-company.js", ...list("scripts", /\.js$/)];
 
 // 1. Syntaxe de tout le JS et des <script> inline.
 let synErr = 0;

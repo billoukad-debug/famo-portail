@@ -15,7 +15,7 @@ const crypto = require("crypto");
 
 const ROOT = path.join(__dirname, "..");
 const CHECK = process.argv.includes("--check");
-const DOCS = ["staff-i18n.js", "staff-company.js", "documents.js", "staff-doc-preview.js"];
+const DOCS = ["staff-company.js", "documents.js", "staff-doc-preview.js"];
 const hashOf = buf => crypto.createHash("sha256").update(buf).digest("hex").slice(0, 10);
 const read = rel => fs.readFileSync(path.join(ROOT, rel));
 

@@ -20,7 +20,7 @@ Le mobile n'est pas un cas secondaire : le personnel travaille dessus.
 
 **Toute l'interface est en néerlandais.** Le code interne (Airtable, variables) est en français ou en anglais — ne jamais laisser fuir ces termes à l'écran.
 
-Règle absolue : l'unité Airtable `caisse` s'affiche **kassa**, jamais « caisse » ni « doos ». La traduction passe par `staff-i18n.js` (`famoNL.unit`, `famoNL.status`, `famoNL.pay`). Un contrôle automatique bloque le déploiement si un libellé français apparaît.
+Règle absolue : l'unité Airtable `caisse` s'affiche **kassa**, jamais « caisse » ni « doos ». La traduction passe par `famoNL` dans `assets/ui.js` (`famoNL.unit`, `famoNL.status`, `famoNL.pay`). Un contrôle automatique bloque le déploiement si un libellé français apparaît.
 
 ---
 

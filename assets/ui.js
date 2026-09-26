@@ -147,7 +147,6 @@
   K.time = v => { const d = K.parseDate(v); return d ? String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") : ""; };
   K.relDay = iso => { if (!iso) return "—"; const t = K.today(); if (iso === t) return K.t("Vandaag"); if (iso === K.addDays(t, 1)) return K.t("Morgen"); if (iso === K.addDays(t, -1)) return K.t("Gisteren"); return K.date(iso); };
   K.initials = name => String(name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("") || "?";
-  K.uid = () => Math.random().toString(36).slice(2, 9);
 
   /* ---------- NL (interne waarden blijven Frans in Airtable) ---------- */
   K.NL = {
@@ -158,8 +157,16 @@
     // Catégories du catalogue Airtable (valeurs françaises historiques) ; repli : valeur brute.
     cat: { "poisson": "Vis", "poissons": "Vis", "coquillages": "Schelpdieren", "coquillage": "Schelpdieren", "crustacés": "Schaaldieren", "crustaces": "Schaaldieren", "crustacé": "Schaaldieren", "céphalopodes": "Inktvis", "fumé": "Gerookt", "surgelé": "Diepvries", "divers": "Algemeen", "général": "Algemeen", "": "Algemeen" }
   };
-  // staff-i18n.js (documents, e-mails) lit ce même dictionnaire : une seule source.
-  if (global.FAMO_NL) Object.assign(global.FAMO_NL, K.NL);
+  // documents.js lit ce même dictionnaire (famoNL) : une seule source (ancien staff-i18n.js).
+  global.FAMO_NL = K.NL;
+  global.famoNL = {
+    status: v => K.NL.status[v] || v,
+    pay: v => K.NL.pay[v] || v,
+    move: v => K.NL.move[v] || v,
+    unit: v => K.NL.unit[String(v || "").toLowerCase()] || v,
+    cat: v => K.NL.cat[String(v || "").trim().toLowerCase()] || String(v || "").trim() || "Algemeen",
+    lines: t => String(t || "").replace(/\b(caisse|carton|pièce|piece)\b/gi, m => K.NL.unit[m.toLowerCase()] || m)
+  };
   // Zelfde interne waarden, Franse labels voor het klantportaal.
   K.FRV = {
     status: { "Reçue": "Reçue", "Prête": "Préparée", "Sortie en livraison": "En livraison", "Facturée": "Livrée", "Annulée": "Annulée" },
@@ -195,7 +202,6 @@
   });
   K.formatLine = l => `${l.name} × ${K.qty(l.qty).replace(",", ".")}${l.unit ? " " + l.unit : ""}${l.price != null ? " [€" + Number(l.price).toFixed(2) + "]" : ""}${l.comment ? " (" + l.comment + ")" : ""}`;
   K.linesSummary = txt => K.parseLines(txt).map(l => K.qty(l.qty) + "× " + l.name).join(" · ");
-  K.dayOrder = o => o.dateLiv || o.date || "";
   K.isLate = o => o.statut !== "Facturée" && o.statut !== "Annulée" && o.dateLiv && o.dateLiv < K.today();
 
   /* ---------- opslag ---------- */
@@ -218,7 +224,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "aa7fc5aaf2";
+  K.DOCS_VER = "519a4811ce";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -229,7 +235,7 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    docsLoading = ["/staff-i18n.js", "/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
+    docsLoading = ["/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;
@@ -336,7 +342,6 @@
 
   /* ---------- componenten ---------- */
   const c = {};
-  c.btn = (label, opts) => { const o = opts || {}; return '<button type="button" class="btn ' + (o.kind ? "btn-" + o.kind : "btn-o") + (o.sm ? " btn-sm" : "") + (o.block ? " btn-block" : "") + (o.cls ? " " + o.cls : "") + '"' + (o.id ? ' id="' + o.id + '"' : "") + (o.attrs || "") + (o.disabled ? " disabled" : "") + '>' + (o.icon ? K.icon(o.icon) : "") + K.esc(label) + '</button>'; };
   c.field = (label, inputHtml, opts) => { const o = opts || {}; return '<div class="field"' + (o.id ? ' id="' + o.id + '"' : "") + '><label' + (o.for ? ' for="' + o.for + '"' : "") + '>' + K.esc(label) + (o.req ? ' <span style="color:var(--danger)">*</span>' : "") + '</label>' + inputHtml + (o.hint ? '<span class="quiet" style="font-size:12px">' + K.esc(o.hint) + '</span>' : "") + '<span class="err" data-err></span></div>'; };
   c.input = (id, opts) => { const o = opts || {}; return '<input class="input" id="' + id + '" type="' + (o.type || "text") + '"' + (o.value != null ? ' value="' + K.esc(o.value) + '"' : "") + (o.placeholder ? ' placeholder="' + K.esc(o.placeholder) + '"' : "") + (o.attrs || "") + '>'; };
   c.empty = (title, text, action) => '<div class="state"><div class="ic">' + K.icon("orders") + '</div><b>' + K.esc(title) + '</b>' + (text ? '<p class="sub" style="max-width:320px;white-space:normal">' + K.esc(text) + '</p>' : "") + (action || "") + '</div>';
@@ -388,7 +393,6 @@
     const first = s.querySelector("input,select,textarea,button:not([data-close])"); if (first) try { first.focus(); } catch (e) { /* ignore */ }
     return { el: s, close, body: s.querySelector(".panel-b"), footer: s.querySelector(".panel-f") };
   };
-  K.bind = (root, sel, ev, fn) => (root || document).querySelectorAll(sel).forEach(el => el.addEventListener(ev, fn));
   const delegated = new WeakMap();
   K.on = (root, ev, sel, fn) => {
     const host = root || document, key = ev + ":" + sel;

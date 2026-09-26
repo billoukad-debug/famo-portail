@@ -1,5 +1,5 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const { at, atAll } = require("../lib/airtable");
+const { atAll } = require("../lib/airtable");
 // Bestellingen van de aangemelde klant. POST {user, pw} -> {orders}.
 // Détail suffisant pour une fiche côté client (nota, factuur, betaling, annulation),
 // jamais rien d'interne (Correcties, boîte ops, notes préfixées d'une source restent

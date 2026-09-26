@@ -1,10 +1,12 @@
 # Avant de pousser du code
 
 ```bash
+node scripts/assets-version.js   # met à jour les ?v= des scripts/feuilles (cache long) après une modif front
 node scripts/check.js
+npx --yes eslint@9 .
 ```
 
-Vert = déployable. Le même contrôle tourne sur GitHub à chaque push (onglet Actions).
+Vert = déployable. `check.js` refuse une version de fichier périmée (sinon un navigateur garderait l'ancien script en cache). Le même contrôle tourne sur GitHub à chaque push (onglet Actions).
 
 ## Ce qui est vérifié
 - Syntaxe de tout le JavaScript et des scripts inline.

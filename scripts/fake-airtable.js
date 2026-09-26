@@ -261,7 +261,7 @@ function startServer(db, { port = 0, token = "dev-token", latencyMs = 0 } = {}) 
       }
       if (req.method === "POST") { const body = await readJson(req); if (!Array.isArray(body.records) || body.records.length > 10) return send(422, { error: { type: "INVALID_REQUEST_BODY", message: "records must be an array of at most 10" } }); const out = db.create(table, body.records.map((r) => r.fields || {}), !!body.typecast); db.save(); return send(200, { records: out }); }
       if (req.method === "PATCH" && id) { const body = await readJson(req); const out = db.update(table, [{ id, fields: body.fields || {} }], !!body.typecast); db.save(); return send(200, project(out[0])); }
-      if (req.method === "DELETE" && id) { const out = db.remove(table, [id]); db.save(); return send(200, { deleted: true, id }); }
+      if (req.method === "DELETE" && id) { db.remove(table, [id]); db.save(); return send(200, { deleted: true, id }); }
       if (req.method === "PATCH") { const body = await readJson(req); if (!Array.isArray(body.records) || body.records.length > 10) return send(422, { error: { type: "INVALID_REQUEST_BODY", message: "records must be an array of at most 10" } }); const out = db.update(table, body.records, !!body.typecast); db.save(); return send(200, { records: out }); }
       if (req.method === "DELETE") { const ids = url.searchParams.getAll("records[]"); const out = db.remove(table, ids); db.save(); return send(200, { records: out }); }
       send(405, { error: { type: "METHOD_NOT_ALLOWED", message: "Method not allowed" } });

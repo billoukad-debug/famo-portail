@@ -1,5 +1,5 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const { at, atAll } = require("../lib/airtable");
+const { atAll } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
