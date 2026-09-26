@@ -435,8 +435,49 @@
     const app = document.getElementById("app");
     app.innerHTML = '<div class="shell">' + side + '<div class="main">' + top + '<div id="page"></div></div></div>';
     K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
+    globalSearch(app);
     return document.getElementById("page");
   };
+
+  // Zoekveld bovenaan (elke personeelspagina) : zoekt in alle bestellingen op referentie, klant,
+  // artikel of factuurnummer ; ↑↓ kiezen, Enter opent, Esc sluit. « / » springt naar het veld.
+  function globalSearch(app) {
+    const input = app.querySelector("#globalSearch"); if (!input) return;
+    const box = input.closest(".search"); box.style.position = "relative";
+    const list = document.createElement("div"); list.className = "gs-list"; list.setAttribute("role", "listbox"); list.hidden = true; box.appendChild(list);
+    input.setAttribute("role", "combobox"); input.setAttribute("aria-expanded", "false"); input.setAttribute("aria-autocomplete", "list");
+    let hits = [], cur = 0;
+    const source = () => (global.S && global.S.load ? global.S.load().then(S => S.orders) : K.api("/api/allorders").then(d => d.orders || []));
+    const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
+    const open = o => { location.href = "/order.html?id=" + encodeURIComponent(o.id); };
+    const paint = () => {
+      list.innerHTML = hits.length ? hits.map((o, i) => '<a role="option" href="/order.html?id=' + encodeURIComponent(o.id) + '" class="gs-item' + (i === cur ? " on" : "") + '"' + (i === cur ? ' aria-selected="true"' : "") + '><b>' + K.esc(o.client || "—") + '</b><span class="quiet mono">' + K.esc(o.ref || "") + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</span><span class="quiet">' + K.esc(K.relDay(o.dateLiv || o.date || "")) + " · " + K.esc(K.status(o.statut)) + '</span></a>').join("") : '<div class="gs-empty quiet">Geen bestelling gevonden</div>';
+      list.hidden = false; input.setAttribute("aria-expanded", "true");
+    };
+    const search = K.debounce(async () => {
+      const q = input.value.trim().toLowerCase(); if (q.length < 2) { close(); return; }
+      let orders = []; try { orders = await source(); } catch (e) { return; }
+      if (input.value.trim().toLowerCase() !== q) return;
+      const words = q.split(/\s+/);
+      hits = orders.filter(o => { const hay = [o.ref, o.client, o.factuurnummer, o.lignes, o.notes].join(" ").toLowerCase(); return words.every(w => hay.includes(w)); })
+        .sort((a, b) => String(b.dateLiv || b.date || "").localeCompare(String(a.dateLiv || a.date || ""))).slice(0, 8);
+      cur = 0; paint();
+    }, 150);
+    input.addEventListener("input", search);
+    input.addEventListener("focus", () => { if (input.value.trim().length >= 2) search(); });
+    input.addEventListener("keydown", e => {
+      if (e.key === "Escape") { close(); input.blur(); return; }
+      if (list.hidden || !hits.length) return;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); cur = (cur + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length; paint(); }
+      else if (e.key === "Enter") { e.preventDefault(); open(hits[cur]); }
+    });
+    document.addEventListener("click", e => { if (!box.contains(e.target)) close(); });
+    document.addEventListener("keydown", e => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault(); input.focus(); input.select();
+    });
+  }
   // Aanmeldpagina voor personeel/beheer op een pagina zelf (inline), met terugkeer.
   K.requireStaff = async function (opts) {
     const o = opts || {};

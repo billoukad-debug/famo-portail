@@ -49,5 +49,10 @@
   } });
   S.bindActions(page, render);
   page.innerHTML = '<div class="page-h"><h1 class="h1">Leveringen</h1></div><div class="content">' + K.c.skeleton(3) + '</div>';
-  try { await S.load(); render(); } catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message) + '</div>'; }
+  async function first(force) {
+    try { await S.load(force); render(); return true; }
+    catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message, true) + '</div>'; return false; }
+  }
+  K.on(page, "click", "[data-retry]", async e => { e.preventDefault(); if (await first(true)) S.autoRefresh(render); });
+  if (await first()) S.autoRefresh(render);
 })();

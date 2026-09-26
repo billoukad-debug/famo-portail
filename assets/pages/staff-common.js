@@ -20,6 +20,28 @@
     return S;
   };
   S.byId = id => S.orders.find(o => o.id === id);
+  // Automatisch vernieuwen (elke 60 s) : enkel als het tabblad zichtbaar is en niemand bezig is
+  // (paneel open, slepen, typen). Nieuwe bestellingen → melding + teller in de tabtitel.
+  // Er wordt enkel opnieuw getekend als er echt iets veranderde.
+  S.autoRefresh = function (render, everyMs) {
+    const known = new Set(S.orders.map(o => o.id)), base = document.title.replace(/^\(\d+\) /, "");
+    const sig = () => S.orders.map(o => [o.id, o.statut, o.paiement, o.total, o.volgorde, o.lignes].join("|")).join("\n");
+    let last = sig(), fresh = 0;
+    const busy = () => document.hidden || document.querySelector(".scrim, .dialog, .drag-ghost") || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+    const tick = async () => {
+      if (busy()) return;
+      try { await S.load(true); } catch (e) { return; }
+      const nieuw = S.orders.filter(o => !known.has(o.id) && o.statut === "Reçue");
+      S.orders.forEach(o => known.add(o.id));
+      if (nieuw.length) {
+        fresh += nieuw.length; document.title = "(" + fresh + ") " + base;
+        K.toast(nieuw.length === 1 ? "Nieuwe bestelling: " + nieuw[0].client : nieuw.length + " nieuwe bestellingen", { action: "Bekijken", ms: 12000, onAction: () => { location.href = "/order.html?id=" + encodeURIComponent(nieuw[0].id); } });
+      }
+      const now = sig(); if (now !== last && !busy()) { last = now; render(); }
+    };
+    setInterval(tick, everyMs || 60000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) { fresh = 0; document.title = base; tick(); } });
+  };
   S.counts = () => { const t = K.today(); return { today: S.orders.filter(o => o.day === t && !K.isClosed(o)).length, prep: S.orders.filter(o => o.statut === "Reçue").length, ready: S.orders.filter(o => o.statut === "Prête").length, road: S.orders.filter(o => o.statut === "Sortie en livraison").length, late: S.orders.filter(o => o.late).length, unpaid: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").length, unpaidSum: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").reduce((s, o) => s + Number(o.total || 0), 0) }; };
   S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); K.session.del(CACHE_KEY); await S.load(true); return d; };
   S.invalidate = () => K.session.del(CACHE_KEY);
@@ -176,7 +198,14 @@
   // Vertrek : de server beslist over de voorraad (Beheer → « Voorraad afboeken ») en mailt de klant.
   S.depart = async function (o, onDone) {
     if (!(await K.confirm({ title: "Ronde vertrekt?", text: o.client + " · " + o.ref + " gaat op Onderweg. Daarna kunnen de artikelen niet meer gewijzigd worden.", yes: "Vertrekken" }))) return;
-    try { const d = await S.update(o.id, { statut: "Sortie en livraison" }); K.toast(o.client + " is onderweg" + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad afgeboekt" : "") + S.mailTxt(d.mail)); if (onDone) onDone(d); } catch (err) { K.toast(err.message, { kind: "err" }); }
+    try {
+      const d = await S.update(o.id, { statut: "Sortie en livraison" });
+      // Ongedaan maken = de gewone correctie « terug » (voorraad teruggeboekt, regel in het journaal).
+      K.toast(o.client + " is onderweg" + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad afgeboekt" : "") + S.mailTxt(d.mail), { action: "Ongedaan maken", ms: 9000, onAction: async () => {
+        try { await S.update(o.id, { correction: "terug", reden: "Vertrek meteen ongedaan gemaakt" }); K.toast(o.client + " staat terug op Klaar"); if (onDone) onDone(); } catch (err) { K.toast(err.message, { kind: "err" }); }
+      } });
+      if (onDone) onDone(d);
+    } catch (err) { K.toast(err.message, { kind: "err" }); }
   };
   // Betaalwijze kiezen (één keer, ook voor een groepsactie). null = geannuleerd.
   S.askMode = (title, text) => new Promise(resolve => {
@@ -195,7 +224,13 @@
       return;
     }
     const mode = await S.askMode("Markeren als betaald", o.client + " · " + (o.factuurnummer || o.ref) + " · " + K.eur(t.incl) + " incl. btw"); if (!mode) return;
-    try { await S.update(o.id, { paiement: "Payé", modePaiement: mode }); K.toast("Gemarkeerd als betaald (" + mode + ")"); if (onDone) onDone(); } catch (err) { K.toast(err.message, { kind: "err" }); }
+    try {
+      await S.update(o.id, { paiement: "Payé", modePaiement: mode });
+      K.toast("Gemarkeerd als betaald (" + mode + ")", { action: "Ongedaan maken", ms: 9000, onAction: async () => {
+        try { await S.update(o.id, { paiement: "En attente", reden: "Betaling meteen ongedaan gemaakt" }); K.toast("Terug op openstaand"); if (onDone) onDone(); } catch (err) { K.toast(err.message, { kind: "err" }); }
+      } });
+      if (onDone) onDone();
+    } catch (err) { K.toast(err.message, { kind: "err" }); }
   };
   /* ---------- creditnota (paneel, enkel beheerder, enkel op een gefactureerde bestelling) ---------- */
   S.creditnotaPanel = function (o, onDone) {

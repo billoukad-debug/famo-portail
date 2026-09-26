@@ -3,7 +3,14 @@
   const page = K.shell({});
   const P = K.hashParams(); const qs = new URLSearchParams(location.search);
   // ?klant=<clientId> : Beheer → Klanten linkt hierheen ; ?all=1 : volledige historiek.
-  let view = P.path || K.store.get("famoOrdersView", "tabel"), filter = { status: P.params.status || "open", client: "", clientId: qs.get("klant") || "", q: "" }, week0 = K.today();
+  // Filters en sortering blijven bewaard op dit toestel (famoOrdersFilter) ; een link met ?status of ?klant gaat voor.
+  const FKEY = "famoOrdersFilter", saved = K.store.get(FKEY, {}) || {};
+  let view = P.path || K.store.get("famoOrdersView", "tabel"), filter = { status: P.params.status || saved.status || "open", client: saved.client || "", clientId: qs.get("klant") || "", q: saved.q || "", van: saved.van || "", tot: saved.tot || "" }, week0 = K.today();
+  let sort = saved.sort && saved.sort.key ? saved.sort : { key: "", dir: 1 };
+  const saveFilter = () => K.store.set(FKEY, { status: filter.status, client: filter.client, q: filter.q, van: filter.van, tot: filter.tot, sort });
+  const SORTS = { day: o => o.day || "", client: o => String(o.client || "").toLowerCase(), statut: o => K.STATUSES.indexOf(o.statut), total: o => Number(o.total) || 0 };
+  const bySort = (a, b) => { if (!sort.key) return 0; const f = SORTS[sort.key], x = f(a), y = f(b); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir; };
+  const th = (key, label, cls) => '<th' + (cls ? ' class="' + cls + '"' : "") + ' aria-sort="' + (sort.key === key ? (sort.dir > 0 ? "ascending" : "descending") : "none") + '"><button type="button" class="th-sort" data-sort="' + key + '">' + label + (sort.key === key ? (sort.dir > 0 ? " ▲" : " ▼") : "") + '</button></th>';
   const sel = new Set();
   const clientName = id => { const o = S.orders.find(x => x.clientId === id); return o ? o.client : id; };
   function header() {
@@ -14,6 +21,9 @@
       '<select class="input tool" id="fStatus" aria-label="Status" style="width:auto;padding:0 8px"><option value="open"' + (filter.status === "open" ? " selected" : "") + '>Open bestellingen</option><option value="all"' + (filter.status === "all" ? " selected" : "") + '>Alle</option><option value="Reçue"' + (filter.status === "Reçue" ? " selected" : "") + '>Ontvangen</option><option value="Prête"' + (filter.status === "Prête" ? " selected" : "") + '>Klaar</option><option value="Sortie en livraison"' + (filter.status === "Sortie en livraison" ? " selected" : "") + '>Onderweg</option><option value="Facturée"' + (filter.status === "Facturée" ? " selected" : "") + '>Geleverd</option><option value="unpaid"' + (filter.status === "unpaid" ? " selected" : "") + '>Openstaande betaling</option><option value="late"' + (filter.status === "late" ? " selected" : "") + '>Te laat</option><option value="Annulée"' + (filter.status === "Annulée" ? " selected" : "") + '>Geannuleerd</option></select>' +
       (filter.clientId ? '<span class="tag" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px 0 10px">Klant: <b>' + K.esc(clientName(filter.clientId)) + '</b><button type="button" class="ibtn" id="clearKlant" aria-label="Klantfilter wissen" style="width:32px;height:32px">' + K.icon("x") + '</button></span>' :
         '<select class="input tool" id="fClient" aria-label="Klant" style="width:auto;padding:0 8px"><option value="">Alle klanten</option>' + Array.from(new Set(S.orders.map(o => o.client))).sort((a, b) => a.localeCompare(b, "nl")).map(c2 => '<option' + (filter.client === c2 ? " selected" : "") + '>' + K.esc(c2) + '</option>').join("") + '</select>') +
+      '<label class="quiet" style="font-size:12px;display:inline-flex;align-items:center;gap:4px">van <input type="date" class="input tool" id="fVan" aria-label="Leverdag vanaf" value="' + K.esc(filter.van) + '" style="width:auto;min-width:150px"></label>' +
+      '<label class="quiet" style="font-size:12px;display:inline-flex;align-items:center;gap:4px">tot <input type="date" class="input tool" id="fTot" aria-label="Leverdag tot en met" value="' + K.esc(filter.tot) + '" style="width:auto;min-width:150px"></label>' +
+      (filter.q || filter.client || filter.van || filter.tot || filter.status !== "open" || sort.key ? '<button type="button" class="tool" id="fReset">' + K.icon("x") + 'Filters wissen</button>' : "") +
       '<span class="spacer"></span>' + (S.window ? '<span class="quiet" style="font-size:12px">open + laatste ' + S.window + ' dagen · <a href="#" id="loadAll">Alles laden</a></span>' : '<span class="quiet" style="font-size:12px">volledige historiek</span>') + '<button type="button" class="tool" id="reload">' + K.icon("refresh") + 'Vernieuwen</button></div>';
   }
   function filtered() {
@@ -27,6 +37,8 @@
       if (o.statut === K.CANCELLED && filter.status !== K.CANCELLED && filter.status !== "all") return false;
       if (filter.clientId && o.clientId !== filter.clientId) return false;
       if (filter.client && o.client !== filter.client) return false;
+      if (filter.van && (o.day || "") < filter.van) return false;
+      if (filter.tot && (o.day || "") > filter.tot) return false;
       if (q && !(o.ref + " " + o.client + " " + o.lignes + " " + (o.factuurnummer || "") + " " + (o.creditnota && o.creditnota.nummer || "")).toLowerCase().includes(q)) return false;
       return true;
     });
@@ -37,7 +49,7 @@
   function tabel(list) {
     const groups = [["Te laat", o => o.late, "var(--danger)"], ["Vandaag", o => o.day === K.today(), "var(--st-new)"], ["Morgen", o => o.day === K.addDays(K.today(), 1), "var(--st-ready)"], ["Later", o => o.day > K.addDays(K.today(), 1), "var(--st-road)"], ["Eerder", o => o.day < K.today(), "var(--st-inv)"]];
     const used = new Set(); let html = "";
-    groups.forEach(([label, fn, color]) => { const rows = list.filter(o => !used.has(o.id) && fn(o)); rows.forEach(o => used.add(o.id)); if (!rows.length) return; const sum = rows.reduce((s, o) => s + Number(o.total || 0), 0); html += '<div class="grp"><div class="grp-h" style="border-left-color:' + color + '">' + label + ' <small>' + rows.length + ' · ' + K.eur(sum) + '</small></div><div class="tblwrap"><table class="tbl"><thead><tr><th>' + K.c.check(rows.every(o => sel.has(o.id)), 'data-selall="' + label + '"', { label: "Alles selecteren: " + label }) + '</th><th>Levering</th><th>Klant</th><th>Artikelen</th><th>Status</th><th class="hide-md">Betaling</th><th class="num">Bedrag</th><th></th></tr></thead><tbody>' + rows.map(rowHtml).join("") + '</tbody></table></div></div>'; });
+    groups.forEach(([label, fn, color]) => { const rows = list.filter(o => !used.has(o.id) && fn(o)).sort(bySort); rows.forEach(o => used.add(o.id)); if (!rows.length) return; const sum = rows.reduce((s, o) => s + Number(o.total || 0), 0); html += '<div class="grp"><div class="grp-h" style="border-left-color:' + color + '">' + label + ' <small>' + rows.length + ' · ' + K.eur(sum) + '</small></div><div class="tblwrap"><table class="tbl"><thead><tr><th>' + K.c.check(rows.every(o => sel.has(o.id)), 'data-selall="' + label + '"', { label: "Alles selecteren: " + label }) + '</th>' + th("day", "Levering") + th("client", "Klant") + '<th>Artikelen</th>' + th("statut", "Status") + '<th class="hide-md">Betaling</th>' + th("total", "Bedrag", "num") + '<th></th></tr></thead><tbody>' + rows.map(rowHtml).join("") + '</tbody></table></div></div>'; });
     return html || K.c.empty("Geen bestellingen in deze selectie", "Pas de filters aan of vernieuw de lijst.");
   }
   function bord(list) {
@@ -56,10 +68,14 @@
     return '<div class="bulk"><b>' + sel.size + '</b> geselecteerd<button type="button" class="btn btn-sm" style="background:#fff;color:var(--ink)" data-bulk="picking">Verzamellijst</button><button type="button" class="btn btn-sm" ' + st + ' data-bulk="delivery">Leveringsbonnen</button>' + (unpaid ? '<button type="button" class="btn btn-sm" ' + st + ' data-bulk="paid">Markeer betaald (' + unpaid + ')</button>' : "") + '<button type="button" class="btn btn-sm" ' + st + ' data-bulk="csv">Exporteren (CSV)</button><button type="button" class="ibtn" style="color:#fff" data-bulk="clear" aria-label="Selectie wissen">' + K.icon("x") + '</button></div>';
   }
   function render() {
+    saveFilter();
     const list = filtered();
     page.innerHTML = header() + '<div class="content" style="padding-top:4px">' + (view === "bord" ? bord(list) : view === "kalender" ? kalender(list) : tabel(list)) + '</div>' + bulkBar();
     const q = page.querySelector("#q"); q.addEventListener("input", K.debounce(() => { filter.q = q.value; const pos = q.selectionStart; render(); const n = page.querySelector("#q"); n.focus(); n.setSelectionRange(pos, pos); }, 150));
     page.querySelector("#fStatus").onchange = e => { filter.status = e.target.value; render(); };
+    page.querySelector("#fVan").onchange = e => { filter.van = e.target.value; render(); };
+    page.querySelector("#fTot").onchange = e => { filter.tot = e.target.value; render(); };
+    const fr = page.querySelector("#fReset"); if (fr) fr.onclick = () => { filter = Object.assign(filter, { status: "open", client: "", q: "", van: "", tot: "" }); sort = { key: "", dir: 1 }; render(); };
     const fc = page.querySelector("#fClient"); if (fc) fc.onchange = e => { filter.client = e.target.value; render(); };
     const ck = page.querySelector("#clearKlant"); if (ck) ck.onclick = () => { filter.clientId = ""; history.replaceState(null, "", location.pathname + location.hash); render(); };
     page.querySelector("#reload").onclick = async () => { await load(true); };
@@ -88,6 +104,8 @@
     }
   });
   S.bindActions(page, () => render());
+  // Kolomkop : eerste klik oplopend, tweede aflopend, derde terug naar standaard.
+  K.on(page, "click", "[data-sort]", (e, t) => { e.stopPropagation(); const k = t.dataset.sort; sort = sort.key !== k ? { key: k, dir: 1 } : sort.dir > 0 ? { key: k, dir: -1 } : { key: "", dir: 1 }; render(); });
   // Bord : een kaart naar de volgende kolom slepen = dezelfde stap als de knop (valideren, vertrekken,
   // ontvangst bevestigen) ; één kolom terug = Corrigeren (met reden). Andere sprongen worden geweigerd.
   const FLOW = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
@@ -107,5 +125,5 @@
     catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message, true) + '</div>'; K.on(page, "click", "[data-retry]", e => { e.preventDefault(); load(true); }); }
   }
   page.innerHTML = '<div class="page-h"><h1 class="h1">Bestellingen</h1></div><div class="content">' + K.c.skeleton(4) + '</div>';
-  load(false, qs.get("all") === "1");
+  load(false, qs.get("all") === "1").then(() => { if (S.orders.length || S.loadedAt) S.autoRefresh(render); });
 })();

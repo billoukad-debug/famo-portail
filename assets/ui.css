@@ -317,3 +317,12 @@ html.dragging,html.dragging *{cursor:grabbing!important;user-select:none!importa
 .drag-ghost.ccat{background:var(--card)}
 /* Leveringen op telefoon : slepen aan de greep vervangt ▲▼ (die blijven op tablet/pc voor het toetsenbord) */
 @media (max-width:560px){.stop .mv{display:none!important}.stop>div[style*="flex:1"]{flex:1 1 calc(100% - 90px)!important}}
+/* zoeklijst bovenaan (K.shell → globalSearch) */
+.gs-list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:6px;max-height:min(420px,70vh);overflow:auto}
+.gs-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 10px;border-radius:var(--r);color:var(--ink);text-decoration:none;font-size:13.5px;min-height:44px}
+.gs-item span:last-child{grid-column:1/-1;font-size:12px}.gs-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.gs-item:hover,.gs-item.on{background:var(--p-soft);text-decoration:none;color:var(--ink)}
+.gs-empty{padding:12px 10px;font-size:13px}
+.th-sort{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:2px;min-height:40px;font:inherit;font-weight:700;color:inherit}
+.th-sort:hover{color:var(--p)}.th-sort:focus-visible{outline:2px solid var(--p);outline-offset:2px;border-radius:4px}
+.tbl th.num .th-sort{justify-content:flex-end;width:100%}

@@ -2,7 +2,9 @@
   if (!(await K.requireStaff())) return;
   const page = K.shell({});
   const qs = new URLSearchParams(location.search);
-  let type = K.hashParams().path || "alle", client = qs.get("klant") || "", q = "", van = qs.get("van") || "", tot = qs.get("tot") || "";
+  // Filters bewaard op dit toestel (famoDocsFilter) ; een link met ?klant/?van/?tot gaat voor.
+  const DKEY = "famoDocsFilter", sv = K.store.get(DKEY, {}) || {};
+  let type = K.hashParams().path || "alle", client = qs.get("klant") || sv.client || "", q = sv.q || "", van = qs.get("van") || sv.van || "", tot = qs.get("tot") || sv.tot || "";
   function docs() {
     const out = [];
     S.orders.forEach(o => {
@@ -16,6 +18,7 @@
   }
   const label = k => k === "invoice" ? "Factuur" : k === "credit" ? "Creditnota" : "Leveringsbon";
   function render() {
+    K.store.set(DKEY, { client, q, van, tot });
     const list = docs(); const c = S.counts(); const inv = list.filter(d => d.kind === "invoice");
     page.innerHTML = '<div class="page-h"><div><h1 class="h1">Documenten</h1><p class="sub">Facturen, creditnota\'s en leveringsbonnen</p></div><span class="spacer"></span>' + K.c.kpi(K.eur(c.unpaidSum), "openstaand") + K.c.kpi(c.unpaid, "onbetaalde facturen", c.unpaid > 0) + '</div>' +
       '<div class="views">' + [["alle", "Alle"], ["facturen", "Facturen"], ["bonnen", "Leveringsbonnen"], ["open", "Openstaand"], ["creditnotas", "Creditnota's"]].map(([k, l]) => '<a href="#/' + k + '"' + (type === k ? ' class="on"' : "") + '>' + l + '</a>').join("") + '</div>' +
