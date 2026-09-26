@@ -9,6 +9,20 @@ window.FamoDocuments=(()=>{
   const addDays=(value,days)=>{const d=toDate(value);if(!d)return"";d.setDate(d.getDate()+Number(days||0));return d.toISOString();};
   const todayIso=()=>new Date().toISOString();
   const todayBrussels=()=>{try{return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Brussels"}).format(new Date());}catch(e){return new Date().toISOString().slice(0,10);}};
+  // Taal van het document = taal van de klant (Clients.Taal : NL of FR). Standaard NL.
+  const T={
+    nl:{delivery:"LEVERINGSBON",invoice:"FACTUUR",credit:"CREDITNOTA",bank:"Bankgegevens",beneficiary:"Begunstigde",ref:"Mededeling",example:"Voorbeeld — nog niet definitief",
+      paid:"Betaald",paidOn:"Betaald op",creditOn:"Creditnota op factuur",reason:"Reden",creditDate:"Creditnotadatum",invoiceDate:"Factuurdatum",dueDate:"Vervaldatum",deliveryDate:"Leverdatum",
+      date:"Datum",document:"Document",order:"Bestelling",invoiceNo:"Factuur",customerNo:"Klantnummer",payStatus:"Betaalstatus",customer:"Klant",vat:"BTW",desc:"Beschrijving",qty:"Aantal",unit:"Eenheid",
+      unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
+      exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
+    fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
+      paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
+      date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
+      unitPrice:"Prix unitaire",subtotal:"Sous-total",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
+      exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
+  };
+  const langOf=order=>{const v=String((order&&(order.taal||(order.klant&&order.klant.taal)))||"").trim().toLowerCase();return v==="fr"?"fr":"nl";};
   // Company identity from /api/config. Missing IBAN/BIC → temporary example bank (banner on invoice).
   let COMPANY={
     nom:"",
@@ -138,9 +152,10 @@ window.FamoDocuments=(()=>{
     const tva=cents(groups.reduce((s,g)=>s+g.tva,0));
     const total=cents(htva+tva);
     const num=number(order,type);
-    const title=credit?"CREDITNOTA":(invoice?"FACTUUR":"LEVERINGSBON");
+    const lang=langOf(order), L=T[lang];
+    const title=credit?L.credit:(invoice?L.invoice:L.delivery);
     // Rendu uniquement à partir d'ici — parse/calculs inchangés (parité M6).
-    const nlUnit=value=>(typeof window!=="undefined"&&window.famoNL)?famoNL.unit(value):value;
+    const nlUnit=value=>L.units[String(value||"").toLowerCase()]||((lang==="nl"&&typeof window!=="undefined"&&window.famoNL)?famoNL.unit(value):value);
     const ibanFmt=value=>String(value||"").replace(/\s+/g,"").replace(/(.{4})/g,"$1 ").trim();
     const ogm=invoice?structuredRef(order.factuurnummer):"";
     const lineRows=rows.map(row=>{
@@ -149,27 +164,27 @@ window.FamoDocuments=(()=>{
       const sub=unitPrice==null?null:unitPrice*qty;
       return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+'</td><td class="num">'+esc(qtyTxt(row.qty))+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
-    const bank='<div class="bank"><div class="banklabel">Bankgegevens</div>'+
-      '<div class="bankrow"><span>Begunstigde</span><b>'+esc(COMPANY.nom)+'</b></div>'+
+    const bank='<div class="bank"><div class="banklabel">'+L.bank+'</div>'+
+      '<div class="bankrow"><span>'+L.beneficiary+'</span><b>'+esc(COMPANY.nom)+'</b></div>'+
       '<div class="bankrow"><span>IBAN</span><b class="mono">'+esc(ibanFmt(COMPANY.iban))+'</b></div>'+
       (COMPANY.bic?'<div class="bankrow"><span>BIC</span><b class="mono">'+esc(COMPANY.bic)+'</b></div>':'')+
-      (ogm?'<div class="bankrow"><span>Mededeling</span><b class="mono">'+esc(ogm)+'</b></div>':'')+
-      (COMPANY.exampleBank?'<div class="bankexample"><em>Voorbeeld — nog niet definitief</em></div>':'')+
+      (ogm?'<div class="bankrow"><span>'+L.ref+'</span><b class="mono">'+esc(ogm)+'</b></div>':'')+
+      (COMPANY.exampleBank?'<div class="bankexample"><em>'+L.example+'</em></div>':'')+
       '</div>';
     // Betaalstatus enkel wanneer betaald (met datum indien gekend).
     const paid=String(order.paiement||"")==="Payé"||/^(betaald|payé)$/i.test(String(order.paiement||""));
-    const paidTxt=paid?("Betaald"+(order.payeLe?" op "+date(order.payeLe):"")):"";
+    const paidTxt=paid?(order.payeLe?L.paidOn+" "+date(order.payeLe):L.paid):"";
     const terms=COMPANY.betalingsvoorwaarden?esc(COMPANY.betalingsvoorwaarden):"";
     const foot=credit
-      ? 'Creditnota op factuur '+esc(order.factuurnummer||"—")+'.'+(cn.motif?' Reden: '+esc(cn.motif)+'.':'')+(terms?' '+terms:'')
+      ? L.creditOn+' '+esc(order.factuurnummer||"—")+'.'+(cn.motif?' '+L.reason+': '+esc(cn.motif)+'.':'')+(terms?' '+terms:'')
       : (invoice
         ? terms
-        : esc(COMPANY.leveringsvoorwaarden||'Goederen ontvangen in goede staat en conform.').replace(/\n/g,'<br>'));
-    const banners=(invoice&&COMPANY.exampleBank?'<div class="banner"><b>Voorbeeld bankgegevens.</b> '+(window.famoCompany?esc(famoCompany.EXAMPLE.label):'Vervang IBAN/BIC via Beheer vóór echte facturatie.')+'</div>':'');
+        : esc(COMPANY.leveringsvoorwaarden||"").replace(/\n/g,'<br>'));
+    const banners=(invoice&&COMPANY.exampleBank?'<div class="banner"><b>'+L.exampleBanner+'</b> '+(lang==="nl"&&window.famoCompany?esc(famoCompany.EXAMPLE.label):L.exampleFix)+'</div>':'');
     // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
     const mark='<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="#4876A2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25V1.75h9.5"/><path d="M3.75 8h3.05c1.5 0 1.85-1.4 3.35-1.4s1.6 1.4 3.1 1.4"/></g></svg>';
-    const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?"BTW "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
-    const mast='<header class="mast"><div class="brand">'+mark+'<div class="wordmark">'+esc(COMPANY.nom||"—")+'</div></div><div class="coords">'+(coords||'<em>Bedrijfsgegevens niet geladen</em>')+'</div></header>';
+    const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?L.vat+" "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
+    const mast='<header class="mast"><div class="brand">'+mark+'<div class="wordmark">'+esc(COMPANY.nom||"—")+'</div></div><div class="coords">'+(coords||'<em>'+L.noCompany+'</em>')+'</div></header>';
     const klant=order.klant||{};
     const metaCell=(label,value,mono)=>value?'<div><div class="metalabel">'+label+'</div><div class="metavalue'+(mono?' mono':'')+'">'+esc(value)+'</div></div>':'';
     // Datums : factuur = Facturée le (anders vandaag) + vervaldatum ; creditnota = datum creditnota ;
@@ -178,29 +193,29 @@ window.FamoDocuments=(()=>{
     const vervaldatum=invoice?addDays(factuurdatum,COMPANY.betaaltermijnDagen):"";
     const leverdatum=invoice?(order.livreeLe||order.dateLiv||""):(order.dateLiv||"");
     const dates=credit
-      ? metaCell("Creditnotadatum",date(cn.le||todayIso()))
+      ? metaCell(L.creditDate,date(cn.le||todayIso()))
       : (invoice
-        ? metaCell("Factuurdatum",date(factuurdatum))+metaCell("Vervaldatum",date(vervaldatum))+(leverdatum?metaCell("Leverdatum",date(leverdatum)):"")
-        : metaCell("Datum",date(order.livreeLe||todayIso()))+(leverdatum?metaCell("Leverdatum",date(leverdatum)):""));
+        ? metaCell(L.invoiceDate,date(factuurdatum))+metaCell(L.dueDate,date(vervaldatum))+(leverdatum?metaCell(L.deliveryDate,date(leverdatum)):"")
+        : metaCell(L.date,date(order.livreeLe||todayIso()))+(leverdatum?metaCell(L.deliveryDate,date(leverdatum)):""));
     const metaband='<div class="metaband">'+
-      metaCell("Document",num,true)+
-      metaCell("Bestelling",order.ref,true)+
-      (!invoice&&order.factuurnummer?metaCell("Factuur",order.factuurnummer,true):"")+
+      metaCell(L.document,num,true)+
+      metaCell(L.order,order.ref,true)+
+      (!invoice&&order.factuurnummer?metaCell(L.invoiceNo,order.factuurnummer,true):"")+
       dates+
-      (klant.klantnr?metaCell("Klantnummer",klant.klantnr,true):"")+
-      (invoice&&paidTxt?metaCell("Betaalstatus",paidTxt):"")+
+      (klant.klantnr?metaCell(L.customerNo,klant.klantnr,true):"")+
+      (invoice&&paidTxt?metaCell(L.payStatus,paidTxt):"")+
       '</div>';
-    const klantBlock='<section class="party"><h2>Klant</h2><div class="partyname">'+esc(order.client)+'</div>'+
+    const klantBlock='<section class="party"><h2>'+L.customer+'</h2><div class="partyname">'+esc(order.client)+'</div>'+
       (klant.adresse?'<div class="partymeta">'+esc(klant.adresse).replace(/\n/g,"<br>")+'</div>':'')+
-      (klant.btw?'<div class="partymeta">BTW '+esc(klant.btw)+'</div>':'')+
+      (klant.btw?'<div class="partymeta">'+L.vat+' '+esc(klant.btw)+'</div>':'')+
       '</section>';
-    const table='<table><thead><tr><th>Beschrijving</th><th class="num">Aantal</th><th>Eenheid</th>'+
-      (priced?'<th class="num">Eenheidsprijs</th><th class="num">Subtotaal</th>':'')+
+    const table='<table><thead><tr><th>'+L.desc+'</th><th class="num">'+L.qty+'</th><th>'+L.unit+'</th>'+
+      (priced?'<th class="num">'+L.unitPrice+'</th><th class="num">'+L.subtotal+'</th>':'')+
       '</tr></thead><tbody>'+lineRows+'</tbody></table>';
     const totals='<div class="totals">'+
-      '<div class="trow"><span>Totaal excl. btw</span><span>'+eur(htva)+'</span></div>'+
-      groups.map(g=>'<div class="trow"><span>btw '+esc(String(g.rate).replace(".",","))+'%'+(groups.length>1?' <small>(op '+esc(eur(g.base))+')</small>':'')+'</span><span>'+eur(g.tva)+'</span></div>').join("")+
-      '<div class="trow grand"><span>Totaal incl. btw</span><span>'+eur(total)+'</span></div>'+
+      '<div class="trow"><span>'+L.totalEx+'</span><span>'+eur(htva)+'</span></div>'+
+      groups.map(g=>'<div class="trow"><span>'+L.vatLine+' '+esc(String(g.rate).replace(".",","))+'%'+(groups.length>1?' <small>('+L.on+' '+esc(eur(g.base))+')</small>':'')+'</span><span>'+eur(g.tva)+'</span></div>').join("")+
+      '<div class="trow grand"><span>'+L.totalInc+'</span><span>'+eur(total)+'</span></div>'+
       '</div>';
     const css='*{box-sizing:border-box}'+
       'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#232323;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
@@ -243,20 +258,20 @@ window.FamoDocuments=(()=>{
       '@media print{thead{display:table-header-group}tr{page-break-inside:avoid}.totals,.banner,.metaband{page-break-inside:avoid}.doc+.doc{margin-top:0}}';
     const body=mast+'<h1>'+title+'</h1>'+metaband+banners+klantBlock+table+
       (priced?totals+(invoice?bank:''):'')+
-      '<div class="foot">'+foot+'</div>';
-    return{num,title,css,body};
+      (foot?'<div class="foot">'+foot+'</div>':'');
+    return{num,title,css,body,lang};
   }
-  const wrap=(titleTxt,css,inner)=>'<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>'+esc(titleTxt)+'</title><style>'+css+'</style></head><body>'+inner+'</body></html>';
+  const wrap=(titleTxt,css,inner,lang)=>'<!doctype html><html lang="'+(lang||"nl")+'"><head><meta charset="utf-8"><title>'+esc(titleTxt)+'</title><style>'+css+'</style></head><body>'+inner+'</body></html>';
   function build(order,type){
     const r=render(order,type);
-    return wrap(r.num,r.css,r.body);
+    return wrap(r.num,r.css,r.body,r.lang);
   }
   // Meerdere documenten in één HTML (één <style>), elk op een eigen pagina.
   function buildMany(orders,type){
     const list=(orders||[]).map(o=>render(o,type));
     if(!list.length) throw new Error("Geen documenten om te bundelen.");
     const inner=list.map((r,i)=>'<div class="doc">'+r.body+'</div>'+(i<list.length-1?'<div style="page-break-after:always"></div>':'')).join("");
-    return wrap(list.length===1?list[0].num:list[0].title+" ("+list.length+")",list[0].css,inner);
+    return wrap(list.length===1?list[0].num:list[0].title+" ("+list.length+")",list[0].css,inner,list.every(r=>r.lang===list[0].lang)?list[0].lang:"nl");
   }
-  return{build,buildMany,number,structuredRef,filename,filenameMany,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
+  return{build,buildMany,langOf,number,structuredRef,filename,filenameMany,parse,eur,esc,date,setCompany,getCompany:()=>COMPANY,canInvoice,invoiceBlockReason,usingExampleBank};
 })();

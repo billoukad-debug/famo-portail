@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
         lignes: f["Lignes (produits / quantités)"] || "", total: f["Total"] || 0, statut: f["Statut"] || "Reçue",
         paiement: f["Statut paiement"] || "En attente", factuurnummer: f["Factuurnummer"] || "", notes: f["Notes"] || "",
         client: client.fields["Nom"] || "",
-        klant: { nom: client.fields["Nom"] || "", adresse: client.fields["Lieu de livraison"] || "", btw: client.fields["BTW-nummer"] || "", klantnr: client.fields["Klantnummer"] || "" },
+        klant: { nom: client.fields["Nom"] || "", adresse: client.fields["Lieu de livraison"] || "", btw: client.fields["BTW-nummer"] || "", klantnr: client.fields["Klantnummer"] || "", taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL" },
         livreeLe: f["Livrée le"] || "", receptionnePar: f["Réceptionné par"] || ""
       },
       config: {

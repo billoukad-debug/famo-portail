@@ -28,6 +28,7 @@ module.exports = async (req, res) => {
         adresse: r.fields["Lieu de livraison"] || "",
         btw: r.fields["BTW-nummer"] || "",
         klantnr: r.fields["Klantnummer"] || "",
+        taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL", // langue des documents
         // Téléphone et e-mail : le chauffeur appelle, le magasin prévient. Jamais le mot de passe.
         tel: r.fields["Téléphone"] || "",
         email: (r.fields["Email"] || "").trim(),

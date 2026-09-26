@@ -45,6 +45,8 @@
     try {
       const d = await K.api("/api/catalogue", { json: { user, pw } });
       K.klant.set({ user, token: d.token, client: d.client, company: d.company });
+      // Klant in het Frans (Clients.Taal) en nog geen taal gekozen op dit toestel : portaal meteen in het Frans.
+      try { if (!localStorage.getItem("famoLang") && d.client && d.client.taal === "FR") localStorage.setItem("famoLang", "fr"); } catch (e) { /* privévenster */ }
       K.session.set("famoKlantCatalogus", { at: Date.now(), products: d.products, client: d.client, company: d.company });
       location.href = "/klant.html#/catalogus";
     } catch (err) {

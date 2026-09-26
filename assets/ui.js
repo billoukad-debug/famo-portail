@@ -94,7 +94,7 @@
     "Op die dag leveren we niet": "Nous ne livrons pas ce jour-là", "Op die dag zijn we gesloten": "Nous sommes fermés ce jour-là", "Ongeldige hoeveelheid": "Quantité invalide", "Artikel is niet beschikbaar": "Article indisponible",
     "Verzoek mislukt": "La demande a échoué", "Niets gewijzigd": "Rien n'a été modifié", "Opslaan mislukt": "Enregistrement impossible", "Annuleren mislukt": "Annulation impossible", "Onbekende actie": "Action inconnue",
     "Vul uw gebruikersnaam en e-mailadres in.": "Indiquez votre identifiant et votre adresse e-mail.", "Te veel aanvragen. Probeer over een uur opnieuw of bel ons.": "Trop de demandes. Réessayez dans une heure ou appelez-nous.",
-    "Wachtwoord vernieuwen mislukt. Bel ons.": "Le renouvellement du mot de passe a échoué. Appelez-nous.", "Documentmodule laden mislukt. Controleer de verbinding.": "Impossible de charger le module documents. Vérifiez la connexion.", "Sessie verlopen. Meld u opnieuw aan.": "Session expirée. Reconnectez-vous.", "Voor vandaag kan niet meer besteld worden. Kies een latere leverdag.": "Il n'est plus possible de commander pour aujourd'hui. Choisissez un jour plus tard.", "Serverfout. Probeer opnieuw.": "Erreur du serveur. Réessayez.", "Opslaan of lezen mislukt. Probeer opnieuw.": "L'enregistrement ou la lecture a échoué. Réessayez.", "Catalogus laden mislukt. Probeer opnieuw.": "Le chargement du catalogue a échoué. Réessayez.", "Aanvraag opslaan mislukt. Bel ons.": "L'enregistrement de la demande a échoué. Appelez-nous.",
+    "Wachtwoord vernieuwen mislukt. Bel ons.": "Le renouvellement du mot de passe a échoué. Appelez-nous.", "Documentmodule laden mislukt. Controleer de verbinding.": "Impossible de charger le module documents. Vérifiez la connexion.", "Taal van uw documenten": "Langue de vos documents", "Leveringsbonnen en facturen in deze taal.": "Bons de livraison et factures dans cette langue.", "Sessie verlopen. Meld u opnieuw aan.": "Session expirée. Reconnectez-vous.", "Voor vandaag kan niet meer besteld worden. Kies een latere leverdag.": "Il n'est plus possible de commander pour aujourd'hui. Choisissez un jour plus tard.", "Serverfout. Probeer opnieuw.": "Erreur du serveur. Réessayez.", "Opslaan of lezen mislukt. Probeer opnieuw.": "L'enregistrement ou la lecture a échoué. Réessayez.", "Catalogus laden mislukt. Probeer opnieuw.": "Le chargement du catalogue a échoué. Réessayez.", "Aanvraag opslaan mislukt. Bel ons.": "L'enregistrement de la demande a échoué. Appelez-nous.",
     "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons.": "L'envoi de la demande a échoué. Réessayez plus tard ou appelez-nous.",
     "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord.": "Si les données sont correctes, vous recevrez dans quelques minutes un e-mail avec un nouveau mot de passe.",
     // leveringsregels (uit Configuratie) — {t} = deadline, {n} = dagen, {d} = dagenlijst, {m}/{r} = bedragen
@@ -224,7 +224,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "519a4811ce";
+  K.DOCS_VER = "7ad917c1af";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();

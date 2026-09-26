@@ -7,13 +7,16 @@
     K.c.field(K.t("Contactpersoon"), K.c.input("contactpersoon", { attrs: ' autocomplete="name" required' }), { id: "fContact", req: true }) +
     '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field(K.t("Telefoon"), K.c.input("telefoon", { type: "tel", attrs: ' autocomplete="tel" required' }), { id: "fTel", req: true }) + K.c.field(K.t("E-mail"), K.c.input("email", { type: "email", attrs: ' autocomplete="email" required' }), { id: "fMail", req: true }) + '</div>' +
     K.c.field(K.t("Leveradres"), '<textarea class="input" id="adres" rows="2" placeholder="' + K.t("Straat, nummer, gemeente") + '"></textarea>', { id: "fAdres" }) +
+    K.c.field(K.t("Taal van uw documenten"), '<div class="opt" role="group" aria-label="' + K.t("Taal van uw documenten") + '">' + [["NL", "Nederlands"], ["FR", "Français"]].map(([k, l]) => '<button type="button" data-taal="' + k + '"' + ((K.lang === "fr" ? "FR" : "NL") === k ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l + '</button>').join("") + '</div>', { hint: K.t("Leveringsbonnen en facturen in deze taal.") }) +
     K.c.field(K.t("Wat bestelt u meestal?"), '<textarea class="input" id="notities" rows="3" placeholder="' + K.t("bv. garnalen 16/20, zalm, tonijn · ongeveer per week") + '"></textarea>', { id: "fNot" }) +
     '<div id="msg"></div><button type="submit" class="btn btn-p" id="btn" style="min-height:50px;font-size:15px">' + K.t("Aanvraag versturen") + '</button>' +
     '<p class="quiet" style="font-size:12px;text-align:center;margin:0">' + K.t("Al klant?") + ' <a href="/">' + K.t("Aanmelden") + '</a></p></form></div>';
+  let taal = K.lang === "fr" ? "FR" : "NL";
+  K.on(app, "click", "[data-taal]", (e, t) => { taal = t.dataset.taal; K.$$("[data-taal]", app).forEach(b => { const on = b === t; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); }); });
   document.getElementById("f").addEventListener("submit", async e => {
     e.preventDefault();
     const v = id => document.getElementById(id).value.trim();
-    const data = { bedrijfsnaam: v("bedrijfsnaam"), contactpersoon: v("contactpersoon"), telefoon: v("telefoon"), email: v("email"), adres: v("adres"), notities: v("notities") };
+    const data = { bedrijfsnaam: v("bedrijfsnaam"), contactpersoon: v("contactpersoon"), telefoon: v("telefoon"), email: v("email"), adres: v("adres"), notities: v("notities"), taal };
     let ok = true;
     K.setErr("fBedrijf", data.bedrijfsnaam ? "" : (ok = false, K.t("Verplicht."))); K.setErr("fContact", data.contactpersoon ? "" : (ok = false, K.t("Verplicht.")));
     K.setErr("fTel", data.telefoon ? "" : (ok = false, K.t("Verplicht."))); K.setErr("fMail", /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email) ? "" : (ok = false, K.t("Geef een geldig e-mailadres.")));

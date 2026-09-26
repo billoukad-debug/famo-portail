@@ -1589,6 +1589,11 @@ async function main() {
     const cf = JSON.parse(r.calls[1].options.body).records[0].fields;
     assert.equal(cf.Gebruikersnaam, "oreilly"); assert.ok(require(path.join(ROOT, "lib/clientauth")).checkPassword(cf.Wachtwoord, "geheim123"), "wachtwoord gehasht opgeslagen"); assert.match(cf.Wachtwoord, /^scrypt\$/); assert.equal(cf.Nom, "O'Reilly"); assert.equal(cf.Gearchiveerd, undefined);
     assert.deepEqual(r.res.payload.credentials, { id: "c9", nom: "O'Reilly", user: "oreilly", password: "geheim123" });
+    assert.equal(cf.Taal, "NL", "BA taal standaard NL");
+    r = await call(ob, { action: "saveClient", nom: "Chez Paul", user: "chezpaul", password: "geheim123", generate: false, taal: "fr" }, [{ records: [] }, { records: [{ id: "c10" }] }, ...STATUS()], { headers: adminCookieHdr });
+    assert.equal(JSON.parse(r.calls[1].options.body).records[0].fields.Taal, "FR", "BA klant in het Frans opgeslagen");
+    r = await call(ob, { action: "saveClient", nom: "Rare", user: "rare1", password: "geheim123", generate: false, taal: "de" }, [{ records: [] }, { records: [{ id: "c11" }] }, ...STATUS()], { headers: adminCookieHdr });
+    assert.equal(JSON.parse(r.calls[1].options.body).records[0].fields.Taal, "NL", "BA onbekende taal → NL");
     r = await call(ob, { action: "saveClient", nom: "Ander", user: "oreilly", password: "geheim123", generate: false }, [{ records: [{ id: "c9" }] }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 409, "AT6 gebruikersnaam al in gebruik door een ander");
     r = await call(ob, { action: "saveClient", nom: "X", email: "nope", user: "xx", password: "geheim123", generate: false }, [{ records: [] }], { headers: adminCookieHdr });
@@ -1790,6 +1795,37 @@ async function main() {
     }
     assert.equal(om.eur(1234.5), "€ 1.234,50", "AZ séparateur des milliers");
   }
+  // --- BA. Documents dans la langue du client ; plus de mention par défaut « goederen in goede staat » ---
+  {
+    const sb = { console, document: { documentElement: {}, addEventListener() {}, querySelector() { return null; } }, localStorage: { getItem() { return null; }, setItem() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} }, navigator: { language: "nl" }, location: { search: "", pathname: "/", hash: "" } };
+    sb.window = sb; vm.createContext(sb);
+    for (const f of ["assets/ui.js", "staff-company.js", "documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), sb);
+    const D = sb.FamoDocuments;
+    D.setCompany({ nom: "FAMO Seafood", adresse: "Kaai 1", cp: "2000 Antwerpen", btw: "BE 0123.456.789", iban: "BE71096123456769" });
+    const base = { ref: "CMD-2026-0007", client: "Chez Paul", lignes: "Mosselen × 2 caisse [€28.00]\nZalm × 1.5 kg [€20.00]", total: 86, dateLiv: "2026-09-28", factuurnummer: "FA-2026-0007", factureeLe: "2026-09-28T08:00:00Z" };
+    const nl = D.build(Object.assign({}, base, { klant: { taal: "NL", btw: "BE 1" } }), "delivery");
+    const fr = D.build(Object.assign({}, base, { klant: { taal: "FR", btw: "BE 1" } }), "delivery");
+    assert.ok(!/goede staat/i.test(nl) && !/goede staat/i.test(fr), "BA geen « goederen in goede staat » meer");
+    assert.match(nl, /LEVERINGSBON/); assert.match(nl, /html lang="nl"/); assert.match(nl, /kassa/);
+    assert.match(fr, /BON DE LIVRAISON/); assert.match(fr, /html lang="fr"/); assert.match(fr, /Quantité/); assert.match(fr, /caisse/); assert.ok(!/Aantal|Beschrijving|kassa/.test(fr), "BA leveringsbon FR : geen Nederlands");
+    const inv = D.build(Object.assign({}, base, { klant: { taal: "FR" } }), "invoice");
+    assert.match(inv, /FACTURE/); assert.match(inv, /Total HTVA/); assert.match(inv, /Total TVAC/); assert.match(inv, /Échéance/); assert.match(inv, /Communication/); assert.ok(!/Totaal|Vervaldatum|Mededeling/.test(inv), "BA factuur FR volledig vertaald");
+    const cn = D.build(Object.assign({}, base, { taal: "FR", creditnota: { nummer: "CN-2026-0001", lignes: "Zalm × 1 kg [€20.00]", montant: 20, le: "2026-09-29", motif: "abîmé" } }), "credit");
+    assert.match(cn, /NOTE DE CRÉDIT/); assert.match(cn, /Note de crédit sur la facture FA-2026-0007/);
+    assert.equal(D.langOf({}), "nl", "BA zonder taal → NL");
+    D.setCompany({ nom: "FAMO Seafood", iban: "BE71096123456769", leveringsvoorwaarden: "Klachten binnen 24 u." });
+    assert.match(D.build(base, "delivery"), /Klachten binnen 24 u\./, "BA eigen leveringsvoorwaarden uit Beheer blijven staan");
+  }
+  {
+    const su = require(path.join(ROOT, "api", "signup.js"));
+    const reqBody = taal => ({ bedrijfsnaam: "Chez Paul", contactpersoon: "Paul", email: "paul@chez.test", telefoon: "+32 470 00 00 00", taal });
+    let r = await call(su, reqBody("FR"), [{ records: [{ id: "aan1" }] }, { records: [] }, { records: [] }], { headers: { "x-forwarded-for": "10.0.0.91" } });
+    assert.equal(r.res.statusCode, 200, "BA aanvraag ontvangen");
+    assert.equal(JSON.parse(r.calls[0].options.body).records[0].fields.Taal, "FR", "BA aanvraag onthoudt de taal");
+    r = await call(su, reqBody(undefined), [{ records: [{ id: "aan2" }] }, { records: [] }, { records: [] }], { headers: { "x-forwarded-for": "10.0.0.92" } });
+    assert.equal(JSON.parse(r.calls[0].options.body).records[0].fields.Taal, "NL", "BA aanvraag zonder taal → NL");
+  }
+  console.log("✓ BA. Documenten in de taal van de klant (NL/FR), geen standaardzin « goederen in goede staat »");
   console.log("✓ AZ. Bedragen : scherm = documenten = e-mails (€ 1.234,50)");
   console.log("✓ AY. Volgorde catalogus : enkel beheerder, validatie, enkel wijzigingen, gedeelde sortering");
   console.log("✓ AX. Numéro de facture unique, stock compensé, lignes + départ refusés, mots de passe hachés (migration), jeton client");

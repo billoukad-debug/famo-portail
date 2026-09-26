@@ -15,8 +15,8 @@ const SCHEMA = {
   Clients: {
     // Gearchiveerd : plus de connexion ni de présence dans les listes (api/catalogue authClient, api/staff).
     // Favorieten : JSON {favorieten:[ids], standaard:{id:qty}} synchronisé entre appareils (api/klantorder).
-    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text" },
-    primary: "Nom"
+    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select" },
+    selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
   },
   Catalogue: {
     // BTW-tarief : taux par produit (6 / 21) ; vide = taux de Configuratie.
@@ -53,8 +53,8 @@ const SCHEMA = {
     primary: "Bedrijfsnaam"
   },
   Aanvragen: {
-    fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select" },
-    selects: { "Status": ["Nieuw", "Verwerkt"] }, primary: "Bedrijfsnaam"
+    fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select" },
+    selects: { "Status": ["Nieuw", "Verwerkt"], "Taal": ["NL", "FR"] }, primary: "Bedrijfsnaam"
   },
   // Comptes individuels du personnel (api/session : connexion par PIN, api/onboarding : gestion).
   Medewerkers: {

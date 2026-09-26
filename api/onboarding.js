@@ -140,7 +140,8 @@ async function statusPayload() {
     email: (r.fields["Email"] || "").trim(),
     user: r.fields["Gebruikersnaam"] || "",
     hasPassword: !!r.fields["Wachtwoord"],
-    gearchiveerd: !!r.fields["Gearchiveerd"]
+    gearchiveerd: !!r.fields["Gearchiveerd"],
+    taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL"
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
   const priceList = (prices.records || []).map(r => ({
@@ -168,6 +169,7 @@ async function statusPayload() {
       adres: r.fields["Adres"] || "",
       notities: r.fields["Notities"] || "",
       status: r.fields["Status"] || "Nieuw",
+      taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL",
       ontvangen: r.createdTime || ""
     }));
   const medewerkerList = ((medewerkers && medewerkers.records) || []).map(r => ({
@@ -472,6 +474,7 @@ module.exports = async (req, res) => {
         "BTW-nummer": clean(body.btw, 40),
         "Klantnummer": clean(body.klantnr, 40),
         "Email": clean(body.email, 120).toLowerCase(),
+        "Taal": String(body.taal || "").toUpperCase() === "FR" ? "FR" : "NL", // langue des documents
         "Gebruikersnaam": user,
         "Wachtwoord": __ca.hashPassword(password)
       };
