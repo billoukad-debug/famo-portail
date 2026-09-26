@@ -357,7 +357,7 @@ h1,h2,h3,.h1,.h2{text-wrap:balance}p{text-wrap:pretty}
 /* MOU-06 : retour de pression discret sur les boutons */
 .btn:active:not(:disabled){transform:scale(.98)}
 /* INT-01 : une action est un bouton (plus de <a href="#">) ; il garde l'allure d'un lien */
-.linkbtn{border:0;background:none;padding:0;margin:0;font:inherit;color:var(--p);cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:24px;display:inline-flex;align-items:center}.linkbtn:hover{color:var(--p-deep)}
+.linkbtn{border:0;background:none;padding:0;margin:0;font:inherit;color:var(--p);cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:32px;display:inline-flex;align-items:center}.linkbtn:hover{color:var(--p-deep)}
 /* INT-03 : liens isolés (hors phrase) = cible de 44 px au tactile */
 .tlink{display:inline-flex;align-items:center;min-height:44px}
 .kv-favorieten .btn{white-space:normal;text-align:center;line-height:1.25;padding-top:8px;padding-bottom:8px;height:auto}
