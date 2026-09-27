@@ -1,16 +1,32 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const { atAll } = require("../lib/airtable");
+const { atAll, escapeFormula } = require("../lib/airtable");
+const log = require("../lib/log");
 // Bestellingen van de aangemelde klant. POST {user, pw} -> {orders}.
 // Détail suffisant pour une fiche côté client (nota, factuur, betaling, annulation),
 // jamais rien d'interne (Correcties, boîte ops, notes préfixées d'une source restent
 // visibles telles quelles : ce sont les notes du client lui-même).
 const { authClient } = require("./catalogue");
 
-// Ouvert + 365 jours d'historique (voir api/allorders.js). Le lien « Client » ne se
-// filtre pas par id dans une formule Airtable : le tri par client reste côté serveur en JS.
+// Ouvert + 365 jours d'historique (voir api/allorders.js).
 const WINDOW = `OR(AND({Statut}!='Facturée',{Statut}!='Annulée'),IS_AFTER({Date},DATEADD(TODAY(),-365,'days')))`;
 
+// Filtre client DANS la formule (E-04 : avant, toutes les commandes de la fenêtre étaient
+// lues pour n'en garder qu'une poignée). Un champ lien ne se lit pas pareil partout :
+//   - Airtable : ARRAYJOIN({Client}) donne le champ primaire des clients liés (« Nom »),
+//     jamais leur id -> on cherche le nom ;
+//   - moteur SQL (lib/at-engine.js) : il donne les ids (recXXX) -> on cherche l'id,
+//     traduit en SQL (strpos/instr sur le JSON du champ).
+// Chaque moteur ignore la moitié qui ne le concerne pas. Un nom est un sur-ensemble
+// (« Aloha » trouve aussi « Aloha Poke ») : le filtre exact par id reste en JS ci-dessous.
+// Client sans nom : pas de filtre de formule (un FIND vide retiendrait tout de toute façon).
+function clientFormula(client) {
+  const nom = String((client.fields || {})["Nom"] || "").trim();
+  if (!nom) return WINDOW;
+  return `AND(${WINDOW},OR(FIND('${escapeFormula(client.id)}',ARRAYJOIN({Client})),FIND('${escapeFormula(nom)}',ARRAYJOIN({Client}))))`;
+}
+
 module.exports = async (req, res) => {
+  const L = log.from(req, "orders");
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Gebruik POST. Wachtwoorden horen niet in een URL." });
   }
@@ -22,8 +38,8 @@ module.exports = async (req, res) => {
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
 
-    const cmd = await atAll(`Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc&filterByFormula=${encodeURIComponent(WINDOW)}`);
-    if (cmd.error) return res.status(500).json({ error: cmd.error.message || "Bestellingen onleesbaar" });
+    const cmd = await atAll(`Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc&filterByFormula=${encodeURIComponent(clientFormula(client))}`);
+    if (cmd.error) { L.error("commandes illisibles", { recId: clientId, err: cmd.error }); return res.status(500).json({ error: cmd.error.message || "Bestellingen onleesbaar" }); }
     const orders = (cmd.records || [])
       .filter(r => (r.fields["Client"] || []).includes(clientId))
       .map(r => ({
@@ -47,6 +63,7 @@ module.exports = async (req, res) => {
       }));
     res.status(200).json({ orders });
   } catch (e) {
-    { console.error("[orders]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
+    { L.error("serverfout", { err: e }); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };
+module.exports.clientFormula = clientFormula;

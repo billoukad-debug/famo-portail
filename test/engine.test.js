@@ -159,3 +159,28 @@ test("api/allorders : une lecture de table par table, quel que soit le nombre de
     assert.deepEqual(perTable, { Clients: 1, Catalogue: 1, Commandes: 1 }, "E-01 : 1 lecture complète de Commandes par appel");
   } finally { ds.state.store.list = realList; }
 });
+
+test("api/orders : filtre client dans la formule, sur les deux moteurs (ids en SQL, noms dans Airtable)", async () => {
+  const orders = await seedPortal(120);
+  let returned = 0;
+  const realList = ds.state.store.list;
+  ds.state.store.list = async (t, w) => { const rows = await realList(t, w); if (t === "Commandes") returned += rows.length; return rows; };
+  try {
+    const r = await callApi("orders", { method: "POST", body: { user: "aloha", pw: "welkom123" } });
+    assert.equal(r.statusCode, 200, JSON.stringify(r.body));
+    const mine = orders.filter((o, i) => i % 2 === 0);
+    const inWindow = compileFormula("OR(AND({Statut}!='Facturée',{Statut}!='Annulée'),IS_AFTER({Date},DATEADD(TODAY(),-365,'days')))");
+    assert.deepEqual(r.body.orders.map((o) => o.ref).sort(), mine.filter((o) => truthy(inWindow(o))).map((o) => o.fields["Référence"]).sort());
+    assert.ok(returned <= 60, "E-04 : seules les commandes du client sortent de la base (" + returned + ")");
+  } finally { ds.state.store.list = realList; }
+  // Sémantique Airtable (scripts/fake-airtable.js) : un lien se lit par le nom du lié.
+  const { clientFormula } = require(path.join(ROOT, "api", "orders.js"));
+  const f = clientFormula({ id: "recCLIaaaaaaaaaaa", fields: { Nom: "Aloha" } });
+  const names = { recCLIaaaaaaaaaaa: "Aloha", recCLIbbbbbbbbbbb: "Aloha Poke" };
+  const asAirtable = compileFormula(f, { linkedPrimary: (id) => names[id] || id });
+  const kept = orders.filter((o) => truthy(asAirtable(o)));
+  assert.ok(kept.some((o) => o.fields.Client[0] === "recCLIaaaaaaaaaaa"), "Airtable retrouve le client par son nom");
+  assert.ok(kept.some((o) => o.fields.Client[0] === "recCLIbbbbbbbbbbb"), "nom partiel : sur-ensemble, le filtre JS par id tranche");
+  assert.equal(clientFormula({ id: "recX", fields: {} }).includes("FIND"), false, "client sans nom : fenêtre seule");
+  assert.ok(clientFormula({ id: "recCLIaaaaaaaaaaa", fields: { Nom: "O'Brien" } }).includes("O\\'Brien"), "nom échappé");
+});
