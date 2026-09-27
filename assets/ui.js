@@ -139,7 +139,14 @@
     // wachtwoord vergeten
     "Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.": "Indiquez votre identifiant et l'adresse e-mail de votre établissement. S'ils correspondent, nous envoyons un nouveau mot de passe à cette adresse.",
     "Nieuw wachtwoord aanvragen": "Demander un nouveau mot de passe", "E-mailadres van uw zaak": "Adresse e-mail de votre établissement", "E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.": "L'envoi d'e-mail n'est pas possible pour le moment. Appelez-nous ou écrivez-nous pour un nouveau mot de passe.",
-    "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe."
+    "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe.",
+    // documentvoorbeeld (staff-doc-preview.js)
+    "Documentvoorbeeld": "Aperçu du document", "Afdrukken": "Imprimer", "PDF downloaden": "Télécharger le PDF", "Document laden…": "Chargement du document…",
+    "Geen documentinhoud beschikbaar.": "Aucun contenu de document disponible.", "Afdrukken mislukt: voorbeeld niet geladen.": "Impression impossible : aperçu non chargé.", "Afdrukken mislukt. Probeer opnieuw.": "Impression impossible. Réessayez.",
+    "Download mislukt: voorbeeld niet geladen.": "Téléchargement impossible : aperçu non chargé.", "PDF genereren…": "Création du PDF…", "PDF gedownload:": "PDF téléchargé :", "PDF downloaden mislukt.": "Le téléchargement du PDF a échoué.",
+    "PDF-bibliotheek niet beschikbaar.": "Module PDF indisponible.", "PDF-bibliotheek kon niet worden geladen.": "Le module PDF n'a pas pu être chargé.", "Geen geldige PDF gegenereerd (geen HTML-hernoemd bestand).": "Aucun PDF valide n'a été créé.",
+    // pastilles (aria-label) : enkelvoud / meervoud
+    "factuur te betalen": "facture à payer", "facturen te betalen": "factures à payer"
   };
   // Servermeldingen met een getal erin : één patroon per melding, vertaald bij het tonen.
   const FR_PAT = [[/^Na (\d{2}:\d{2}) kan niet meer voor morgen besteld worden\. Kies een latere leverdag\.$/, "Après $1, il n'est plus possible de commander pour demain. Choisissez un jour plus tard."], [/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
@@ -238,7 +245,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "7ad917c1af";
+  K.DOCS_VER = "f7befd62bf";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -401,8 +408,12 @@
     if (back && back.isConnected && back.focus) { try { back.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
     [60, 400, 1200].forEach(ms => setTimeout(tryIt, ms));
   }
+  // Dernier élément focalisé (hors body) : un bouton désactivé pendant le chargement (K.busy) perd le focus,
+  // la fenêtre qui s'ouvre ensuite doit quand même rendre le focus à ce bouton.
+  let lastFocused = null;
+  if (doc && doc.addEventListener) doc.addEventListener("focusin", e => { if (e.target && e.target !== doc.body && e.target.nodeType === 1) lastFocused = e.target; });
   function modal(el, onEsc) {
-    const back = document.activeElement, backKey = keyOf(back), entry = { el };
+    const a = document.activeElement, back = a && a !== document.body ? a : lastFocused, backKey = keyOf(back), entry = { el };
     modals.push(entry);
     const key = e => {
       if (modals[modals.length - 1] !== entry) return;
@@ -421,6 +432,10 @@
       refocus(back, backKey);
     };
   }
+  // Fenêtre modale « maison » (aperçu des documents…) : même piège Tab, même Échap que K.panel.
+  // K.modal(el, onEsc) → fonction release() à appeler à la fermeture (rend le focus au déclencheur).
+  K.modal = modal;
+  K.isTopModal = el => !!modals.length && modals[modals.length - 1].el === el;
   // Clavier physique (souris/trackpad) : focus au premier champ ; tactile : pas de clavier qui surgit.
   const finePointer = () => !!(global.matchMedia && global.matchMedia("(pointer: fine)").matches);
   K.confirm = (opts) => new Promise(resolve => {
@@ -528,14 +543,16 @@
   // tellen) ; enkel verwijderen in Voorraad en Beheer blijven voor de beheerder (server : adminOk).
   // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
   // Les derniers chiffres restent en session : la page suivante les affiche avant d'avoir rechargé.
-  const BADGE_TXT = { "bestellingen.html": "nieuw te bevestigen", "entrepot.html": "vandaag klaar te zetten", "leveringen.html": "vandaag te leveren", "documenten.html": "onbetaalde facturen", "stock.html": "onder de drempel", "beheer.html": "nieuwe aanvragen", "aanvragen": "nieuwe aanvragen", "bestellingen": "te betalen" };
+  // [enkelvoud, meervoud] : « 1 onbetaalde factuur », « 2 onbetaalde facturen ».
+  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["vandaag klaar te zetten"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
+  K.plural = (n, one, many) => n + " " + (Number(n) === 1 ? one : (many || one));
   K.setBadges = map => {
     const all = Object.assign(K.session.get("famoBadges", {}) || {}, map || {});
     if (map && Object.keys(map).length) K.session.set("famoBadges", all);
     K.$$("[data-badge]").forEach(el => {
-      const n = Number(all[el.dataset.badge]) || 0;
+      const n = Number(all[el.dataset.badge]) || 0, txt = BADGE_TXT[el.dataset.badge] || [""];
       el.hidden = !n; el.textContent = n > 99 ? "99+" : String(n);
-      el.setAttribute("aria-label", n + " " + (K.t(BADGE_TXT[el.dataset.badge] || "")));
+      el.setAttribute("aria-label", K.plural(n, K.t(txt[0]), K.t(txt[1] || txt[0])));
     });
   };
   const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];

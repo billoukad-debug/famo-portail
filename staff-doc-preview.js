@@ -9,7 +9,7 @@
   let metaEl = null;
   let downloadBtn = null;
   let printBtn = null;
-  let state = { html: "", filename: "Famo-Document.pdf", title: "Documentvoorbeeld", meta: "" };
+  let state = { html: "", filename: "Famo-Document.pdf", title: "", meta: "" };
   let busy = false;
   let pdfLibPromise = null;
   let lastFocus = null;
@@ -64,6 +64,10 @@
     statusEl.className = "famo-doc-status" + (kind ? " " + kind : "") + (message ? "" : " hidden");
   }
 
+  // Textes de l'aperçu : néerlandais par défaut, français dans le portail client FR (K.t / K.FR de assets/ui.js).
+  const t = s => (global.K && typeof global.K.t === "function" ? global.K.t(s) : s);
+  let release = null; // K.modal : piège Tab, Échap sur la fenêtre du dessus seulement, retour du focus
+
   function ensureHost() {
     if (host) return host;
     host = document.createElement("div");
@@ -72,24 +76,26 @@
     host.setAttribute("role", "dialog");
     host.setAttribute("aria-modal", "true");
     host.setAttribute("aria-labelledby", "famoDocTitle");
+    host.setAttribute("aria-describedby", "famoDocMeta");
     host.innerHTML =
       '<div class="famo-doc-pane">' +
         '<header class="famo-doc-toolbar">' +
           '<div class="famo-doc-heading">' +
-            '<strong id="famoDocTitle">Documentvoorbeeld</strong>' +
+            '<strong id="famoDocTitle">' + esc(t("Documentvoorbeeld")) + '</strong>' +
             '<span id="famoDocMeta" class="famo-doc-meta"></span>' +
           "</div>" +
           '<div class="famo-doc-actions">' +
-            '<button type="button" class="famo-doc-btn" data-famo-doc="close" aria-label="Sluiten">×</button>' +
-            '<button type="button" class="famo-doc-btn" data-famo-doc="cancel">Annuleren</button>' +
-            '<button type="button" class="famo-doc-btn" data-famo-doc="print">Afdrukken</button>' +
-            '<button type="button" class="famo-doc-btn primary" data-famo-doc="download">PDF downloaden</button>' +
+            '<button type="button" class="famo-doc-btn" data-famo-doc="close" aria-label="' + esc(t("Sluiten")) + '">×</button>' +
+            '<button type="button" class="famo-doc-btn" data-famo-doc="cancel">' + esc(t("Annuleren")) + '</button>' +
+            '<button type="button" class="famo-doc-btn" data-famo-doc="print">' + esc(t("Afdrukken")) + '</button>' +
+            '<button type="button" class="famo-doc-btn primary" data-famo-doc="download">' + esc(t("PDF downloaden")) + '</button>' +
           "</div>" +
         "</header>" +
         '<div id="famoDocStatus" class="famo-doc-status hidden" role="status" aria-live="polite"></div>' +
         '<div class="famo-doc-stage">' +
           '<div class="famo-doc-a4">' +
-            '<iframe id="famoDocFrame" title="Documentvoorbeeld" sandbox="allow-same-origin allow-modals"></iframe>' +
+            // tabindex=0 : le document lui-même fait partie du cycle Tab de la fenêtre (lecture au clavier / lecteur d'écran)
+            '<iframe id="famoDocFrame" tabindex="0" title="' + esc(t("Documentvoorbeeld")) + '" sandbox="allow-same-origin allow-modals"></iframe>' +
           "</div>" +
         "</div>" +
       "</div>";
@@ -114,6 +120,27 @@
     return host;
   }
 
+  // Boutons de la barre (visibles, actifs) : premier et dernier arrêt Tab avant / après le document.
+  function toolbarButtons() {
+    return Array.from(host.querySelectorAll(".famo-doc-actions button")).filter(b => !b.disabled && b.offsetParent !== null);
+  }
+  // Le focus est DANS le document (iframe) : ses touches n'arrivent pas à la page. Échap ferme l'aperçu
+  // (et lui seul), Tab / Maj+Tab ressortent vers la barre d'outils au lieu de quitter la fenêtre.
+  function onFrameKeydown(e) {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
+    if (e.key !== "Tab") return;
+    const btns = toolbarButtons(); if (!btns.length) return;
+    e.preventDefault();
+    (e.shiftKey ? btns[btns.length - 1] : btns[0]).focus();
+  }
+  function bindFrameKeys() {
+    try {
+      const w = frame.contentWindow, d = frame.contentDocument;
+      if (d && !d.__famoKeys) { d.addEventListener("keydown", onFrameKeydown, true); d.__famoKeys = true; }
+      if (w && !w.__famoKeys) { w.addEventListener("keydown", onFrameKeydown, true); w.__famoKeys = true; }
+    } catch (e) { /* document d'une autre origine : Échap reste disponible dans la barre */ }
+  }
+  // Sans ui.js (tests) : Échap au niveau de la page.
   function onKeydown(e) {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -128,36 +155,44 @@
     state = {
       html: String(opts.html || ""),
       filename: opts.filename || filenameFor("picking", {}),
-      title: opts.title || "Documentvoorbeeld",
+      title: opts.title || t("Documentvoorbeeld"),
       meta: opts.meta || ""
     };
     if (!state.html) {
-      setStatus("Geen documentinhoud beschikbaar.", "error");
+      if (global.K && global.K.toast) global.K.toast(t("Geen documentinhoud beschikbaar."), { kind: "err" });
+      else setStatus(t("Geen documentinhoud beschikbaar."), "error");
       return;
     }
     titleEl.textContent = state.title;
     metaEl.textContent = state.meta;
-    setStatus("Document laden…", "loading");
+    setStatus(t("Document laden…"), "loading");
     if (downloadBtn) downloadBtn.disabled = true;
     if (printBtn) printBtn.disabled = true;
+    const wasOpen = !host.classList.contains("hidden");
     host.classList.remove("hidden");
     document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", onKeydown);
+    if (!wasOpen) {
+      if (global.K && typeof global.K.modal === "function") release = global.K.modal(host, close);
+      else document.addEventListener("keydown", onKeydown);
+    }
+    // Le focus entre tout de suite dans la fenêtre (le document charge encore) : jamais derrière le voile.
+    const closeBtn = host.querySelector('[data-famo-doc="close"]');
+    if (closeBtn) closeBtn.focus();
 
     const onLoad = () => {
       frame.removeEventListener("load", onLoad);
+      bindFrameKeys();
       setStatus("");
       if (downloadBtn) downloadBtn.disabled = false;
       if (printBtn) printBtn.disabled = false;
-      const closeBtn = host.querySelector('[data-famo-doc="close"]');
-      if (closeBtn) closeBtn.focus();
+      if (!host.contains(document.activeElement) && closeBtn) closeBtn.focus();
     };
     frame.addEventListener("load", onLoad);
     frame.srcdoc = state.html;
   }
 
   function close() {
-    if (!host) return;
+    if (!host || host.classList.contains("hidden")) return;
     host.classList.add("hidden");
     if (frame) {
       frame.removeAttribute("srcdoc");
@@ -165,9 +200,11 @@
     }
     setStatus("");
     busy = false;
-    document.body.style.overflow = "";
+    // Un panneau (fiche commande) reste ouvert dessous : il garde le blocage du défilement.
+    if (!document.querySelector(".scrim")) document.body.style.overflow = "";
     document.removeEventListener("keydown", onKeydown);
-    if (lastFocus && typeof lastFocus.focus === "function") {
+    if (release) { const r = release; release = null; r(); }
+    else if (lastFocus && typeof lastFocus.focus === "function") {
       try { lastFocus.focus(); } catch (e) { /* ignore */ }
     }
     lastFocus = null;
@@ -175,14 +212,14 @@
 
   function print() {
     if (!frame || !frame.contentWindow) {
-      setStatus("Afdrukken mislukt: voorbeeld niet geladen.", "error");
+      setStatus(t("Afdrukken mislukt: voorbeeld niet geladen."), "error");
       return;
     }
     try {
       frame.contentWindow.focus();
       frame.contentWindow.print();
     } catch (e) {
-      setStatus("Afdrukken mislukt. Probeer opnieuw.", "error");
+      setStatus(t("Afdrukken mislukt. Probeer opnieuw."), "error");
     }
   }
 
@@ -192,16 +229,16 @@
     pdfLibPromise = new Promise((resolve, reject) => {
       const existing = document.querySelector('script[data-famo-html2pdf]');
       if (existing) {
-        existing.addEventListener("load", () => global.html2pdf ? resolve(global.html2pdf) : reject(new Error("PDF-bibliotheek niet beschikbaar.")));
-        existing.addEventListener("error", () => reject(new Error("PDF-bibliotheek kon niet worden geladen.")));
+        existing.addEventListener("load", () => global.html2pdf ? resolve(global.html2pdf) : reject(new Error(t("PDF-bibliotheek niet beschikbaar."))));
+        existing.addEventListener("error", () => reject(new Error(t("PDF-bibliotheek kon niet worden geladen."))));
         return;
       }
       const s = document.createElement("script");
       s.src = PDF_LIB;
       s.async = true;
       s.setAttribute("data-famo-html2pdf", "1");
-      s.onload = () => global.html2pdf ? resolve(global.html2pdf) : reject(new Error("PDF-bibliotheek niet beschikbaar."));
-      s.onerror = () => reject(new Error("PDF-bibliotheek kon niet worden geladen."));
+      s.onload = () => global.html2pdf ? resolve(global.html2pdf) : reject(new Error(t("PDF-bibliotheek niet beschikbaar.")));
+      s.onerror = () => reject(new Error(t("PDF-bibliotheek kon niet worden geladen.")));
       document.head.appendChild(s);
     });
     return pdfLibPromise;
@@ -273,12 +310,12 @@
   async function downloadPdf() {
     if (busy) return;
     if (!frame || !frame.contentDocument || !frame.contentDocument.body) {
-      setStatus("Download mislukt: voorbeeld niet geladen.", "error");
+      setStatus(t("Download mislukt: voorbeeld niet geladen."), "error");
       return;
     }
     busy = true;
     if (downloadBtn) downloadBtn.disabled = true;
-    setStatus("PDF genereren…", "loading");
+    setStatus(t("PDF genereren…"), "loading");
     try {
       const html2pdf = await loadPdfLib();
       const source = pdfSource(frame.contentDocument);
@@ -301,13 +338,13 @@
         // jsPDF sometimes returns empty type; magic-byte check is authoritative
       }
       if (!(await blobLooksLikePdf(blob))) {
-        throw new Error("Geen geldige PDF gegenereerd (geen HTML-hernoemd bestand).");
+        throw new Error(t("Geen geldige PDF gegenereerd (geen HTML-hernoemd bestand)."));
       }
       const pdfBlob = blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
       triggerDownload(pdfBlob, state.filename);
-      setStatus("PDF gedownload: " + state.filename, "ok");
+      setStatus(t("PDF gedownload:") + " " + state.filename, "ok");
     } catch (e) {
-      setStatus((e && e.message) || "PDF downloaden mislukt.", "error");
+      setStatus((e && e.message) || t("PDF downloaden mislukt."), "error");
     } finally {
       busy = false;
       if (downloadBtn) downloadBtn.disabled = false;
