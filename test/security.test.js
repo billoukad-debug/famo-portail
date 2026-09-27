@@ -236,7 +236,8 @@ test("A-03 : verrou global des PIN (20 échecs) ; les codes partagés restent ut
   }
   const cfg = (await store().get("Configuratie", CFG)).fields;
   assert.ok(Date.parse(cfg["PIN geblokkeerd tot"]) > Date.now(), "connexion par PIN suspendue");
-  assert.equal((await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113.99" }, body: { code: pin } })).statusCode, 401, "même le bon PIN");
+  const locked = await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113.99" }, body: { code: pin } });
+  assert.equal(locked.statusCode, 429, "même le bon PIN"); assert.match(locked.body.error, /teamcode/);
   assert.equal((await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113.99" }, body: { code: "team-sec-code" } })).statusCode, 200, "code d'équipe OK");
   await patch("Configuratie", CFG, { "PIN geblokkeerd tot": "" });
   assert.equal((await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113.98" }, body: { code: pin } })).statusCode, 200, "verrou levé : le PIN rouvre");

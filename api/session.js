@@ -128,6 +128,9 @@ module.exports = async (req, res) => {
         Object.assign(gen, { med: m.id, pfp: auth.pinFingerprint(fields["PIN hash"]) });
       }
     }
+    if (!role && stored.pinLocked) {
+      return res.status(429).json({ error: "Aanmelden met een PIN is tijdelijk geblokkeerd na te veel foute pogingen. Gebruik de teamcode of probeer over 15 minuten opnieuw." });
+    }
     if (!role) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });
     }
