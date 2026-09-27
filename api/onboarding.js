@@ -20,6 +20,18 @@ function parseBody(req) {
   return body || {};
 }
 
+// Type réel d'une image d'après ses octets magiques (base64) : "png", "jpeg", "webp",
+// "gif" ou "" (inconnu). Seuls les 16 premiers octets sont décodés.
+function imageType(b64) {
+  let b;
+  try { b = Buffer.from(String(b64 || "").slice(0, 24), "base64"); } catch (e) { return ""; }
+  if (b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
+  if (b.length >= 12 && b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
+  if (b.length >= 6 && /^GIF8[79]a$/.test(b.toString("latin1", 0, 6))) return "gif";
+  return "";
+}
+
 function clean(s, max) {
   return String(s || "").trim().slice(0, max || 200);
 }
@@ -403,17 +415,20 @@ module.exports = async (req, res) => {
       if (!/^image\/(jpeg|png|webp)$/.test(type)) return res.status(400).json({ error: "Enkel JPEG, PNG of WebP" });
       const data = String(body.base64 || "").replace(/^data:[^;]+;base64,/, "");
       if (!data || data.length > 4200000) return res.status(400).json({ error: "Foto te groot (max 3 MB)" });
+      // Le type déclaré ne prouve rien : les premiers octets doivent être ceux d'une vraie
+      // image du même type (pas de HTML/SVG/script servi ensuite sous image/png).
+      if (imageType(data) !== type.slice(6)) return res.status(400).json({ error: "Dit bestand is geen geldige JPEG-, PNG- of WebP-foto" });
       const filename = clean(body.filename, 80).replace(/[^\w.\-]+/g, "-") || "foto.jpg";
       // Une seule photo par produit : l'upload Airtable AJOUTE au champ, et le catalogue
       // montre la première. Sans ce vidage, changer de photo ne changeait rien à l'écran.
       const cleared = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Foto": [] } }) });
-      if (cleared.error) return res.status(cleared.error.type === "NOT_FOUND" ? 404 : 500).json({ error: cleared.error.type === "NOT_FOUND" ? "Product niet gevonden" : (cleared.error.message || "Foto uploaden mislukt") });
+      if (cleared.error) { if (cleared.error.type !== "NOT_FOUND") console.error("[onboarding] uploadFoto", body.id, cleared.error.type, cleared.error.message); return res.status(cleared.error.type === "NOT_FOUND" ? 404 : 500).json({ error: cleared.error.type === "NOT_FOUND" ? "Product niet gevonden" : "Foto uploaden mislukt" }); }
       const r = await fetch(`https://content.airtable.com/v0/${BASE}/${body.id}/${encodeURIComponent("Foto")}/uploadAttachment`, {
         method: "POST", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({ contentType: type, filename, file: data })
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || j.error) return res.status(500).json({ error: (j.error && j.error.message) || "Foto uploaden mislukt" });
+      if (!r.ok || j.error) { console.error("[onboarding] uploadFoto", body.id, r.status, j.error && (j.error.type || j.error)); return res.status(500).json({ error: "Foto uploaden mislukt" }); }
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -673,7 +688,7 @@ module.exports = async (req, res) => {
       }
 
       const existing = await getConfigRecord();
-      if (existing && existing.error) return res.status(500).json(existing);
+      if (existing && existing.error) { console.error("[onboarding] saveCode Configuratie", existing.error.type, existing.error.message); return res.status(500).json({ error: "Configuratie onleesbaar. Probeer opnieuw." }); }
       if (!existing || !existing.id) {
         return res.status(400).json({ error: "Vul eerst de bedrijfsgegevens in" });
       }
@@ -683,7 +698,7 @@ module.exports = async (req, res) => {
         method: "PATCH",
         body: JSON.stringify({ fields })
       });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Code opslaan mislukt" });
+      if (saved.error) { console.error("[onboarding] saveCode", saved.error.type, saved.error.message); return res.status(500).json({ error: "Code opslaan mislukt" }); }
       // Nouveau code : toutes les sessions ouvertes tombent (génération +1, écriture séparée
       // pour ne pas faire échouer le changement de code sur une base sans ce champ). Le
       // beheerder qui vient de changer le code reçoit un cookie à la nouvelle génération.
@@ -831,6 +846,8 @@ module.exports = async (req, res) => {
 
     return res.status(400).json({ error: "Onbekende actie" });
   } catch (e) {
-    return res.status(500).json({ error: String(e.message || e) });
+    // Jamais le message brut (détails de la base) vers le navigateur : il reste dans les logs.
+    console.error("[onboarding]", (req.body && req.body.action) || req.method, e && e.stack || e);
+    return res.status(500).json({ error: "Serverfout in Beheer. Probeer opnieuw." });
   }
 };

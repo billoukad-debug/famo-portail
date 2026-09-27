@@ -444,3 +444,100 @@ test("A-10 : garde Origin / Content-Type", async () => {
     assert.match(src, /module\.exports = async \(req, res\) => \{\n {2}if \(require\("\.\.\/lib\/guard"\)\.blocked\(req, res\)\) return;/, "garde absente de api/" + f);
   }
 });
+
+// ---- A-16 : pas de message brut de la base vers le navigateur ----------------------------------
+test("A-16 : erreurs de la base remplacées par un message générique (détail dans les logs)", async () => {
+  await put("Clients", { "Nom": "Fout", "Gebruikersnaam": "foutje", "Wachtwoord": ca.hashPassword("goed-wachtwoord") });
+  const prev = global.fetch;
+  const logs = [];
+  const prevErr = console.error;
+  console.error = (...a) => logs.push(a.join(" "));
+  global.fetch = async (url, init) => {
+    if (init && init.method === "PATCH" && /\/Clients\//.test(String(url)) && /Téléphone|Favorieten/.test(String(init.body))) return new Response(JSON.stringify({ error: { type: "INVALID_VALUE_FOR_COLUMN", message: "Field Téléphone of table tblGEHEIM cannot accept value" } }), { status: 422 });
+    return prev(url, init);
+  };
+  try {
+    for (const body of [{ action: "profile", tel: "03 1" }, { action: "favorites", favorieten: [] }]) {
+      const r = await callApi("klantorder", { method: "POST", body: Object.assign({ user: "foutje", pw: "goed-wachtwoord" }, body) });
+      assert.equal(r.statusCode, 500);
+      assert.ok(!/tblGEHEIM|INVALID_VALUE/.test(JSON.stringify(r.body)), "rien de la base dans la réponse : " + JSON.stringify(r.body));
+    }
+    assert.ok(logs.some((l) => /tblGEHEIM/.test(l)), "le détail reste dans les logs");
+  } finally { global.fetch = prev; console.error = prevErr; }
+});
+
+// ---- A-18 : les logs d'e-mail ne contiennent pas le nom du client -------------------------------
+test("A-18 : log d'échec d'e-mail = type + référence, jamais le sujet", async () => {
+  const mail = require(path.join(ROOT, "lib", "mail.js"));
+  const subject = "Nieuwe bestelling CMD-2026-0042 — Resto Geheim — € 56,00";
+  assert.equal(mail.logLabel({ idempotencyKey: "order:CMD-2026-0042:team" }, subject), "order CMD-2026-0042");
+  assert.equal(mail.logLabel({ idempotencyKey: "welcome:jan.peeters:2026" }, "Uw toegang — Jan Peeters"), "welcome");
+  assert.equal(mail.logLabel({ tag: "activatie" }, "x"), "activatie");
+  // Envoi réel en échec : on lit ce qui part dans console.warn.
+  process.env.RESEND_API_KEY = "re_test_log";
+  delete require.cache[require.resolve(path.join(ROOT, "lib", "mail.js"))];
+  const fresh = require(path.join(ROOT, "lib", "mail.js"));
+  const prev = global.fetch, prevWarn = console.warn, logs = [];
+  console.warn = (...a) => logs.push(a.join(" "));
+  global.fetch = async () => new Response("domain not verified", { status: 422 });
+  try {
+    const r = await fresh.send({ to: "chef@resto.test", subject, text: "x", idempotencyKey: "order:CMD-2026-0042:team" });
+    assert.equal(r.ok, false);
+    global.fetch = async () => { throw new Error("offline"); };
+    await fresh.send({ to: "chef@resto.test", subject, text: "x", idempotencyKey: "order:CMD-2026-0042:client" });
+  } finally {
+    global.fetch = prev; console.warn = prevWarn; delete process.env.RESEND_API_KEY;
+    delete require.cache[require.resolve(path.join(ROOT, "lib", "mail.js"))];
+  }
+  assert.equal(logs.length, 2);
+  for (const l of logs) { assert.ok(!/Resto Geheim|chef@resto/.test(l), l); assert.match(l, /CMD-2026-0042/); }
+});
+
+// ---- A-19 : lien du portail jamais construit depuis Host en production --------------------------
+test("A-19 : portalUrl ignore Host sur Vercel", () => {
+  const om = require(path.join(ROOT, "lib", "ordermail.js"));
+  const req = { headers: { host: "evil.test", "x-forwarded-host": "evil.test" } };
+  assert.equal(om.portalUrl(req), "https://evil.test", "local : Host (serveur de dev)");
+  process.env.VERCEL = "1";
+  try {
+    assert.equal(om.portalUrl(req), "https://www.famoseafood.be");
+    process.env.PORTAL_URL = "https://portaal.famo.test/";
+    assert.equal(om.portalUrl(req), "https://portaal.famo.test");
+  } finally { delete process.env.VERCEL; delete process.env.PORTAL_URL; }
+});
+
+// ---- A-21 : pot de miel sur la demande d'accès -------------------------------------------------
+test("A-21 : champ pot de miel rempli → 200 neutre, rien d'écrit", async () => {
+  const count = async () => (await store().list("Aanvragen")).length;
+  const before = await count();
+  const body = { bedrijfsnaam: "Bot BV", contactpersoon: "Bot", email: "bot@spam.test", telefoon: "000" };
+  const bot = await callApi("signup", { method: "POST", headers: { "x-forwarded-for": "192.0.2.10" }, body: Object.assign({ bijkomend: "http://spam.test" }, body) });
+  assert.equal(bot.statusCode, 200); assert.equal(bot.body.ok, true);
+  assert.equal(await count(), before, "aucune demande enregistrée");
+  const human = await callApi("signup", { method: "POST", headers: { "x-forwarded-for": "192.0.2.11" }, body: Object.assign({ bijkomend: "" }, body, { bedrijfsnaam: "Echt BV" }) });
+  assert.equal(human.statusCode, 200);
+  assert.equal(await count(), before + 1);
+  const src = require("fs").readFileSync(path.join(ROOT, "assets", "pages", "aanvraag.js"), "utf8");
+  assert.match(src, /id="bijkomend"[^>]*tabindex="-1"/, "champ présent, hors tabulation");
+  assert.match(src, /bijkomend: v\("bijkomend"\)/, "envoyé avec la demande");
+});
+
+// ---- A-22 : upload photo = vraie image ---------------------------------------------------------
+test("A-22 : upload photo refusé si les octets ne sont pas ceux du type annoncé", async () => {
+  const admin = "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600000, "admin", "", { g: auth.currentGeneration() || 0 }));
+  const prod = await put("Catalogue", { "Produit": "Fotovis", "Prix de base": 10, "Unité": "kg", "Actif": true });
+  const up = (contentType, buf) => callApi("onboarding", { method: "POST", headers: { cookie: admin }, body: { action: "uploadFoto", id: prod, contentType, filename: "x", base64: buf.toString("base64") } });
+  const png = Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f0005000201ffa6c1f10000000049454e44ae426082", "hex");
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>');
+  const html = Buffer.from("<!doctype html><script>alert(1)</script>");
+  assert.equal((await up("image/png", svg)).statusCode, 400, "SVG déguisé en PNG");
+  assert.equal((await up("image/jpeg", html)).statusCode, 400, "HTML déguisé en JPEG");
+  assert.equal((await up("image/jpeg", png)).statusCode, 400, "PNG annoncé JPEG");
+  assert.equal((await up("image/gif", Buffer.from("GIF89a\x01\x00\x01\x00"))).statusCode, 400, "GIF : type non accepté");
+  const ok = await up("image/png", png);
+  assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(20)]);
+  const webp = Buffer.concat([Buffer.from("RIFF"), Buffer.from([0x10, 0, 0, 0]), Buffer.from("WEBPVP8 "), Buffer.alloc(8)]);
+  assert.equal((await up("image/jpeg", jpeg)).statusCode, 200, "JPEG");
+  assert.equal((await up("image/webp", webp)).statusCode, 200, "WebP");
+});

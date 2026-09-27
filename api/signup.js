@@ -29,6 +29,12 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
+    // Pot de miel : champ invisible du formulaire (assets/pages/aanvraag.js). Rempli = robot :
+    // même réponse qu'un succès (rien à apprendre), mais rien n'est écrit ni envoyé.
+    if (String(body.bijkomend || body.website || "").trim()) {
+      console.warn("[signup] pot de miel rempli, ignoré");
+      return res.status(200).json({ ok: true, mail: null });
+    }
 
     const bedrijfsnaam = clean(body.bedrijfsnaam, 120);
     const contactpersoon = clean(body.contactpersoon, 120);
@@ -61,7 +67,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({ records: [{ fields }] })
     });
     const j = await r.json();
-    if (j.error) return res.status(500).json({ error: "Aanvraag opslaan mislukt. Bel ons." });
+    if (j.error) { console.error("[signup] opslaan", j.error.type || j.error); return res.status(500).json({ error: "Aanvraag opslaan mislukt. Bel ons." }); }
     // L'équipe est prévenue par e-mail ; sans clé mail rien ne part, la demande est quand même enregistrée.
     let mail = null;
     if (__ordermail.enabled()) {
