@@ -1,14 +1,16 @@
 # FAMO Portail — v2
 
-Portail B2B de FAMO Seafood (grossiste poisson, Anvers) : le client commande en ligne, le personnel prépare et livre, le responsable administre. Site statique + fonctions serverless Vercel, données dans Airtable. Interface en néerlandais, documentation en français.
+Portail B2B de FAMO Seafood (nom commercial de Famo Trading BV, BCE 0788.705.713 ; grossiste en produits de la mer, Anvers) : le client commande en ligne, le personnel prépare et livre, le responsable administre. Site statique + fonctions serverless Vercel ; en production, les données sont dans Postgres (Neon, `DB_BACKEND=postgres`), Airtable n'y est plus utilisé. Interface équipe en néerlandais, portail client en NL/FR, documentation en français.
+
+Les documents FA-/CN- du portail sont des documents internes : la facture légale est émise par le comptable via Billtobox (Peppol), voir `docs/adr/0005-facturation-legale.md`. Données fictives jusqu'au 27/09/2026. Autres documents : `docs/SCHEMA.md` (tables et champs, glossaire FR/NL), `docs/RUNBOOK.md` (incidents), `docs/COMPTES.md`, `docs/TRANSFERT.md`, `docs/COUTS.md`, `docs/adr/`.
 
 ## Trois portails, une identité
 
 | Portail | Pages | Accès |
 |---|---|---|
 | **Klant** | `/` (accueil + connexion), `/klant.html` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag.html`, `/wachtwoord.html` | gebruikersnaam + wachtwoord |
-| **Personeel** | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html`, `/invoer.html`, `/stock.html` | `STAFF_CODE` ou PIN personnel (cookie 8 h) |
-| **Beheer** | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, bedrijf, toegang, rapportage, status) + tout le personnel | `ADMIN_CODE` ou PIN beheerder |
+| **Personeel** | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html`, `/invoer.html`, `/stock.html` | `STAFF_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN personnel (cookie 8 h) |
+| **Beheer** | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status) + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
 
 Une seule peau « Crème » pour les trois portails, un seul bleu d'action (voir `DESIGN.md`). Les couleurs de statut sont identiques partout : ocre ontvangen, bleu klaar, bleu nuit onderweg, vert olive geleverd, gris gefactureerd, rouge te laat.
 
@@ -20,11 +22,16 @@ lib/            règles métier (prix négociés, numérotation, auth, mail)
 assets/ui.css   une seule feuille de style (jetons, composants, responsive, print)
 assets/ui.js    couche partagée : K.api, K.staff, K.klant, K.c (composants), K.shell (navigation), K.toast/confirm/panel
 assets/pages/   un script par page (klant.js, bestellingen.js, order.js, entrepot.js, leveringen.js, invoer.js, documenten.js, beheer.js, stock.js, start.js, login.js, aanvraag.js, staff-common.js)
-documents.js    génération leveringsbon / factuur / creditnota (inchangé)
-staff-doc-preview.js  aperçu A4, impression, PDF (inchangé)
+documents.js    génération leveringsbon / factuur / creditnota, en NL ou FR selon la langue du client
+staff-doc-preview.js  aperçu A4, impression, PDF (vendor/html2pdf.bundle.min.js, copie locale)
 scripts/dev.js  serveur local avec Airtable et Resend nabootsés (zéro quota)
-scripts/check.js garde-fous (syntaxe, secrets, liens, NL, tests)
+scripts/check.js garde-fous (syntaxe, secrets, liens, NL, contrastes, tests unitaires, scénarios métier)
+scripts/ux-audit.js audit navigateur (Playwright) de 27 écrans à 1280 et 390 px
+test/           tests unitaires node --test (moteur SQL, documents, e-mails, lib/airtable, Beheer…)
+docs/           schéma des données, runbook, comptes, transfert, coûts, ADR, checklist UX
 ```
+
+Node : la CI tourne en Node 22 ; Vercel exécute les fonctions dans la version choisie dans les réglages du projet (24.x au 27/09/2026). Le code n'utilise que des modules intégrés à Node et `fetch` ; `node:sqlite` (tests et banc local seulement) demande un Node 22 récent.
 
 ## Développer sans toucher à la vraie base
 
@@ -32,12 +39,12 @@ scripts/check.js garde-fous (syntaxe, secrets, liens, NL, tests)
 node scripts/dev.js
 ```
 
-Ouvre http://localhost:4200. Codes : personeel `team-dev-code`, beheer `beheer-dev-code`, klant `aloha` / `welkom123`. Les données vivent dans `.dev-data/airtable.json` ; `FAMO_RESEED=1 node scripts/dev.js` repart des données de démo. Les fonctions `api/*.js` tournent telles quelles : seul `fetch` vers `api.airtable.com` et `api.resend.com` est redirigé vers les serveurs locaux.
+Ouvre http://localhost:4200. Les données de démo (`scripts/seed.js`) sont créées au premier lancement dans `.dev-data/airtable.json` (fichier local, à ne jamais commiter) ; `FAMO_RESEED=1 node scripts/dev.js` repart des données de démo. Codes : personeel `team-dev-code`, beheer `beheer-dev-code`, PIN de démo `1234` (Ilse), klant `aloha` / `welkom123`. Si `aloha` / `welkom123` est refusé, le fichier local vient d'une version plus ancienne : relancer avec `FAMO_RESEED=1`. Les fonctions `api/*.js` tournent telles quelles : seul `fetch` vers `api.airtable.com` et `api.resend.com` est redirigé vers les serveurs locaux.
 
-Avant chaque push :
+Avant chaque push (voir `CONTRIBUER.md`) :
 
 ```bash
-node scripts/check.js
+node scripts/assets-version.js && node scripts/check.js && npx -y eslint@9.39.5 .
 ```
 
 ## Parcours d'une commande
@@ -45,9 +52,9 @@ node scripts/check.js
 1. Le client commande (`/api/order`) — le serveur recalcule les prix.
 2. Personnel : **valider article par article** puis Klaarzetten (`Prête`).
 3. **Vertrekt** (`Sortie en livraison`) — la commande est verrouillée.
-4. **Ontvangst bevestigen** (nom du réceptionnaire obligatoire, éventuellement une exception : Afwezig / Geweigerd / Gedeeltelijk / Beschadigd + note) → `Facturée`, numéro `FA-AAAA-0001`, facture disponible pour le personnel et le client ; e-mail « geleverd » au client avec échéance et communication.
+4. **Ontvangst bevestigen** (nom du réceptionnaire obligatoire, éventuellement une exception : Afwezig / Geweigerd / Gedeeltelijk / Beschadigd + note) → `Facturée`, numéro interne `FA-AAAA-0001`, document « factuur » du portail disponible pour le personnel et le client ; e-mail « geleverd » au client avec échéance et communication. Ce document n'est pas la facture légale (émise par le comptable via Billtobox).
 5. **Betaald** (uniquement sur une commande facturée) : mode obligatoire (Contant / Overschrijving / Bancontact / Andere), `Payé le` horodaté, journalisé dans `Correcties`. En lot depuis Bestellingen.
-6. **Creditnota** (beheerder, commande facturée) : lignes ⊆ lignes livrées, motif, retour en stock optionnel → numéro `CN-AAAA-0001`, montant aux prix figés, document Creditnota pour le personnel et le client.
+6. **Creditnota** (beheerder, commande facturée) : lignes ⊆ lignes livrées, motif, retour en stock optionnel → numéro interne `CN-AAAA-0001`, montant aux prix figés, document « creditnota » du portail pour le personnel et le client (la note de crédit légale est émise par le comptable, comme la facture).
 
 Le stock n'est déduit au départ que si Beheer → Bedrijfsgegevens → **Voorraad automatisch afboeken** est coché (le navigateur ne décide plus). La déduction et les retours (`Annulation sortie`, `Retour client`) passent tous par la table des mouvements.
 
@@ -63,7 +70,7 @@ Chaque correction exige une raison et s'inscrit dans le champ `Correcties` de la
 |---|---|---|---|
 | Terug naar te bereiden | Prête | personeel | validation effacée, le magasin revalide |
 | Terug naar klaar (vertrek ongedaan) | Sortie en livraison | personeel | stock remis si déduit (mouvement `Annulation sortie`) |
-| Ontvangst ongedaan maken | Facturée, non payée | beheerder | retour Onderweg ; le factuurnummer reste réservé à la commande, jamais réattribué |
+| Ontvangst ongedaan maken | Facturée, non payée, sans creditnota | beheerder | retour Onderweg ; le factuurnummer reste sur la commande et resservira à la prochaine confirmation. (À l'attribution, deux confirmations simultanées peuvent lire le même maximum : `ensureUnique` renumérote alors la commande au plus grand identifiant.) |
 | Bestelling annuleren | Reçue, Prête | personeel | statut `Annulée`, `Annulée le` + `Motif annulation` ; disparaît du Magazijn, des Leveringen et des Documenten |
 | Bestelling annuleren (onderweg) | Sortie en livraison | beheerder | idem + stock remis |
 | Herstellen | Annulée | personeel | retour Reçue |
@@ -73,11 +80,11 @@ Une commande facturée ne s'annule jamais : creditnota. Le client annule lui-mê
 
 ### Portail client en FR ou NL
 
-Bouton NL | FR sur l'accueil, la demande d'accès, « mot de passe oublié » et Account. Choix mémorisé sur l'appareil (`localStorage.famoLang`). Un seul dictionnaire (`K.FR` dans `assets/ui.js`, clé = texte néerlandais), y compris les messages d'erreur du serveur, qui reste unilingue. Le contrôle `node scripts/check.js` échoue si une clé `K.t(...)` n'a pas de traduction. Le personnel et Beheer restent en néerlandais ; les documents PDF et les e-mails aussi.
+Bouton NL | FR sur l'accueil, la demande d'accès, « mot de passe oublié » et Account. Choix mémorisé sur l'appareil (`localStorage.famoLang`). Un seul dictionnaire (`K.FR` dans `assets/ui.js`, clé = texte néerlandais), y compris les messages d'erreur du serveur, qui reste unilingue. Le contrôle `node scripts/check.js` échoue si une clé `K.t(...)` n'a pas de traduction. Le personnel et Beheer restent en néerlandais, les e-mails aussi. Les documents (leveringsbon, factuur, creditnota) suivent la langue du client (`Clients.Taal`, NL par défaut, FR possible).
 
 ### Produits et stock
 
-Beheer → Producten → Bewerken → **Verwijderen** supprime le produit, ses prix négociés et sa ligne de stock ; refusé tant qu'il figure dans une commande ouverte (mettre inactif à la place). Renommer un produit renomme aussi sa ligne de stock et les lignes des commandes ouvertes. Chaque produit peut porter un `BTW-tarief` propre (sinon le taux de Configuratie) — la facture affiche une ligne de TVA par taux — et une photo (`Foto`, upload depuis Beheer, ≤ 3 Mo). Voorraad signale les lignes « niet in catalogus » (produit renommé ou supprimé à la main) et permet de les retirer ; l'historique se filtre par produit et période.
+Beheer → Producten → Bewerken → **Verwijderen** supprime le produit, ses prix négociés et sa ligne de stock ; refusé tant qu'il figure dans une commande ouverte (mettre inactif à la place). Renommer un produit renomme aussi sa ligne de stock et les lignes des commandes ouvertes. Chaque produit peut porter un `BTW-tarief` propre (sinon le taux de Configuratie) — le document factuur affiche une ligne de TVA par taux — et une photo (`Foto`, upload depuis Beheer, ≤ 3 Mo). Voorraad signale les lignes « niet in catalogus » (produit renommé ou supprimé à la main) et permet de les retirer ; l'historique se filtre par produit et période.
 
 ### Clients (Beheer → Klanten)
 
@@ -93,41 +100,58 @@ Chiffre d'affaires facturé par mois, par client et par produit, impayés, TVA p
 
 ## Comptes clients
 
-Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Il n'y a pas de session serveur : l'onglet garde les deux et les renvoie à chaque appel, le serveur revérifie à chaque fois.
+Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Le serveur renvoie alors un jeton signé (HMAC, 12 h, `lib/clientauth.js`) que l'onglet garde en `sessionStorage` à la place du mot de passe ; chaque appel est revérifié (signature, échéance, empreinte du mot de passe : changer ou réinitialiser le mot de passe invalide les jetons existants).
 
 - **Changer son mot de passe** : Klant → Account → Wachtwoord → Wijzigen (`/api/klantwachtwoord`). Le client retape son mot de passe actuel, vérifié côté serveur ; seul le compte qui vient d'être vérifié est modifié, jamais un identifiant envoyé par le navigateur. Nouveau mot de passe : 8 à 80 caractères, différent de l'actuel ; 5 essais ratés par 30 s.
 - **Mot de passe oublié** : `/wachtwoord.html` → gebruikersnaam + e-mail connu → nouveau mot de passe envoyé par e-mail (`/api/klantorder`, action `reset`, réponse neutre, 3 demandes par heure). Sans `RESEND_API_KEY`, Famo le remet depuis Beheer.
 - **Compte** : e-mail et téléphone modifiables par le client ; favoris et « standaardbestelling » synchronisés entre appareils (`Favorieten`, JSON) ; relevé des factures ouvertes avec IBAN/BIC et communication ; détail de chaque commande (statut, facture, livraison, exception, creditnota) ; annulation ou modification (annule + remet au panier) tant que la commande est « Reçue ».
-- **Anti-force brute** : 5 échecs par 30 s par gebruikersnaam, sur tous les endpoints client (`authClient` partagé) ; un client archivé ne peut plus se connecter.
-- **À faire** : les mots de passe restent stockés **en clair** dans `Wachtwoord` (choix assumé pour l'instant). Hachage et session client : voir `IDEAS.md`, B3.
+- **Anti-force brute** : 5 échecs par 30 s par gebruikersnaam (et 30 par 5 min par IP) à la connexion (`authClient` partagé). Le compteur est en mémoire de chaque instance serverless : sur Vercel, c'est un frein, pas une limite globale garantie. Un client archivé ne peut plus se connecter.
+- **Mots de passe** : stockés hachés (scrypt, `scrypt$<sel>$<empreinte>`) dans `Wachtwoord`. Un ancien mot de passe encore en clair est accepté une fois puis remplacé par son empreinte à la connexion.
 
-## Base de données : Airtable ou Postgres (Neon)
+## Base de données : Postgres (Neon) en production
 
-Le code métier parle le protocole REST d'Airtable. `lib/datastore.js` (première ligne de chaque `api/*.js`) choisit où vont ces requêtes :
+Le code métier parle le protocole REST d'Airtable (historique, voir `docs/adr/0002-airtable-puis-neon.md`). `lib/datastore.js` (première ligne de chaque `api/*.js`) choisit où vont ces requêtes :
 
 | `DB_BACKEND` | Données | Usage |
 |---|---|---|
-| absent ou `airtable` | Airtable (`AIRTABLE_TOKEN`) | défaut, comportement historique |
-| `postgres` | Neon, table unique `famo_records`, via `DATABASE_URL` | production après bascule |
+| absent ou `airtable` | Airtable (`AIRTABLE_TOKEN`) | défaut du code, comportement historique ; plus utilisé en production |
+| `postgres` | Neon, table unique `famo_records`, via `DATABASE_URL` (ou `POSTGRES_URL`) | **production** |
 | `sqlite` | SQLite intégré à Node (`DB_SQLITE_FILE`, défaut en mémoire) | tests et banc local : `DB_BACKEND=sqlite node scripts/dev.js` |
 
 `lib/at-engine.js` rejoue le contrat Airtable (formules via `lib/at-formula.js`, partagé avec le faux Airtable du banc local ; tri, pages, lots de 10, champs vides effacés, 404/422) et gère la concurrence par numéro de version. `lib/sql.js` parle à Neon en HTTPS avec le `fetch` natif : toujours aucune dépendance npm. Photos produit : en mode Postgres, elles sont stockées dans la table `famo_files` et servies par `/api/foto?id=att…` (cache d'un an, un nouvel id à chaque photo). Beheer les réduit dans le navigateur à 1600 px (JPEG 85 %) avant l'envoi. Une nouvelle photo remplace l'ancienne, dont le fichier est supprimé ; supprimer un produit supprime aussi sa photo.
 
-**Bascule, dans l'ordre :**
+**Bascule (effectuée : la production tourne sur Neon ; procédure gardée pour mémoire et pour un nouvel environnement) :**
 1. Vercel → Storage → Neon relié au projet (fournit `DATABASE_URL`), puis redéployer.
 2. Beheer → Systeemstatus → **Database** : « bereikbaar » doit apparaître.
 3. **Kopieer Airtable naar de nieuwe database**, puis **Vergelijken** : toutes les lignes « OK ».
 4. Un moment sans commande : recopier, vérifier, mettre `DB_BACKEND=postgres` dans Vercel, redéployer.
-5. Retour arrière : `DB_BACKEND=airtable` et redéployer. Airtable n'est jamais modifié par la copie ; les commandes passées pendant la période Postgres n'y sont pas.
+5. Retour arrière vers Airtable : techniquement `DB_BACKEND=airtable` et redéployer, mais les commandes enregistrées depuis la bascule ne sont que dans Neon : ce n'est plus une option d'exploitation. En cas d'incident sur Neon, voir `docs/RUNBOOK.md` (restauration point-in-time).
+
+`DB_BACKEND=postgres` sans `DATABASE_URL` valable : chaque requête répond 500 `DATABASE_NOT_CONFIGURED`, jamais de repli silencieux sur Airtable (test `test/engine-switch.test.js`). Attention : une valeur mal orthographiée (`postgresql`, `neon`…) est lue comme `airtable`.
 
 Une fois basculé, la copie est refusée (409) : elle écraserait les nouvelles commandes avec une Airtable périmée.
 
 ## Variables d'environnement Vercel
 
-`AIRTABLE_TOKEN`, `ADMIN_CODE`, `STAFF_CODE` (obligatoires), `DB_BACKEND` + `DATABASE_URL` (Postgres, voir ci-dessus), `RESEND_API_KEY` + `MAIL_FROM` (e-mails : confirmation, annulation, onderweg, geleverd + facture, bienvenue, nouvelle demande d'accès, mot de passe), `PORTAL_URL` (liens dans les e-mails). En local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff pour tester depuis une IP du réseau. Voir `VERCEL_CHECKLIST.md`.
+Liste complète des variables lues par `api/` et `lib/` (`grep -rn process.env api lib`) ; détail et valeurs dans `VERCEL_CHECKLIST.md`.
+
+| Variable | Rôle |
+|---|---|
+| `ADMIN_CODE`, `STAFF_CODE` | codes d'accès partagés. **Au moins un des deux** doit exister, sinon toute auth staff est fermée (500). Sans `ADMIN_CODE`, Beheer est fermé pour tout le monde, PIN beheerder compris (`adminOk`). |
+| `SESSION_SECRET` | secret HMAC des cookies staff et des jetons clients. **À poser en production** : sans elle, le secret dérive de `AIRTABLE_TOKEN`, `DATABASE_URL`, `STAFF_CODE` et `ADMIN_CODE`, et changer l'une de ces variables déconnecte tout le monde. |
+| `DB_BACKEND` | `postgres` en production (voir ci-dessus). |
+| `DATABASE_URL` (ou `POSTGRES_URL`) | adresse Neon, fournie par l'intégration Vercel ↔ Neon. |
+| `NEON_HTTP_URL` | facultatif : point d'entrée HTTP de Neon si celui déduit de l'adresse ne convient pas. |
+| `AIRTABLE_TOKEN` | lecture de l'ancienne base Airtable (copie/vérification dans Systeemstatus). Plus nécessaire au fonctionnement courant ; voir `SESSION_SECRET` avant de la retirer. |
+| `RESEND_API_KEY`, `MAIL_FROM` | e-mails (confirmation, annulation, onderweg, geleverd, bienvenue, nouvelle demande d'accès, mot de passe). Sans clé : aucun e-mail, tout le reste fonctionne. |
+| `MAIL_TIMEOUT_MS` | facultatif : délai max d'un envoi Resend (4000 ms par défaut). |
+| `PORTAL_URL` | adresse publique du portail pour les liens des e-mails (sinon déduite de la requête). |
+| `CRON_SECRET` | à venir (tâche planifiée en cours d'ajout) : à poser quand la tâche existera. |
+
+Local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff (test depuis une IP du réseau, jamais sur Vercel), `DB_SQLITE_FILE`, `PORT`, `FAMO_RESEED`, `FAMO_REAL`.
 
 `vercel.json` pose une Content-Security-Policy (scripts et connexions du site uniquement, images https/data/blob pour les photos Airtable et les PDF, pas d'iframe externe).
 
 ## Pas dans cette version
 
-Optimisation automatique de tournée (l'ordre se règle à la main dans Leveringen), carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, Peppol, session client par cookie et hachage des mots de passe clients.
+Optimisation automatique de tournée (l'ordre se règle à la main dans Leveringen), carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, envoi Peppol depuis le portail (la facture légale part du comptable via Billtobox), session client par cookie (le jeton signé vit dans l'onglet).

@@ -32,9 +32,12 @@ if (!/function staffOk\(req\)/.test(auth) || /legacyCode/.test(auth)) fail("lib/
 
 // 3. Contrats d'URL figés (e-mails et liens profonds).
 if (!read("api/order.js").includes("/order.html?id=") || !read("api/staff.js").includes("/order.html?id=")) fail("Les e-mails doivent lier /order.html?id="); else ok("Lien e-mail /order.html?id= conservé");
+// Chaque rubrique compte ses propres échecs : le ✓ ne s'affiche que si elle n'en a produit aucun.
+const failsSince = (n) => errors.length - n;
+const linksStart = errors.length;
 for (const f of htmlPages) { const html = read(f); const re = /href="\/([a-z0-9\-]+\.html)/g; let m; while ((m = re.exec(html))) { if (!fs.existsSync(path.join(ROOT, m[1]))) fail(f + " lie vers /" + m[1] + " qui n'existe pas"); } }
 for (const f of list("assets/pages", /\.js$/)) { const s = read(f); const re = /["'`]\/([a-z0-9\-]+\.html)/g; let m; while ((m = re.exec(s))) { if (!fs.existsSync(path.join(ROOT, m[1]))) fail(f + " lie vers /" + m[1] + " qui n'existe pas"); } }
-ok("Liens internes : toutes les pages ciblées existent");
+if (!failsSince(linksStart)) ok("Liens internes : toutes les pages ciblées existent");
 
 // 4. Interface : pas d'alert/confirm/prompt natifs, pas de code staff en storage ni en URL.
 let ui = 0;
@@ -47,8 +50,9 @@ for (const f of [...list("assets/pages", /\.js$/), "assets/ui.js", ...htmlPages]
 if (!fr) ok("Néerlandais : unités traduites (caisse → kassa)");
 
 // 6. Chaque page charge la couche partagée et une police avec repli.
+const pagesStart = errors.length;
 for (const f of htmlPages) { const html = read(f); if (/<meta http-equiv="refresh"/i.test(html)) continue; if (!html.includes("/assets/ui.css") || !html.includes("/assets/ui.js")) fail(f + " ne charge pas assets/ui.css + assets/ui.js"); if (!/viewport/.test(html)) fail(f + " sans meta viewport"); }
-ok("Pages : couche partagée + viewport");
+if (!failsSince(pagesStart)) ok("Pages : couche partagée + viewport");
 
 // 7. Tests unitaires (Node --test) s'il y en a.
 { const r = require("child_process").spawnSync(process.execPath, [path.join(ROOT, "scripts", "assets-version.js"), "--check"], { cwd: ROOT, encoding: "utf8" }); if (r.status !== 0) fail("Versions des fichiers statiques périmées : lancer node scripts/assets-version.js\n" + (r.stderr || "")); else ok("Versions des fichiers statiques (cache) à jour"); }
