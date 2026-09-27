@@ -11,7 +11,8 @@
   function historyHtml() {
     return moves.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>Wanneer</th><th>Type</th><th>Product</th><th class="num">Aantal</th><th class="num">Van → naar</th><th>Nota</th></tr></thead><tbody>' + moves.map(m => '<tr><td>' + K.esc(K.date(K.isoDay(m.at)) + " " + K.time(m.at)) + '</td><td>' + K.esc(K.move(m.type)) + '</td><td>' + K.esc(m.product) + '</td><td class="num mono">' + (m.quantity > 0 ? "+" : "") + K.qty(m.quantity) + '</td><td class="num mono muted">' + K.qty(m.before) + ' → ' + K.qty(m.after) + '</td><td class="muted wrap">' + K.esc(m.note || "") + '</td></tr>').join("") + '</tbody></table></div>' + (moves.length >= hist.limit ? '<p class="quiet" style="font-size:12px;padding:8px 16px;margin:0">Enkel de laatste ' + hist.limit + ' bewegingen. Kies een product of een kortere periode voor meer detail.</p>' : "") : '<div class="empty" style="margin:12px">Geen bewegingen in de laatste ' + hist.days + ' dagen' + (hist.product ? ' voor „' + K.esc(hist.product) + '”' : "") + '.</div>';
   }
-  function render() {
+  function render() { return K.keep(page, draw); }
+  function draw() {
     // E-07 : config et stock viennent d'être lus ici ; S.load (pastilles) ne relit donc ni
     // /api/config (S.config fourni) ni /api/stock (pastille « stock » marquée comme fraîche).
     if (window.S && S.stockBadge) {

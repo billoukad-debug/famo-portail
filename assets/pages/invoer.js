@@ -24,14 +24,15 @@
   const byId = id => products.find(p => p.id === id);
   const total = () => Object.entries(items).reduce((s, [id, qv]) => { const p = byId(id); return s + (p ? p.prix * qv : 0); }, 0);
   const isKg = p => /kg/i.test(p.unite || "");
-  function render() {
+  function render() { return K.keep(page, draw); }
+  function draw() {
     const cl = clients.find(c => c.id === clientId);
     const list = products.filter(p => !q || (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat)).toLowerCase().includes(q));
     if (!day) day = firstDay();
     dayErr = checkDate(day);
     const tooEarly = !dayErr && day === K.addDays(K.today(), 1) && pastDeadline();
     const underMin = rules.minimum > 0 && total() > 0 && total() < rules.minimum;
-    page.innerHTML = '<div class="page-h"><div><h1 class="h1">Bestelling invoeren</h1><p class="sub">Voor een klant die belt, mailt of appt</p></div><span class="spacer"></span><div class="opt" style="flex:0 0 auto">' + ["Telefoon", "WhatsApp", "E-mail", "Toonbank"].map(b => '<button type="button" data-bron="' + b + '"' + (b === bron ? ' class="on"' : "") + '>' + b + '</button>').join("") + '</div></div>' +
+    page.innerHTML = '<div class="page-h"><div><h1 class="h1">Bestelling invoeren</h1><p class="sub">Voor een klant die belt, mailt of appt</p></div><span class="spacer"></span><div class="opt" style="flex:0 0 auto" role="group" aria-label="Bron">' + ["Telefoon", "WhatsApp", "E-mail", "Toonbank"].map(b => '<button type="button" data-bron="' + b + '"' + (b === bron ? ' class="on"' : "") + '>' + b + '</button>').join("") + '</div></div>' +
       '<div class="content" style="padding-top:14px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start" id="two">' +
       '<div class="card"><div class="card-h" style="gap:10px"><select class="input" id="client" aria-label="Klant" style="max-width:320px"><option value="">— Kies een klant —</option>' + clients.map(c => '<option value="' + c.id + '"' + (c.id === clientId ? " selected" : "") + '>' + K.esc(c.nom) + '</option>').join("") + '</select><label class="search">' + K.icon("search") + '<input id="q" placeholder="Zoek product…" value="' + K.esc(q) + '"' + (clientId ? "" : " disabled") + '></label></div>' +
       (clientId ? (list.length ? list.map(p => '<div class="line" style="grid-template-columns:minmax(0,1fr) auto auto"><div><b>' + K.esc(p.nom) + '</b>' + (p.kaliber ? ' <span class="tag">' + K.esc(p.kaliber) + '</span>' : "") + '<div class="quiet" style="font-size:12px">' + K.esc(K.unit(p.unite)) + " · " + K.esc(K.cat(p.cat)) + '</div></div><div class="pp"><b class="mono">' + K.eur(p.prix) + '</b>' + (p.prix < p.base ? '<s class="mono">' + K.eur(p.base) + '</s>' : "") + '</div>' + K.c.stepper(p.id, items[p.id] || 0, { step: isKg(p) ? 0.5 : 1 }) + '</div>').join("") : '<div class="empty" style="margin:12px">Geen product gevonden.</div>') : '<div class="state"><b>Kies eerst een klant</b><p class="sub">De prijzen in de lijst zijn de afgesproken prijzen van die klant.</p></div>') + '</div>' +
