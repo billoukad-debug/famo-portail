@@ -7,6 +7,7 @@ const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
 const __prices = require("../lib/prices");
 const __ordermail = require("../lib/ordermail");
+const __authmail = require("../lib/authmail");
 const __lev = require("../lib/levering");
 const BASE = "appcdduLth9iGX8I0";
 const REC = /^[A-Za-z0-9]{1,40}$/;
@@ -503,14 +504,17 @@ module.exports = async (req, res) => {
       }
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Klant opslaan mislukt" });
       const id = body.id || (saved.records && saved.records[0] && saved.records[0].id);
-      // E-mail de bienvenue avec les identifiants, si le client a une adresse et qu'un
-      // (nouveau) mot de passe vient d'être créé. Jamais bloquant.
+      // E-mail de bienvenue si le client a une adresse et qu'un (nouveau) mot de passe vient
+      // d'être créé : gebruikersnaam + lien d'activation (72 h) où il choisit son propre mot
+      // de passe — jamais le mot de passe en clair. Celui que Beheer affiche reste valable
+      // (à dicter par téléphone) jusqu'à ce choix. Jamais bloquant.
       let mail = null;
       const newCreds = !body.id || generate || !!clean(body.password, 80);
-      if (newCreds && fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
+      if (newCreds && id && fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
         mail = await (async () => {
           const cfg = await __ordermail.loadMailConfig(at);
-          return __ordermail.notifyWelcome({ klant: { nom, email: fields["Email"] }, credentials: { user, password }, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id, fields }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyActivation({ klant: { nom, email: fields["Email"], taal: fields["Taal"] }, user, link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
         })().catch(() => null);
       }
       return res.status(200).json({
@@ -575,16 +579,20 @@ module.exports = async (req, res) => {
       if (password.length < 8) return res.status(400).json({ error: "Wachtwoord minstens 8 tekens" });
       const cur = await at(`Clients/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const hashed = __ca.hashPassword(password);
       const saved = await at(`Clients/${body.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ fields: { "Wachtwoord": __ca.hashPassword(password) } })
+        body: JSON.stringify({ fields: { "Wachtwoord": hashed } })
       });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Wachtwoord wijzigen mislukt" });
+      if (saved.error) { console.error("[onboarding] resetPassword", body.id, saved.error.type, saved.error.message); return res.status(500).json({ error: "Wachtwoord wijzigen mislukt" }); }
+      // E-mail : lien (72 h, usage unique) pour choisir son mot de passe, jamais le mot de
+      // passe lui-même ; celui de Beheer reste valable d'ici là.
       let mail = null;
       if (cur.fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
         mail = await (async () => {
           const cfg = await __ordermail.loadMailConfig(at);
-          return __ordermail.notifyReset({ klant: __ordermail.clientFrom(cur), credentials: { user: cur.fields["Gebruikersnaam"] || "", password }, password, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id: body.id, fields: { "Wachtwoord": hashed } }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyResetLink({ klant: Object.assign(__ordermail.clientFrom(cur), { taal: cur.fields["Taal"] }), user: cur.fields["Gebruikersnaam"] || "", link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
         })().catch(() => null);
       }
       return res.status(200).json({

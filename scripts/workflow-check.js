@@ -1437,7 +1437,7 @@ async function main() {
     r = await call(ko, { action: "reset", user: "aloha", email: "keuken@aloha.test" }, []); assert.equal(r.res.statusCode, 429, "AR3 4e aanvraag binnen het uur");
     // reset — met mailsleutel : zelfde antwoord bij mismatch of onbekend account, PATCH enkel bij match.
     const savedKey = process.env.RESEND_API_KEY;
-    const mailMods = ["lib/mail.js", "lib/ordermail.js", "api/klantorder.js"];
+    const mailMods = ["lib/mail.js", "lib/ordermail.js", "lib/authmail.js", "api/klantorder.js"];
     process.env.RESEND_API_KEY = "re_test_key_AR"; mailMods.forEach(clearModule); ko = require(path.join(ROOT, "api", "klantorder.js"));
     r = await call(ko, { action: "reset", user: "aloha2", email: "iemand@anders.test" }, [{ records: [{ id: "cliAR2", fields: { Gebruikersnaam: "aloha2", Email: "keuken@aloha.test" } }] }]);
     assert.equal(r.res.statusCode, 200, "AR4 mismatch → neutraal"); assert.match(r.res.payload.message, /Als de gegevens kloppen/); assert.equal(r.calls.length, 1, "AR4 geen PATCH, geen mail"); assert.equal(r.res.payload.mail, undefined);
@@ -1445,15 +1445,21 @@ async function main() {
     assert.equal(r.res.statusCode, 200, "AR4 onbekend account → zelfde antwoord"); assert.equal(r.calls.length, 1);
     r = await call(ko, { action: "reset", user: "aloha3", email: "keuken@aloha.test" }, [{ records: [{ id: "c3", fields: { Gebruikersnaam: "aloha3", Email: "keuken@aloha.test", Gearchiveerd: true } }] }]);
     assert.equal(r.res.statusCode, 200, "AR4 gearchiveerd → neutraal"); assert.equal(r.calls.length, 1, "AR4 gearchiveerd : geen PATCH");
-    r = await call(ko, { action: "reset", user: "ALOHA2", email: "Keuken@Aloha.test" }, [{ records: [{ id: "cliAR2", fields: { Gebruikersnaam: "aloha2", Email: " keuken@aloha.test ", Nom: "Aloha" } }] }, { fields: {} }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }, { id: "m1" }]);
-    assert.equal(r.res.statusCode, 200, "AR4 match → nieuw wachtwoord"); assert.match(r.res.payload.message, /Als de gegevens kloppen/);
-    const storedAR = patchOfX(r, /Clients\/cliAR2$/).fields.Wachtwoord;
-    assert.match(storedAR, /^scrypt\$/, "AR4 opgeslagen als empreinte, nooit in klare tekst");
+    const HASH_AR = HP("huidig-pw");
+    r = await call(ko, { action: "reset", user: "ALOHA2", email: "Keuken@Aloha.test" }, [{ records: [{ id: "cliAR2", fields: { Gebruikersnaam: "aloha2", Email: " keuken@aloha.test ", Nom: "Aloha", Wachtwoord: HASH_AR } }] }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }, { id: "m1" }]);
+    assert.equal(r.res.statusCode, 200, "AR4 match → link"); assert.match(r.res.payload.message, /Als de gegevens kloppen/);
+    assert.equal(methodCallsX(r, "PATCH").length, 0, "AR4 het huidige wachtwoord blijft geldig tot de klant een nieuw kiest");
     const sent = r.calls.filter(c => /api\.resend\.com/.test(c.url));
     assert.equal(sent.length, 1, "AR4 één mail, naar het gekende adres"); assert.ok(sent[0].options.body.includes("keuken@aloha.test"));
-    const pw = (String(JSON.parse(sent[0].options.body).text || sent[0].options.body).match(/[A-HJ-NP-Za-km-z2-9]{10}/g) || []).find(c => require(path.join(ROOT, "lib/clientauth")).checkPassword(storedAR, c));
-    assert.equal(typeof pw, "string", "AR4 het wachtwoord (10 tekens) staat in de mail en past bij de empreinte");
-    assert.ok(!JSON.stringify(r.res.payload).includes(pw), "AR4 het wachtwoord komt nooit in het antwoord");
+    const mailAR = JSON.parse(sent[0].options.body);
+    const linkAR = (mailAR.text.match(/\/wachtwoord\.html\?t=([^\s]+)/) || [])[1];
+    assert.ok(linkAR, "AR4 de mail bevat een link naar wachtwoord.html?t=…");
+    assert.deepEqual(require(path.join(ROOT, "lib/clientauth")).readResetToken(decodeURIComponent(linkAR)), { id: "cliAR2", fp: require(path.join(ROOT, "lib/clientauth")).fingerprint(HASH_AR) }, "AR4 link ondertekend, gebonden aan het huidige wachtwoord");
+    assert.ok(!/wachtwoord:\s*\S{8,}/i.test(mailAR.text) && !mailAR.text.includes("huidig-pw"), "AR4 geen wachtwoord in klare tekst in de mail");
+    assert.ok(!JSON.stringify(r.res.payload).includes(linkAR), "AR4 de link komt nooit in het antwoord");
+    // Toegang geblokkeerd door Beheer (wachtwoord gewist) : geen heropening via zelfbediening.
+    r = await call(ko, { action: "reset", user: "aloha4", email: "keuken@aloha.test" }, [{ records: [{ id: "c4", fields: { Gebruikersnaam: "aloha4", Email: "keuken@aloha.test" } }] }]);
+    assert.equal(r.res.statusCode, 200, "AR4 geblokkeerd → neutraal"); assert.equal(r.calls.length, 1, "AR4 geblokkeerd : geen mail");
     if (savedKey === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = savedKey;
     mailMods.forEach(clearModule);
   }

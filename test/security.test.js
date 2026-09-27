@@ -293,3 +293,95 @@ test("A-08 : déconnexion serveur → les jetons du client sur tous ses appareil
   assert.equal(ca.readToken(again.body.token).gen, 1, "nouvelle connexion à la nouvelle génération");
   assert.equal((await callApi("catalogue", { method: "POST", body: { token: again.body.token } })).statusCode, 200);
 });
+
+// ---- A-05 / A-06 : lien de réinitialisation au lieu d'un mot de passe en clair ------------------
+// E-mails activés, Resend simulé : on lit ce qui serait parti.
+function withMail() {
+  const sent = [];
+  const mods = ["lib/mail.js", "lib/ordermail.js", "lib/authmail.js", "api/klantorder.js", "api/onboarding.js"];
+  const clear = () => mods.forEach((m) => { delete require.cache[require.resolve(path.join(ROOT, m))]; });
+  const prevFetch = global.fetch;
+  process.env.RESEND_API_KEY = "re_test_security";
+  process.env.PORTAL_URL = "https://portaal.famo.test";
+  clear();
+  global.fetch = async (url, init) => {
+    if (String(url).startsWith("https://api.resend.com/")) { sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ id: "m" + sent.length }), { status: 200 }); }
+    return prevFetch(url, init);
+  };
+  return { sent, done() { global.fetch = prevFetch; delete process.env.RESEND_API_KEY; delete process.env.PORTAL_URL; clear(); } };
+}
+const linkIn = (m) => decodeURIComponent((/\/wachtwoord\.html\?t=([^\s"]+)/.exec(m.text) || [])[1] || "");
+
+test("A-05 : reset → lien à usage unique, l'ancien mot de passe vaut jusqu'au choix du nouveau", async () => {
+  const mail = withMail();
+  try {
+    await put("Clients", { "Nom": "Reset BV", "Gebruikersnaam": "reset1", "Email": "chef@reset.test", "Wachtwoord": ca.hashPassword("oud-wachtwoord"), "Taal": "FR" });
+    const r = await callApi("klantorder", { method: "POST", body: { action: "reset", user: "reset1", email: "chef@reset.test" } });
+    assert.equal(r.statusCode, 200); assert.match(r.body.message, /link/);
+    assert.equal(mail.sent.length, 1);
+    const m = mail.sent[0];
+    assert.deepEqual(m.to, ["chef@reset.test"]);
+    assert.match(m.subject, /mot de passe/, "client FR : e-mail en français");
+    const token = linkIn(m);
+    assert.match(token, /^r\./, "lien wachtwoord.html?t=…");
+    assert.ok(m.text.includes("https://portaal.famo.test/wachtwoord.html?t="), "lien absolu vers PORTAL_URL");
+    assert.ok(!m.text.includes("oud-wachtwoord") && !/scrypt\$/.test(m.html), "aucun mot de passe dans l'e-mail");
+    // Rien n'a changé tant que le client n'a pas choisi : l'ancien mot de passe ouvre toujours.
+    assert.equal((await callApi("catalogue", { method: "POST", body: { user: "reset1", pw: "oud-wachtwoord" } })).statusCode, 200);
+    const set = (nieuw, t) => callApi("klantwachtwoord", { method: "POST", body: { action: "setPassword", token: t || token, nieuw } });
+    assert.equal((await set("kort")).statusCode, 400, "8 caractères minimum");
+    assert.equal((await set("nieuw-wachtwoord", token.slice(0, -2) + "xx")).statusCode, 400, "lien falsifié");
+    const ok = await set("nieuw-wachtwoord");
+    assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
+    assert.equal(ok.body.user, "reset1");
+    assert.equal((await callApi("catalogue", { method: "POST", body: { token: ok.body.token } })).statusCode, 200, "connecté dans la foulée");
+    assert.equal((await callApi("catalogue", { method: "POST", body: { user: "reset1", pw: "nieuw-wachtwoord" } })).statusCode, 200);
+    assert.equal((await callApi("catalogue", { method: "POST", body: { user: "reset1", pw: "oud-wachtwoord" } })).statusCode, 401, "ancien mot de passe remplacé");
+    const again = await set("encore-un-autre");
+    assert.equal(again.statusCode, 400, "lien déjà utilisé"); assert.equal(again.body.expired, true);
+    // Lien expiré après 30 min.
+    const r2 = await callApi("klantorder", { method: "POST", body: { action: "reset", user: "reset1", email: "chef@reset.test" } });
+    assert.equal(r2.statusCode, 200);
+    const late = await later(31 * 60000, () => set("te-laat-gekozen", linkIn(mail.sent[1])));
+    assert.equal(late.statusCode, 400, "lien de plus de 30 min refusé");
+  } finally { mail.done(); }
+});
+
+test("A-06 : reset en temps constant, compte existant ou non", async () => {
+  const mail = withMail();
+  try {
+    await put("Clients", { "Nom": "Tijd", "Gebruikersnaam": "tijd1", "Email": "chef@tijd.test", "Wachtwoord": ca.hashPassword("wat-dan-ook") });
+    const time = async (user, email) => { const t0 = Date.now(); const r = await callApi("klantorder", { method: "POST", body: { action: "reset", user, email } }); assert.equal(r.statusCode, 200); return { ms: Date.now() - t0, body: r.body }; };
+    const hit = await time("tijd1", "chef@tijd.test");
+    const miss = await time("bestaat-niet", "chef@tijd.test");
+    const wrong = await time("tijd1", "ander@tijd.test");
+    assert.equal(mail.sent.length, 1, "un seul e-mail : le bon couple");
+    assert.deepEqual(hit.body, miss.body); assert.deepEqual(hit.body, wrong.body);
+    for (const x of [hit, miss, wrong]) assert.ok(x.ms >= 790, "durée plancher (" + x.ms + " ms)");
+    assert.ok(Math.abs(hit.ms - miss.ms) < 150 && Math.abs(hit.ms - wrong.ms) < 150, "durées indiscernables : " + [hit.ms, miss.ms, wrong.ms].join(" / "));
+  } finally { mail.done(); }
+});
+
+test("A-05 : e-mails de bienvenue et de reset Beheer = lien d'activation, jamais le mot de passe", async () => {
+  const mail = withMail();
+  try {
+    const admin = "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600000, "admin", "", { g: auth.currentGeneration() || 0 }));
+    const saved = await callApi("onboarding", { method: "POST", headers: { cookie: admin }, body: { action: "saveClient", nom: "Welkom BV", user: "welkom1", email: "chef@welkom.test", password: "Beheer-gekozen-1", generate: false } });
+    assert.equal(saved.statusCode, 200, JSON.stringify(saved.body));
+    assert.equal(saved.body.credentials.password, "Beheer-gekozen-1", "Beheer voit toujours le mot de passe (à dicter)");
+    const w = mail.sent[0];
+    assert.ok(w && !w.text.includes("Beheer-gekozen-1") && !w.html.includes("Beheer-gekozen-1"), "pas de mot de passe dans l'e-mail de bienvenue");
+    assert.ok(w.text.includes("welkom1"), "l'identifiant y est");
+    const act = await callApi("klantwachtwoord", { method: "POST", body: { action: "setPassword", token: linkIn(w), nieuw: "zelf-gekozen-1" } });
+    assert.equal(act.statusCode, 200, "le lien d'activation fonctionne");
+    assert.equal((await callApi("catalogue", { method: "POST", body: { user: "welkom1", pw: "zelf-gekozen-1" } })).statusCode, 200);
+
+    const reset = await callApi("onboarding", { method: "POST", headers: { cookie: admin }, body: { action: "resetPassword", id: saved.body.credentials.id } });
+    assert.equal(reset.statusCode, 200, JSON.stringify(reset.body));
+    const pw = reset.body.credentials.password;
+    const m = mail.sent[1];
+    assert.ok(m && !m.text.includes(pw) && !m.html.includes(pw), "pas de mot de passe dans l'e-mail de reset Beheer");
+    assert.ok(linkIn(m), "lien présent");
+    assert.equal((await callApi("klantwachtwoord", { method: "POST", body: { action: "setPassword", token: linkIn(w), nieuw: "nog-eens-iets" } })).statusCode, 400, "l'ancien lien d'activation ne vaut plus");
+  } finally { mail.done(); }
+});

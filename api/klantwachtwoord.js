@@ -2,6 +2,7 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 // Le client change lui-même son mot de passe (Klant → Account).
 // POST {user, pw, nieuw} : pw = le mot de passe ACTUEL, retapé par le client.
 // POST {action:"logout", token} : déconnexion serveur (tous les appareils du client).
+// POST {action:"setPassword", token, nieuw} : mot de passe choisi via le lien reçu par e-mail.
 //
 // Le client modifié est TOUJOURS celui que authClient vient de vérifier (gebruikersnaam
 // + mot de passe actuel). Aucun identifiant de client n'est lu dans le body : sans le
@@ -54,6 +55,33 @@ module.exports = async (req, res) => {
         }
       }
       return res.status(200).json({ ok: true });
+    }
+
+    // ---- Lien reçu par e-mail (reset ou activation) : POST {action:"setPassword", token, nieuw}.
+    // Le jeton signé désigne le client et l'empreinte de son mot de passe actuel : dès que
+    // celui-ci change, le lien ne vaut plus (usage unique). Même message pour un lien faux,
+    // expiré ou déjà utilisé.
+    if (q.action === "setPassword") {
+      const nieuw = typeof q.nieuw === "string" ? q.nieuw : typeof q.nouveau === "string" ? q.nouveau : "";
+      if (nieuw.length < MIN_LEN) return res.status(400).json({ error: `Het nieuwe wachtwoord moet minstens ${MIN_LEN} tekens hebben.` });
+      if (nieuw.length > MAX_LEN) return res.status(400).json({ error: `Het nieuwe wachtwoord mag hoogstens ${MAX_LEN} tekens hebben.` });
+      const gone = { error: "Deze link is verlopen of al gebruikt. Vraag een nieuwe aan.", expired: true };
+      const t = __ca.readResetToken(q.token);
+      if (!t) return res.status(400).json(gone);
+      const rec = await at(`Clients/${encodeURIComponent(t.id)}`);
+      const f = (rec && !rec.error && rec.fields) || null;
+      if (!f || f["Gearchiveerd"] || __ca.fingerprint(f["Wachtwoord"]) !== t.fp) return res.status(400).json(gone);
+      const fields = { "Wachtwoord": __ca.hashPassword(nieuw) };
+      // Le client a prouvé qu'il lit la boîte de son établissement : le verrou anti-force brute
+      // est levé (écrit seulement s'il existe, pour une base sans ces champs).
+      if (Number(f["Echecs"]) > 0 || f["Geblokkeerd tot"]) Object.assign(fields, { "Echecs": 0, "Geblokkeerd tot": null });
+      const saved = await at(`Clients/${encodeURIComponent(t.id)}`, { method: "PATCH", body: JSON.stringify({ fields }) });
+      if (!saved || saved.error) {
+        console.error("[klantwachtwoord] setPassword", t.id, saved && saved.error && saved.error.type);
+        return res.status(500).json({ error: "Wachtwoord opslaan mislukt. Probeer het later opnieuw." });
+      }
+      // Connecté dans la foulée : jeton de session neuf (le mot de passe vient de changer).
+      return res.status(200).json({ ok: true, user: f["Gebruikersnaam"] || "", token: __ca.issueToken({ id: t.id, fields: Object.assign({}, f, fields) }) });
     }
 
     const pw = typeof q.pw === "string" ? q.pw : "";
