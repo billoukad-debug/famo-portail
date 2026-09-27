@@ -146,7 +146,13 @@ async function klant(b, W) {
   }
   // Quantité au clavier : − / + gardent le focus (le panier se redessine).
   if (await J.tabTo(".li [data-inc]", "panier")) { await p.keyboard.press("Enter"); await J.notLost("+ dans le panier", 400); if (!(await is(p, ".li [data-inc]"))) add("2.4.3 focus déplacé après action", "klant " + W + " · + dans le panier : le focus quitte le bouton"); }
-  if (await J.tabTo("#placeOrder", "panier")) { await p.keyboard.press("Enter"); await p.waitForURL(/bevestigd/, { timeout: 8000 }).catch(() => add("parcours incomplet", "klant " + W + " · commande non passée")); await J.notLost("commande passée → confirmation", 1200); }
+  if (await J.tabTo("#placeOrder", "panier")) {
+    await p.keyboard.press("Enter");
+    // Même commande déjà passée aujourd'hui (parcours 390 puis 1440) : le portail demande confirmation
+    // (garde-fou anti-doublon, api/order.js). La confirmation se fait aussi au clavier.
+    await p.waitForSelector(".dialog [data-yes]", { timeout: 2500 }).then(async () => { if (await J.tabTo(".dialog [data-yes]", "confirmation doublon", { max: 6 })) await p.keyboard.press("Enter"); }).catch(() => {});
+    await p.waitForURL(/bevestigd/, { timeout: 8000 }).catch(() => add("parcours incomplet", "klant " + W + " · commande non passée")); await J.notLost("commande passée → confirmation", 1200);
+  }
   if (await J.tabTo('a.btn[href="#/bestellingen"]', "confirmation")) { await p.keyboard.press("Enter"); await J.notLost("confirmation → mes commandes", 1500); }
   if (await J.tabTo('[data-of="geleverd"]', "mes commandes")) {
     await p.keyboard.press("Enter"); await J.notLost("filtre Geleverd", 500);
@@ -222,7 +228,8 @@ async function staff(b, W) {
       await p.keyboard.press("Enter"); await p.waitForTimeout(700);
       const d = await J.info(); if (!d.dialog) add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · Ontvangst bevestigen");
       if (await J.tabTo("#recipient", "Ontvangst bevestigen", { max: 10 })) {
-        if (await J.tabTo('[data-pay="Payé"]', "Ontvangst bevestigen", { max: 10 })) {
+        // Choix du paiement : beheerder seul (le personnel n'encaisse pas) ; absent pour l'équipe.
+        if (await p.$('.scrim [data-pay="Payé"]') && await J.tabTo('[data-pay="Payé"]', "Ontvangst bevestigen", { max: 10 })) {
           await p.keyboard.press("Space"); await p.waitForTimeout(100);
           if (await pressedOf(p, '[data-pay="Payé"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · Betaling « Contant » sans aria-pressed=true");
         }
@@ -293,7 +300,10 @@ async function beheer(b) {
   if (await J.tabTo('.tabs a[href="#/klanten"]', "Producten", { back: true, max: 120 })) { await p.keyboard.press("Enter"); await J.notLost("onglet Klanten", 1200); }
   if (await J.tabTo("a[data-c]:not([style*='p-soft'])", "Klanten", { max: 40 })) { await p.keyboard.press("Enter"); await J.notLost("autre klant", 1200); }
   if (await J.tabTo("[data-price]", "Klantfiche", { max: 60 })) {
-    await p.keyboard.type("9,99"); await p.keyboard.press("Enter"); await p.waitForTimeout(1500);
+    await p.keyboard.type("9,99"); await p.keyboard.press("Enter");
+    // Prix très éloigné du prix de base : le portail demande confirmation (garde-fou L-04), au clavier aussi.
+    await p.waitForSelector(".dialog [data-yes]", { timeout: 2000 }).then(async () => { if (await J.tabTo(".dialog [data-yes]", "confirmation prix", { max: 6 })) await p.keyboard.press("Enter"); }).catch(() => {});
+    await p.waitForTimeout(1500);
     const toast = await p.evaluate(() => document.querySelector(".toasts").textContent);
     if (!/opgeslagen/i.test(toast)) add("FOR-02 Entrée n'enregistre pas", "beheer · prix négocié (Klantfiche)");
     await J.notLost("prijs opgeslagen", 300);

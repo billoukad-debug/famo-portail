@@ -54,7 +54,7 @@ function audit() {
   // INT-03 : 24 px partout ; au tactile 44 px en hauteur ET en largeur, champs texte et nombre compris.
   const touch = matchMedia("(pointer: coarse)").matches, min = touch ? 44 : 24;
   document.querySelectorAll("button,a[href],input:not([type=hidden]),select,textarea,[role=button]").forEach(e => {
-    if (!vis(e) || !inScope(e) || e.closest("[data-ux-exempt]")) return; // data-ux-exempt : exception documentée dans la checklist
+    if (!vis(e) || !inScope(e) || e.closest("[data-ux-exempt]") || e.closest("[aria-hidden=\"true\"]")) return; // data-ux-exempt : exception documentée dans la checklist ; aria-hidden : hors de l'arbre (champ piège anti-robot hors écran)
     // Un champ enveloppé dans son <label> (.search) : toute la boîte du label le focalise, c'est elle la cible.
     const wrap = /^(INPUT|SELECT|TEXTAREA)$/.test(e.tagName) && e.closest("label"), rc = wrap ? wrap.getBoundingClientRect() : e.getBoundingClientRect();
     const inline = e.tagName === "A" && getComputedStyle(e).display === "inline" && e.parentElement && /\S/.test(e.parentElement.textContent.replace(e.textContent, ""));
