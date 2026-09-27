@@ -548,6 +548,33 @@ const handler = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // ---- RGPD : droit d'accès (export) et droit à l'effacement (anonymisation) — audit C-11 ----
+    if (action === "exportClient" || action === "anonymizeClient") {
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Klant-id ontbreekt" });
+      const cur = await at(`Clients/${body.id}`);
+      if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const cmd = await atAll("Commandes");
+      if (cmd.error) return res.status(500).json({ error: "Bestellingen onleesbaar" });
+      const mine = (cmd.records || []).filter(r => (r.fields["Client"] || []).includes(body.id));
+      if (action === "exportClient") {
+        const neg = await atAll(encodeURIComponent("Prix négociés"));
+        const client = Object.assign({}, cur.fields); delete client["Wachtwoord"]; delete client["Commandes"]; delete client["Prix négociés"];
+        return res.status(200).json({ ok: true, export: { exportedAt: new Date().toISOString(), client,
+          prijzen: (neg.records || []).filter(r => (r.fields["Client"] || []).includes(body.id)).map(r => ({ product: r.fields["Produit"], prijs: r.fields["Prix négocié"] })),
+          bestellingen: mine.map(r => { const f = Object.assign({}, r.fields); delete f["Client"]; delete f["Idempotentie"]; return f; }) } });
+      }
+      // Anonymiser : seulement un client archivé. On garde ce que les factures doivent montrer pendant
+      // 10 ans (nom de la société, n° TVA, adresses) ; on efface les données de personnes.
+      if (!cur.fields["Gearchiveerd"]) return res.status(409).json({ error: "Archiveer de klant eerst" });
+      if (body.confirm !== "ANONIEM") return res.status(400).json({ error: "Typ ANONIEM om te bevestigen" });
+      const anon = "anon-" + String(body.id).slice(-6).toLowerCase();
+      const w = await at(`Clients/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Email": null, "Téléphone": "", "Gebruikersnaam": anon, "Wachtwoord": "", "Favorieten": "", "Infos générales": "", "Articles habituels": "" } }) });
+      if (w.error) return res.status(500).json({ error: "Anonimiseren mislukt" });
+      const withNames = mine.filter(r => r.fields["Réceptionné par"]);
+      if (withNames.length) await atBatch("Commandes", "PATCH", withNames.map(r => ({ id: r.id, fields: { "Réceptionné par": "[geanonimiseerd]" } })), false);
+      return res.status(200).json({ ok: true, geanonimiseerd: { klant: anon, bestellingen: withNames.length }, ...(await statusPayload()) });
+    }
+
     // ---- Medewerkers (comptes individuels, PIN haché) ----
     if (action === "saveMedewerker") {
       const naam = clean(body.naam, 60);

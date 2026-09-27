@@ -15,7 +15,7 @@
     K.c.field(K.t("Wachtwoord"), '<div style="position:relative">' + K.c.input("pw", { type: "password", attrs: ' autocomplete="current-password" required style="padding-right:76px"' }) + '<button type="button" class="btn btn-ghost btn-sm" id="togglePw" data-ux-exempt style="position:absolute;right:2px;top:1px;bottom:1px;min-height:0">' + K.t("Tonen") + '</button></div>', { id: "fPw", for: "pw" }) +
     '<div id="loginErr"></div>' +
     '<button type="submit" class="btn btn-p" id="loginBtn" style="min-height:50px;font-size:15px">' + K.t("Aanmelden") + '</button>' +
-    '<div style="display:flex;justify-content:space-between;font-size:13px;flex-wrap:wrap;gap:0 8px"><a class="tlink" href="/wachtwoord.html">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag.html">' + K.t("Nog geen klant? Toegang aanvragen") + '</a></div></form></main>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;flex-wrap:wrap;gap:0 8px"><a class="tlink" href="/wachtwoord.html">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag.html">' + K.t("Nog geen klant? Toegang aanvragen") + '</a></div></form><p style="text-align:center;font-size:12.5px;margin-top:14px"><a class="tlink" href="/privacy.html">' + K.t("Privacy") + '</a></p></main>' +
     '<footer class="start-ft"><span class="quiet" style="font-size:12px" id="foot">FAMO Seafood</span><div class="mini"><span>' + K.t("Werkt u bij Famo?") + '</span><a href="/personeel.html"><i style="background:var(--p-personeel)"></i>Personeel</a><a href="/beheer-login.html"><i style="background:var(--p-beheer)"></i>Beheer</a></div></footer></div>';
 
   // Kerncijfers uit de echte regels : deadline en leverdagen (ma–za als de dagen aaneensluiten, anders de lijst).

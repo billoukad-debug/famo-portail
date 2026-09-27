@@ -210,3 +210,25 @@ test("allorders : pages de ≤ limit, révision inchangée → { unchanged } san
   const after = await get({ limit: "100", rev: String(rev) });
   assert.ok(!after.payload.unchanged); assert.equal(after.payload.rev, rev + 1);
 });
+
+// ---- RGPD : inzage en wissing (audit C-11) ----
+test("export des données d'un client (sans mot de passe) ; anonymisation seulement après archivage", async () => {
+  await seed([SORTIE("recORD0010", { Statut: "Facturée", Factuurnummer: "FA-2026-0010", "Réceptionné par": "Jan Peeters" })]);
+  await store().update("Clients", "recCLA", Object.assign({}, (await store().get("Clients", "recCLA")).fields, { Email: "jan@resto.test", "Téléphone": "0470 00 00 00", "BTW-nummer": "BE0417497106" }), (await store().get("Clients", "recCLA")).version);
+  const post = (body) => call("onboarding.js", body, { headers: cookie("admin") });
+  const ex = await post({ action: "exportClient", id: "recCLA" });
+  assert.equal(ex.statusCode, 200);
+  assert.equal(ex.payload.export.client.Email, "jan@resto.test");
+  assert.equal(ex.payload.export.client.Wachtwoord, undefined, "jamais le mot de passe");
+  assert.equal(ex.payload.export.bestellingen.length, 1);
+  assert.equal((await post({ action: "anonymizeClient", id: "recCLA", confirm: "ANONIEM" })).statusCode, 409, "archiver d'abord");
+  assert.equal((await post({ action: "archiveClient", id: "recCLA" })).statusCode, 200);
+  assert.equal((await post({ action: "anonymizeClient", id: "recCLA" })).statusCode, 400, "confirmation tapée exigée");
+  const an = await post({ action: "anonymizeClient", id: "recCLA", confirm: "ANONIEM" });
+  assert.equal(an.statusCode, 200, JSON.stringify(an.payload));
+  const c = (await store().get("Clients", "recCLA")).fields;
+  assert.equal(c.Email, undefined); assert.equal(c.Wachtwoord || "", ""); assert.match(c.Gebruikersnaam, /^anon-/);
+  assert.equal(c.Nom, "Resto A"); assert.equal(c["BTW-nummer"], "BE0417497106", "les factures gardent la société et la TVA");
+  const o = (await store().get("Commandes", "recORD0010")).fields;
+  assert.equal(o["Réceptionné par"], "[geanonimiseerd]"); assert.equal(o.Factuurnummer, "FA-2026-0010");
+});

@@ -126,7 +126,7 @@
     "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
     "Bestelling geannuleerd · artikelen in de winkelmand": "Commande annulée · articles dans le panier", "Geannuleerd door klant": "Annulée par le client",
     // openstaande facturen
-    "Toch opslaan": "Enregistrer quand même",
+    "Toch opslaan": "Enregistrer quand même", "Privacy": "Confidentialité",
     "incl. btw": "TVAC", "Pro forma": "Pro forma", "Uw facturen en betaalgegevens ontvangt u van onze boekhouding (via Peppol).": "Vos factures et coordonnées de paiement vous sont envoyées par notre comptabilité (via Peppol).",
     "Openstaande facturen": "Factures ouvertes", "Totaal openstaand": "Total à payer", "Mededeling": "Communication", "Kopiëren": "Copier", "Gekopieerd": "Copié", "Betaalgegevens": "Coordonnées de paiement",
     "Kopiëren lukt niet op dit toestel.": "La copie n'est pas possible sur cet appareil.", "Geen openstaande facturen": "Aucune facture ouverte", "Alles is betaald. Dank u wel.": "Tout est payé. Merci.",
