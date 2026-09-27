@@ -45,7 +45,7 @@ test("savePrice avec période : enregistrement séparé, grille intacte, dates c
   await ds.state.store.replaceAll("Catalogue", [rec("recP1", { Produit: "Tong", "Prix de base": 30, "Unité": "kg", Actif: true })]);
   await ds.state.store.replaceAll("Clients", [rec("recCLA", { Nom: "Resto A" })]);
   await ds.state.store.replaceAll("Prix négociés", []);
-  const headers = { cookie: "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600e3, "admin")), origin: "http://localhost", "content-type": "application/json" };
+  const headers = { cookie: "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600e3, "admin")), host: "localhost", origin: "http://localhost", "content-type": "application/json" };
   const post = async (body) => { const res = { statusCode: 200, payload: null, setHeader() {}, status(c) { this.statusCode = c; return this; }, json(p) { this.payload = p; return this; } }; await require(path.join(ROOT, "api", "onboarding.js"))({ method: "POST", body, headers, query: {} }, res); return res; };
   assert.equal((await post({ action: "savePrice", clientId: "recCLA", productId: "recP1", prix: 28 })).statusCode, 200);
   const today = require("../lib/levering").brusselsToday();

@@ -47,6 +47,8 @@ async function call(handler, body, replies, opts) {
   const originalFetch = global.fetch;
   const calls = [];
   global.fetch = async (url, options) => {
+    // Relecture de la génération de session (lib/staffauth.js, cache 60 s) : hors scénario.
+    if (/fields%5B%5D=Sessiegeneratie/.test(String(url))) return json({ records: [] });
     calls.push({ url: String(url), options: options || {} });
     assert(replies.length, `Appel Airtable inattendu: ${url}`);
     return json(replies.shift());
@@ -758,7 +760,7 @@ async function main() {
 
     // N3 — le hachage ne laisse jamais fuir le code.
     assert.ok(!adminHash.includes("EenSterkeCode2026"), "N3 le code n'apparaît pas dans l'empreinte");
-    assert.match(adminHash, /^scrypt\$[0-9a-f]+\$[0-9a-f]+$/, "N3 format d'empreinte attendu");
+    assert.match(adminHash, /^scrypt\$131072\$[0-9a-f]{32}\$[0-9a-f]{64}$/, "N3 format d'empreinte attendu (coût N dans l'empreinte)");
     assert.equal(authN.verifyHash(adminHash, "EenSterkeCode2026"), true, "N3 bonne vérification");
     assert.equal(authN.verifyHash(adminHash, "eensterkecode2026"), false, "N3 casse respectée");
     assert.equal(authN.verifyHash("", "x"), false, "N3 empreinte vide refusée");
@@ -955,10 +957,10 @@ async function main() {
     assert.ok(require(path.join(ROOT, "lib/clientauth")).checkPassword(al1.fields.Wachtwoord, "nieuw-wachtwoord"), "AL1 l'empreinte correspond au nouveau mot de passe");
 
     // AL2 — ancien mot de passe faux (ou client inconnu) : 401, aucune écriture.
-    r = await call(klantPw, { user: "anna", pw: "fout-wachtwoord", nieuw: "nieuw-wachtwoord" }, [clientRec("recAnna", "anna", "oud-wachtwoord")]);
+    r = await call(klantPw, { user: "anna", pw: "fout-wachtwoord", nieuw: "nieuw-wachtwoord" }, [clientRec("recAnna", "anna", "oud-wachtwoord"), { fields: {} }]);
     assert.equal(r.res.statusCode, 401, "AL2 ancien mot de passe faux → refusé");
     assert.match(r.res.payload.error, /huidige wachtwoord klopt niet/, "AL2 message clair");
-    assert.equal(patchesAL(r.calls).length, 0, "AL2 aucune écriture");
+    assert.deepEqual(patchesAL(r.calls).map(c => JSON.parse(c.options.body).fields), [{ Echecs: 1 }], "AL2 seul le compteur d'échecs persistant est écrit, jamais le mot de passe");
     r = await call(klantPw, { user: "bestaatniet", pw: "wat-dan-ook", nieuw: "nieuw-wachtwoord" }, [{ records: [] }]);
     assert.equal(r.res.statusCode, 401, "AL2 client inconnu → même refus (pas d'indice sur l'existence du compte)");
     assert.equal(patchesAL(r.calls).length, 0, "AL2 aucune écriture pour un client inconnu");
@@ -979,9 +981,9 @@ async function main() {
 
     // AL4 — un client ne peut pas changer le mot de passe d'un autre.
     // AL4a : Anna vise le compte de Bert avec SON propre mot de passe → refusé, rien n'est écrit.
-    r = await call(klantPw, { user: "bert", pw: "oud-wachtwoord", nieuw: "overgenomen-1" }, [clientRec("recBert", "bert", "bert-geheim")]);
+    r = await call(klantPw, { user: "bert", pw: "oud-wachtwoord", nieuw: "overgenomen-1" }, [clientRec("recBert", "bert", "bert-geheim"), { fields: {} }]);
     assert.equal(r.res.statusCode, 401, "AL4a user d'un autre client + mauvais mot de passe → refusé");
-    assert.equal(patchesAL(r.calls).length, 0, "AL4a aucune écriture sur le compte de Bert");
+    assert.ok(patchesAL(r.calls).every(c => !("Wachtwoord" in JSON.parse(c.options.body).fields)), "AL4a le mot de passe de Bert n'est jamais écrit (seulement son compteur d'échecs)");
     // AL4b : Anna glisse l'identifiant de Bert dans la requête → ignoré, seul son propre compte change.
     r = await call(klantPw, { user: "anna", pw: "oud-wachtwoord", nieuw: "nieuw-wachtwoord", id: "recBert", clientId: "recBert", client: "recBert", recordId: "recBert" }, [
       clientRec("recAnna", "anna", "oud-wachtwoord"), { id: "recAnna", fields: {} }
@@ -1009,7 +1011,7 @@ async function main() {
     assert.equal(r.res.statusCode, 400, "AL5 nouveau identique à l'ancien → refusé");
     assert.equal(r.calls.length, 0, "AL5 aucun appel Airtable");
     for (let i = 1; i <= 5; i++) {
-      r = await call(klantPw, { user: "carla", pw: "gok-" + i, nieuw: "nieuw-wachtwoord" }, [clientRec("recCarla", "carla", "juist-wachtwoord")]);
+      r = await call(klantPw, { user: "carla", pw: "gok-" + i, nieuw: "nieuw-wachtwoord" }, [clientRec("recCarla", "carla", "juist-wachtwoord"), { fields: {} }]);
       assert.equal(r.res.statusCode, 401, "AL5 tentative ratée " + i);
     }
     r = await call(klantPw, { user: "carla", pw: "juist-wachtwoord", nieuw: "nieuw-wachtwoord" }, []);
@@ -1464,7 +1466,7 @@ async function main() {
     assert.deepEqual(JSON.parse(patchOfX(r, /Clients\/cliAR$/).fields.Favorieten), { favorieten: ["recAAAAAAAAAAAAAA", "recBBBBBBBBBBBBBB"], standaard: { recAAAAAAAAAAAAAA: 2.5 } }, "AR2 JSON opgeslagen");
     r = await call(ko, me({ action: "favorites", favorieten: "x", standaard: [] }), [CLI, { fields: {} }]);
     assert.deepEqual(r.res.payload, { ok: true, favorieten: [], standaard: {} }, "AR2 onleesbaar → leeg");
-    r = await call(ko, me({ action: "favorites", pw: "fout" }), [CLI]); assert.equal(r.res.statusCode, 401, "AR2 verkeerd wachtwoord"); assert.equal(methodCallsX(r, "PATCH").length, 0);
+    r = await call(ko, me({ action: "favorites", pw: "fout" }), [CLI, { fields: {} }]); assert.equal(r.res.statusCode, 401, "AR2 verkeerd wachtwoord"); assert.deepEqual(methodCallsX(r, "PATCH").map(c => JSON.parse(c.options.body).fields), [{ Echecs: 1 }], "AR2 enkel de foutteller");
     r = await call(ko, me({ action: "onbekend" }), [CLI]); assert.equal(r.res.statusCode, 400, "AR2 onbekende actie");
     // reset — zonder mailsleutel : neutraal antwoord, geen enkele Airtable-lezing, 4e aanvraag/uur 429.
     r = await call(ko, { action: "reset", user: "aloha", email: "geen-adres" }, []); assert.equal(r.res.statusCode, 400, "AR3 vorm");
@@ -1475,7 +1477,7 @@ async function main() {
     r = await call(ko, { action: "reset", user: "aloha", email: "keuken@aloha.test" }, []); assert.equal(r.res.statusCode, 429, "AR3 4e aanvraag binnen het uur");
     // reset — met mailsleutel : zelfde antwoord bij mismatch of onbekend account, PATCH enkel bij match.
     const savedKey = process.env.RESEND_API_KEY;
-    const mailMods = ["lib/mail.js", "lib/ordermail.js", "api/klantorder.js"];
+    const mailMods = ["lib/mail.js", "lib/ordermail.js", "lib/authmail.js", "api/klantorder.js"];
     process.env.RESEND_API_KEY = "re_test_key_AR"; mailMods.forEach(clearModule); ko = require(path.join(ROOT, "api", "klantorder.js"));
     r = await call(ko, { action: "reset", user: "aloha2", email: "iemand@anders.test" }, [{ records: [{ id: "cliAR2", fields: { Gebruikersnaam: "aloha2", Email: "keuken@aloha.test" } }] }]);
     assert.equal(r.res.statusCode, 200, "AR4 mismatch → neutraal"); assert.match(r.res.payload.message, /Als de gegevens kloppen/); assert.equal(r.calls.length, 1, "AR4 geen PATCH, geen mail"); assert.equal(r.res.payload.mail, undefined);
@@ -1483,15 +1485,21 @@ async function main() {
     assert.equal(r.res.statusCode, 200, "AR4 onbekend account → zelfde antwoord"); assert.equal(r.calls.length, 1);
     r = await call(ko, { action: "reset", user: "aloha3", email: "keuken@aloha.test" }, [{ records: [{ id: "c3", fields: { Gebruikersnaam: "aloha3", Email: "keuken@aloha.test", Gearchiveerd: true } }] }]);
     assert.equal(r.res.statusCode, 200, "AR4 gearchiveerd → neutraal"); assert.equal(r.calls.length, 1, "AR4 gearchiveerd : geen PATCH");
-    r = await call(ko, { action: "reset", user: "ALOHA2", email: "Keuken@Aloha.test" }, [{ records: [{ id: "cliAR2", fields: { Gebruikersnaam: "aloha2", Email: " keuken@aloha.test ", Nom: "Aloha" } }] }, { fields: {} }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }, { id: "m1" }]);
-    assert.equal(r.res.statusCode, 200, "AR4 match → nieuw wachtwoord"); assert.match(r.res.payload.message, /Als de gegevens kloppen/);
-    const storedAR = patchOfX(r, /Clients\/cliAR2$/).fields.Wachtwoord;
-    assert.match(storedAR, /^scrypt\$/, "AR4 opgeslagen als empreinte, nooit in klare tekst");
+    const HASH_AR = HP("huidig-pw");
+    r = await call(ko, { action: "reset", user: "ALOHA2", email: "Keuken@Aloha.test" }, [{ records: [{ id: "cliAR2", fields: { Gebruikersnaam: "aloha2", Email: " keuken@aloha.test ", Nom: "Aloha", Wachtwoord: HASH_AR } }] }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }, { id: "m1" }]);
+    assert.equal(r.res.statusCode, 200, "AR4 match → link"); assert.match(r.res.payload.message, /Als de gegevens kloppen/);
+    assert.equal(methodCallsX(r, "PATCH").length, 0, "AR4 het huidige wachtwoord blijft geldig tot de klant een nieuw kiest");
     const sent = r.calls.filter(c => /api\.resend\.com/.test(c.url));
     assert.equal(sent.length, 1, "AR4 één mail, naar het gekende adres"); assert.ok(sent[0].options.body.includes("keuken@aloha.test"));
-    const pw = (String(JSON.parse(sent[0].options.body).text || sent[0].options.body).match(/[A-HJ-NP-Za-km-z2-9]{10}/g) || []).find(c => require(path.join(ROOT, "lib/clientauth")).checkPassword(storedAR, c));
-    assert.equal(typeof pw, "string", "AR4 het wachtwoord (10 tekens) staat in de mail en past bij de empreinte");
-    assert.ok(!JSON.stringify(r.res.payload).includes(pw), "AR4 het wachtwoord komt nooit in het antwoord");
+    const mailAR = JSON.parse(sent[0].options.body);
+    const linkAR = (mailAR.text.match(/\/wachtwoord\.html\?t=([^\s]+)/) || [])[1];
+    assert.ok(linkAR, "AR4 de mail bevat een link naar wachtwoord.html?t=…");
+    assert.deepEqual(require(path.join(ROOT, "lib/clientauth")).readResetToken(decodeURIComponent(linkAR)), { id: "cliAR2", fp: require(path.join(ROOT, "lib/clientauth")).fingerprint(HASH_AR) }, "AR4 link ondertekend, gebonden aan het huidige wachtwoord");
+    assert.ok(!/wachtwoord:\s*\S{8,}/i.test(mailAR.text) && !mailAR.text.includes("huidig-pw"), "AR4 geen wachtwoord in klare tekst in de mail");
+    assert.ok(!JSON.stringify(r.res.payload).includes(linkAR), "AR4 de link komt nooit in het antwoord");
+    // Toegang geblokkeerd door Beheer (wachtwoord gewist) : geen heropening via zelfbediening.
+    r = await call(ko, { action: "reset", user: "aloha4", email: "keuken@aloha.test" }, [{ records: [{ id: "c4", fields: { Gebruikersnaam: "aloha4", Email: "keuken@aloha.test" } }] }]);
+    assert.equal(r.res.statusCode, 200, "AR4 geblokkeerd → neutraal"); assert.equal(r.calls.length, 1, "AR4 geblokkeerd : geen mail");
     if (savedKey === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = savedKey;
     mailMods.forEach(clearModule);
   }
@@ -1508,7 +1516,8 @@ async function main() {
     assert.ok(decodeURIComponent(r.calls[1].url).includes("Medewerkers?filterByFormula={Actief}=1"), "AS1 enkel actieve accounts gelezen");
     assert.match(r.calls[2].url, /Medewerkers\/m1$/); assert.equal((r.calls[2].options.method || "").toUpperCase(), "PATCH"); assert.ok(Date.parse(JSON.parse(r.calls[2].options.body).fields["Laatste aanmelding"]) > 0, "AS1 laatste aanmelding bijgehouden");
     const tokIlse = decodeURIComponent(/famo_sess=([^;]+)/.exec(r.res.headers["Set-Cookie"])[1]);
-    assert.equal(tokIlse.split(".").length, 4, "AS1 jeton à 4 segments (exp.role.naam.sig)");
+    assert.equal(tokIlse.split(".").length, 5, "AS1 jeton à 5 segments (exp.role.naam.gen.sig)");
+    assert.deepEqual(authlib.verify(tokIlse).gen, { g: 0, med: "m1", pfp: authlib.pinFingerprint(MED.records[0].fields["PIN hash"]) }, "AS1 le jeton porte l'id Medewerker et l'empreinte du PIN (révocation)");
     assert.deepEqual([authlib.verify(tokIlse).role, authlib.verify(tokIlse).name], ["staff", "Ilse"], "AS1 de cookie draagt de naam");
     const ilseHdr = { cookie: "famo_sess=" + encodeURIComponent(tokIlse) };
     r = await call(ses, null, [], { method: "GET", headers: ilseHdr });
@@ -1602,17 +1611,21 @@ async function main() {
     assert.equal(r.res.payload.status.clients, 1, "AT4 telling zonder gearchiveerden"); assert.equal(r.res.payload.status.credentials, 1);
     assert.deepEqual(r.res.payload.medewerkers, [{ id: "m1", naam: "Ilse", rol: "personeel", actief: true, laatste: "" }], "AT4 medewerkers zonder hash");
     assert.ok(!JSON.stringify(r.res.payload).includes("scrypt$"), "AT4 de PIN-hash verlaat de server nooit");
-    // Medewerkers : PIN ≥ 4, enkel gehasht opgeslagen ; verwijderen.
+    // Medewerkers : nieuwe PIN 6-12 cijfers, uniek, enkel gehasht opgeslagen ; verwijderen.
     r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "12" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 PIN te kort"); assert.match(r.res.payload.error, /PIN/); assert.equal(r.calls.length, 0);
     r = await call(ob, { action: "saveMedewerker", naam: "Tom" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuw zonder PIN");
     r = await call(ob, { action: "saveMedewerker", naam: "", pin: "1234" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 naam verplicht");
-    r = await call(ob, { action: "saveMedewerker", naam: " Tom ", rol: "beheerder", pin: "4321" }, [{ records: [{ id: "m1" }] }, ...STATUS()], { headers: adminCookieHdr });
+    r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "4321" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuwe PIN van 4 cijfers geweigerd (min. 6)");
+    r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "abcdef" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 enkel cijfers");
+    r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "432109" }, [{ records: [{ id: "m9", fields: { Naam: "Ilse", "PIN hash": authlib.hashCode("432109") } }] }], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 409, "AT5 PIN al in gebruik → 409"); assert.equal(methodCallsX(r, "POST").length, 0, "AT5 niets aangemaakt");
+    r = await call(ob, { action: "saveMedewerker", naam: " Tom ", rol: "beheerder", pin: "432109" }, [{ records: [] }, { records: [{ id: "m1" }] }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT5 medewerker aangemaakt");
-    const post = r.calls[0]; assert.match(post.url, /Medewerkers$/); assert.equal((post.options.method || "").toUpperCase(), "POST");
+    const post = r.calls[1]; assert.match(post.url, /Medewerkers$/); assert.equal((post.options.method || "").toUpperCase(), "POST");
     const pb = JSON.parse(post.options.body); const mf = pb.records[0].fields;
     assert.equal(pb.typecast, true, "AT5 typecast (Rol-optie)"); assert.equal(mf.Naam, "Tom"); assert.equal(mf.Rol, "beheerder"); assert.equal(mf.Actief, true);
-    assert.match(mf["PIN hash"], /^scrypt\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "4321"), "AT5 de hash opent met de PIN");
-    assert.ok(!post.options.body.includes("4321"), "AT5 de PIN gaat nooit in klare tekst naar Airtable");
+    assert.match(mf["PIN hash"], /^scrypt\$131072\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "432109"), "AT5 de hash opent met de PIN");
+    assert.ok(!post.options.body.includes("432109"), "AT5 de PIN gaat nooit in klare tekst naar Airtable");
     r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", rol: "superuser", actief: false }, [{ fields: {} }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT5 bijwerken zonder PIN"); assert.deepEqual(patchOfX(r, /Medewerkers\/m1$/).fields, { Naam: "Tom", Rol: "personeel", Actief: false }, "AT5 hash onaangeroerd, onbekende rol → personeel");
     r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", pin: "12" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuwe PIN te kort");
@@ -1796,8 +1809,9 @@ async function main() {
     // Jeton correctement signé mais périmé : seule l'échéance doit le faire refuser.
     const hmacAX = require(path.join(ROOT, "lib", "staffauth")).hmac;
     const fpAX = ca.fingerprint(upPw);
-    const signedAX = exp => { const p = "k.recL." + exp + "." + fpAX; return p + "." + hmacAX(p); };
-    assert.deepEqual(ca.readToken(signedAX(Date.now() + 60000)), { id: "recL", fp: fpAX }, "AX5 témoin : jeton signé non périmé accepté");
+    const iatAX = Date.now() - 1000; // format k.id.exp.fp.iat.gen.sig (A-08)
+    const signedAX = exp => { const p = "k.recL." + exp + "." + fpAX + "." + iatAX + ".0"; return p + "." + hmacAX(p); };
+    assert.deepEqual(ca.readToken(signedAX(Date.now() + 60000)), { id: "recL", fp: fpAX, iat: iatAX, gen: 0 }, "AX5 témoin : jeton signé non périmé accepté");
     assert.equal(ca.readToken(signedAX(Date.now() - 1000)), null, "AX5 jeton signé périmé refusé");
     r = await call(cat, { token: signedAX(Date.now() - 1000) }, []);
     assert.equal(r.res.statusCode, 401, "AX5 jeton périmé → 401"); assert.equal(r.calls.length, 0, "AX5 jeton périmé : aucune lecture");

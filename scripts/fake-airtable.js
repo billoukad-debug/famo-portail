@@ -15,7 +15,11 @@ const SCHEMA = {
   Clients: {
     // Gearchiveerd : plus de connexion ni de présence dans les listes (api/catalogue authClient, api/staff).
     // Favorieten : JSON {favorieten:[ids], standaard:{id:qty}} synchronisé entre appareils (api/klantorder).
-    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Facturatieadres": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select" },
+    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Facturatieadres": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select",
+      // Verrou persistant anti-force brute (api/catalogue authClient) : échecs consécutifs, blocage.
+      "Echecs": "number", "Geblokkeerd tot": "datetime",
+      // Sessiegeneratie : +1 à la déconnexion, révoque les jetons du client (lib/clientauth.js).
+      "Sessiegeneratie": "number" },
     selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
   },
   Catalogue: {
@@ -60,7 +64,11 @@ const SCHEMA = {
     // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
     // Facturatie : « Boekhouder » (défaut : facture légale chez le comptable, documents pro forma) ou
     // « Portaal ». Juridische naam / Rechtsvorm / RPR : mentions du Code des sociétés (art. 2:20).
-    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Lots verplicht": "checkbox", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
+    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Lots verplicht": "checkbox", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox",
+      // Sessiegeneratie : +1 = toutes les sessions staff révoquées (lib/staffauth.js, api/session.js).
+      "Sessiegeneratie": "number",
+      // Verrou global des connexions par PIN (api/session.js) : un PIN n'identifie pas son compte.
+      "PIN echecs": "number", "PIN geblokkeerd tot": "datetime" },
     selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
   },
   // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
@@ -83,7 +91,8 @@ const SCHEMA = {
 // Medewerker de démonstration, présent dès que la table est vide : « Ilse », personeel,
 // PIN 1234. scripts/seed.js ne connaît pas cette table ; la nabootsing la remplit
 // elle-même (reset() et chargement d'un fichier .dev-data antérieur).
-// Le hachage reproduit lib/staffauth.hashCode (scrypt$<sel hex>$<empreinte hex>, N=16384)
+// Le hachage reproduit l'ANCIEN format de lib/staffauth.hashCode (scrypt$<sel hex>$<empreinte hex>,
+// N=16384), toujours lu et ré-haché à la première connexion,
 // SANS charger ce module : dev.js ne pose STAFF_CODE/ADMIN_CODE qu'après avoir construit
 // la base, et staffauth lit ces variables une seule fois au chargement.
 const DEMO_MEDEWERKER = { naam: "Ilse", rol: "personeel", pin: "1234" };

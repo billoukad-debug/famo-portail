@@ -8,10 +8,12 @@ const __ca = require("../lib/clientauth");
 //   cancel    {ref}                  annule tant que la commande est « Reçue »
 //   profile   {email, tel}           met à jour e-mail et téléphone de contact
 //   favorites {favorieten, standaard} sauvegarde favoris + commande type (JSON) — synchro entre appareils
-//   reset     (sans pw) {user, email} nouveau mot de passe envoyé à l'adresse connue
-const crypto = require("crypto");
+//   reset     (sans pw) {user, email} lien « choisir un mot de passe » (30 min, usage unique)
+//             envoyé à l'adresse connue ; l'ancien mot de passe reste valable jusque-là.
+//             Le mot de passe est ensuite posé par api/klantwachtwoord.js (setPassword).
 const { authClient } = require("./catalogue");
 const __mail = require("../lib/ordermail");
+const __authmail = require("../lib/authmail");
 
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -25,12 +27,11 @@ function rateLimited(key, max, windowMs){
 function stamp(){
   return new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date()).replace(",", "");
 }
-function genPassword() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  let out = "";
-  for (let i = 0; i < 10; i++) out += chars[crypto.randomInt(chars.length)];
-  return out;
-}
+// Réponse du reset en temps constant : compte trouvé (lien + e-mail) ou non, la réponse
+// ne part pas avant RESET_MIN_MS — la durée ne dit plus si le compte existe. Couvre
+// l'envoi d'un e-mail ordinaire ; lib/mail.js coupe de toute façon à 4 s.
+const RESET_MIN_MS = 800;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
 
 async function findOwnOrder(client, ref){
@@ -57,17 +58,18 @@ const handler = async (req, res) => {
       if (!user || !isEmail(email)) return res.status(400).json({ error: "Vul uw gebruikersnaam en e-mailadres in." });
       if (rateLimited("reset:" + user, 3, 3600000)) return res.status(429).json({ error: "Te veel aanvragen. Probeer over een uur opnieuw of bel ons." });
       // Même réponse dans tous les cas : ne jamais révéler si un compte existe.
-      const neutral = { ok: true, message: "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord." };
+      const neutral = { ok: true, message: "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een link om een nieuw wachtwoord te kiezen." };
       if (!__mail.enabled()) return res.status(200).json(Object.assign({}, neutral, { mail: false }));
+      const started = Date.now();
+      const answer = async () => { const wait = RESET_MIN_MS - (Date.now() - started); if (wait > 0) await sleep(wait); return res.status(200).json(neutral); };
       const cl = await at(`Clients?filterByFormula=${encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(user)}'`)}&maxRecords=1`);
       const rec = ((cl && cl.records) || [])[0];
-      if (!rec || rec.fields["Gearchiveerd"] || String(rec.fields["Email"] || "").toLowerCase().trim() !== email) return res.status(200).json(neutral);
-      const password = genPassword();
-      const saved = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": __ca.hashPassword(password) } }) });
-      if (saved.error) return res.status(500).json({ error: "Wachtwoord vernieuwen mislukt. Bel ons." });
+      // Accès bloqué par Beheer (mot de passe effacé) : pas de réouverture en libre-service.
+      if (!rec || rec.fields["Gearchiveerd"] || !rec.fields["Wachtwoord"] || String(rec.fields["Email"] || "").toLowerCase().trim() !== email) return answer();
       const cfg = await __mail.loadMailConfig(at);
-      await __mail.notifyReset({ klant: __mail.clientFrom(rec), credentials: { user: rec.fields["Gebruikersnaam"] || user, password }, password, portalUrl: __mail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
-      return res.status(200).json(neutral);
+      const link = __authmail.passwordLink(__mail.portalUrl(req), __ca.issueResetToken(rec, __ca.RESET_TTL_MS));
+      await __authmail.notifyResetLink({ klant: Object.assign(__mail.clientFrom(rec), { taal: rec.fields["Taal"] }), user: rec.fields["Gebruikersnaam"] || user, link, hours: __ca.RESET_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+      return answer();
     }
 
     const client = await authClient(q.user, q.pw, q.token);
@@ -89,7 +91,7 @@ const handler = async (req, res) => {
       };
       // typecast : l'option « Annulée » est créée dans Airtable au premier usage.
       const saved = await at(`Commandes/${rec.id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Annuleren mislukt" });
+      if (saved.error) { console.error("[klantorder] cancel", rec.id, saved.error.type, saved.error.message); return res.status(500).json({ error: "Annuleren mislukt. Probeer opnieuw of bel ons." }); }
       // L'équipe est prévenue : une annulation silencieuse finit en colis préparé pour rien.
       let mail = null;
       if (__mail.enabled()) {
@@ -111,7 +113,7 @@ const handler = async (req, res) => {
       if (q.tel !== undefined) fields["Téléphone"] = tel;
       if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets gewijzigd" });
       const saved = await at(`Clients/${client.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Opslaan mislukt" });
+      if (saved.error) { console.error("[klantorder] profile", client.id, saved.error.type, saved.error.message); return res.status(500).json({ error: "Opslaan mislukt. Probeer opnieuw." }); }
       return res.status(200).json({ ok: true, email, tel });
     }
 
@@ -123,7 +125,7 @@ const handler = async (req, res) => {
         for (const [k, v] of Object.entries(q.standaard).slice(0, 200)) { const n = Number(v); if (/^rec[A-Za-z0-9]{14}$/.test(k) && Number.isFinite(n) && n > 0 && n <= 100000) std[k] = Math.round(n * 1000) / 1000; }
       }
       const saved = await at(`Clients/${client.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Favorieten": JSON.stringify({ favorieten: favs, standaard: std }) } }) });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Opslaan mislukt" });
+      if (saved.error) { console.error("[klantorder] favorites", client.id, saved.error.type, saved.error.message); return res.status(500).json({ error: "Opslaan mislukt. Probeer opnieuw." }); }
       return res.status(200).json({ ok: true, favorieten: favs, standaard: std });
     }
 
@@ -136,6 +138,7 @@ const handler = async (req, res) => {
 // Une annulation ou une modification par le client change la liste du personnel : révision
 // des commandes incrémentée (lib/revision.js) pour que les écrans se rafraîchissent.
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   await handler(req, res);
   if (res.statusCode === 200) await require("../lib/revision").bump();
 };

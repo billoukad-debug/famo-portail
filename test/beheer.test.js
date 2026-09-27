@@ -67,6 +67,9 @@ async function rejected(body, re) {
 }
 
 test.beforeEach(async () => {
+  // saveCode relève la génération de session (A-01) ; la base est remise à zéro à chaque test,
+  // le cache de révocation doit l'être aussi, sinon la session ADMIN des tests suivants est refusée.
+  auth.noteGeneration(0);
   const demo = new FakeAirtable();
   seed(demo);
   for (const [tbl, recs] of Object.entries(demo.data)) await ds.state.store.replaceAll(tbl, recs);
@@ -120,7 +123,7 @@ test("saveCode : beheerder seul, validation, empreinte en base, le nouveau code 
   assert.equal(r.body.config.adminCodeCustom, true);
   assert.ok(!JSON.stringify(r.body).includes("scrypt$"), "l'empreinte n'est jamais renvoyée");
   const stored = (await rows("Configuratie"))[0].fields["Beheerderscode hash"];
-  assert.match(stored, /^scrypt\$[0-9a-f]+\$[0-9a-f]+$/, "empreinte scrypt en base");
+  assert.match(stored, /^scrypt\$(\d+\$)?[0-9a-f]+\$[0-9a-f]+$/, "empreinte scrypt en base");
   assert.ok(!stored.includes("nieuwe-beheercode"), "jamais le code en clair");
   assert.equal((await rows("Configuratie"))[0].fields["Personeelscode hash"], undefined, "l'autre rôle n'est pas touché");
 
@@ -131,12 +134,17 @@ test("saveCode : beheerder seul, validation, empreinte en base, le nouveau code 
   assert.equal(s.statusCode, 401, "l'ancien code (variable d'environnement) n'ouvre plus Beheer");
   assert.equal((await login(process.env.STAFF_CODE)).body.role, "staff", "le code du personnel reste valable");
 
-  const reset = await beheer({ action: "saveCode", which: "admin", reset: true });
+  // saveCode révoque toutes les sessions (A-01) et renvoie un cookie neuf à son auteur.
+  const fresh = (resp) => ({ cookie: [].concat(resp.headers["set-cookie"] || [])[0].split(";")[0] });
+  assert.equal((await beheer({ action: "saveCode", which: "admin", reset: true })).statusCode, 401, "ancienne session révoquée");
+  let me = fresh(r);
+  const reset = await beheer({ action: "saveCode", which: "admin", reset: true }, me);
+  me = fresh(reset);
   assert.equal(reset.statusCode, 200);
   assert.equal((await rows("Configuratie"))[0].fields["Beheerderscode hash"], undefined, "reset : empreinte effacée");
   assert.equal((await login(process.env.ADMIN_CODE, "admin")).body.role, "admin", "reset : le code de l'environnement revient");
 
-  const st = await beheer({ action: "saveCode", which: "staff", code: "nieuwe-teamcode" });
+  const st = await beheer({ action: "saveCode", which: "staff", code: "nieuwe-teamcode" }, me);
   assert.equal(st.statusCode, 200);
   assert.equal((await login("nieuwe-teamcode")).body.role, "staff");
   assert.equal((await login(process.env.STAFF_CODE)).statusCode, 401, "l'ancien code du personnel est remplacé");

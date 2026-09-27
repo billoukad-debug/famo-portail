@@ -115,7 +115,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | Champ | Type | Écrit par | Lu par | Remarque |
 |---|---|---|---|---|
 | `Client` | lien → Clients | onboarding (savePrice, saveClientPrices) | prices, catalogue, order, staff | |
-| `Produit` | lien → Catalogue | onboarding | prices, catalogue, order, staff | Un seul accord par couple client/produit. |
+| `Produit` | lien → Catalogue | onboarding | prices, catalogue, order, staff | Un seul accord permanent par couple client/produit ; plus les prix de période éventuels. |
 | `Prix négocié` | nombre (€ HTVA) | onboarding | prices | Vide = prix de base ; 0 = gratuit (0 est une vraie valeur). |
 | `Geldig van`, `Geldig tot` | date (inclus) | onboarding (savePrice) | prices | Vides = prix permanent. Remplis = prix de période (action, prix de la semaine), prioritaire sur le permanent pendant la période ; chevauchement → « van » le plus récent. |
 | `Libellé` | texte | — | — | Champ principal hérité, non utilisé. |

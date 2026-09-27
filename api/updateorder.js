@@ -638,6 +638,7 @@ async function handle(req, res, body, id){
 // Journal d'audit (lib/journal.js, moteur SQL) : chaque action réussie sur une commande, qui,
 // quand, et chaque champ avant → après (lignes, prix, statut, paiement, corrections…).
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   let body = {};
   try { body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {}); } catch (e) { body = {}; }
   const id = REC.test(String(body.id || "")) ? String(body.id) : "";

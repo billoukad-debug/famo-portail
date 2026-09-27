@@ -106,6 +106,7 @@ function checkDeliveryDate(iso, rules) {
   return __lev.checkDate(iso, rules);
 }
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   try {
     let body = req.body;

@@ -13,6 +13,7 @@ const __journal = require("../lib/journal");
 const out = (r) => Object.assign({ id: r.id }, __trace.snapshot(r), { produit: r.fields["Produit"] || "", hoeveelheid: r.fields["Hoeveelheid"] == null ? null : r.fields["Hoeveelheid"], actief: r.fields["Actief"] !== false, nota: r.fields["Nota"] || "" });
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
   try {
     if (req.method === "GET") {

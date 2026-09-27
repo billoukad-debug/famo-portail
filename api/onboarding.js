@@ -7,6 +7,7 @@ const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
 const __prices = require("../lib/prices");
 const __ordermail = require("../lib/ordermail");
+const __authmail = require("../lib/authmail");
 const __lev = require("../lib/levering");
 const __bill = require("../lib/billing");
 const __guard = require("../lib/guardrails");
@@ -20,6 +21,18 @@ function parseBody(req) {
     try { body = JSON.parse(body || "{}"); } catch (e) { body = {}; }
   }
   return body || {};
+}
+
+// Type réel d'une image d'après ses octets magiques (base64) : "png", "jpeg", "webp",
+// "gif" ou "" (inconnu). Seuls les 16 premiers octets sont décodés.
+function imageType(b64) {
+  let b;
+  try { b = Buffer.from(String(b64 || "").slice(0, 24), "base64"); } catch (e) { return ""; }
+  if (b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
+  if (b.length >= 12 && b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
+  if (b.length >= 6 && /^GIF8[79]a$/.test(b.toString("latin1", 0, 6))) return "gif";
+  return "";
 }
 
 function clean(s, max) {
@@ -217,7 +230,8 @@ const handler = async (req, res) => {
 
   try {
     if (req.method === "GET") {
-      if (!__auth.adminOk(req)) {
+      // adminOk (signature, sans lecture) puis adminSession : session non révoquée (base ≤ 60 s).
+      if (!__auth.adminOk(req) || !(await __auth.adminSession(req))) {
         return res.status(401).json({ error: "Enkel voor beheerders" });
       }
       // Pastille « Beheer » de la navigation : seulement le nombre de demandes non traitées (un appel, un champ).
@@ -235,7 +249,8 @@ const handler = async (req, res) => {
     }
 
     const body = parseBody(req);
-    if (!__auth.adminOk(req)) {
+    const me = __auth.adminOk(req) ? await __auth.adminSession(req) : null;
+    if (!me) {
       return res.status(401).json({ error: "Enkel voor beheerders" });
     }
 
@@ -416,17 +431,20 @@ const handler = async (req, res) => {
       if (!/^image\/(jpeg|png|webp)$/.test(type)) return res.status(400).json({ error: "Enkel JPEG, PNG of WebP" });
       const data = String(body.base64 || "").replace(/^data:[^;]+;base64,/, "");
       if (!data || data.length > 4200000) return res.status(400).json({ error: "Foto te groot (max 3 MB)" });
+      // Le type déclaré ne prouve rien : les premiers octets doivent être ceux d'une vraie
+      // image du même type (pas de HTML/SVG/script servi ensuite sous image/png).
+      if (imageType(data) !== type.slice(6)) return res.status(400).json({ error: "Dit bestand is geen geldige JPEG-, PNG- of WebP-foto" });
       const filename = clean(body.filename, 80).replace(/[^\w.\-]+/g, "-") || "foto.jpg";
       // Une seule photo par produit : l'upload Airtable AJOUTE au champ, et le catalogue
       // montre la première. Sans ce vidage, changer de photo ne changeait rien à l'écran.
       const cleared = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Foto": [] } }) });
-      if (cleared.error) return res.status(cleared.error.type === "NOT_FOUND" ? 404 : 500).json({ error: cleared.error.type === "NOT_FOUND" ? "Product niet gevonden" : (cleared.error.message || "Foto uploaden mislukt") });
+      if (cleared.error) { if (cleared.error.type !== "NOT_FOUND") console.error("[onboarding] uploadFoto", body.id, cleared.error.type, cleared.error.message); return res.status(cleared.error.type === "NOT_FOUND" ? 404 : 500).json({ error: cleared.error.type === "NOT_FOUND" ? "Product niet gevonden" : "Foto uploaden mislukt" }); }
       const r = await fetch(`https://content.airtable.com/v0/${BASE}/${body.id}/${encodeURIComponent("Foto")}/uploadAttachment`, {
         method: "POST", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({ contentType: type, filename, file: data })
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || j.error) return res.status(500).json({ error: (j.error && j.error.message) || "Foto uploaden mislukt" });
+      if (!r.ok || j.error) { console.error("[onboarding] uploadFoto", body.id, r.status, j.error && (j.error.type || j.error)); return res.status(500).json({ error: "Foto uploaden mislukt" }); }
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -523,14 +541,17 @@ const handler = async (req, res) => {
       }
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Klant opslaan mislukt" });
       const id = body.id || (saved.records && saved.records[0] && saved.records[0].id);
-      // E-mail de bienvenue avec les identifiants, si le client a une adresse et qu'un
-      // (nouveau) mot de passe vient d'être créé. Jamais bloquant.
+      // E-mail de bienvenue si le client a une adresse et qu'un (nouveau) mot de passe vient
+      // d'être créé : gebruikersnaam + lien d'activation (72 h) où il choisit son propre mot
+      // de passe — jamais le mot de passe en clair. Celui que Beheer affiche reste valable
+      // (à dicter par téléphone) jusqu'à ce choix. Jamais bloquant.
       let mail = null;
       const newCreds = !body.id || generate || !!clean(body.password, 80);
-      if (newCreds && fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
+      if (newCreds && id && fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
         mail = await (async () => {
           const cfg = await __ordermail.loadMailConfig(at);
-          return __ordermail.notifyWelcome({ klant: { nom, email: fields["Email"] }, credentials: { user, password }, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id, fields }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyActivation({ klant: { nom, email: fields["Email"], taal: fields["Taal"] }, user, link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
         })().catch(() => null);
       }
       return res.status(200).json({
@@ -586,20 +607,33 @@ const handler = async (req, res) => {
       const pin = String(body.pin || "");
       if (!naam) return res.status(400).json({ error: "Naam is verplicht" });
       if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
-      if (!body.id && pin.length < 4) return res.status(400).json({ error: "PIN: minstens 4 tekens" });
-      if (pin && (pin.length < 4 || pin.length > 40)) return res.status(400).json({ error: "PIN: 4 tot 40 tekens" });
+      // Nouveau PIN : 6 à 12 chiffres (un million de combinaisons au moins). Les PIN plus
+      // courts déjà enregistrés continuent d'ouvrir (api/session.js) jusqu'à leur changement.
+      if (!body.id && !pin) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
+      if (pin && !/^\d{6,12}$/.test(pin)) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
       const fields = { "Naam": naam, "Rol": rol, "Actief": body.actief !== false };
-      if (pin) fields["PIN hash"] = __auth.hashCode(pin);
+      if (pin) {
+        // Deux personnes au même PIN : la connexion ouvrirait au nom de la première trouvée
+        // (journal faussé). On compare aux empreintes des autres comptes, actifs ou non.
+        const all = await atAll("Medewerkers");
+        if (all.error) { console.error("[onboarding] Medewerkers onleesbaar", all.error.type); return res.status(500).json({ error: "Medewerkers onleesbaar. Probeer opnieuw." }); }
+        if ((all.records || []).some(r => r.id !== body.id && r.fields["PIN hash"] && __auth.verifyHash(r.fields["PIN hash"], pin))) return res.status(409).json({ error: "Deze PIN is al in gebruik. Kies een andere." });
+        fields["PIN hash"] = __auth.hashCode(pin);
+      }
       const saved = body.id
         ? await at(`Medewerkers/${body.id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) })
         : await at("Medewerkers", { method: "POST", body: JSON.stringify({ typecast: true, records: [{ fields }] }) });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Medewerker opslaan mislukt" });
+      if (saved.error) { console.error("[onboarding] saveMedewerker", saved.error.type, saved.error.message); return res.status(500).json({ error: "Medewerker opslaan mislukt" }); }
+      // Désactivé, rôle retiré ou PIN changé : ses sessions tombent (tout de suite sur cette
+      // instance, ≤ 60 s ailleurs — lib/staffauth.js).
+      if (body.id && saved.fields) __auth.noteMedewerker(body.id, saved.fields);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
     if (action === "deleteMedewerker") {
       if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
       const del = await at(`Medewerkers/${body.id}`, { method: "DELETE" });
-      if (del.error) return res.status(500).json({ error: del.error.message || "Verwijderen mislukt" });
+      if (del.error) { console.error("[onboarding] deleteMedewerker", del.error.type, del.error.message); return res.status(500).json({ error: "Verwijderen mislukt" }); }
+      __auth.noteMedewerker(body.id, null);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -609,16 +643,20 @@ const handler = async (req, res) => {
       if (password.length < 8) return res.status(400).json({ error: "Wachtwoord minstens 8 tekens" });
       const cur = await at(`Clients/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const hashed = __ca.hashPassword(password);
       const saved = await at(`Clients/${body.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ fields: { "Wachtwoord": __ca.hashPassword(password) } })
+        body: JSON.stringify({ fields: { "Wachtwoord": hashed } })
       });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Wachtwoord wijzigen mislukt" });
+      if (saved.error) { console.error("[onboarding] resetPassword", body.id, saved.error.type, saved.error.message); return res.status(500).json({ error: "Wachtwoord wijzigen mislukt" }); }
+      // E-mail : lien (72 h, usage unique) pour choisir son mot de passe, jamais le mot de
+      // passe lui-même ; celui de Beheer reste valable d'ici là.
       let mail = null;
       if (cur.fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
         mail = await (async () => {
           const cfg = await __ordermail.loadMailConfig(at);
-          return __ordermail.notifyReset({ klant: __ordermail.clientFrom(cur), credentials: { user: cur.fields["Gebruikersnaam"] || "", password }, password, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id: body.id, fields: { "Wachtwoord": hashed } }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyResetLink({ klant: Object.assign(__ordermail.clientFrom(cur), { taal: cur.fields["Taal"] }), user: cur.fields["Gebruikersnaam"] || "", link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
         })().catch(() => null);
       }
       return res.status(200).json({
@@ -649,6 +687,34 @@ const handler = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // ---- Sécurité (Systeemstatus) : état et hachage des mots de passe clients en clair ----
+    // securityStatus : { klareWachtwoorden, hasSessionSecret } (lecture seule).
+    // hashAllPasswords : hache les Wachtwoord encore en clair (migration sans attendre la
+    // connexion de chaque client). scrypt coûte ≈ 0,45 s par mot de passe : au plus
+    // HASH_BATCH par appel (durée maximale d'une fonction) ; Beheer relance tant que
+    // klareWachtwoorden > 0. Chaque fiche est relue juste avant l'écriture : un client qui
+    // change son mot de passe pendant ce temps n'est pas écrasé.
+    if (action === "securityStatus" || action === "hashAllPasswords") {
+      const HASH_BATCH = 12, BUDGET_MS = 6000;
+      const all = await atAll("Clients?fields%5B%5D=Wachtwoord");
+      if (all.error) { console.error("[onboarding] " + action, all.error.type, all.error.message); return res.status(500).json({ error: "Klanten onleesbaar. Probeer opnieuw." }); }
+      const plain = (all.records || []).filter(r => r.fields["Wachtwoord"] && !__ca.isHashed(r.fields["Wachtwoord"]));
+      let hashed = 0, failed = 0;
+      if (action === "hashAllPasswords") {
+        const started = Date.now();
+        for (const r of plain.slice(0, HASH_BATCH)) {
+          if (Date.now() - started > BUDGET_MS) break;
+          const hash = __ca.hashPassword(r.fields["Wachtwoord"]);
+          const cur = await at(`Clients/${r.id}`);
+          if (!cur || cur.error || cur.fields["Wachtwoord"] !== r.fields["Wachtwoord"]) continue; // changé entre-temps
+          const up = await at(`Clients/${r.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": hash } }) });
+          if (up && !up.error) hashed++;
+          else { failed++; console.error("[onboarding] hashAllPasswords", r.id, up && up.error && up.error.type); }
+        }
+      }
+      return res.status(200).json({ ok: failed === 0, hashed, failed, klareWachtwoorden: plain.length - hashed, hasSessionSecret: __auth.hasSessionSecret() });
+    }
+
     // ---- Codes d'accès (Instellingen) ----
     // Le code n'est jamais stocké en clair : seule son empreinte scrypt part en base.
     if (action === "saveCode") {
@@ -670,7 +736,7 @@ const handler = async (req, res) => {
       }
 
       const existing = await getConfigRecord();
-      if (existing && existing.error) return res.status(500).json(existing);
+      if (existing && existing.error) { console.error("[onboarding] saveCode Configuratie", existing.error.type, existing.error.message); return res.status(500).json({ error: "Configuratie onleesbaar. Probeer opnieuw." }); }
       if (!existing || !existing.id) {
         return res.status(400).json({ error: "Vul eerst de bedrijfsgegevens in" });
       }
@@ -680,7 +746,16 @@ const handler = async (req, res) => {
         method: "PATCH",
         body: JSON.stringify({ fields })
       });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Code opslaan mislukt" });
+      if (saved.error) { console.error("[onboarding] saveCode", saved.error.type, saved.error.message); return res.status(500).json({ error: "Code opslaan mislukt" }); }
+      // Nouveau code : toutes les sessions ouvertes tombent (génération +1, écriture séparée
+      // pour ne pas faire échouer le changement de code sur une base sans ce champ). Le
+      // beheerder qui vient de changer le code reçoit un cookie à la nouvelle génération.
+      const next = (Number(existing.fields && existing.fields["Sessiegeneratie"]) || 0) + 1;
+      const bumped = await at(`${encodeURIComponent("Configuratie")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Sessiegeneratie": next } }) }).catch(() => null);
+      if (bumped && !bumped.error) {
+        __auth.noteGeneration(next);
+        __auth.setCookie(res, __auth.sign(me.exp, me.role, me.name, Object.assign({}, me.gen, { g: next })), Math.max(0, Math.floor((me.exp - Date.now()) / 1000)));
+      } else console.error("[onboarding] Sessiegeneratie niet verhoogd", bumped && bumped.error && bumped.error.type);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -841,7 +916,9 @@ const handler = async (req, res) => {
 
     return res.status(400).json({ error: "Onbekende actie" });
   } catch (e) {
-    return res.status(500).json({ error: String(e.message || e) });
+    // Jamais le message brut (détails de la base) vers le navigateur : il reste dans les logs.
+    console.error("[onboarding]", (req.body && req.body.action) || req.method, e && e.stack || e);
+    return res.status(500).json({ error: "Serverfout in Beheer. Probeer opnieuw." });
   }
 };
 
@@ -851,6 +928,7 @@ const handler = async (req, res) => {
 const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", saveClient: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
   resetPassword: "Clients", revokeAccess: "Clients", saveMedewerker: "Medewerkers", deleteMedewerker: "Medewerkers", closeAanvraag: "Aanvragen", deletePrice: "Prix négociés" };
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   const st = __journal.store();
   if (req.method !== "POST" || !st) return handler(req, res);
   let body = {};

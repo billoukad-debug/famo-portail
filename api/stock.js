@@ -37,6 +37,7 @@ function escapeFormula(value){
 }
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   const L = log.from(req, "stock");
   if (!staffCodeReady(res)) return;
   try {
