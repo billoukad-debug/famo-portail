@@ -42,7 +42,7 @@ async function findOwnOrder(client, ref){
   return ((found && found.records) || []).find(r => (r.fields["Client"] || []).includes(client.id)) || null;
 }
 
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "Gebruik POST." });
   try {
     let q = req.body;
@@ -132,3 +132,11 @@ module.exports = async (req, res) => {
     { console.error("[klantorder]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };
+
+// Une annulation ou une modification par le client change la liste du personnel : révision
+// des commandes incrémentée (lib/revision.js) pour que les écrans se rafraîchissent.
+module.exports = async (req, res) => {
+  await handler(req, res);
+  if (res.statusCode === 200) await require("../lib/revision").bump();
+};
+module.exports.findOwnOrder = findOwnOrder;

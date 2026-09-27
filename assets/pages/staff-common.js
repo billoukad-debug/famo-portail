@@ -5,13 +5,35 @@
   // Cache 60 s partagé entre les pages (sessionStorage, cet onglet seulement) : passer de
   // Bestellingen à Magazijn ne relit plus toute la liste. Toute modification (S.update) force la relecture.
   const CACHE_KEY = "famoOrdersCache", TTL = 60 * 1000;
+  // Liste par pages (≤ 1000 par réponse, limite Vercel de 4,5 Mo) ; « rev » = révision des commandes
+  // (lib/revision.js) : inchangée → le serveur répond { unchanged } sans relire la liste (E-02, E-03).
+  const fetchOrders = async rev => {
+    const q = "/api/allorders?" + (S.all ? "all=1&" : "") + "limit=1000";
+    let d = await K.api(q + (rev != null ? "&rev=" + encodeURIComponent(rev) : ""));
+    if (d.unchanged) return d;
+    const out = Object.assign({}, d, { orders: d.orders || [] });
+    while (d.next) { d = await K.api(q + "&cursor=" + encodeURIComponent(d.next)); out.orders = out.orders.concat(d.orders || []); }
+    return out;
+  };
   S.load = async function (force, all) {
     if (all && !S.all) { S.all = true; force = true; }
     if (!force && S.orders.length && Date.now() - S.loadedAt < TTL) return S;
+    if (force && S.orders.length && S.rev != null && !S.dirty) {
+      const d = await fetchOrders(S.rev);
+      if (d.unchanged) { S.loadedAt = Date.now(); S.badges(); return S; }
+      return S.apply(d, null);
+    }
+    S.dirty = false;
     const hit = !force && K.session.get(CACHE_KEY, null);
     const fresh = hit && Date.now() - hit.at < TTL && !!hit.all === !!S.all ? hit : null;
-    const [o, c] = fresh ? [fresh.o, { config: fresh.config }] : await Promise.all([K.api("/api/allorders" + (S.all ? "?all=1" : "")), S.config ? Promise.resolve({ config: S.config }) : K.api("/api/config").catch(() => ({ config: null }))]);
-    if (!fresh) K.session.set(CACHE_KEY, { at: Date.now(), all: S.all, o, config: c.config || S.config });
+    const [o, c] = fresh ? [fresh.o, { config: fresh.config }] : await Promise.all([fetchOrders(null), S.config ? Promise.resolve({ config: S.config }) : K.api("/api/config").catch(() => ({ config: null }))]);
+    return S.apply(o, c, fresh);
+  };
+  S.apply = function (o, c, fresh) {
+    c = c || { config: S.config };
+    // Cache de session : seulement s'il tient (sessionStorage ≈ 5 Mo).
+    if (!fresh) { try { K.session.set(CACHE_KEY, { at: Date.now(), all: S.all, o, config: c.config || S.config }); } catch (e) { K.session.del(CACHE_KEY); } }
+    S.rev = o.rev == null ? null : o.rev;
     S.orders = (o.orders || []).map(x => Object.assign(x, { late: K.isLate(x), day: x.dateLiv || x.date || "" }));
     S.btw = o.btwPerProduct && typeof o.btwPerProduct === "object" ? o.btwPerProduct : {};
     S.window = Number(o.window) || 0;
@@ -63,8 +85,8 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) { fresh = 0; document.title = base; tick(); } });
   };
   S.counts = () => { const t = K.today(); return { today: S.orders.filter(o => o.day === t && !K.isClosed(o)).length, prep: S.orders.filter(o => o.statut === "Reçue").length, ready: S.orders.filter(o => o.statut === "Prête").length, road: S.orders.filter(o => o.statut === "Sortie en livraison").length, late: S.orders.filter(o => o.late).length, unpaid: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").length, unpaidSum: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").reduce((s, o) => s + Number(o.total || 0), 0) }; };
-  S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); K.session.del(CACHE_KEY); await S.load(true); return d; };
-  S.invalidate = () => K.session.del(CACHE_KEY);
+  S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); K.session.del(CACHE_KEY); S.dirty = true; await S.load(true); return d; };
+  S.invalidate = () => { K.session.del(CACHE_KEY); S.dirty = true; };
   S.lineTxt = o => K.linesSummary(o.lignes);
   // Mailresultaat van de server (nooit blokkerend) in één woord voor de toast.
   S.mailTxt = m => m && m.ok ? " · klant gemaild" : (m && m.skipped === "no-recipient" ? " · geen e-mailadres bij klant" : "");

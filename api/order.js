@@ -192,6 +192,7 @@ module.exports = async (req, res) => {
       recordId: j.records[0].id, client, bron: "Klantportaal"
     }).catch(() => null);
 
+    await require("../lib/revision").bump();
     res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
   } catch (e) {
     { console.error("[order]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }

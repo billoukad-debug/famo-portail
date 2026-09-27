@@ -1,5 +1,6 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const { atAll } = require("../lib/airtable");
+const { at, atAll } = require("../lib/airtable");
+const __rev = require("../lib/revision");
 const __auth = require("../lib/staffauth");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
@@ -19,6 +20,9 @@ module.exports = async (req, res) => {
   try {
     if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
     const q = req.query || {};
+    // Rafraîchissement : rien n'a changé depuis la révision connue du navigateur → une seule lecture.
+    const rev = await __rev.current();
+    if (q.rev !== undefined && rev !== null && String(q.rev) === String(rev)) return res.status(200).json({ unchanged: true, rev });
     const [cl, cat] = await Promise.all([atAll("Clients"), atAll("Catalogue")]);
     const nameById = {}, infoById = {};
     (cl.records || []).forEach(r => {
@@ -40,7 +44,20 @@ module.exports = async (req, res) => {
     (cat.records || []).forEach(r => { const t = Number(r.fields["BTW-tarief"]); if (Number.isFinite(t) && t > 0) btwPerProduct[String(r.fields["Produit"] || "").toLowerCase().trim()] = t; });
 
     const filter = String(q.all || "") === "1" ? "" : "&filterByFormula=" + encodeURIComponent(windowFormula(WINDOW_DAYS));
-    const cmd = await atAll("Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc" + filter);
+    // Pagination (audit E-02 : une réponse Vercel est limitée à 4,5 Mo, atteinte vers 5 000
+    // commandes) : ?limit=100..2000&cursor=<offset> ; « next » vide = dernière page.
+    const base = "Commandes?sort%5B0%5D%5Bfield%5D=Date&sort%5B0%5D%5Bdirection%5D=desc" + filter;
+    let cmd, next = null;
+    if (q.limit) {
+      const lim = Math.min(Math.max(Number(q.limit) || 1000, 100), 2000), recs = [];
+      let offset = String(q.cursor || "");
+      do {
+        const page = await at(base + "&pageSize=100" + (offset ? "&offset=" + encodeURIComponent(offset) : ""));
+        if (page.error) { cmd = page; break; }
+        recs.push(...(page.records || [])); offset = page.offset || "";
+      } while (offset && recs.length < lim);
+      cmd = cmd || { records: recs }; next = offset || null;
+    } else cmd = await atAll(base);
     if (cmd.error) return res.status(500).json({ error: cmd.error.message || "Commandes onleesbaar" });
     const orders = (cmd.records || []).map(r => ({
       id: r.id,
@@ -79,7 +96,7 @@ module.exports = async (req, res) => {
         le: r.fields["Creditnota le"] || "", motif: r.fields["Creditnota motif"] || ""
       } : null
     }));
-    res.status(200).json({ orders, btwPerProduct, window: String(q.all || "") === "1" ? 0 : WINDOW_DAYS });
+    res.status(200).json({ orders, btwPerProduct, window: String(q.all || "") === "1" ? 0 : WINDOW_DAYS, rev, next });
   } catch (e) {
     { console.error("[allorders]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }

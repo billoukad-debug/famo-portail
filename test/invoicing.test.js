@@ -190,3 +190,23 @@ test("journal : prix de base, IBAN, code et action sur commande — qui, avant �
   assert.ok(!JSON.stringify(rows).includes("geheim-nieuw-123"), "jamais un code en clair dans le journal");
   assert.equal((await call("journaal.js", null, { method: "GET", headers: cookie("staff") })).statusCode, 401);
 });
+
+// ---- Liste du personnel : pagination et révision (audit E-02, E-03) ----
+test("allorders : pages de ≤ limit, révision inchangée → { unchanged } sans relire la liste", async () => {
+  const many = Array.from({ length: 250 }, (_, i) => SORTIE("recPAG" + String(i).padStart(4, "0")));
+  await seed(many);
+  await store().replaceAll("Compteurs", []);
+  const get = (query) => call("allorders.js", null, { method: "GET", headers: cookie("staff"), query });
+  const p1 = await get({ limit: "100" });
+  assert.equal(p1.statusCode, 200); assert.equal(p1.payload.orders.length, 100); assert.ok(p1.payload.next);
+  let n = p1.payload.orders.length, next = p1.payload.next;
+  while (next) { const p = await get({ limit: "100", cursor: next }); n += p.payload.orders.length; next = p.payload.next; }
+  assert.equal(n, 250);
+  const rev = p1.payload.rev;
+  assert.deepStrictEqual((await get({ limit: "100", rev: String(rev) })).payload, { unchanged: true, rev });
+  // Une écriture sur une commande fait bouger la révision → liste renvoyée.
+  const u = await call("updateorder.js", { id: "recPAG0001", volgorde: 3 }, { headers: cookie("staff") });
+  assert.equal(u.statusCode, 200);
+  const after = await get({ limit: "100", rev: String(rev) });
+  assert.ok(!after.payload.unchanged); assert.equal(after.payload.rev, rev + 1);
+});

@@ -620,6 +620,7 @@ module.exports = async (req, res) => {
   const id = REC.test(String(body.id || "")) ? String(body.id) : "";
   const before = id && __journal.store() ? await __journal.get("Commandes", id) : null;
   await handler(req, res);
+  if (res.statusCode === 200) await require("../lib/revision").bump();
   if (!before || res.statusCode !== 200) return;
   const after = await __journal.get("Commandes", id);
   const actie = body.correction ? "Correctie: " + body.correction : body.creditnota ? "Creditnota" : body.paiement ? "Betaalstatus: " + body.paiement

@@ -114,6 +114,7 @@ module.exports = async (req, res) => {
         })().catch(() => null);
       }
 
+      await require("../lib/revision").bump();
       return res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
     }
 
