@@ -43,6 +43,8 @@ async function call(handler, body, replies, opts) {
   const originalFetch = global.fetch;
   const calls = [];
   global.fetch = async (url, options) => {
+    // Relecture de la génération de session (lib/staffauth.js, cache 60 s) : hors scénario.
+    if (/fields%5B%5D=Sessiegeneratie/.test(String(url))) return json({ records: [] });
     calls.push({ url: String(url), options: options || {} });
     assert(replies.length, `Appel Airtable inattendu: ${url}`);
     return json(replies.shift());
@@ -748,7 +750,7 @@ async function main() {
 
     // N3 — le hachage ne laisse jamais fuir le code.
     assert.ok(!adminHash.includes("EenSterkeCode2026"), "N3 le code n'apparaît pas dans l'empreinte");
-    assert.match(adminHash, /^scrypt\$[0-9a-f]+\$[0-9a-f]+$/, "N3 format d'empreinte attendu");
+    assert.match(adminHash, /^scrypt\$131072\$[0-9a-f]{32}\$[0-9a-f]{64}$/, "N3 format d'empreinte attendu (coût N dans l'empreinte)");
     assert.equal(authN.verifyHash(adminHash, "EenSterkeCode2026"), true, "N3 bonne vérification");
     assert.equal(authN.verifyHash(adminHash, "eensterkecode2026"), false, "N3 casse respectée");
     assert.equal(authN.verifyHash("", "x"), false, "N3 empreinte vide refusée");
@@ -1468,7 +1470,8 @@ async function main() {
     assert.ok(decodeURIComponent(r.calls[1].url).includes("Medewerkers?filterByFormula={Actief}=1"), "AS1 enkel actieve accounts gelezen");
     assert.match(r.calls[2].url, /Medewerkers\/m1$/); assert.equal((r.calls[2].options.method || "").toUpperCase(), "PATCH"); assert.ok(Date.parse(JSON.parse(r.calls[2].options.body).fields["Laatste aanmelding"]) > 0, "AS1 laatste aanmelding bijgehouden");
     const tokIlse = decodeURIComponent(/famo_sess=([^;]+)/.exec(r.res.headers["Set-Cookie"])[1]);
-    assert.equal(tokIlse.split(".").length, 4, "AS1 jeton à 4 segments (exp.role.naam.sig)");
+    assert.equal(tokIlse.split(".").length, 5, "AS1 jeton à 5 segments (exp.role.naam.gen.sig)");
+    assert.deepEqual(authlib.verify(tokIlse).gen, { g: 0, med: "m1", pfp: authlib.pinFingerprint(MED.records[0].fields["PIN hash"]) }, "AS1 le jeton porte l'id Medewerker et l'empreinte du PIN (révocation)");
     assert.deepEqual([authlib.verify(tokIlse).role, authlib.verify(tokIlse).name], ["staff", "Ilse"], "AS1 de cookie draagt de naam");
     const ilseHdr = { cookie: "famo_sess=" + encodeURIComponent(tokIlse) };
     r = await call(ses, null, [], { method: "GET", headers: ilseHdr });
@@ -1571,7 +1574,7 @@ async function main() {
     const post = r.calls[0]; assert.match(post.url, /Medewerkers$/); assert.equal((post.options.method || "").toUpperCase(), "POST");
     const pb = JSON.parse(post.options.body); const mf = pb.records[0].fields;
     assert.equal(pb.typecast, true, "AT5 typecast (Rol-optie)"); assert.equal(mf.Naam, "Tom"); assert.equal(mf.Rol, "beheerder"); assert.equal(mf.Actief, true);
-    assert.match(mf["PIN hash"], /^scrypt\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "4321"), "AT5 de hash opent met de PIN");
+    assert.match(mf["PIN hash"], /^scrypt\$131072\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "4321"), "AT5 de hash opent met de PIN");
     assert.ok(!post.options.body.includes("4321"), "AT5 de PIN gaat nooit in klare tekst naar Airtable");
     r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", rol: "superuser", actief: false }, [{ fields: {} }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT5 bijwerken zonder PIN"); assert.deepEqual(patchOfX(r, /Medewerkers\/m1$/).fields, { Naam: "Tom", Rol: "personeel", Actief: false }, "AT5 hash onaangeroerd, onbekende rol → personeel");

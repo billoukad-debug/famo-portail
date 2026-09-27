@@ -49,7 +49,9 @@ const SCHEMA = {
     // Règles de livraison et de facturation lues par lib/levering.js : Besteldeadline "22:00",
     // Leverdagen "ma,di,wo,do,vr,za", Gesloten dagen (une date ISO par ligne), Minimum bestelling,
     // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
-    fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
+    fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox",
+      // Sessiegeneratie : +1 = toutes les sessions staff révoquées (lib/staffauth.js, api/session.js).
+      "Sessiegeneratie": "number" },
     primary: "Bedrijfsnaam"
   },
   Aanvragen: {
@@ -66,7 +68,8 @@ const SCHEMA = {
 // Medewerker de démonstration, présent dès que la table est vide : « Ilse », personeel,
 // PIN 1234. scripts/seed.js ne connaît pas cette table ; la nabootsing la remplit
 // elle-même (reset() et chargement d'un fichier .dev-data antérieur).
-// Le hachage reproduit lib/staffauth.hashCode (scrypt$<sel hex>$<empreinte hex>, N=16384)
+// Le hachage reproduit l'ANCIEN format de lib/staffauth.hashCode (scrypt$<sel hex>$<empreinte hex>,
+// N=16384), toujours lu et ré-haché à la première connexion,
 // SANS charger ce module : dev.js ne pose STAFF_CODE/ADMIN_CODE qu'après avoir construit
 // la base, et staffauth lit ces variables une seule fois au chargement.
 const DEMO_MEDEWERKER = { naam: "Ilse", rol: "personeel", pin: "1234" };

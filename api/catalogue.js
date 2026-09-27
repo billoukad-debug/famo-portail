@@ -44,7 +44,8 @@ async function authClient(user, pw, token){
   const stored = rec && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"]; // archivé : plus de connexion, historique conservé
   if (!stored || !__ca.checkPassword(stored, pw)) { rateLimited(key, AUTH_MAX_FAILS, AUTH_WINDOW_MS); return null; }
   _rl.delete(key);
-  if (!__ca.isHashed(stored)) {
+  // Texte clair ou empreinte d'un coût dépassé : remplacée maintenant qu'on connaît le mot de passe.
+  if (!__ca.isHashed(stored) || __ca.needsRehash(stored)) {
     const hashed = __ca.hashPassword(pw);
     const up = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": hashed } }) });
     if (up && !up.error) rec.fields["Wachtwoord"] = hashed;

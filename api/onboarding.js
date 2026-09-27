@@ -211,7 +211,8 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === "GET") {
-      if (!__auth.adminOk(req)) {
+      // adminOk (signature, sans lecture) puis adminSession : session non révoquée (base ≤ 60 s).
+      if (!__auth.adminOk(req) || !(await __auth.adminSession(req))) {
         return res.status(401).json({ error: "Enkel voor beheerders" });
       }
       // Pastille « Beheer » de la navigation : seulement le nombre de demandes non traitées (un appel, un champ).
@@ -229,7 +230,8 @@ module.exports = async (req, res) => {
     }
 
     const body = parseBody(req);
-    if (!__auth.adminOk(req)) {
+    const me = __auth.adminOk(req) ? await __auth.adminSession(req) : null;
+    if (!me) {
       return res.status(401).json({ error: "Enkel voor beheerders" });
     }
 
@@ -545,12 +547,16 @@ module.exports = async (req, res) => {
         ? await at(`Medewerkers/${body.id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) })
         : await at("Medewerkers", { method: "POST", body: JSON.stringify({ typecast: true, records: [{ fields }] }) });
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Medewerker opslaan mislukt" });
+      // Désactivé, rôle retiré ou PIN changé : ses sessions tombent (tout de suite sur cette
+      // instance, ≤ 60 s ailleurs — lib/staffauth.js).
+      if (body.id && saved.fields) __auth.noteMedewerker(body.id, saved.fields);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
     if (action === "deleteMedewerker") {
       if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
       const del = await at(`Medewerkers/${body.id}`, { method: "DELETE" });
       if (del.error) return res.status(500).json({ error: del.error.message || "Verwijderen mislukt" });
+      __auth.noteMedewerker(body.id, null);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -632,6 +638,15 @@ module.exports = async (req, res) => {
         body: JSON.stringify({ fields })
       });
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Code opslaan mislukt" });
+      // Nouveau code : toutes les sessions ouvertes tombent (génération +1, écriture séparée
+      // pour ne pas faire échouer le changement de code sur une base sans ce champ). Le
+      // beheerder qui vient de changer le code reçoit un cookie à la nouvelle génération.
+      const next = (Number(existing.fields && existing.fields["Sessiegeneratie"]) || 0) + 1;
+      const bumped = await at(`${encodeURIComponent("Configuratie")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Sessiegeneratie": next } }) }).catch(() => null);
+      if (bumped && !bumped.error) {
+        __auth.noteGeneration(next);
+        __auth.setCookie(res, __auth.sign(me.exp, me.role, me.name, Object.assign({}, me.gen, { g: next })), Math.max(0, Math.floor((me.exp - Date.now()) / 1000)));
+      } else console.error("[onboarding] Sessiegeneratie niet verhoogd", bumped && bumped.error && bumped.error.type);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
