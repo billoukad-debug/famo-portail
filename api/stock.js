@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
     const q = req.query || {};
     // Le magasin reçoit les livraisons fournisseur et compte : lecture et corrections
     // pour tout le personnel ; supprimer une ligne reste réservé au beheerder.
-    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     if (req.method === "GET" && String(q.history || "") === "1") {
       const product = String(q.product || "").trim();

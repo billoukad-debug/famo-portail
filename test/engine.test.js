@@ -156,6 +156,8 @@ test("api/allorders : une lecture de table par table, quel que soit le nombre de
     const r = await callApi("allorders", { headers: { cookie: cookie() }, query: { all: "1" } });
     assert.equal(r.statusCode, 200, JSON.stringify(r.body));
     assert.equal(r.body.orders.length, 250);
+    // + au plus 1 lecture de Configuratie (génération de session, A-01, mise en cache 60 s).
+    assert.ok((perTable.Configuratie || 0) <= 1, "génération de session : 1 lecture au plus"); delete perTable.Configuratie;
     assert.deepEqual(perTable, { Clients: 1, Catalogue: 1, Commandes: 1 }, "E-01 : 1 lecture complète de Commandes par appel");
   } finally { ds.state.store.list = realList; }
 });

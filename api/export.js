@@ -14,7 +14,7 @@ const { parseLines } = require("./updateorder");
 //   mêmes montants (assets/vat.js, taux figés) : assets/pages/documenten.js.
 module.exports = async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ error: "Gebruik GET." });
-  if (!__auth.adminOk(req)) return res.status(401).json({ error: "Enkel voor de beheerder" });
+  if (!(await __auth.adminSession(req))) return res.status(401).json({ error: "Enkel voor de beheerder" });
   try {
     const q = req.query || {};
     if (String(q.format || "") !== "ubl") return res.status(400).json({ error: "Onbekend formaat (ubl)" });

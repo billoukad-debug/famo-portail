@@ -405,7 +405,7 @@ const handler = async (req, res) => {
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
     const { id } = body;
-    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
     if (!id || !REC.test(String(id))) return res.status(400).json({ error: "Bestelling-id ontbreekt of is ongeldig" });
 
     if (inflight.has(id)) return res.status(409).json({ error: "Deze bestelling wordt al bijgewerkt. Even geduld." });

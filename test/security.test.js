@@ -143,6 +143,8 @@ test("A-01 : « iedereen afmelden » et changement de code révoquent toutes les
   const adminLogin = await callApi("session", { method: "POST", body: { code: "beheer-sec-code", want: "admin" } });
   const admin = cookieOf(adminLogin);
   assert.equal((await callApi("session", { headers: { cookie: staff } })).statusCode, 200);
+  assert.equal((await callApi("allorders", { method: "GET", headers: { cookie: staff } })).statusCode, 200, "témoin : allorders lisible avant révocation");
+  assert.equal((await callApi("journaal", { method: "GET", headers: { cookie: admin } })).statusCode, 200, "témoin : journaal lisible avant révocation");
   // Personeel ne peut pas déconnecter tout le monde.
   assert.equal((await callApi("session", { method: "DELETE", query: { all: "1" }, headers: { cookie: staff } })).statusCode, 401);
   const out = await callApi("session", { method: "DELETE", query: { all: "1" }, headers: { cookie: admin } });
@@ -150,6 +152,13 @@ test("A-01 : « iedereen afmelden » et changement de code révoquent toutes les
   assert.equal((await store().get("Configuratie", CFG)).fields["Sessiegeneratie"], 1);
   assert.equal((await callApi("session", { headers: { cookie: staff } })).statusCode, 401, "staff déconnecté");
   assert.equal((await callApi("session", { headers: { cookie: admin } })).statusCode, 401, "admin aussi");
+  // Toutes les API de travail, pas seulement /api/session (fin d'A-01) : un cookie révoqué ne lit plus rien.
+  for (const [name, cookie] of [["allorders", staff], ["stock", staff], ["lots", staff], ["staff", staff], ["journaal", admin], ["dbadmin", admin]]) {
+    const r = await callApi(name, { method: "GET", headers: { cookie } });
+    assert.ok(r.statusCode === 401 || r.statusCode === 403, name + " : session révoquée refusée (" + r.statusCode + ")");
+  }
+  const cfg = await callApi("config", { method: "GET", headers: { cookie: admin } });
+  assert.ok(!(cfg.body && cfg.body.config && cfg.body.config.iban !== undefined && cfg.body.status), "config : pas de vue beheerder avec un cookie révoqué");
   // Autre instance : elle relit la génération au plus tard après 60 s.
   auth.noteGeneration(0);
   assert.equal((await later(61000, () => callApi("session", { headers: { cookie: staff } }))).statusCode, 401);

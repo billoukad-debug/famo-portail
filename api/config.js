@@ -30,8 +30,8 @@ module.exports = async (req, res) => {
   try {
     const q = req.query || {};
     const wantPublic = String(q.public || "") === "1";
-    const staffOk = __auth.staffOk(req);
-    const adminOk = __auth.adminOk(req);
+    const staffOk = !!(await __auth.staffSession(req)); // session non révoquée (A-01)
+    const adminOk = staffOk && __auth.adminOk(req);
 
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};

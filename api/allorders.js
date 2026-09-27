@@ -18,7 +18,7 @@ function windowFormula(days){
 module.exports = async (req, res) => {
   if (!staffCodeReady(res)) return;
   try {
-    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
     const q = req.query || {};
     // Rafraîchissement : rien n'a changé depuis la révision connue du navigateur → une seule lecture.
     const rev = await __rev.current();

@@ -60,7 +60,7 @@ module.exports = async (req, res) => {
       if (typeof body === "string") body = JSON.parse(body || "{}");
       if (!body) body = {};
       // Le personnel prend aussi les commandes par téléphone : session staff suffit.
-      if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+      if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
       const { clientId, notes, bron } = body;
       const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
       if (!clientId || !REC.test(String(clientId))) return res.status(400).json({ error: "Klant en artikelen vereist" });
@@ -120,7 +120,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
     }
 
-    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     // ---------- GET ----------
     const q = req.query || {};

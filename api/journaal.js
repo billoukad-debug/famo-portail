@@ -6,7 +6,7 @@ const __journal = require("../lib/journal");
 // Aucune route ne modifie ni n'efface le journal (lib/journal.js : ajout seul).
 module.exports = async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ error: "Gebruik GET." });
-  if (!__auth.adminOk(req)) return res.status(401).json({ error: "Enkel voor de beheerder" });
+  if (!(await __auth.adminSession(req))) return res.status(401).json({ error: "Enkel voor de beheerder" });
   try {
     const q = req.query || {};
     const rows = await __journal.list({ limit: q.limit, object: q.object ? String(q.object) : "", record: q.record ? String(q.record) : "" });
