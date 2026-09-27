@@ -157,10 +157,17 @@ async function moveStock(lignes, sign){
 
 // Annule un mouvement de stock déjà écrit quand l'enregistrement de la commande échoue
 // ensuite : sans ça, un nouvel essai déduirait (ou remettrait) une deuxième fois.
+// Compensation après un enregistrement refusé. moveStock renvoie {error} au lieu de lever :
+// l'échec n'était jamais vu (audit D-13). Renvoie un avertissement lisible, ou null.
 async function undoStock(report, sign){
-  if (!report || !report.done || !report.done.length) return;
+  if (!report || !report.done || !report.done.length) return null;
   const lines = report.done.map(d => formatLine({ nom: d.nom, qty: d.qty, unit: "", price: null, comment: "" })).join("\n");
-  try { await moveStock(lines, -sign); } catch (e) { console.error("[updateorder] undoStock", e && e.message || e); }
+  try {
+    const r = await moveStock(lines, -sign);
+    if (r && r.error) { console.error("[updateorder] undoStock", r.error, lines); return "Voorraad niet teruggezet: " + r.error; }
+    if (r && r.missing && r.missing.length) return "Niet teruggezet (onbekend product): " + r.missing.join(", ");
+    return null;
+  } catch (e) { console.error("[updateorder] undoStock", e && e.message || e); return "Voorraad niet teruggezet: " + (e.message || e); }
 }
 
 // Mode de facturation, taux par défaut et taux du catalogue (lib/billing.js).
@@ -264,6 +271,7 @@ async function applyCorrection(req, res, id, f, body, statuses){
       if (f["Stock afgeboekt"]) {
         stockReport = await moveStock(f["Lignes (produits / quantités)"], +1);
         if (stockReport.error) return res.status(500).json({ error: stockReport.error });
+        if (stockReport.missing.length) stockReport.journalWarning = "Niet in voorraad teruggezet: " + stockReport.missing.join(", ");
         const w = await createStockMovements(stockReport, ref, "Annulation sortie"); if (w) stockReport.journalWarning = w;
         fields["Stock afgeboekt"] = false;
       }
@@ -290,6 +298,7 @@ async function applyCorrection(req, res, id, f, body, statuses){
       if (f["Stock afgeboekt"]) {
         stockReport = await moveStock(f["Lignes (produits / quantités)"], +1);
         if (stockReport.error) return res.status(500).json({ error: stockReport.error });
+        if (stockReport.missing.length) stockReport.journalWarning = "Niet in voorraad teruggezet: " + stockReport.missing.join(", ");
         const w = await createStockMovements(stockReport, ref, "Annulation sortie"); if (w) stockReport.journalWarning = w;
         fields["Stock afgeboekt"] = false;
       }
@@ -333,7 +342,7 @@ async function applyCorrection(req, res, id, f, body, statuses){
 
   fields["Correcties"] = journal(f, correctionLine(label, actor, reden));
   const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) });
-  if (j.error) { await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" }); }
+  if (j.error) { const w = await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt", stockWarning: w || undefined }); }
   const mail = mailStatus ? await notifyStatus(req, f, mailStatus, { reden }) : null;
   return res.status(200).json({ ok: true, statut: target, correctie: fields["Correcties"].split("\n").pop(), stock: stockReport, mail });
 }
@@ -379,7 +388,7 @@ async function makeCreditnota(req, res, id, f, body){
     const w = await createStockMovements(stockReport, f["Référence"] || id, "Retour client"); if (w) stockReport.journalWarning = w;
   }
   const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-  if (j.error) { await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Creditnota opslaan mislukt" }); }
+  if (j.error) { const w = await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Creditnota opslaan mislukt", stockWarning: w || undefined }); }
   const finalNummer = await ensureUnique(id, "Creditnota nummer", "CN", nummer);
   // Numéro repris (collision) : le journal doit citer le numéro réellement attribué (audit B-18).
   if (finalNummer !== nummer) await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Correcties": fields["Correcties"].split(nummer).join(finalNummer) } }) });
@@ -582,7 +591,7 @@ async function handle(req, res, body, id){
     if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets om bij te werken" });
 
     const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-    if (j.error) { await undoStock(stockReport, -1); if (fields["Stock afgeboekt"]) await __atomic.claim("Commandes", id, "Stock afgeboekt", true, false); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" }); }
+    if (j.error) { const w = await undoStock(stockReport, -1); if (w) console.error("[updateorder]", w); if (fields["Stock afgeboekt"]) await __atomic.claim("Commandes", id, "Stock afgeboekt", true, false); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" }); }
     if (stockReport && fields["Stock afgeboekt"]) {
       const movementError = await createStockMovements(stockReport, f["Référence"] || id, "Sortie livraison");
       if (movementError) stockReport.journalWarning = movementError;
