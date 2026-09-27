@@ -623,6 +623,34 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // ---- Sécurité (Systeemstatus) : état et hachage des mots de passe clients en clair ----
+    // securityStatus : { klareWachtwoorden, hasSessionSecret } (lecture seule).
+    // hashAllPasswords : hache les Wachtwoord encore en clair (migration sans attendre la
+    // connexion de chaque client). scrypt coûte ≈ 0,45 s par mot de passe : au plus
+    // HASH_BATCH par appel (durée maximale d'une fonction) ; Beheer relance tant que
+    // klareWachtwoorden > 0. Chaque fiche est relue juste avant l'écriture : un client qui
+    // change son mot de passe pendant ce temps n'est pas écrasé.
+    if (action === "securityStatus" || action === "hashAllPasswords") {
+      const HASH_BATCH = 12, BUDGET_MS = 6000;
+      const all = await atAll("Clients?fields%5B%5D=Wachtwoord");
+      if (all.error) { console.error("[onboarding] " + action, all.error.type, all.error.message); return res.status(500).json({ error: "Klanten onleesbaar. Probeer opnieuw." }); }
+      const plain = (all.records || []).filter(r => r.fields["Wachtwoord"] && !__ca.isHashed(r.fields["Wachtwoord"]));
+      let hashed = 0, failed = 0;
+      if (action === "hashAllPasswords") {
+        const started = Date.now();
+        for (const r of plain.slice(0, HASH_BATCH)) {
+          if (Date.now() - started > BUDGET_MS) break;
+          const hash = __ca.hashPassword(r.fields["Wachtwoord"]);
+          const cur = await at(`Clients/${r.id}`);
+          if (!cur || cur.error || cur.fields["Wachtwoord"] !== r.fields["Wachtwoord"]) continue; // changé entre-temps
+          const up = await at(`Clients/${r.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": hash } }) });
+          if (up && !up.error) hashed++;
+          else { failed++; console.error("[onboarding] hashAllPasswords", r.id, up && up.error && up.error.type); }
+        }
+      }
+      return res.status(200).json({ ok: failed === 0, hashed, failed, klareWachtwoorden: plain.length - hashed, hasSessionSecret: __auth.hasSessionSecret() });
+    }
+
     // ---- Codes d'accès (Instellingen) ----
     // Le code n'est jamais stocké en clair : seule son empreinte scrypt part en base.
     if (action === "saveCode") {

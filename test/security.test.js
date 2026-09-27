@@ -385,3 +385,25 @@ test("A-05 : e-mails de bienvenue et de reset Beheer = lien d'activation, jamais
     assert.equal((await callApi("klantwachtwoord", { method: "POST", body: { action: "setPassword", token: linkIn(w), nieuw: "nog-eens-iets" } })).statusCode, 400, "l'ancien lien d'activation ne vaut plus");
   } finally { mail.done(); }
 });
+
+// ---- A-04 : mots de passe en clair hachés d'un coup depuis Beheer ------------------------------
+test("A-04 : hashAllPasswords hache tout Wachtwoord en clair, compteur pour Systeemstatus", async () => {
+  const admin = "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600000, "admin", "", { g: auth.currentGeneration() || 0 }));
+  const staff = "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600000, "staff", "", { g: auth.currentGeneration() || 0 }));
+  const a = await put("Clients", { "Nom": "Klaar A", "Gebruikersnaam": "klaar-a", "Wachtwoord": "klare-tekst-1" });
+  const b = await put("Clients", { "Nom": "Klaar B", "Gebruikersnaam": "klaar-b", "Wachtwoord": "klare-tekst-2" });
+  const act = (action, cookie) => callApi("onboarding", { method: "POST", headers: { cookie: cookie || admin }, body: { action } });
+  assert.equal((await act("hashAllPasswords", staff)).statusCode, 401, "enkel beheerder");
+  const before = await act("securityStatus");
+  assert.equal(before.statusCode, 200, JSON.stringify(before.body));
+  assert.ok(before.body.klareWachtwoorden >= 2);
+  assert.equal(before.body.hasSessionSecret, true);
+  let r = await act("hashAllPasswords");
+  while (r.body.klareWachtwoorden > 0 && r.body.hashed > 0) r = await act("hashAllPasswords");
+  assert.equal(r.statusCode, 200); assert.equal(r.body.klareWachtwoorden, 0);
+  for (const [id, pw] of [[a, "klare-tekst-1"], [b, "klare-tekst-2"]]) {
+    const stored = (await store().get("Clients", id)).fields["Wachtwoord"];
+    assert.match(stored, /^scrypt\$131072\$/); assert.ok(ca.checkPassword(stored, pw), "le client garde son mot de passe");
+  }
+  assert.equal((await act("securityStatus")).body.klareWachtwoorden, 0);
+});
