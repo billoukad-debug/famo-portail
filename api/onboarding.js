@@ -539,14 +539,23 @@ module.exports = async (req, res) => {
       const pin = String(body.pin || "");
       if (!naam) return res.status(400).json({ error: "Naam is verplicht" });
       if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
-      if (!body.id && pin.length < 4) return res.status(400).json({ error: "PIN: minstens 4 tekens" });
-      if (pin && (pin.length < 4 || pin.length > 40)) return res.status(400).json({ error: "PIN: 4 tot 40 tekens" });
+      // Nouveau PIN : 6 à 12 chiffres (un million de combinaisons au moins). Les PIN plus
+      // courts déjà enregistrés continuent d'ouvrir (api/session.js) jusqu'à leur changement.
+      if (!body.id && !pin) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
+      if (pin && !/^\d{6,12}$/.test(pin)) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
       const fields = { "Naam": naam, "Rol": rol, "Actief": body.actief !== false };
-      if (pin) fields["PIN hash"] = __auth.hashCode(pin);
+      if (pin) {
+        // Deux personnes au même PIN : la connexion ouvrirait au nom de la première trouvée
+        // (journal faussé). On compare aux empreintes des autres comptes, actifs ou non.
+        const all = await atAll("Medewerkers");
+        if (all.error) { console.error("[onboarding] Medewerkers onleesbaar", all.error.type); return res.status(500).json({ error: "Medewerkers onleesbaar. Probeer opnieuw." }); }
+        if ((all.records || []).some(r => r.id !== body.id && r.fields["PIN hash"] && __auth.verifyHash(r.fields["PIN hash"], pin))) return res.status(409).json({ error: "Deze PIN is al in gebruik. Kies een andere." });
+        fields["PIN hash"] = __auth.hashCode(pin);
+      }
       const saved = body.id
         ? await at(`Medewerkers/${body.id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) })
         : await at("Medewerkers", { method: "POST", body: JSON.stringify({ typecast: true, records: [{ fields }] }) });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Medewerker opslaan mislukt" });
+      if (saved.error) { console.error("[onboarding] saveMedewerker", saved.error.type, saved.error.message); return res.status(500).json({ error: "Medewerker opslaan mislukt" }); }
       // Désactivé, rôle retiré ou PIN changé : ses sessions tombent (tout de suite sur cette
       // instance, ≤ 60 s ailleurs — lib/staffauth.js).
       if (body.id && saved.fields) __auth.noteMedewerker(body.id, saved.fields);
@@ -555,7 +564,7 @@ module.exports = async (req, res) => {
     if (action === "deleteMedewerker") {
       if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
       const del = await at(`Medewerkers/${body.id}`, { method: "DELETE" });
-      if (del.error) return res.status(500).json({ error: del.error.message || "Verwijderen mislukt" });
+      if (del.error) { console.error("[onboarding] deleteMedewerker", del.error.type, del.error.message); return res.status(500).json({ error: "Verwijderen mislukt" }); }
       __auth.noteMedewerker(body.id, null);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }

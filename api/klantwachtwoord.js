@@ -15,15 +15,21 @@ const __ca = require("../lib/clientauth");
 const MIN_LEN = 8;
 const MAX_LEN = 80;
 
-// Anti-abus minimal (mémoire d'instance, best-effort sur serverless) : même règle qu'à la
-// connexion, sinon cette route permettrait de deviner un mot de passe sans limite.
+// Anti-abus (mémoire d'instance, en plus du verrou persistant d'authClient) : même règle
+// qu'à la connexion, sinon cette route permettrait de deviner un mot de passe sans limite.
+// Tentative réservée AVANT l'await (requêtes parallèles), rendue au succès : seuls les
+// échecs comptent.
 const _rl = new Map();
-function rateLimited(key, max, windowMs){
+function reserve(key, max, windowMs){
   const now = Date.now();
-  const e = _rl.get(key) || { n: 0, t: now };
-  if (now - e.t > windowMs) { e.n = 0; e.t = now; }
-  e.n++; _rl.set(key, e);
-  return e.n > max;
+  let e = _rl.get(key);
+  if (!e || now - e.t > windowMs) {
+    if (_rl.size > 5000) _rl.clear(); // borne mémoire
+    e = { n: 0, t: now }; _rl.set(key, e);
+  }
+  if (e.n >= max) return null;
+  e.n++;
+  return () => { e.n = Math.max(0, e.n - 1); };
 }
 
 module.exports = async (req, res) => {
@@ -45,7 +51,7 @@ module.exports = async (req, res) => {
     if (nieuw === pw) return res.status(400).json({ error: "Kies een nieuw wachtwoord dat verschilt van het huidige." });
 
     const rlKey = "klantwachtwoord:" + String(q.user || "").toLowerCase();
-    if (rateLimited(rlKey, 5, 30000)) {
+    if (!reserve(rlKey, 5, 30000)) {
       return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
     }
     const client = await authClient(q.user, pw);

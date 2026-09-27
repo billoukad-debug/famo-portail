@@ -184,3 +184,73 @@ test("A-01 : anciens jetons sans génération refusés ; base injoignable → pa
     assert.equal(r.statusCode, 200);
   } finally { global.fetch = saved; }
 });
+
+// ---- A-02 / A-07 / A-03 : force brute client ---------------------------------------------------
+test("A-02 : 20 authClient parallèles au mauvais mot de passe → au plus 5 vérifications", async () => {
+  await put("Clients", { "Nom": "Para", "Gebruikersnaam": "parallel", "Wachtwoord": ca.hashPassword("juist-wachtwoord") });
+  const { authClient } = require(path.join(ROOT, "api", "catalogue.js"));
+  const real = ca.checkPassword;
+  let checks = 0;
+  ca.checkPassword = (...a) => { checks++; return real(...a); };
+  try {
+    const out = await Promise.all(Array.from({ length: 20 }, (_, i) => authClient("parallel", "fout-" + i)));
+    assert.ok(out.every((r) => r === null));
+    assert.ok(checks <= 5, "vérifications réelles : " + checks);
+    // Le bon mot de passe est lui aussi refusé tant que la fenêtre court.
+    assert.equal(await authClient("parallel", "juist-wachtwoord"), null);
+  } finally { ca.checkPassword = real; }
+});
+
+test("A-07 : seuls les échecs comptent (par IP et par identifiant)", async () => {
+  await put("Clients", { "Nom": "Tel", "Gebruikersnaam": "teller", "Wachtwoord": ca.hashPassword("goed-wachtwoord") });
+  const hdr = { "x-forwarded-for": "198.51.100.7" };
+  const login = (user, pw) => callApi("catalogue", { method: "POST", headers: hdr, body: { user, pw } });
+  for (let i = 0; i < 29; i++) assert.equal((await login("onbekend" + i, "x")).statusCode, 401, "échec " + (i + 1));
+  assert.equal((await login("teller", "goed-wachtwoord")).statusCode, 200, "succès : ne compte pas");
+  assert.equal((await login("teller", "goed-wachtwoord")).statusCode, 200, "succès : ne compte pas");
+  assert.equal((await login("onbekend-30", "x")).statusCode, 401, "30e échec encore traité");
+  assert.equal((await login("onbekend-31", "x")).statusCode, 429, "31e : limite IP (30 échecs / 5 min)");
+});
+
+test("A-03 : verrou client persistant (10 échecs, toutes instances) puis levée après 15 min", async () => {
+  const id = await put("Clients", { "Nom": "Slot", "Gebruikersnaam": "slot", "Wachtwoord": ca.hashPassword("goed-wachtwoord") });
+  const { authClient } = require(path.join(ROOT, "api", "catalogue.js"));
+  // 10 échecs espacés de 31 s : le compteur mémoire (5 / 30 s) ne bloque jamais, comme si
+  // chaque essai tombait sur une autre instance ; seul le compteur en base les voit.
+  for (let i = 0; i < 10; i++) await later(31000 * (i + 1), () => authClient("slot", "fout-" + i));
+  const f = (await store().get("Clients", id)).fields;
+  assert.ok(Date.parse(f["Geblokkeerd tot"]) > Date.now() + 14 * 60000, "compte bloqué ~15 min");
+  assert.equal(await later(400000, () => authClient("slot", "goed-wachtwoord")), null, "bloqué : même le bon mot de passe est refusé");
+  const ok = await later(310000 + 16 * 60000, () => authClient("slot", "goed-wachtwoord")); // 10e échec à +310 s
+  assert.ok(ok && ok.id === id, "après 15 min le bon mot de passe repasse");
+  const g = (await store().get("Clients", id)).fields;
+  assert.equal(g["Echecs"], 0); assert.equal(g["Geblokkeerd tot"], undefined, "verrou effacé au succès");
+});
+
+test("A-03 : verrou global des PIN (20 échecs) ; les codes partagés restent utilisables", async () => {
+  const pin = "551177";
+  await put("Medewerkers", { "Naam": "Lies", "Rol": "personeel", "PIN hash": auth.hashCode(pin), "Actief": true });
+  for (let i = 0; i < 20; i++) {
+    const r = await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113." + i }, body: { code: "12" } });
+    assert.equal(r.statusCode, 401);
+  }
+  const cfg = (await store().get("Configuratie", CFG)).fields;
+  assert.ok(Date.parse(cfg["PIN geblokkeerd tot"]) > Date.now(), "connexion par PIN suspendue");
+  assert.equal((await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113.99" }, body: { code: pin } })).statusCode, 401, "même le bon PIN");
+  assert.equal((await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113.99" }, body: { code: "team-sec-code" } })).statusCode, 200, "code d'équipe OK");
+  await patch("Configuratie", CFG, { "PIN geblokkeerd tot": "" });
+  assert.equal((await callApi("session", { method: "POST", headers: { "x-forwarded-for": "203.0.113.98" }, body: { code: pin } })).statusCode, 200, "verrou levé : le PIN rouvre");
+});
+
+test("A-03 / A-09 : nouveau PIN 6-12 chiffres et unique", async () => {
+  const admin = "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600000, "admin", "", { g: auth.currentGeneration() || 0 }));
+  const save = (body) => callApi("onboarding", { method: "POST", headers: { cookie: admin }, body: Object.assign({ action: "saveMedewerker" }, body) });
+  assert.equal((await save({ naam: "Kort", pin: "1234" })).statusCode, 400);
+  assert.equal((await save({ naam: "Letters", pin: "12ab56" })).statusCode, 400);
+  const first = await save({ naam: "Eerste", pin: "908172" });
+  assert.equal(first.statusCode, 200, JSON.stringify(first.body));
+  const dup = await save({ naam: "Tweede", pin: "908172" });
+  assert.equal(dup.statusCode, 409, "PIN déjà utilisé");
+  const own = first.body.medewerkers.find((m) => m.naam === "Eerste");
+  assert.equal((await save({ id: own.id, naam: "Eerste", pin: "908172" })).statusCode, 200, "son propre PIN n'est pas un doublon");
+});

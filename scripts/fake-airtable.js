@@ -15,7 +15,9 @@ const SCHEMA = {
   Clients: {
     // Gearchiveerd : plus de connexion ni de présence dans les listes (api/catalogue authClient, api/staff).
     // Favorieten : JSON {favorieten:[ids], standaard:{id:qty}} synchronisé entre appareils (api/klantorder).
-    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select" },
+    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select",
+      // Verrou persistant anti-force brute (api/catalogue authClient) : échecs consécutifs, blocage.
+      "Echecs": "number", "Geblokkeerd tot": "datetime" },
     selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
   },
   Catalogue: {
@@ -51,7 +53,9 @@ const SCHEMA = {
     // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
     fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox",
       // Sessiegeneratie : +1 = toutes les sessions staff révoquées (lib/staffauth.js, api/session.js).
-      "Sessiegeneratie": "number" },
+      "Sessiegeneratie": "number",
+      // Verrou global des connexions par PIN (api/session.js) : un PIN n'identifie pas son compte.
+      "PIN echecs": "number", "PIN geblokkeerd tot": "datetime" },
     primary: "Bedrijfsnaam"
   },
   Aanvragen: {

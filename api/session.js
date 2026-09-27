@@ -16,7 +16,9 @@ async function storedCodes() {
       id: (f && f.id) || "",
       gen: Number(fields["Sessiegeneratie"]) || 0,
       adminHash: String(fields["Beheerderscode hash"] || "").trim(),
-      staffHash: String(fields["Personeelscode hash"] || "").trim()
+      staffHash: String(fields["Personeelscode hash"] || "").trim(),
+      pinFails: Number(fields["PIN echecs"]) || 0,
+      pinLocked: Date.parse(fields["PIN geblokkeerd tot"] || "") > Date.now()
     };
   } catch (e) {
     return {};
@@ -56,14 +58,34 @@ async function touchMedewerker(m, pin) {
   return up && !up.error ? Object.assign({}, m.fields, { "PIN hash": fields["PIN hash"] }) : m.fields;
 }
 
-// Anti-abus minimal (mémoire d'instance, best-effort sur serverless).
+// Anti-abus, première ligne : mémoire d'instance (5 échecs / 30 s par IP). La tentative est
+// réservée AVANT tout await (des requêtes parallèles ne passent plus toutes) et rendue en
+// cas de succès : seuls les échecs comptent.
 const _rl = new Map();
-function rateLimited(key, max, windowMs) {
+function reserve(key, max, windowMs) {
   const now = Date.now();
-  const e = _rl.get(key) || { n: 0, t: now };
-  if (now - e.t > windowMs) { e.n = 0; e.t = now; }
-  e.n++; _rl.set(key, e);
-  return e.n > max;
+  let e = _rl.get(key);
+  if (!e || now - e.t > windowMs) {
+    if (_rl.size > 5000) _rl.clear(); // borne mémoire
+    e = { n: 0, t: now }; _rl.set(key, e);
+  }
+  if (e.n >= max) return null;
+  e.n++;
+  return () => { e.n = Math.max(0, e.n - 1); };
+}
+
+// Seconde ligne, PERSISTANTE (toutes instances) : un PIN n'identifie pas son compte (on
+// l'essaie contre tous les Medewerkers), un verrou « par compte » n'a donc pas de sens.
+// Le compteur est global, dans Configuratie : après PIN_LOCK_AFTER échecs sans connexion
+// réussie par PIN, la connexion par PIN est suspendue PIN_LOCK_MS ; les codes partagés
+// (≥ 10 caractères) restent utilisables, le magasin n'est donc jamais bloqué.
+const PIN_LOCK_AFTER = 20, PIN_LOCK_MS = 15 * 60000;
+async function notePinResult(stored, ok) {
+  if (!stored.id || (ok && !stored.pinFails)) return;
+  const n = ok ? 0 : stored.pinFails + 1;
+  const fields = n >= PIN_LOCK_AFTER ? { "PIN echecs": 0, "PIN geblokkeerd tot": new Date(Date.now() + PIN_LOCK_MS).toISOString() } : { "PIN echecs": n };
+  const up = await at(`${encodeURIComponent("Configuratie")}/${stored.id}`, { method: "PATCH", body: JSON.stringify({ fields }) }).catch(() => null);
+  if (!up || up.error) console.error("[session] PIN echecs niet bewaard", up && up.error && up.error.type);
 }
 function clientIp(req) {
   const fwd = req.headers && (req.headers["x-forwarded-for"] || req.headers["x-real-ip"]);
@@ -84,7 +106,8 @@ module.exports = async (req, res) => {
     if (typeof body === "string") { try { body = JSON.parse(body || "{}"); } catch (e) { body = {}; } }
     if (!body) body = {};
     const rlKey = "staff-login:" + clientIp(req);
-    if (rateLimited(rlKey, 5, 30000)) {
+    const release = reserve(rlKey, 5, 30000);
+    if (!release) {
       return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
     }
     const want = body.want === "admin" ? "admin" : "staff";
@@ -93,8 +116,9 @@ module.exports = async (req, res) => {
     let role = auth.roleForCode(body.code, stored, want);
     let name = "";
     const gen = { g: stored.gen || 0 };
-    if (!role) {
+    if (!role && !stored.pinLocked) {
       const m = await medewerkerFor(body.code);
+      await notePinResult(stored, !!m);
       if (m) {
         role = m.role === "admin" && want !== "admin" ? "staff" : m.role;
         name = m.name;
@@ -106,7 +130,7 @@ module.exports = async (req, res) => {
     if (!role) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });
     }
-    _rl.delete(rlKey);
+    release(); _rl.delete(rlKey);
     const tok = auth.sign(Date.now() + auth.TTL_MS, role, name, gen);
     auth.setCookie(res, tok, Math.floor(auth.TTL_MS / 1000));
     return res.status(200).json({ ok: true, role, name, expiresInSec: Math.floor(auth.TTL_MS / 1000) });

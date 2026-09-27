@@ -944,10 +944,10 @@ async function main() {
     assert.ok(require(path.join(ROOT, "lib/clientauth")).checkPassword(al1.fields.Wachtwoord, "nieuw-wachtwoord"), "AL1 l'empreinte correspond au nouveau mot de passe");
 
     // AL2 — ancien mot de passe faux (ou client inconnu) : 401, aucune écriture.
-    r = await call(klantPw, { user: "anna", pw: "fout-wachtwoord", nieuw: "nieuw-wachtwoord" }, [clientRec("recAnna", "anna", "oud-wachtwoord")]);
+    r = await call(klantPw, { user: "anna", pw: "fout-wachtwoord", nieuw: "nieuw-wachtwoord" }, [clientRec("recAnna", "anna", "oud-wachtwoord"), { fields: {} }]);
     assert.equal(r.res.statusCode, 401, "AL2 ancien mot de passe faux → refusé");
     assert.match(r.res.payload.error, /huidige wachtwoord klopt niet/, "AL2 message clair");
-    assert.equal(patchesAL(r.calls).length, 0, "AL2 aucune écriture");
+    assert.deepEqual(patchesAL(r.calls).map(c => JSON.parse(c.options.body).fields), [{ Echecs: 1 }], "AL2 seul le compteur d'échecs persistant est écrit, jamais le mot de passe");
     r = await call(klantPw, { user: "bestaatniet", pw: "wat-dan-ook", nieuw: "nieuw-wachtwoord" }, [{ records: [] }]);
     assert.equal(r.res.statusCode, 401, "AL2 client inconnu → même refus (pas d'indice sur l'existence du compte)");
     assert.equal(patchesAL(r.calls).length, 0, "AL2 aucune écriture pour un client inconnu");
@@ -968,9 +968,9 @@ async function main() {
 
     // AL4 — un client ne peut pas changer le mot de passe d'un autre.
     // AL4a : Anna vise le compte de Bert avec SON propre mot de passe → refusé, rien n'est écrit.
-    r = await call(klantPw, { user: "bert", pw: "oud-wachtwoord", nieuw: "overgenomen-1" }, [clientRec("recBert", "bert", "bert-geheim")]);
+    r = await call(klantPw, { user: "bert", pw: "oud-wachtwoord", nieuw: "overgenomen-1" }, [clientRec("recBert", "bert", "bert-geheim"), { fields: {} }]);
     assert.equal(r.res.statusCode, 401, "AL4a user d'un autre client + mauvais mot de passe → refusé");
-    assert.equal(patchesAL(r.calls).length, 0, "AL4a aucune écriture sur le compte de Bert");
+    assert.ok(patchesAL(r.calls).every(c => !("Wachtwoord" in JSON.parse(c.options.body).fields)), "AL4a le mot de passe de Bert n'est jamais écrit (seulement son compteur d'échecs)");
     // AL4b : Anna glisse l'identifiant de Bert dans la requête → ignoré, seul son propre compte change.
     r = await call(klantPw, { user: "anna", pw: "oud-wachtwoord", nieuw: "nieuw-wachtwoord", id: "recBert", clientId: "recBert", client: "recBert", recordId: "recBert" }, [
       clientRec("recAnna", "anna", "oud-wachtwoord"), { id: "recAnna", fields: {} }
@@ -998,7 +998,7 @@ async function main() {
     assert.equal(r.res.statusCode, 400, "AL5 nouveau identique à l'ancien → refusé");
     assert.equal(r.calls.length, 0, "AL5 aucun appel Airtable");
     for (let i = 1; i <= 5; i++) {
-      r = await call(klantPw, { user: "carla", pw: "gok-" + i, nieuw: "nieuw-wachtwoord" }, [clientRec("recCarla", "carla", "juist-wachtwoord")]);
+      r = await call(klantPw, { user: "carla", pw: "gok-" + i, nieuw: "nieuw-wachtwoord" }, [clientRec("recCarla", "carla", "juist-wachtwoord"), { fields: {} }]);
       assert.equal(r.res.statusCode, 401, "AL5 tentative ratée " + i);
     }
     r = await call(klantPw, { user: "carla", pw: "juist-wachtwoord", nieuw: "nieuw-wachtwoord" }, []);
@@ -1426,7 +1426,7 @@ async function main() {
     assert.deepEqual(JSON.parse(patchOfX(r, /Clients\/cliAR$/).fields.Favorieten), { favorieten: ["recAAAAAAAAAAAAAA", "recBBBBBBBBBBBBBB"], standaard: { recAAAAAAAAAAAAAA: 2.5 } }, "AR2 JSON opgeslagen");
     r = await call(ko, me({ action: "favorites", favorieten: "x", standaard: [] }), [CLI, { fields: {} }]);
     assert.deepEqual(r.res.payload, { ok: true, favorieten: [], standaard: {} }, "AR2 onleesbaar → leeg");
-    r = await call(ko, me({ action: "favorites", pw: "fout" }), [CLI]); assert.equal(r.res.statusCode, 401, "AR2 verkeerd wachtwoord"); assert.equal(methodCallsX(r, "PATCH").length, 0);
+    r = await call(ko, me({ action: "favorites", pw: "fout" }), [CLI, { fields: {} }]); assert.equal(r.res.statusCode, 401, "AR2 verkeerd wachtwoord"); assert.deepEqual(methodCallsX(r, "PATCH").map(c => JSON.parse(c.options.body).fields), [{ Echecs: 1 }], "AR2 enkel de foutteller");
     r = await call(ko, me({ action: "onbekend" }), [CLI]); assert.equal(r.res.statusCode, 400, "AR2 onbekende actie");
     // reset — zonder mailsleutel : neutraal antwoord, geen enkele Airtable-lezing, 4e aanvraag/uur 429.
     r = await call(ko, { action: "reset", user: "aloha", email: "geen-adres" }, []); assert.equal(r.res.statusCode, 400, "AR3 vorm");
@@ -1565,17 +1565,21 @@ async function main() {
     assert.equal(r.res.payload.status.clients, 1, "AT4 telling zonder gearchiveerden"); assert.equal(r.res.payload.status.credentials, 1);
     assert.deepEqual(r.res.payload.medewerkers, [{ id: "m1", naam: "Ilse", rol: "personeel", actief: true, laatste: "" }], "AT4 medewerkers zonder hash");
     assert.ok(!JSON.stringify(r.res.payload).includes("scrypt$"), "AT4 de PIN-hash verlaat de server nooit");
-    // Medewerkers : PIN ≥ 4, enkel gehasht opgeslagen ; verwijderen.
+    // Medewerkers : nieuwe PIN 6-12 cijfers, uniek, enkel gehasht opgeslagen ; verwijderen.
     r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "12" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 PIN te kort"); assert.match(r.res.payload.error, /PIN/); assert.equal(r.calls.length, 0);
     r = await call(ob, { action: "saveMedewerker", naam: "Tom" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuw zonder PIN");
     r = await call(ob, { action: "saveMedewerker", naam: "", pin: "1234" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 naam verplicht");
-    r = await call(ob, { action: "saveMedewerker", naam: " Tom ", rol: "beheerder", pin: "4321" }, [{ records: [{ id: "m1" }] }, ...STATUS()], { headers: adminCookieHdr });
+    r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "4321" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuwe PIN van 4 cijfers geweigerd (min. 6)");
+    r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "abcdef" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 enkel cijfers");
+    r = await call(ob, { action: "saveMedewerker", naam: "Tom", pin: "432109" }, [{ records: [{ id: "m9", fields: { Naam: "Ilse", "PIN hash": authlib.hashCode("432109") } }] }], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 409, "AT5 PIN al in gebruik → 409"); assert.equal(methodCallsX(r, "POST").length, 0, "AT5 niets aangemaakt");
+    r = await call(ob, { action: "saveMedewerker", naam: " Tom ", rol: "beheerder", pin: "432109" }, [{ records: [] }, { records: [{ id: "m1" }] }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT5 medewerker aangemaakt");
-    const post = r.calls[0]; assert.match(post.url, /Medewerkers$/); assert.equal((post.options.method || "").toUpperCase(), "POST");
+    const post = r.calls[1]; assert.match(post.url, /Medewerkers$/); assert.equal((post.options.method || "").toUpperCase(), "POST");
     const pb = JSON.parse(post.options.body); const mf = pb.records[0].fields;
     assert.equal(pb.typecast, true, "AT5 typecast (Rol-optie)"); assert.equal(mf.Naam, "Tom"); assert.equal(mf.Rol, "beheerder"); assert.equal(mf.Actief, true);
-    assert.match(mf["PIN hash"], /^scrypt\$131072\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "4321"), "AT5 de hash opent met de PIN");
-    assert.ok(!post.options.body.includes("4321"), "AT5 de PIN gaat nooit in klare tekst naar Airtable");
+    assert.match(mf["PIN hash"], /^scrypt\$131072\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "432109"), "AT5 de hash opent met de PIN");
+    assert.ok(!post.options.body.includes("432109"), "AT5 de PIN gaat nooit in klare tekst naar Airtable");
     r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", rol: "superuser", actief: false }, [{ fields: {} }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT5 bijwerken zonder PIN"); assert.deepEqual(patchOfX(r, /Medewerkers\/m1$/).fields, { Naam: "Tom", Rol: "personeel", Actief: false }, "AT5 hash onaangeroerd, onbekende rol → personeel");
     r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", pin: "12" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuwe PIN te kort");
