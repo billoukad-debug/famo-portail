@@ -214,6 +214,12 @@ module.exports = async (req, res) => {
       if (!__auth.adminOk(req)) {
         return res.status(401).json({ error: "Enkel voor beheerders" });
       }
+      // Pastille « Beheer » de la navigation : seulement le nombre de demandes non traitées (un appel, un champ).
+      if (req.query && req.query.counts) {
+        const a = await atAll("Aanvragen?fields%5B%5D=Status");
+        if (a.error) throw new Error(a.error.message || "Aanvragen");
+        return res.status(200).json({ aanvragen: (a.records || []).filter(r => (r.fields["Status"] || "Nieuw") === "Nieuw").length });
+      }
       const data = await statusPayload();
       return res.status(200).json(data);
     }

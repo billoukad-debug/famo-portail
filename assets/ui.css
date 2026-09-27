@@ -371,3 +371,37 @@ kbd{display:inline-block;font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monos
 a.kp-link{color:inherit;text-decoration:none;display:block;transition:border-color .12s}a.kp-link:hover{border-color:var(--p);text-decoration:none}a.kp-link em{color:var(--p-deep)}
 a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration:underline}
 .note-line{font-size:12.5px;color:var(--ink);background:var(--klei-soft,var(--soft));border-radius:var(--r-xs);padding:4px 8px;margin-top:4px;white-space:normal;overflow-wrap:anywhere}.note-line b{font-weight:600;margin-right:4px}
+/* Pastilles de la navigation : compteur de ce qui attend (commandes à confirmer, factures ouvertes…) */
+.nbadge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--danger);color:#fff;font:600 11.5px/20px inherit;font-variant-numeric:tabular-nums;text-align:center;flex:none}
+.nbadge[hidden]{display:none}
+.nav{position:relative}.tabs a .nbadge,.mtab .nbadge,.kcartlink .nbadge{margin-left:6px}
+@media (max-width:1180px){.side .nav .nbadge{position:absolute;top:4px;right:calc(50% - 22px);margin:0;height:18px;min-width:18px;line-height:18px;font-size:10.5px;padding:0 5px}}
+.mtab{position:relative}.mtab .nbadge{position:absolute;top:6px;left:calc(50% + 6px);margin:0;height:18px;min-width:18px;line-height:18px;font-size:10.5px;padding:0 5px}
+@media (min-width:1024px){.khead .mtab .nbadge{position:static;margin-left:4px}}
+/* Commandes client : une ligne par commande */
+.olist{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.orow{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"m";align-items:center;border-bottom:1px solid var(--line-soft);padding-right:12px;column-gap:12px}.orow:last-child{border-bottom:0}
+.orow.is-cancel{opacity:.7}
+.orow-main{grid-area:m;display:grid;grid-template-columns:minmax(0,1fr) auto 18px;grid-template-areas:"d st c" "s t c";gap:4px 12px;align-items:center;border:0;background:transparent;font:inherit;color:inherit;text-align:left;padding:12px 0 12px 16px;cursor:pointer;min-width:0}
+.orow-main:hover{background:var(--row-hover)}.orow-main:focus-visible{outline:2px solid var(--p);outline-offset:-2px}
+.orow-d{grid-area:d;min-width:0;display:flex;flex-direction:column}.orow-d small{font-size:11.5px;color:var(--ink-3)}
+.orow-s{grid-area:s;min-width:0;font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} /* une ligne : le détail complet est au clic */
+.orow-st{grid-area:st;justify-self:end}.orow-t{grid-area:t;justify-self:end;white-space:nowrap}
+.orow-chev{grid-area:c;width:18px;height:18px;stroke:var(--ink-3);fill:none;stroke-width:2;transform:rotate(-90deg)}
+.orow-a{grid-area:a;display:none;gap:6px;justify-content:flex-end;flex-wrap:nowrap}.orow-a .btn{white-space:nowrap}
+/* Bestellingen (tableau) : mêmes largeurs de colonnes dans chaque groupe (Vandaag, Morgen…), les colonnes s'alignent d'un groupe à l'autre */
+.tbl-orders{table-layout:fixed;width:100%;min-width:920px} /* Artikelen garde au moins ~200 px */
+.tbl-orders th:nth-child(1){width:52px}.tbl-orders th:nth-child(2){width:150px}.tbl-orders th:nth-child(3){width:160px}.tbl-orders th:nth-child(5){width:130px}.tbl-orders th:nth-child(6){width:120px}.tbl-orders th:nth-child(7){width:100px}.tbl-orders th:nth-child(8){width:136px}
+@media (max-width:1440px){.tbl-orders .hide-md{display:none}} /* Betaling : visible en grand écran, sinon dans la fiche */
+.tbl-orders td{max-width:none}.tbl-orders td:last-child{text-align:right}
+/* Documenten : deux emplacements fixes (« Openen / PDF » toujours à la même place, l'action de paiement à côté) */
+.act-slots{display:inline-grid;grid-template-columns:128px 186px;gap:8px;align-items:center}.act-slots>.btn{width:100%}
+/* Lignes .stop (Magazijn, Leveringen, Klanten) : les infos gardent 240 px, les boutons passent dessous si la place manque */
+.stop>div[style*="flex:1"]{flex:1 1 240px!important} /* !important : l'élément porte flex:1 en style direct */
+/* Cartes de hauteurs différentes côte à côte (Bedrijfsgegevens, Rapportage) : colonnes qui se remplissent, sans trou */
+.masonry{display:block!important;columns:2;column-gap:16px}.masonry>*{break-inside:avoid;margin:0 0 16px;display:block}
+@media (max-width:900px){.masonry{columns:1}}
+/* Barre d'actions sous un titre de fiche : ordre fixe, secondaires à droite */
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+/* Liste à gauche d'une fiche (Klanten) : reste visible et défile seule */
+@media (min-width:900px){.sticky-list{position:sticky;top:76px}.sticky-list #clist{max-height:calc(100vh - 230px);overflow-y:auto}}

@@ -8,8 +8,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273.5%27 fill=%27%234876A2%27/%3E%3Cpath d=%27M5 13V3h6M5 8h4%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/ui.css?v=6ea372280f">
-<script src="/assets/ui.js?v=f4b247f92f" defer></script>
+<link rel="stylesheet" href="/assets/ui.css?v=2994c843d4">
+<script src="/assets/ui.js?v=cdb89e1232" defer></script>
 </head>
 <body class="portal-klant">
 <div id="app"></div>
@@ -80,9 +80,16 @@
   .mlist.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;align-items:start}
   .mlist.grid>.full{grid-column:1/-1}
   .kv-bestellingen .mtop .cats{margin:0;padding:0;flex:none}
-  .kv-account .mlist,.kv-favorieten .mlist{max-width:1100px}
+  /* Account : colonnes qui se remplissent (plus de trous quand une carte est plus haute que sa voisine) */
+  .kv-account .mlist.grid{display:block;columns:2;column-gap:16px}.kv-account .mlist.grid>*{break-inside:avoid;margin:0 0 16px;display:block;width:100%}
+  .kv-account .mlist.grid>#logout{width:auto;min-width:240px;display:inline-flex}
+  /* Commandes : lignes en tableau */
+  .kv-bestellingen .mlist.grid{display:flex;flex-direction:column;gap:16px;align-items:stretch}
+  .orow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"m a"}
+  .orow-main{grid-template-columns:190px minmax(0,1fr) 170px 110px 20px;grid-template-areas:"d s st t c";align-items:center}
+  .orow-a{display:flex}
 }
 </style>
-<script src="/assets/pages/klant.js?v=9d6d4d97ec" defer></script>
+<script src="/assets/pages/klant.js?v=1ee8bef419" defer></script>
 </body>
 </html>

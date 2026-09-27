@@ -127,6 +127,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | ETA-09 | Fraîcheur visible. | Équipe : rafraîchissement 60 s + alerte nouvelle commande + compteur dans l'onglet. | ⚠️ pas d'horodatage « mis à jour il y a… » affiché. |
 | ETA-10 | Message d'erreur = ce qui s'est passé + la sortie. | « Sessie verlopen → opnieuw aanmelden », « Slechts 3 beschikbaar », minimum manquant. | ✅ |
 | ETA-11 | Navigation lente : indicateur. | Squelette dès l'ouverture d'une page. | ✅ |
+| ETA-12 | **Pastilles de compteur** dans la navigation pour ce qui attend une action : Bestellingen (à confirmer), Magazijn (à préparer aujourd'hui), Leveringen (à livrer aujourd'hui), Documenten (factures ouvertes), Voorraad (sous le seuil), Beheer et onglet Aanvragen (demandes nouvelles), Bestellingen client (factures à payer). Le chiffre = celui de la page ; nommé pour les lecteurs d'écran ; aucun appel en plus pour les commandes, ≤ 1 appel / 15 min pour Voorraad et Beheer. | On sait où agir sans ouvrir chaque écran (Nielsen #1). | `design-e2e` : chaque pastille égale le compteur de sa page. | 🔧 (27/09) — demande de Bilal. |
 
 ## 7. Mise en page & typographie (MEP)
 
@@ -139,6 +140,10 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | MEP-05 | Toute ancre visible sous les barres collantes. | `scroll-padding-top`. | 🔧 |
 | MEP-06 | Une seule action primaire par zone. | Catalogue : « Bestellen » ; Winkelmand : « Bestelling plaatsen ». | ✅ |
 | MEP-07 | Densité : l'essentiel au-dessus de la ligne de flottaison. | Catalogue : une ligne de ~56 px par produit (au lieu d'une carte de ~110 px) ; photo et détails au dépliage. | 🔧 |
+| MEP-08 | **Pas de trou** : des cartes de hauteurs différentes côte à côte se répartissent en colonnes (`.masonry`), jamais en grille à rangées fixes qui laisse du vide sous la plus courte. | Un écran « à moitié vide » paraît cassé. | Bedrijfsgegevens, Rapportage, Account (client) à 1440 px : pas d'espace > 20 px entre deux cartes d'une même colonne (`design-e2e`). | 🔧 (27/09) — remarque de Bilal sur Account. |
+| MEP-09 | **Une liste qui grandit est en lignes**, pas en bulles : commandes, documents, produits. Une ligne = l'essentiel lisible d'un coup d'œil ; le détail et les actions rares au clic. | Avec 50 commandes, des cartes de 200 px obligent à faire défiler sans fin. | Commandes client : 1 ligne ≈ 63 px ordinateur, < 140 px téléphone (contre ~200 px en carte). | 🔧 (27/09) — remarque de Bilal sur les documents client. |
+| MEP-10 | **Colonnes alignées** : plusieurs tableaux de même nature (groupes Vandaag / Morgen…) ont les mêmes largeurs de colonnes ; les boutons d'action occupent des emplacements fixes. | L'œil suit une colonne d'un groupe à l'autre. | Bestellingen : colonne Klant au même x dans chaque groupe ; Documenten : « Openen / PDF » au même x sur chaque ligne (`design-e2e`). | 🔧 (27/09) |
+| MEP-11 | Même largeur de page pour toutes les vues d'un portail (pas une vue à 1100 px et la suivante pleine largeur) ; une ligne d'infos garde sa place avant ses boutons (les boutons passent dessous). | Cohérence d'une page à l'autre. | Favorieten, Account = largeur du catalogue ; Magazijn : nom, référence et articles lisibles, boutons dessous si besoin. | 🔧 (27/09) |
 
 ## 8. Chiffres & données (CHI)
 
@@ -226,6 +231,12 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
   - FOR-05 : focus sur l'erreur ;
   - CLA-10 : focus après re-rendu ;
   - CLA-01 : contrôle clavier automatique.
+- **Passage du 27/09/2026 (bis)** : nouvelle revue avec les principes relevés par Bilal. 12 manques trouvés et corrigés :
+  - pas de trou (MEP-08) : Account, Bedrijfsgegevens, Rapportage ;
+  - listes en lignes (MEP-09) : commandes et documents côté client ;
+  - colonnes et boutons alignés (MEP-10) : Bestellingen, Documenten ;
+  - largeurs et lignes cohérentes (MEP-11) : Favorieten, Magazijn, Klanten ;
+  - pastilles de compteur (ETA-12) : toute la navigation.
 - **Écarts assumés (⚠️)** : chacun est justifié dans sa ligne. Un seul touche encore le clavier : une carte qui quitte une colonne d'Entrepot laisse le focus en place (CLA-10).
 - **Contrôles à relancer après chaque changement d'interface** :
   - `node scripts/check.js`, qui inclut les contrastes ;
