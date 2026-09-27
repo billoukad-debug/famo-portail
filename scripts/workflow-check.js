@@ -1388,12 +1388,14 @@ async function main() {
         { records: [{ id: "recAA" }, { id: "recZZ" }] },                           // 0003 existe deux fois
         { records: [{ fields: { "Creditnota nummer": "CN-" + yearX + "-0003" } }] }, // nextNumber → 0004
         { fields: {} },                                                            // PATCH nouveau numéro
-        { records: [{ id: "recZZ" }] }                                             // 0004 unique
+        { records: [{ id: "recZZ" }] },                                            // 0004 unique
+        { fields: {} }                                                             // journal avec le numéro final (B-18)
       ], { headers: adminCookieHdr });
       assert.equal(rr.res.statusCode, 200, "AQ5b creditnota malgré le doublon");
       assert.equal(rr.res.payload.creditnota.nummer, "CN-" + yearX + "-0004", "AQ5b doublon CN détecté → numéro suivant");
-      const lastPatch = rr.calls.filter(c => (c.options.method || "").toUpperCase() === "PATCH").pop();
-      assert.equal(JSON.parse(lastPatch.options.body).fields["Creditnota nummer"], "CN-" + yearX + "-0004", "AQ5b le nouveau numéro est écrit");
+      const patches = rr.calls.filter(c => (c.options.method || "").toUpperCase() === "PATCH").map(c => JSON.parse(c.options.body).fields);
+      assert.ok(patches.some(p => p["Creditnota nummer"] === "CN-" + yearX + "-0004"), "AQ5b le nouveau numéro est écrit");
+      assert.match(patches[patches.length - 1].Correcties, new RegExp("Creditnota CN-" + yearX + "-0004"), "AQ5b le journal cite le numéro final");
       const rk = await call(uo, { id: "recAA", creditnota: { motif: "beschadigd", lignes: "Mosselen × 1" } }, [
         FACT(), { records: [] }, { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
       ], { headers: adminCookieHdr });

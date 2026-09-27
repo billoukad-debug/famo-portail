@@ -653,6 +653,7 @@ module.exports = async (req, res) => {
     if (action === "closeAanvraag") {
       const id = clean(body.id, 40);
       if (!id) return res.status(400).json({ error: "Aanvraag-id ontbreekt" });
+      if (!REC.test(id)) return res.status(400).json({ error: "Ongeldig aanvraag-id" }); // jamais « ../Autre-table/rec… »
       const saved = await at(`Aanvragen/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ fields: { "Status": "Verwerkt" } })
@@ -702,6 +703,7 @@ module.exports = async (req, res) => {
     if (action === "deletePrice") {
       const id = clean(body.id, 40);
       if (!id) return res.status(400).json({ error: "Prijs-id ontbreekt" });
+      if (!REC.test(id)) return res.status(400).json({ error: "Ongeldig prijs-id" }); // « ../Clients/rec… » supprimait un client
       const del = await at(`${encodeURIComponent("Prix négociés")}/${id}`, { method: "DELETE" });
       if (del && del.error) return res.status(500).json({ error: del.error.message || "Prijs verwijderen mislukt" });
       return res.status(200).json({ ok: true, ...(await statusPayload()) });

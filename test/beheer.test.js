@@ -82,7 +82,9 @@ test("config publique : identité et règles de livraison, aucune donnée sensib
   const c = r.body.config;
   assert.equal(c.bedrijfsnaam, "FAMO Seafood");
   assert.ok(c.levering && typeof c.levering === "object", "règles de livraison publiques");
-  assert.deepEqual(Object.keys(c).sort(), ["adres", "bedrijfsnaam", "btw", "email", "levering", "plaats", "telefoon"], "seulement le bloc contact");
+  // « legal » : mentions WVV art. 2:20 que le site doit afficher (publiques par nature).
+  assert.deepEqual(Object.keys(c).sort(), ["adres", "bedrijfsnaam", "btw", "email", "legal", "levering", "plaats", "telefoon"], "seulement le bloc contact et les mentions légales");
+  assert.deepEqual(Object.keys(c.legal).sort(), ["btw", "handelsnaam", "naam", "ondernemingsnummer", "rechtsvorm", "rpr"]);
   const txt = JSON.stringify(r.body);
   for (const [label, secret] of [
     ["IBAN", cfg.fields["IBAN"]], ["BIC", cfg.fields["BIC"]], ["boîte interne des commandes", cfg.fields["Bestellingen e-mail"]],
@@ -191,7 +193,7 @@ test("deletePrice : beheerder seul, id obligatoire, accord supprimé en base", a
   assert.ok(!after.some(p => p.id === target.id), "accord supprimé");
 });
 
-test("deletePrice / closeAanvraag : un id avec « ../ » ne doit jamais atteindre une autre table", { todo: "api/onboarding.js ne valide pas l'id avec REC pour deletePrice et closeAanvraag (clean() seulement)" }, async () => {
+test("deletePrice / closeAanvraag : un id avec « ../ » ne doit jamais atteindre une autre table", async () => {
   const aloha = await one("Clients", byName("Aloha Poke Bowls"));
   await beheer({ action: "deletePrice", id: "../Clients/" + aloha.id });
   assert.ok(await one("Clients", byName("Aloha Poke Bowls")), "deletePrice : le client existe toujours");
