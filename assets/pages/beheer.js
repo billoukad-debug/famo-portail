@@ -422,8 +422,10 @@
 
   /* ---------- database (Airtable -> Postgres) : api/dbadmin.js ---------- */
   const DB_LABEL = { airtable: "Airtable", postgres: "Postgres (Neon)", sqlite: "SQLite (lokaal)" };
+  const SNAP_LABEL = { export: "Handmatig", "voor-herstel": "Automatisch (vóór terugzetten)", "voor-kopie": "Automatisch (vóór kopie)", upload: "Geüpload bestand" };
+  const sizeTxt = n => n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " kB";
   function dbReport(rep) {
-    return '<div class="tblwrap"><table class="tbl"><thead><tr><th>Tabel</th><th class="num">Airtable</th><th class="num">Nieuwe database</th><th>Resultaat</th></tr></thead><tbody>' + rep.map(r => '<tr><td>' + K.esc(r.table) + '</td><td class="num mono">' + r.airtable + '</td><td class="num mono">' + r.postgres + '</td><td>' + (r.ok ? '<span class="cell-st c-done">OK</span>' : '<span class="cell-st c-late">Verschil</span>') + (r.onlyAirtable || r.onlyPostgres ? ' <small class="quiet">' + (r.onlyAirtable || 0) + ' enkel Airtable · ' + (r.onlyPostgres || 0) + ' enkel nieuw</small>' : "") + (r.totalAirtable !== undefined ? ' <small class="quiet">totaal ' + K.eur(r.totalAirtable) + ' / ' + K.eur(r.totalPostgres) + '</small>' : "") + '</td></tr>').join("") + '</tbody></table></div>';
+    return '<div class="tblwrap"><table class="tbl"><thead><tr><th>Tabel</th><th class="num">Airtable</th><th class="num">Nieuwe database</th><th>Resultaat</th></tr></thead><tbody>' + rep.map(r => '<tr><td>' + K.esc(r.table) + '</td><td class="num mono">' + r.airtable + '</td><td class="num mono">' + r.postgres + '</td><td>' + (r.ok ? '<span class="cell-st c-done">OK</span>' : '<span class="cell-st c-late">Verschil</span>') + (r.onlyAirtable || r.onlyPostgres ? ' <small class="quiet">' + (r.onlyAirtable || 0) + ' enkel Airtable · ' + (r.onlyPostgres || 0) + ' enkel nieuw</small>' : "") + (r.changed ? ' <small class="quiet">' + r.changed + ' gewijzigd (bv. ' + K.esc((r.changedIds || [])[0] || "") + ')</small>' : "") + (r.totalAirtable !== undefined ? ' <small class="quiet">totaal ' + K.eur(r.totalAirtable) + ' / ' + K.eur(r.totalPostgres) + '</small>' : "") + '</td></tr>').join("") + '</tbody></table></div>';
   }
   async function dbCard(withAirtable) {
     const box = page.querySelector("#dbcard"); if (!box) return;
@@ -436,17 +438,53 @@
       '<p style="margin:0 0 6px"><b>Actief:</b> ' + K.esc(DB_LABEL[d.backend] || d.backend) + (onNew ? "" : ' <small class="quiet">(de portaal leest en schrijft in Airtable)</small>') + '</p>' +
       (d.target ? '<p class="sub" style="margin:0 0 6px">Nieuwe database: ' + (d.reachable ? '<span class="cell-st c-done">bereikbaar</span>' : '<span class="cell-st c-late">niet bereikbaar</span>') + ' · ' + counts + '</p>' : "") +
       (d.targetError ? K.c.error(d.targetError) : "") + at +
+      (d.lastBackup ? '<p class="sub" style="margin:0 0 6px">Nachtelijke back-up: ' + (d.lastBackup.ok ? '<span class="cell-st c-done">verstuurd</span>' : '<span class="cell-st c-late">' + (d.lastBackup.big ? "te groot voor e-mail" : "mislukt") + '</span>') + ' · ' + K.esc(dateTime(d.lastBackup.at)) + (d.lastBackup.error ? ' · ' + K.esc(d.lastBackup.error) : "") + '</p>' : (d.target && onNew ? '<p class="sub" style="margin:0 0 6px">Nog geen nachtelijke back-up verstuurd (CRON_SECRET en e-mail nodig).</p>' : "")) +
       '<div id="dbout"></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
         '<button type="button" class="btn btn-o btn-sm" id="dbCount">Tellen in Airtable</button>' +
         (d.target && d.reachable ? '<button type="button" class="btn btn-o btn-sm" id="dbVerify">Vergelijken</button>' : "") +
         (d.target && d.reachable && !onNew ? '<button type="button" class="btn btn-p btn-sm" id="dbCopy">Kopieer Airtable naar de nieuwe database</button>' : "") +
+        '<button type="button" class="btn btn-o btn-sm" id="dbExport">Back-up maken</button>' +
+        (onNew && d.reachable ? '<label class="btn btn-o btn-sm" style="cursor:pointer">Back-up terugzetten…<input type="file" id="dbRestore" accept=".gz,.json,application/gzip,application/json" hidden></label><button type="button" class="btn btn-ghost btn-sm" id="dbFix">Foto\'s uit Airtable ophalen</button>' : "") +
       '</div>' +
+      ((d.snapshots || []).length ? '<div class="tblwrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>Back-up</th><th>Soort</th><th class="num">Grootte</th><th></th></tr></thead><tbody>' + d.snapshots.map(sn => '<tr><td>' + K.esc(dateTime(sn.createdTime)) + '</td><td>' + K.esc(SNAP_LABEL[sn.kind] || sn.kind) + '</td><td class="num mono">' + K.esc(sizeTxt(sn.size)) + '</td><td class="actions"><button type="button" class="btn btn-o btn-sm" data-snap-dl="' + K.esc(sn.id) + '">Downloaden</button>' + (onNew ? ' <button type="button" class="btn btn-ghost btn-sm" data-snap-restore="' + K.esc(sn.id) + '">Terugzetten</button>' : "") + '</td></tr>').join("") + '</tbody></table></div>' : "") +
       '<p class="sub" style="margin-top:10px">' + (onNew ? "De portaal draait op de nieuwe database. Terug naar Airtable: zet DB_BACKEND op airtable in Vercel en redeploy." : "Kopiëren overschrijft de nieuwe database met de inhoud van Airtable; Airtable zelf blijft onaangeroerd. Omschakelen: DB_BACKEND=postgres in Vercel, dan redeploy.") + '</p>';
     const out = box.querySelector("#dbout");
     box.querySelector("#dbCount").onclick = () => dbCard(true);
     const v = box.querySelector("#dbVerify");
     if (v) v.onclick = async () => { K.busy(v, true, "Vergelijken…"); try { const r = await K.api("/api/dbadmin", { json: { action: "verify" } }); out.innerHTML = (r.ok ? K.c.ok("Airtable en de nieuwe database zijn gelijk.") : K.c.warn("Er zijn verschillen: zie de tabel.")) + dbReport(r.report); } catch (e) { out.innerHTML = K.c.error(e.message); } K.busy(v, false); };
+    // Back-up : de server bewaart het gzip-bestand in delen (max. 4,5 MB per antwoord) ; hier worden ze aan elkaar gezet.
+    const saveBlob = (bytes, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([bytes], { type: "application/gzip" })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+    const b64bytes = b64 => { const bin = atob(b64), out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; };
+    const bytesB64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode.apply(null, u8.subarray(i, i + 32768)); return btoa(s); };
+    const downloadSnap = async (id) => { const chunks = []; let parts = 1, name = "famo-backup.json.gz"; for (let n = 0; n < parts; n++) { const r = await K.api("/api/dbadmin", { json: { action: "download", id, part: n } }); parts = r.parts; name = r.filename || name; chunks.push(b64bytes(r.data)); } saveBlob(new Blob(chunks), name); };
+    const restoreSnap = async (id, summary) => {
+      const what = summary ? Object.entries(summary.tables || {}).map(([t, n]) => t + " " + n).join(" · ") + " · foto's " + (summary.files || 0) : "deze back-up";
+      const typed = await K.prompt({ title: "Database vervangen door de back-up?", text: "ALLES in de database wordt vervangen door: " + what + ". Eerst wordt automatisch een back-up van de huidige inhoud gemaakt. Typ RESTORE om te bevestigen.", placeholder: "RESTORE", yes: "Terugzetten" });
+      if (typed === null) return;
+      try { const r = await K.api("/api/dbadmin", { json: { action: "restore", snapshot: id, confirm: typed.trim() } }); K.toast(r.ok ? "Back-up teruggezet" : "Teruggezet, maar met verschillen"); await dbCard(); box.querySelector("#dbout").innerHTML = r.ok ? K.c.ok("Teruggezet: alle records en foto's zijn identiek aan de back-up." + (r.before ? " De vorige inhoud staat als back-up in de lijst." : "")) : K.c.warn("Teruggezet met verschillen."); }
+      catch (e) { out.innerHTML = K.c.error(e.message); }
+    };
+    const ex = box.querySelector("#dbExport");
+    ex.onclick = async () => { K.busy(ex, true, "Back-up maken…"); try { const r = await K.api("/api/dbadmin", { json: { action: "export" } }); if (r.inline) saveBlob(b64bytes(r.inline), "famo-backup-airtable-" + new Date().toISOString().slice(0, 10) + ".json.gz"); else { await downloadSnap(r.snapshot.id); await dbCard(); } K.toast("Back-up gedownload (" + r.summary.records + " records, " + r.summary.files + " foto's)"); } catch (e) { out.innerHTML = K.c.error(e.message); } K.busy(ex, false); };
+    // onclick per knop (niet K.on op #dbcard) : dbCard hertekent de kaart, een gedelegeerde listener zou zich opstapelen.
+    box.querySelectorAll("[data-snap-dl]").forEach(t => { t.onclick = async () => { K.busy(t, true, "Downloaden…"); try { await downloadSnap(t.dataset.snapDl); } catch (err) { out.innerHTML = K.c.error(err.message); } K.busy(t, false); }; });
+    box.querySelectorAll("[data-snap-restore]").forEach(t => { t.onclick = () => restoreSnap(t.dataset.snapRestore, null); });
+    const rf = box.querySelector("#dbRestore");
+    if (rf) rf.onchange = async () => {
+      const f = rf.files && rf.files[0]; if (!f) return;
+      out.innerHTML = K.c.skeleton(1);
+      try {
+        const u8 = new Uint8Array(await f.arrayBuffer()), step = 1572864, parts = Math.max(1, Math.ceil(u8.length / step));
+        let id = "", r = null;
+        for (let n = 0; n < parts; n++) { r = await K.api("/api/dbadmin", { json: { action: "upload", id: id || undefined, part: n, parts, data: bytesB64(u8.subarray(n * step, (n + 1) * step)) } }); id = r.id || id; }
+        out.innerHTML = K.c.ok("Bestand ontvangen en gecontroleerd: " + r.summary.records + " records, " + r.summary.files + " foto's (gemaakt " + K.esc(dateTime(r.summary.exportedAt)) + ").");
+        await restoreSnap(r.snapshot.id, r.summary);
+      } catch (e) { out.innerHTML = K.c.error(e.message); }
+      rf.value = "";
+    };
+    const fx = box.querySelector("#dbFix");
+    if (fx) fx.onclick = async () => { K.busy(fx, true, "Ophalen…"); try { const r = await K.api("/api/dbadmin", { json: { action: "fixPhotos" } }); out.innerHTML = (r.ok ? K.c.ok : K.c.warn)(r.photos.downloaded + " foto('s) opgehaald · " + r.photos.failed + " mislukt · " + r.photos.missing + " niet meer in Airtable."); } catch (e) { out.innerHTML = K.c.error(e.message); } K.busy(fx, false); };
     const cp = box.querySelector("#dbCopy");
     if (cp) cp.onclick = async () => {
       if (!(await K.confirm({ title: "Alles kopiëren naar de nieuwe database?", text: "De nieuwe database wordt volledig vervangen door de huidige inhoud van Airtable. Airtable zelf verandert niet. De portaal blijft op Airtable draaien tot je omschakelt.", yes: "Kopiëren" }))) return;
