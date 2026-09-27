@@ -38,6 +38,7 @@ module.exports = async (req, res) => {
         klant: { nom: client.fields["Nom"] || "", adresse: client.fields["Lieu de livraison"] || "", btw: client.fields["BTW-nummer"] || "", klantnr: client.fields["Klantnummer"] || "", taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL" },
         livreeLe: f["Livrée le"] || "", receptionnePar: f["Réceptionné par"] || "",
         factureeLe: f["Facturée le"] || "", btwPerLine,
+        besteld: f["Lignes besteld"] || "",
         lots: (() => { try { return f["Lots"] ? JSON.parse(f["Lots"]) : null; } catch (e) { return null; } })()
       },
       config: {

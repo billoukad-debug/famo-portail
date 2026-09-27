@@ -77,6 +77,7 @@ module.exports = async (req, res) => {
         "Référence": ref,
         "Date": __lev.brusselsToday(), // jour de Bruxelles, pas UTC (00:00–02:00 = même jour)
         "Lignes (produits / quantités)": order.lignes,
+        "Lignes besteld": order.lignes,
         "Statut": "Reçue",
         "Statut paiement": "En attente",
         "Total": order.total,

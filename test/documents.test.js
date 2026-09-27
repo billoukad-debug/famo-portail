@@ -151,3 +151,15 @@ test("afronding EN 16931 : 1,375 kg × 18,49 → lijn 25,42 ; btw per tarief", (
   assert.equal(row(html, "btw 6%"), "€ 2,42");
   assert.equal(row(html, "Totaal incl. btw"), "€ 42,81");
 });
+
+test("poids réel (H-04) : « besteld X » seulement là où la livraison diffère de la commande", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const o = { ...ORDER, lignes: "Kabeljauw × 5.4 kg [€20.00]\nZalm × 2 kg [€30.00]", besteld: "Kabeljauw × 5 kg [€20.00]\nZalm × 2 kg [€30.00]", total: 168 };
+  const bon = D.build(o, "delivery");
+  assert.match(bon, /<small class="ordered">besteld 5 kg<\/small>/);
+  assert.equal((bon.match(/class="ordered"/g) || []).length, 1, "Zalm inchangé : pas de mention");
+  assert.ok(!/class="ordered"/.test(D.build({ ...o, besteld: "" }, "delivery")), "anciennes commandes sans champ : rien");
+  const fr = D.build({ ...o, klant: { ...o.klant, taal: "FR" } }, "delivery");
+  assert.match(fr, /commandé 5/);
+});

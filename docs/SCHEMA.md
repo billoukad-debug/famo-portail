@@ -84,6 +84,10 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Annulée le`, `Motif annulation` | date-heure, texte | updateorder, klantorder | allorders, orders | |
 | `Correcties` | texte multiligne | updateorder, klantorder | allorders | Journal : `date · action · acteur — raison` (Beheer → Journaal). |
 | `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders | `CN-AAAA-NNNN` interne ; une seule par commande. |
+| `BTW per lijn` | texte (JSON) | updateorder (passage en Facturée) | allorders, klantdoc, export UBL | Taux de TVA figés par ligne : un changement de catalogue ne réécrit pas une facture émise. |
+| `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
+| `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
+| `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |
 
 ### `Stock` — stock par produit

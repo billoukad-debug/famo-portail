@@ -38,6 +38,9 @@ const SCHEMA = {
       "BTW per lijn": "text",
       // Clé d'idempotence envoyée par le portail client (api/order.js) : pas de doublon sur un renvoi.
       "Idempotentie": "text",
+      // Lignes telles que COMMANDÉES (figées à la création) : la ligne réelle peut ensuite être
+      // corrigée au poids livré ; les documents montrent l'écart « besteld / geleverd » (audit H-04).
+      "Lignes besteld": "text",
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
       "Lots": "text"
     },

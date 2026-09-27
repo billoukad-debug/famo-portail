@@ -16,14 +16,14 @@ window.FamoDocuments=(()=>{
       date:"Datum",document:"Document",order:"Bestelling",invoiceNo:"Factuur",customerNo:"Klantnummer",payStatus:"Betaalstatus",customer:"Klant",vat:"BTW",desc:"Beschrijving",qty:"Aantal",unit:"Eenheid",
       unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
       exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
-      lot:"Lot",tht:"THT",thawed:"ontdooid",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
+      lot:"Lot",tht:"THT",thawed:"ontdooid",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
       proforma:"PRO FORMA",retour:"RETOURBON",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
       unitPrice:"Prix unitaire",subtotal:"Sous-total",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
       exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
-      lot:"Lot",tht:"DLC",thawed:"décongelé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
+      lot:"Lot",tht:"DLC",thawed:"décongelé",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
       proforma:"PRO FORMA",retour:"BON DE RETOUR",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
   };
   const langOf=order=>{const v=String((order&&(order.taal||(order.klant&&order.klant.taal)))||"").trim().toLowerCase();return v==="fr"?"fr":"nl";};
@@ -167,11 +167,15 @@ window.FamoDocuments=(()=>{
     // Traçabilité (règl. UE 1379/2013 art. 35) : lot(s) livré(s) par article, instantané de la préparation.
     const lotsOf=name=>{const m=order.lots&&typeof order.lots==="object"?order.lots:null;if(!m)return[];const k=Object.keys(m).find(x=>String(x).trim().toLowerCase()===String(name||"").trim().toLowerCase());return k?(m[k]||[]):[];};
     const lotTxt=l=>[L.lot+" "+esc(l.lotnummer),l.wetenschappelijkeNaam?"<i>"+esc(l.wetenschappelijkeNaam)+"</i>":"",esc(l.vangstgebied),esc(L.methods[l.productiemethode]||l.productiemethode),esc(l.vistuig),l.ontdooid?L.thawed:"",l.tht?L.tht+" "+date(l.tht):""].filter(Boolean).join(" · ");
+    // Poids réel (audit H-04) : quantité commandée à la création, montrée si la livraison diffère.
+    const ordered=(!credit&&order.besteld)?parse(order.besteld):[];
+    const orderedOf=name=>{const k=String(name||"").trim().toLowerCase();const o=ordered.find(x=>String(x.name||"").trim().toLowerCase()===k);return o?o.qty:null;};
+    const diffTxt=row=>{const o=orderedOf(row.name);if(o==null)return"";const a=Number(String(o).replace(",",".")),b=Number(String(row.qty).replace(",","."));return Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)>1e-9?'<small class="ordered">'+L.ordered+" "+esc(qtyTxt(o))+" "+esc(nlUnit(row.unit))+'</small>':"";};
     const lineRows=rows.map(row=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
       const sub=unitPrice==null?null:(window.FamoVat?window.FamoVat.r2(unitPrice*qty):unitPrice*qty);
-      return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+'</td><td class="num">'+esc(qtyTxt(row.qty))+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
+      return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+'</td><td class="num">'+esc(qtyTxt(row.qty))+diffTxt(row)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
     const bank='<div class="bank"><div class="banklabel">'+L.bank+'</div>'+
       '<div class="bankrow"><span>'+L.beneficiary+'</span><b>'+esc(COMPANY.nom)+'</b></div>'+

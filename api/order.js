@@ -165,6 +165,7 @@ module.exports = async (req, res) => {
       "Référence": ref,
       "Date": today,
       "Lignes (produits / quantités)": order.lignes,
+      "Lignes besteld": order.lignes,
       "Statut": "Reçue",
       "Statut paiement": "En attente",
       "Total": order.total,
