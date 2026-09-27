@@ -150,7 +150,8 @@ select.input.tool,input.input.tool{border-color:var(--line-input);background:var
 /* ---------- toast / sheet ---------- */
 .toasts{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:400;width:min(520px,calc(100% - 32px))}
 .toast{background:var(--ink);color:#fff;border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:10px;font-size:14px;box-shadow:var(--shadow)}
-.toast.err{background:var(--danger)}.toast button{margin-left:auto;background:transparent;border:0;color:#E4EDF5;cursor:pointer;font:inherit;font-weight:600;min-height:32px}
+.toast.err{background:var(--danger)}.toast button{margin-left:auto;background:transparent;border:0;color:#E4EDF5;cursor:pointer;font:inherit;font-weight:600;min-height:44px;min-width:44px;padding:0 8px;border-radius:var(--r-sm)}.toast button+button{margin-left:0}.toast button:focus-visible{outline:2px solid #fff;outline-offset:0}
+.toast .toast-x{font-size:20px;line-height:1;color:#fff}
 .scrim{position:fixed;inset:0;background:rgba(20,20,19,.45);z-index:300;display:flex;justify-content:flex-end}
 .panel{width:min(560px,100%);height:100%;background:var(--card);box-shadow:-8px 0 24px rgba(20,20,19,.10);display:flex;flex-direction:column}
 .panel-h{padding:18px 24px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between;gap:12px}

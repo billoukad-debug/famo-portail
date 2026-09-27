@@ -6,7 +6,8 @@
 
   /* ---------- basis ---------- */
   K.esc = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  K.eur = v => "€\u00a0" + (Number(v) || 0).toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // G-19 : montants selon la langue du client — nl-BE « € 1.284,50 », fr-BE « 1 284,50 € » (K.lang est lu plus bas).
+  K.eur = v => { const n = Number(v) || 0; return K.lang === "fr" ? n.toLocaleString("fr-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "\u00a0€" : "€\u00a0" + n.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   K.num = v => String(Number(v) || 0).replace(".", ",");
   // FOR-06 : « 1 404,48 », « 1.404,48 », « 1404.48 », « 12,5 », « € 12,50 » → nombre ; vide ou illisible → NaN.
   K.parseNum = v => {
@@ -161,12 +162,17 @@
   const MONTHS_BY = { nl: ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"], fr: ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"] };
   const DAYS = new Proxy([], { get: (_, i) => DAYS_BY[K.lang][i] }), MONTHS = new Proxy([], { get: (_, i) => MONTHS_BY[K.lang][i] });
   K.parseDate = v => { if (!v) return null; const d = new Date(String(v).includes("T") ? v : v + "T00:00:00"); return Number.isNaN(d.getTime()) ? null : d; };
-  K.isoDay = d => { const x = d instanceof Date ? d : K.parseDate(d); if (!x) return ""; const m = String(x.getMonth() + 1).padStart(2, "0"), day = String(x.getDate()).padStart(2, "0"); return x.getFullYear() + "-" + m + "-" + day; };
+  // G-19 : un horodatage du serveur (« …T14:20:00Z ») s'affiche à l'heure d'Anvers, comme les lignes du journal
+  // écrites par le serveur (Europe/Brussels) — pas à l'heure de l'appareil.
+  const ZONED = /T\d{2}:\d{2}.*(Z|[+-]\d{2}:?\d{2})$/i;
+  const BXL = (() => { try { return new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }); } catch (e) { return null; } })();
+  const bxl = d => { const o = {}; BXL.formatToParts(d).forEach(x => { o[x.type] = x.value; }); return o; };
+  K.isoDay = d => { const x = d instanceof Date ? d : K.parseDate(d); if (!x) return ""; if (BXL && typeof d === "string" && ZONED.test(d)) { const o = bxl(x); return o.year + "-" + o.month + "-" + o.day; } const m = String(x.getMonth() + 1).padStart(2, "0"), day = String(x.getDate()).padStart(2, "0"); return x.getFullYear() + "-" + m + "-" + day; };
   K.today = () => K.isoDay(new Date());
   K.addDays = (iso, n) => { const d = K.parseDate(iso) || new Date(); d.setDate(d.getDate() + n); return K.isoDay(d); };
   K.date = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0"); };
   K.dateLong = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); };
-  K.time = v => { const d = K.parseDate(v); return d ? String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") : ""; };
+  K.time = v => { const d = K.parseDate(v); if (!d) return ""; if (BXL && typeof v === "string" && ZONED.test(v)) { const o = bxl(d); return o.hour + ":" + o.minute; } return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
   K.relDay = iso => { if (!iso) return "—"; const t = K.today(); if (iso === t) return K.t("Vandaag"); if (iso === K.addDays(t, 1)) return K.t("Morgen"); if (iso === K.addDays(t, -1)) return K.t("Gisteren"); return K.date(iso); };
   K.initials = name => String(name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("") || "?";
 
@@ -414,7 +420,21 @@
     const a = e.target && e.target.closest && e.target.closest("a.skip"); if (!a) return;
     e.preventDefault(); const t = doc.querySelector(a.getAttribute("href")); if (t) { t.focus(); if (t.scrollIntoView) t.scrollIntoView({ block: "start" }); }
   });
-  K.toast = (msg, opts) => { const o = opts || {}; const el = document.createElement("div"); el.className = "toast" + (o.kind ? " " + o.kind : ""); el.innerHTML = K.esc(msg) + (o.action ? '<button type="button">' + K.esc(o.action) + '</button>' : ""); if (o.action && o.onAction) el.querySelector("button").onclick = () => { o.onAction(); el.remove(); }; toasts().appendChild(el); setTimeout(() => el.remove(), o.ms || (o.action ? 6000 : 4500)); return el; };
+  // G-18 : une erreur reste affichée jusqu'à ce qu'on la ferme (×), annoncée tout de suite (role=alert) ; la même
+  // erreur ne s'empile pas. Un message qui a le focus ou le pointeur ne disparaît pas sous la main (2.2.1).
+  K.toast = (msg, opts) => {
+    const o = opts || {}, err = o.kind === "err", box = toasts(), text = String(msg == null ? "" : msg);
+    if (err) { K.$$(".toast.err", box).filter(x => x.dataset.msg === text).forEach(x => x.remove()); const old = K.$$(".toast.err", box); if (old.length >= 3) old[0].remove(); }
+    const el = document.createElement("div"); el.className = "toast" + (o.kind ? " " + o.kind : ""); el.dataset.msg = text;
+    if (err) el.setAttribute("role", "alert");
+    el.innerHTML = '<span>' + K.esc(text) + '</span>' + (o.action ? '<button type="button" data-toast-act>' + K.esc(o.action) + '</button>' : "") + (err ? '<button type="button" class="toast-x" data-toast-x aria-label="' + K.esc(K.t("Sluiten")) + '">×</button>' : "");
+    const remove = () => { if (!el.isConnected) return; const had = el.contains(document.activeElement); el.remove(); if (had) K.restoreFocus([], null); };
+    if (o.action && o.onAction) el.querySelector("[data-toast-act]").onclick = () => { remove(); o.onAction(); };
+    if (err) el.querySelector("[data-toast-x]").onclick = remove;
+    box.appendChild(el);
+    if (!err) { const later = () => { if (!el.isConnected) return; if (el.contains(document.activeElement) || el.matches(":hover")) { setTimeout(later, 2000); return; } remove(); }; setTimeout(later, o.ms || (o.action ? 6000 : 4500)); }
+    return el;
+  };
   // Dialogen en panelen (motif APG « dialog modal ») : Tab reste dedans, Échap ne ferme que le plus haut,
   // et le focus revient à l'élément qui l'a ouvert.
   const modals = [];
@@ -550,6 +570,17 @@
     s.addEventListener("input", markDirty); s.addEventListener("change", markDirty);
     s.addEventListener("click", e => { if (dirty && e.target.closest && e.target.closest("[data-cancel]")) { e.preventDefault(); e.stopImmediatePropagation(); tryClose(); } }, true);
     s.querySelector("[data-close]").onclick = tryClose; s.onclick = e => { if (e.target === s) tryClose(); };
+    // FOR-02 / G-17 : Entrée dans un champ d'une ligne = le bouton principal du panneau (comme un formulaire).
+    // Pas dans un champ multiligne, une liste, une quantité (−/+) ; un champ qui gère Entrée lui-même l'emporte.
+    s.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || e.defaultPrevented || e.isComposing || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = e.target;
+      if (!t || !t.matches || !t.matches(".panel-b input") || t.matches("[type=checkbox],[type=radio],[type=file],[type=button],[type=submit],[type=reset],[list],[data-no-submit]") || t.closest(".stepper")) return;
+      const btn = s.querySelector(".panel-f .btn-p:not(:disabled), .panel-f .btn-danger:not(:disabled)");
+      if (btn) { e.preventDefault(); btn.click(); }
+    });
+    // G-18 : un texte d'état dans le pied du panneau (« 2 van 3 gecontroleerd ») est une région live.
+    K.$$(".panel-f > span, .panel-f > div:not(:has(button))", s).forEach(x => { if (!x.hasAttribute("role")) { x.setAttribute("role", "status"); x.setAttribute("aria-live", "polite"); } });
     release = modal(s, tryClose); document.body.style.overflow = "hidden"; document.body.appendChild(s);
     // G-04 : premier élément focalisable VISIBLE du panneau (un champ caché, ex. #vSearch, ne compte pas) ;
     // au tactile, le panneau lui-même (pas de clavier virtuel qui surgit).
