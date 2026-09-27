@@ -10,7 +10,7 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 //
 // Stockage : empreinte scrypt (lib/clientauth.js), jamais le texte clair. La réponse
 // contient un nouveau jeton : l'ancien cesse de valoir dès que le mot de passe change.
-const { authClient } = require("./catalogue");
+const { authClient, authUnavailable } = require("./catalogue");
 const { at } = require("../lib/airtable");
 const __ca = require("../lib/clientauth");
 
@@ -113,6 +113,7 @@ module.exports = async (req, res) => {
     _rl.delete(rlKey);
     return res.status(200).json({ ok: true, token: __ca.issueToken({ id: client.id, fields: Object.assign({}, client.fields, { "Wachtwoord": hashed }) }) });
   } catch (e) {
+    if (authUnavailable(res, e)) return;
     console.error("[klantwachtwoord]", e && e.message || e);
     return res.status(500).json({ error: "Wachtwoord wijzigen mislukt. Probeer het later opnieuw." });
   }

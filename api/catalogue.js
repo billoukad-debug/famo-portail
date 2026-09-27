@@ -48,11 +48,23 @@ async function noteFailure(rec){
   const up = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields }) }).catch(() => null);
   if (!up || up.error) console.error("[auth] Echecs niet bewaard", rec.id, up && up.error && up.error.type);
 }
+// Base injoignable (réseau, 5xx, quota) ≠ mauvais identifiants (audit D-06) : on lève une
+// erreur au lieu de renvoyer null. Sinon une panne de quelques secondes déconnecte tous les
+// clients (« Sessie verlopen ») et compte comme tentative ratée (verrou).
+const dbDown = (err) => Object.assign(new Error("Database tijdelijk onbereikbaar"), { code: "DB_UNAVAILABLE", cause: err });
+const notFound = (err) => /NOT_FOUND/.test(String(err && (typeof err === "string" ? err : err.type || err.error || "")));
+function authUnavailable(res, e) {
+  if (!e || e.code !== "DB_UNAVAILABLE") return false;
+  console.error("[auth] base injoignable", e.cause && (e.cause.type || e.cause.message || e.cause));
+  res.status(503).json({ error: "Even geen verbinding met de server. Probeer over een minuut opnieuw.", retry: true });
+  return true;
+}
 async function authClient(user, pw, token){
   if (token) {
     const t = __ca.readToken(token);
     if (!t) return null;
     const rec = await at(`Clients/${t.id}`);
+    if (!rec || (rec.error && !notFound(rec.error))) throw dbDown(rec && rec.error);
     const stored = rec && !rec.error && rec.fields && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"];
     if (!stored || __ca.fingerprint(stored) !== t.fp || __ca.generationOf(rec) !== t.gen) return null;
     rec.tokenIat = t.iat; // renouvellement : la durée maximale court depuis la connexion
@@ -64,6 +76,7 @@ async function authClient(user, pw, token){
   if (!release) return null;
   const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(String(user).toLowerCase().trim())}'`);
   const cl = await at(`Clients?filterByFormula=${f}`);
+  if (!cl || cl.error) { release(); throw dbDown(cl && cl.error); } // la panne ne compte pas comme échec
   const rec = cl.records && cl.records[0];
   const stored = rec && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"]; // archivé : plus de connexion, historique conservé
   if (!stored) return null;
@@ -81,6 +94,7 @@ async function authClient(user, pw, token){
   return rec;
 }
 module.exports.authClient = authClient;
+module.exports.authUnavailable = authUnavailable;
 const __lev = require("../lib/levering");
 
 // Photo du produit : lib/photo.js (Airtable https ou /api/foto de la base Postgres).
@@ -106,7 +120,8 @@ module.exports = async (req, res) => {
         return res.status(429).json({ error: "Te veel mislukte pogingen. Wacht 30 seconden en probeer opnieuw." });
       }
     }
-    const client = await authClient(q.user, q.pw, q.token);
+    let client;
+    try { client = await authClient(q.user, q.pw, q.token); } catch (e) { if (releaseIp) releaseIp(); throw e; } // panne : l'IP n'est pas pénalisée
     if (!client) return res.status(401).json({ error: q.token && !q.pw ? "Sessie verlopen. Meld u opnieuw aan." : "Ongeldige gebruikersnaam of wachtwoord", expired: !!(q.token && !q.pw) });
     if (releaseIp) releaseIp();
     const clientId = client.id;
@@ -153,6 +168,7 @@ module.exports = async (req, res) => {
       company: Object.assign(companyFrom(cfgFields), { levering: __lev.publicRules(rules), facturatie: require("../lib/billing").modeOf(cfgFields), legal: require("../lib/billing").legalOf(cfgFields) }, require("../lib/billing").modeOf(cfgFields) === "portaal" ? { iban: (cfgFields["IBAN"] || "").trim(), bic: (cfgFields["BIC"] || "").trim() } : { iban: "", bic: "" })
     });
   } catch (e) {
+    if (authUnavailable(res, e)) return;
     console.error("[catalogue]", e && e.message || e);
     res.status(500).json({ error: "Catalogus laden mislukt. Probeer opnieuw." });
   }

@@ -19,7 +19,7 @@ const BASE = "appcdduLth9iGX8I0";
 
 // Même authentification que les autres endpoints client (client archivé refusé,
 // limite anti-force brute partagée) : une seule implémentation à maintenir.
-const { authClient } = require("./catalogue");
+const { authClient, authUnavailable } = require("./catalogue");
 
 function roundMoney(value){
   return Math.round((Number(value) || 0) * 100) / 100;
@@ -197,6 +197,7 @@ module.exports = async (req, res) => {
     await require("../lib/revision").bump();
     res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
   } catch (e) {
+    if (authUnavailable(res, e)) return;
     { console.error("[order]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

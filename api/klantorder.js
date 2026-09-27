@@ -11,7 +11,7 @@ const __ca = require("../lib/clientauth");
 //   reset     (sans pw) {user, email} lien « choisir un mot de passe » (30 min, usage unique)
 //             envoyé à l'adresse connue ; l'ancien mot de passe reste valable jusque-là.
 //             Le mot de passe est ensuite posé par api/klantwachtwoord.js (setPassword).
-const { authClient } = require("./catalogue");
+const { authClient, authUnavailable } = require("./catalogue");
 const __mail = require("../lib/ordermail");
 const __authmail = require("../lib/authmail");
 
@@ -131,6 +131,7 @@ const handler = async (req, res) => {
 
     return res.status(400).json({ error: "Onbekende actie" });
   } catch (e) {
+    if (authUnavailable(res, e)) return;
     { console.error("[klantorder]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

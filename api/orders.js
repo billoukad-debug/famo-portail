@@ -5,7 +5,7 @@ const log = require("../lib/log");
 // Détail suffisant pour une fiche côté client (nota, factuur, betaling, annulation),
 // jamais rien d'interne (Correcties, boîte ops, notes préfixées d'une source restent
 // visibles telles quelles : ce sont les notes du client lui-même).
-const { authClient } = require("./catalogue");
+const { authClient, authUnavailable } = require("./catalogue");
 const __bill = require("../lib/billing");
 const { parseLines } = require("./updateorder");
 
@@ -72,8 +72,8 @@ module.exports = async (req, res) => {
       }));
     res.status(200).json({ orders });
   } catch (e) {
-    // 503 : base injoignable pendant la vérification du mot de passe (authClient, D-06 :
-    // à lever dans api/catalogue.js) — jamais présentée comme un mauvais mot de passe.
+    if (authUnavailable(res, e)) return;
+    // 503 : base injoignable (authClient lève DB_UNAVAILABLE, D-06) — jamais un mauvais mot de passe.
     if (e && e.status === 503) { L.error("database onbereikbaar", { err: e }); return res.status(503).json({ error: "Database tijdelijk onbereikbaar. Probeer opnieuw." }); }
     { L.error("serverfout", { err: e }); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }

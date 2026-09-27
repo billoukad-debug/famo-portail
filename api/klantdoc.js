@@ -5,7 +5,7 @@ const { parseLines } = require("./updateorder");
 // Documenten voor de klant (leveringsbon, factuur) : de gegevens die nodig zijn om
 // het document in de browser op te bouwen, enkel voor de eigen bestellingen.
 // POST {user, pw, ref} -> {order, config}. Geen IBAN/BIC voor niet-gefactureerde bestellingen.
-const { authClient } = require("./catalogue");
+const { authClient, authUnavailable } = require("./catalogue");
 
 module.exports = async (req, res) => {
   if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
@@ -53,6 +53,7 @@ module.exports = async (req, res) => {
       }
     });
   } catch (e) {
+    if (authUnavailable(res, e)) return;
     { console.error("[klantdoc]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

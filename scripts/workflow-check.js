@@ -1815,6 +1815,16 @@ async function main() {
     assert.equal(ca.readToken(signedAX(Date.now() - 1000)), null, "AX5 jeton signé périmé refusé");
     r = await call(cat, { token: signedAX(Date.now() - 1000) }, []);
     assert.equal(r.res.statusCode, 401, "AX5 jeton périmé → 401"); assert.equal(r.calls.length, 0, "AX5 jeton périmé : aucune lecture");
+    // AX6 (D-06) — base injoignable ≠ mauvais identifiants : 503, jeton gardé, pas de verrou.
+    const DOWN = { error: { type: "SERVER_ERROR", message: "upstream down" } };
+    for (let i = 0; i < 7; i++) {
+      r = await call(cat, { user: "loginAX", pw: "fout-of-niet" }, [DOWN]);
+      assert.equal(r.res.statusCode, 503, "AX6 panne pendant la connexion → 503 (essai " + (i + 1) + "), jamais 401 ni 429");
+    }
+    r = await call(cat, { token: signedAX(Date.now() + 60000) }, [DOWN]);
+    assert.equal(r.res.statusCode, 503, "AX6 panne pendant la relecture du jeton → 503"); assert.ok(!r.res.payload.expired, "AX6 le client n'est pas déconnecté");
+    r = await call(cat, { token: signedAX(Date.now() + 60000) }, [{ error: { type: "NOT_FOUND" } }]);
+    assert.equal(r.res.statusCode, 401, "AX6 client supprimé → 401 (pas une panne)");
   }
   // --- AY. Ordre du catalogue (glisser-déposer Beheer) : validation, seuls les changements écrits ---
   {
