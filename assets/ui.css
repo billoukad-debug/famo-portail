@@ -405,3 +405,5 @@ a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration
 .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
 /* Liste à gauche d'une fiche (Klanten) : reste visible et défile seule */
 @media (min-width:900px){.sticky-list{position:sticky;top:76px}.sticky-list #clist{max-height:calc(100vh - 230px);overflow-y:auto}}
+/* G-03 : titre focalisé par le script après un changement de vue (tabindex=-1) : pas d'anneau, ce n'est pas une commande */
+h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:0}

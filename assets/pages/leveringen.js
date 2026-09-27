@@ -5,7 +5,8 @@
   // Route van de dag : eerst volgens « Volgorde levering » (▲▼), zonder volgorde achteraan op klantnaam ; afgewerkte stops onderaan.
   const vo = o => o.volgorde == null ? Infinity : o.volgorde;
   function list() { return S.orders.filter(o => o.day === day && (o.statut === "Prête" || o.statut === "Sortie en livraison" || (o.statut === "Facturée" && o.livreeLe && K.isoDay(o.livreeLe) === day))).sort((a, b) => (a.statut === "Facturée" ? 1 : 0) - (b.statut === "Facturée" ? 1 : 0) || vo(a) - vo(b) || a.client.localeCompare(b.client, "nl")); }
-  function render() {
+  function render() { return K.keep(page, draw); }
+  function draw() {
     const rows = list(); const route = rows.filter(o => o.statut !== "Facturée"), ready = rows.filter(o => o.statut === "Prête");
     const late = S.orders.filter(o => o.late && o.statut !== "Facturée");
     page.innerHTML = '<div class="page-h"><div><h1 class="h1">Leveringen</h1><p class="sub">' + K.esc(K.dateLong(day)) + ' · ' + rows.length + ' stop' + (rows.length === 1 ? "" : "s") + '</p></div><span class="spacer"></span><div class="opt" style="flex:0 0 auto"><button type="button" data-day="' + K.today() + '"' + (day === K.today() ? ' class="on"' : "") + '>Vandaag</button><button type="button" data-day="' + K.addDays(K.today(), 1) + '"' + (day === K.addDays(K.today(), 1) ? ' class="on"' : "") + '>Morgen</button><input type="date" class="input" id="pickDay" aria-label="Kies een dag" value="' + day + '" style="width:auto;min-height:44px"></div>' + (ready.length ? '<button type="button" class="btn btn-p btn-sm" id="departAll">Ronde vertrekt (' + ready.length + ')</button>' : "") + '</div>' +

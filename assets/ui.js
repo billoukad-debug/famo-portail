@@ -395,25 +395,72 @@
   // et le focus revient à l'élément qui l'a ouvert.
   const modals = [];
   const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-  // Clé pour retrouver le déclencheur après un re-rendu (id, sinon premier attribut data-*).
-  const keyOf = el => {
-    if (!el || !el.getAttribute || el === document.body) return null;
-    if (el.id) return "#" + CSS.escape(el.id);
-    for (const a of Array.from(el.attributes || [])) if (a.name.indexOf("data-") === 0 && a.value) return "[" + a.name + '="' + CSS.escape(a.value) + '"]';
-    return null;
+  // Clés pour retrouver un élément après un re-rendu, de la plus précise à la plus large (CLA-10) :
+  // id ; tous ses attributs data-* (data-act + data-id = même action sur la MÊME commande) ; puis le bouton
+  // principal de la même commande (son action a changé : Klaarzetten → Vertrekt) ; un lien par son href ;
+  // un bouton sans attribut propre (−/+ d'un stepper) par son hôte. Jamais « le premier data-act venu ».
+  const DATA_SKIP = /^data-label$/;
+  const q1 = (name, v) => "[" + name + '="' + CSS.escape(v) + '"]';
+  const keysOf = el => {
+    if (!el || el.nodeType !== 1 || el === document.body || el === document.documentElement) return [];
+    if (el.id) return ["#" + CSS.escape(el.id)];
+    const data = Array.from(el.attributes || []).filter(a => a.name.indexOf("data-") === 0 && !DATA_SKIP.test(a.name));
+    const own = data.map(a => a.value ? q1(a.name, a.value) : "[" + a.name + "]").join(""), tag = el.tagName.toLowerCase();
+    const href = el.getAttribute("href"), c0 = Array.from(el.classList || []).find(c => !/^(on|open|ok|is-.*)$/.test(c)), cls = c0 ? "." + CSS.escape(c0) : "";
+    if (data.some(a => a.value)) {
+      const out = [tag + own], id = el.getAttribute("data-id");
+      if (id && data.length > 1) out.push(".btn-p" + q1("data-id", id), q1("data-id", id));
+      return out;
+    }
+    const host = el.parentElement && el.parentElement.closest("[data-stepper],[data-id],[data-i],[data-q],[data-oid]");
+    const hk = host ? keysOf(host)[0] : null;
+    if (hk) return [hk + " " + tag + own];
+    if (href && href !== "#") return [tag + cls + q1("href", href)];
+    return [];
   };
-  // Le focus revient au déclencheur ; s'il a disparu (liste redessinée après l'enregistrement), à son remplaçant.
-  function refocus(back, key) {
-    const tryIt = () => { const a = document.activeElement; if (a && a !== document.body && a.isConnected) return true; const t = back && back.isConnected ? back : (key && document.querySelector(key)); if (t && t.focus) { try { t.focus({ preventScroll: true }); } catch (e) { /* ignore */ } return true; } return false; };
+  const usable = x => x && !x.disabled && x.isConnected && (x.offsetParent !== null || (x.getClientRects && x.getClientRects().length > 0));
+  const findKeys = keys => { for (const k of keys || []) { try { const t = Array.from(document.querySelectorAll(k)).find(usable); if (t) return t; } catch (e) { /* sélecteur invalide */ } } return null; };
+  const lost = () => { const a = document.activeElement; return !a || a === document.body || !a.isConnected; };
+  // G-03 : après un changement de vue, le focus va au titre (h1, tabindex=-1) : le lecteur d'écran annonce
+  // la nouvelle page et Tab repart de là. Jamais pendant une saisie, jamais sous une fenêtre ouverte.
+  // opts.scroll : ramener le titre à l'écran s'il est hors de la vue ou sous la barre du haut (changement d'onglet) ;
+  // sinon aucun défilement (le portail client restaure lui-même la position de chaque vue).
+  K.focusTitle = (root, sel, opts) => {
+    const a = document.activeElement;
+    if (a && a !== document.body && a.isConnected && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return false;
+    if (modals.length || document.querySelector(".famo-doc-preview:not(.hidden)")) return false;
+    const scope = root || document.querySelector("main") || document;
+    const h = Array.from(scope.querySelectorAll(sel || "h1")).find(usable);
+    if (!h) return false;
+    if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+    const r = h.getBoundingClientRect(), hidden = r.top < 64 || r.bottom > (global.innerHeight || 800);
+    try { h.focus({ preventScroll: true }); } catch (e) { return false; }
+    if (opts && opts.scroll && hidden && h.scrollIntoView) h.scrollIntoView({ block: "start" }); // tient compte de scroll-padding-top
+    return document.activeElement === h;
+  };
+  // Focus perdu (élément redessiné) : on retrouve l'élément par ses clés, sinon le titre de la page.
+  K.restoreFocus = (keys, root) => { if (!lost()) return; const t = findKeys(keys); if (t) { try { t.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } if (lost()) K.focusTitle(root); };
+  K.focusKeys = keysOf;
+  // Redessine une zone sans perdre le focus : fn() peut être asynchrone.
+  K.keep = (root, fn) => {
+    const a = document.activeElement, inside = !!(a && a !== document.body && root && root.contains(a)), keys = inside ? keysOf(a) : null;
+    const r = fn();
+    if (inside) { const fix = () => K.restoreFocus(keys, root); if (r && typeof r.then === "function") r.then(fix, fix); else fix(); }
+    return r;
+  };
+  // Le focus revient au déclencheur ; s'il a disparu (liste redessinée après l'enregistrement), à son remplaçant,
+  // sinon (la ligne a quitté la liste) au titre de la page.
+  function refocus(back, keys) {
+    const tryIt = last => { if (!lost()) return; const t = back && back.isConnected && !back.disabled ? back : findKeys(keys); if (t && t.focus) { try { t.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } if (last && lost()) K.focusTitle(); };
     if (back && back.isConnected && back.focus) { try { back.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
-    [60, 400, 1200].forEach(ms => setTimeout(tryIt, ms));
+    [60, 400, 1200].forEach((ms, i) => setTimeout(() => tryIt(i === 2), ms));
   }
   // Dernier élément focalisé (hors body) : un bouton désactivé pendant le chargement (K.busy) perd le focus,
   // la fenêtre qui s'ouvre ensuite doit quand même rendre le focus à ce bouton.
   let lastFocused = null;
   if (doc && doc.addEventListener) doc.addEventListener("focusin", e => { if (e.target && e.target !== doc.body && e.target.nodeType === 1) lastFocused = e.target; });
   function modal(el, onEsc) {
-    const a = document.activeElement, back = a && a !== document.body ? a : lastFocused, backKey = keyOf(back), entry = { el };
+    const a = document.activeElement, back = a && a !== document.body ? a : lastFocused, backKey = keysOf(back), entry = { el };
     modals.push(entry);
     const key = e => {
       if (modals[modals.length - 1] !== entry) return;
@@ -480,7 +527,9 @@
     s.addEventListener("click", e => { if (dirty && e.target.closest && e.target.closest("[data-cancel]")) { e.preventDefault(); e.stopImmediatePropagation(); tryClose(); } }, true);
     s.querySelector("[data-close]").onclick = tryClose; s.onclick = e => { if (e.target === s) tryClose(); };
     release = modal(s, tryClose); document.body.style.overflow = "hidden"; document.body.appendChild(s);
-    const first = finePointer() && s.querySelector(".panel-b input:not([type=hidden]),.panel-b select,.panel-b textarea");
+    // G-04 : premier élément focalisable VISIBLE du panneau (un champ caché, ex. #vSearch, ne compte pas) ;
+    // au tactile, le panneau lui-même (pas de clavier virtuel qui surgit).
+    const first = finePointer() && Array.from(s.querySelectorAll(".panel-b " + FOCUSABLE.split(",").join(",.panel-b "))).find(usable);
     try { (first || s.querySelector(".panel")).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
     return { el: s, close, tryClose, markClean: () => { dirty = false; dirtyPanels.delete(s); }, body: s.querySelector(".panel-b"), footer: s.querySelector(".panel-f") };
   };

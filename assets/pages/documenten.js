@@ -22,7 +22,8 @@
       && (!q || (d.number + " " + d.o.ref + " " + d.o.client).toLowerCase().includes(q))).sort(bySort);
   }
   const label = k => k === "invoice" ? "Factuur" : k === "credit" ? "Creditnota" : "Leveringsbon";
-  function render() {
+  function render() { return K.keep(page, draw); }
+  function draw() {
     K.store.set(DKEY, { client, q, van, tot, sort });
     const list = docs(); const c = S.counts(); const inv = list.filter(d => d.kind === "invoice");
     page.innerHTML = '<div class="page-h"><div><h1 class="h1">Documenten</h1><p class="sub">Facturen, creditnota\'s en leveringsbonnen</p></div><span class="spacer"></span>' + K.c.kpi(K.eur(c.unpaidSum), "openstaand") + K.c.kpi(c.unpaid, "onbetaalde facturen", c.unpaid > 0, "#/open") + '</div>' +

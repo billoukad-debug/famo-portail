@@ -75,8 +75,9 @@
 
   // Kop : op de telefoon enkel de tabbalk onderaan ; op de computer één kopbalk met merk, tabs en winkelmand.
   function shell(active, inner, top) {
-    const co = (cat && cat.company) || {};
+    const co = (cat && cat.company) || {}, a = document.activeElement, onTitle = !!(a && a.tagName === "H1" && app.contains(a));
     app.innerHTML = '<a class="skip" href="#kmain">' + K.t("Naar de inhoud") + '</a><div class="kwrap kv-' + (K.hashParams().path || active) + '"><header class="khead"><a class="kbrand" href="#/catalogus"><span class="logo">F</span><b>' + K.esc(co.bedrijfsnaam || "FAMO Seafood") + '</b></a>' + K.klantTabs(active) + '<a class="kcartlink" id="kcartlink" href="#/winkelmand">' + cartLinkHtml() + '</a></header><main class="kmain" id="kmain" tabindex="-1">' + (top || "") + inner + '</main></div>';
+    if (onTitle) K.focusTitle(app); // vue redessinée (données arrivées) : le focus reste sur son titre
   }
   function cartLinkHtml() {
     const n = cartCount();
@@ -231,7 +232,7 @@
       '<button type="button" class="btn btn-p btn-block" id="placeOrder" style="min-height:50px;font-size:15px"' + (below ? " disabled" : "") + '>' + K.t("Bestelling plaatsen") + ' · ' + K.eur(total) + '</button></div></div>'
       : K.c.empty(K.t("Uw winkelmand is leeg"), K.t("Kies producten in de catalogus."), '<a class="btn btn-p btn-sm" href="#/catalogus" style="margin-top:6px">' + K.t("Naar de catalogus") + '</a>');
     shell("catalogus", '<div class="mlist">' + body + '</div>', '<div class="mtop"><div class="mrow"><a href="#/catalogus" style="font-size:13px">' + K.icon("back") + ' ' + K.t("Catalogus") + '</a><span class="spacer"></span><h1 class="ktitle">' + K.t("Winkelmand") + '</h1><span class="spacer"></span>' + (ids.length ? '<button type="button" class="btn btn-ghost btn-sm" id="clearCart">' + K.t("Leegmaken") + '</button>' : "") + '</div></div>');
-    bindSteppers(app, () => renderWinkelmand());
+    bindSteppers(app, () => K.keep(app, renderWinkelmand)); // le focus reste sur le − / + du même article
     K.on(app, "click", "[data-day]", (e, t) => { cart.day = t.dataset.day; saveCart(); K.$$("[data-day]", app).forEach(b => b.classList.toggle("on", b === t)); const od = document.getElementById("otherDay"); if (od) { od.value = ""; od.style.borderColor = ""; od.style.color = ""; } document.getElementById("dayErr").innerHTML = ""; });
     const od = document.getElementById("otherDay"); if (od) od.addEventListener("change", () => {
       const v = od.value; const errBox = document.getElementById("dayErr");
@@ -388,7 +389,7 @@
     const body = '<div class="kcols"><div class="kc-main"><h2 class="sec" style="margin-top:0">' + K.t("Favorieten") + '</h2>' + (favList.length ? '<div class="mcard">' + favList.map(p => '<div class="li"><div class="n"><b>' + K.esc(p.nom) + '</b><div class="quiet" style="font-size:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + '</span>' + stockTag(p) + '</div></div>' + K.c.stepper(p.id, cart.items[p.id] || 0, { step: isKg(p) ? 0.5 : 1 }) + '<button type="button" class="ibtn fav on" data-fav="' + p.id + '" aria-label="' + K.t("Uit favorieten") + '">' + K.icon("star") + '</button></div>').join("") + '</div>' : K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product in de catalogus."))) + '</div><div class="kc-side">' + stdCard + '</div></div>';
     shell("favorieten", '<div class="mlist">' + body + '</div>', topbar(K.t("Favorieten"), K.t("Snel opnieuw bestellen")));
     bindSteppers(app);
-    K.on(app, "click", "[data-fav]", (e, t) => { setFav(t.dataset.fav, false); renderFavorieten(); });
+    K.on(app, "click", "[data-fav]", (e, t) => { setFav(t.dataset.fav, false); K.keep(app, renderFavorieten); });
     const s = document.getElementById("stdSave"); if (s) s.onclick = () => { const items = Object.fromEntries(Object.entries(cart.items).filter(([id, qv]) => byId(id) && Number(qv) > 0)); if (!Object.keys(items).length) { K.toast(K.t("Zet eerst artikelen in de winkelmand."), { kind: "err" }); return; } setStd(items); K.toast(K.t("Standaardbestelling opgeslagen")); renderFavorieten(); };
     const c2 = document.getElementById("stdToCart"); if (c2) c2.onclick = () => { Object.entries(std).forEach(([id, qv]) => { const p = byId(id); if (p) { const v = capQty(p, Number(qv)); if (v > 0) cart.items[id] = v; } }); saveCart(); K.go("winkelmand"); };
   }
@@ -484,24 +485,35 @@
     app.innerHTML = '<div class="kwrap" style="padding:20px" id="boot"></div>';
     return K.retryBox("boot", async () => { document.getElementById("boot").innerHTML = K.c.skeleton(3); await loadCatalogue(); render(); });
   }
-  // INT-07 : chaque vue retrouve sa position de défilement (retour du panier vers le catalogue).
+  // INT-07 / G-14 : chaque vue retrouve sa position de défilement. Le catalogue retient le produit en haut de l'écran
+  // (les lignes n'ont pas toutes la même hauteur) ; le navigateur ne restaure plus lui-même (Précédent → 0).
+  try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch (e) { /* ignore */ }
   const scrollPos = {}; let curPath = null;
+  const saveScroll = path => {
+    const pos = { y: window.scrollY, id: "", top: 0 };
+    if (path === "catalogus" && pos.y > 0) { const row = K.$$(".prod:not(.hidden)", app).find(r => r.getBoundingClientRect().bottom > 160); if (row) { pos.id = row.dataset.id; pos.top = row.getBoundingClientRect().top; } }
+    scrollPos[path] = pos;
+  };
+  const restoreScroll = path => {
+    const pos = scrollPos[path]; let moved = false;
+    const stop = () => { moved = true; };
+    ["wheel", "touchstart", "keydown", "mousedown"].forEach(ev => window.addEventListener(ev, stop, { once: true, passive: true }));
+    const go = () => { if (moved) return; if (!pos || !pos.y) { window.scrollTo(0, 0); return; } const row = pos.id && app.querySelector('.prod[data-id="' + CSS.escape(pos.id) + '"]'); if (row) { const d = row.getBoundingClientRect().top - pos.top; if (Math.abs(d) > 1) window.scrollBy(0, d); } else window.scrollTo(0, pos.y); };
+    // Plusieurs passes : les lignes hors écran ont une hauteur estimée (content-visibility) qui devient réelle en approchant.
+    requestAnimationFrame(() => { go(); [120, 320, 700].forEach(ms => setTimeout(go, ms)); });
+    setTimeout(() => ["wheel", "touchstart", "keydown", "mousedown"].forEach(ev => window.removeEventListener(ev, stop)), 800);
+  };
   function render() {
     setTimeout(() => { K.setBadges({}); refreshOrderBadge(); }, 0);
     const { path } = K.hashParams();
     closePanel();
-    if (curPath !== null) scrollPos[curPath] = window.scrollY;
+    if (curPath !== null) saveScroll(curPath);
     curPath = path || "catalogus";
-    const y = scrollPos[curPath] || 0;
-    requestAnimationFrame(() => window.scrollTo(0, y));
-    switch (path) {
-      case "winkelmand": return renderWinkelmand();
-      case "bevestigd": return renderBevestigd();
-      case "bestellingen": return renderBestellingen();
-      case "favorieten": return renderFavorieten();
-      case "account": return renderAccount();
-      default: if (path !== "catalogus") { location.hash = "#/catalogus"; return; } return renderCatalogus();
-    }
+    if (!["catalogus", "winkelmand", "bevestigd", "bestellingen", "favorieten", "account"].includes(path)) { location.hash = "#/catalogus"; return; }
+    ({ winkelmand: renderWinkelmand, bevestigd: renderBevestigd, bestellingen: renderBestellingen, favorieten: renderFavorieten, account: renderAccount, catalogus: renderCatalogus })[path]();
+    restoreScroll(curPath);
+    // G-03 : nouvelle vue → focus sur son titre (annoncé par le lecteur d'écran, Tab repart de là).
+    K.focusTitle(app);
   }
   window.addEventListener("hashchange", route);
   K.shortcuts.splice(0, 1, ["/", "Zoek een product…"]);

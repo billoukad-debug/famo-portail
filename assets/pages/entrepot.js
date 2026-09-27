@@ -32,7 +32,8 @@
     const cols = [["Reçue", "Ontvangen", "var(--st-new)"], ["Prête", "Klaar", "var(--st-ready)"], ["Sortie en livraison", "Onderweg", "var(--st-road)"]];
     return '<div class="board" style="grid-template-columns:repeat(3,minmax(0,1fr))">' + cols.map(([st, label, color]) => { const rows = list.filter(o => o.statut === st).sort((a, b) => (a.day || "").localeCompare(b.day || "")); return '<div class="col"><div class="colh"><i style="background:' + color + '"></i>' + label + '<b>' + rows.length + '</b></div>' + (rows.length ? rows.map(o => S.orderCard(o).replace('</a>', '<div style="display:flex;gap:6px;margin-top:6px">' + S.nextAction(o) + '</div></a>')).join("") : '<div class="empty">Niets.</div>') + '</div>'; }).join("") + '</div>';
   }
-  function render() {
+  function render() { return K.keep(page, draw); }
+  function draw() {
     const list = dayOrders();
     page.innerHTML = header() + '<div class="content" style="padding-top:14px">' + (view === "bord" ? bord() : '<div id="two" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + verzamel(list) + perOrder(list) + '</div>') + '</div>';
     if (window.innerWidth < 1000) { const t = page.querySelector("#two"); if (t) t.style.gridTemplateColumns = "1fr"; }

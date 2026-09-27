@@ -11,7 +11,8 @@
   function historyHtml() {
     return moves.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>Wanneer</th><th>Type</th><th>Product</th><th class="num">Aantal</th><th class="num">Van → naar</th><th>Nota</th></tr></thead><tbody>' + moves.map(m => '<tr><td>' + K.esc(K.date(K.isoDay(m.at)) + " " + K.time(m.at)) + '</td><td>' + K.esc(K.move(m.type)) + '</td><td>' + K.esc(m.product) + '</td><td class="num mono">' + (m.quantity > 0 ? "+" : "") + K.qty(m.quantity) + '</td><td class="num mono muted">' + K.qty(m.before) + ' → ' + K.qty(m.after) + '</td><td class="muted wrap">' + K.esc(m.note || "") + '</td></tr>').join("") + '</tbody></table></div>' + (moves.length >= hist.limit ? '<p class="quiet" style="font-size:12px;padding:8px 16px;margin:0">Enkel de laatste ' + hist.limit + ' bewegingen. Kies een product of een kortere periode voor meer detail.</p>' : "") : '<div class="empty" style="margin:12px">Geen bewegingen in de laatste ' + hist.days + ' dagen' + (hist.product ? ' voor „' + K.esc(hist.product) + '”' : "") + '.</div>';
   }
-  function render() {
+  function render() { return K.keep(page, draw); }
+  function draw() {
     if (window.S && S.stockBadge) { S.stockBadge(items); S.load().catch(() => {}); }
     const low = items.filter(i => i.quantity <= i.lowThreshold), orphans = items.filter(i => i.inCatalogue === false), inactive = items.filter(i => i.inCatalogue !== false && i.actif === false);
     const names = Array.from(new Set(items.map(i => i.product).concat(moves.map(m => m.product)).filter(Boolean))).sort((a, b) => a.localeCompare(b, "nl"));

@@ -24,7 +24,8 @@
   const byId = id => products.find(p => p.id === id);
   const total = () => Object.entries(items).reduce((s, [id, qv]) => { const p = byId(id); return s + (p ? p.prix * qv : 0); }, 0);
   const isKg = p => /kg/i.test(p.unite || "");
-  function render() {
+  function render() { return K.keep(page, draw); }
+  function draw() {
     const cl = clients.find(c => c.id === clientId);
     const list = products.filter(p => !q || (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat)).toLowerCase().includes(q));
     if (!day) day = firstDay();

@@ -456,7 +456,9 @@
     };
   }
 
-  async function render(force) {
+  // G-03 : un re-rendu garde le focus (K.keep) ; un changement d'onglet le met sur le titre, un autre client sur sa fiche.
+  function render(force) { return K.keep(page, () => draw(force)); }
+  async function draw(force) {
     if (force || !D) { try { await load(); } catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message, true) + '</div>'; K.on(page, "click", "[data-retry]", e => { e.preventDefault(); render(true); }); return; } }
     if (!D.config) D.config = {};
     const views = { overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status };
@@ -468,7 +470,10 @@
   }
   K.on(page, "click", "[data-new-client]", () => clientPanel(null));
   K.on(page, "click", "[data-new-product]", () => productPanel(null));
-  window.addEventListener("hashchange", () => { const h = K.hashParams(); tab = h.path || "overzicht"; if (h.params.klant) sel = h.params.klant; render(); });
+  window.addEventListener("hashchange", () => {
+    const h = K.hashParams(), prevTab = tab, prevSel = sel; tab = h.path || "overzicht"; if (h.params.klant) sel = h.params.klant;
+    render().then(() => { if (tab !== prevTab) K.focusTitle(page, null, { scroll: true }); else if (sel !== prevSel) K.focusTitle(page, "#detail h2", { scroll: true }); });
+  });
   page.innerHTML = '<div class="page-h"><h1 class="h1">Beheer</h1></div><div class="content">' + K.c.skeleton(3) + '</div>';
   render(true);
 })();

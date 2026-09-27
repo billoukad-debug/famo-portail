@@ -67,7 +67,9 @@
     const st = 'style="background:rgba(255,255,255,.12);color:#fff"';
     return '<div class="bulk"><b>' + sel.size + '</b> geselecteerd<button type="button" class="btn btn-sm" style="background:#fff;color:var(--ink)" data-bulk="picking">Verzamellijst</button><button type="button" class="btn btn-sm" ' + st + ' data-bulk="delivery">Leveringsbonnen</button>' + (unpaid ? '<button type="button" class="btn btn-sm" ' + st + ' data-bulk="paid">Markeer betaald (' + unpaid + ')</button>' : "") + '<button type="button" class="btn btn-sm" ' + st + ' data-bulk="csv">Exporteren (CSV)</button><button type="button" class="ibtn" style="color:#fff" data-bulk="clear" aria-label="Selectie wissen">' + K.icon("x") + '</button></div>';
   }
-  function render() {
+  // G-03 / CLA-10 : chaque re-rendu garde le focus (filtre, case, tri, action) ; K.keep le retrouve par ses clés.
+  function render() { return K.keep(page, draw); }
+  function draw() {
     saveFilter();
     const list = filtered();
     page.innerHTML = header() + '<div class="content" style="padding-top:4px">' + (view === "bord" ? bord(list) : view === "kalender" ? kalender(list) : tabel(list)) + '</div>' + bulkBar();
