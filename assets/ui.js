@@ -8,6 +8,19 @@
   K.esc = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   K.eur = v => "€\u00a0" + (Number(v) || 0).toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   K.num = v => String(Number(v) || 0).replace(".", ",");
+  // FOR-06 : « 1 404,48 », « 1.404,48 », « 1404.48 », « 12,5 », « € 12,50 » → nombre ; vide ou illisible → NaN.
+  K.parseNum = v => {
+    if (typeof v === "number") return v;
+    let t = String(v == null ? "" : v).replace(/[\s\u00a0\u202f€]|eur/gi, "");
+    if (!t) return NaN;
+    const c = t.lastIndexOf(","), d = t.lastIndexOf(".");
+    if (c >= 0 && d >= 0) t = c > d ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
+    else if (c >= 0) t = t.replace(/,(?=.*,)/g, "").replace(",", ".");
+    else if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
+    return /^-?\d*\.?\d+$/.test(t) ? Number(t) : NaN;
+  };
+  // Pour l'envoi au serveur : le nombre lu, ou le texte tel quel (le serveur refuse ce qui n'est pas un nombre).
+  K.numIn = v => { const n = K.parseNum(v); return Number.isFinite(n) ? String(n) : String(v == null ? "" : v).trim(); };
   K.qty = v => { const n = Number(v) || 0; return Number.isInteger(n) ? String(n) : n.toLocaleString("nl-BE", { maximumFractionDigits: 3 }); };
   /* ---------- taal / langue (klantportaal : NL of FR ; personeel en beheer : altijd NL) ----------
      Eén schakelaar (K.langSwitch), één woordenboek (K.FR, sleutel = de Nederlandse tekst), één
@@ -20,7 +33,7 @@
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
     "Vandaag": "Aujourd'hui", "Morgen": "Demain", "Gisteren": "Hier", "Algemeen": "Général", "Ontvangen": "Reçue", "Openstaand": "À payer",
-    "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Bezig…": "En cours…", "Naar de inhoud": "Aller au contenu", "Annuleren": "Annuler",
+    "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Bezig…": "En cours…", "Wijzigingen niet bewaard": "Modifications non enregistrées", "U heeft iets gewijzigd in dit venster. Sluiten zonder te bewaren?": "Vous avez modifié quelque chose dans cette fenêtre. Fermer sans enregistrer ?", "Sluiten zonder bewaren": "Fermer sans enregistrer", "Verder bewerken": "Continuer", "Sneltoetsen": "Raccourcis clavier", "Zoeken": "Rechercher", "Sneltoetsen tonen": "Afficher les raccourcis", "Venster sluiten": "Fermer la fenêtre", "Bewaren vanuit een tekstvak": "Enregistrer depuis un champ texte", "Volgende / vorige knop": "Bouton suivant / précédent", "Zoekveld": "Champ de recherche", "Naar de inhoud": "Aller au contenu", "Annuleren": "Annuler",
     "Laden…": "Chargement…", "Openen": "Ouvrir", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
     // start
     "Verse vis en zeevruchten · Antwerpen": "Poissons et fruits de mer frais · Anvers", "Toegang aanvragen": "Demander un accès",
@@ -41,7 +54,7 @@
     "Winkelmand": "Panier", "Leegmaken": "Vider", "Opmerking (bv. dikke moot)": "Remarque (ex. tranche épaisse)", "Leverdag": "Jour de livraison", "Andere dag": "Autre jour",
     "Geen levering op zondag. Vóór 22:00 besteld = morgen geleverd.": "Pas de livraison le dimanche. Commandé avant 22 h = livré demain.",
     "Leveradres": "Adresse de livraison", "Adres bij Famo bekend": "Adresse connue de Famo", "Ander adres? Zet het in de opmerking.": "Autre adresse ? Indiquez-la dans la remarque.",
-    "Opmerking voor Famo": "Remarque pour Famo", "bv. graag achteraan bellen": "ex. sonner à l'arrière", "Totaal excl. btw": "Total HTVA",
+    "Opmerking voor Famo": "Remarque pour Famo", "bv. graag achteraan bellen…": "ex. sonner à l’arrière…", "Totaal excl. btw": "Total HTVA",
     "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór 22:00 voor levering morgen.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant 22 h pour une livraison demain.",
     "Bestelling plaatsen": "Passer la commande", "Uw winkelmand is leeg": "Votre panier est vide", "Kies producten in de catalogus.": "Choisissez des produits dans le catalogue.", "Naar de catalogus": "Vers le catalogue",
     "Op zondag leveren we niet. Kies een andere dag.": "Nous ne livrons pas le dimanche. Choisissez un autre jour.", "Die dag is te vroeg: bestel vóór 22:00 voor levering morgen.": "Ce jour est trop tôt : commandez avant 22 h pour une livraison demain.",
@@ -75,7 +88,7 @@
     // aanvraag
     "Voor horeca en handel. Wij bellen u binnen 1 werkdag met uw prijzen en uw toegang.": "Pour l'horeca et le commerce. Nous vous appelons sous 1 jour ouvrable avec vos prix et votre accès.",
     "Bedrijfsnaam": "Nom de l'entreprise", "Contactpersoon": "Personne de contact", "Telefoon": "Téléphone", "E-mail": "E-mail", "Straat, nummer, gemeente": "Rue, numéro, commune",
-    "Wat bestelt u meestal?": "Que commandez-vous habituellement ?", "bv. garnalen 16/20, zalm, tonijn · ongeveer per week": "ex. crevettes 16/20, saumon, thon · environ par semaine",
+    "Wat bestelt u meestal?": "Que commandez-vous habituellement ?", "bv. garnalen 16/20, zalm, tonijn · ongeveer per week…": "ex. crevettes 16/20, saumon, thon · environ par semaine…",
     "Aanvraag versturen": "Envoyer la demande", "Al klant?": "Déjà client ?", "Geef een geldig e-mailadres.": "Indiquez une adresse e-mail valide.", "Versturen…": "Envoi…",
     "Aanvraag ontvangen.": "Demande reçue.", "Wij bellen u op": "Nous vous appelons au", "binnen 1 werkdag.": "sous 1 jour ouvrable.", "Terug naar de startpagina": "Retour à l'accueil",
     // wachtwoord vergeten
@@ -351,7 +364,8 @@
   c.warn = html => '<div class="notice warn"><i>!</i><div>' + html + '</div></div>';
   c.ok = html => '<div class="notice ok"><i>✓</i><div>' + html + '</div></div>';
   c.skeleton = n => '<div style="display:flex;flex-direction:column;gap:10px">' + Array.from({ length: n || 3 }, () => '<div class="card card-b" style="display:flex;flex-direction:column;gap:8px"><div class="sk" style="width:40%"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:55%"></div></div>').join("") + '</div>';
-  c.kpi = (n, label, warn) => '<span class="kpi' + (warn ? " warn" : "") + '"><b>' + K.esc(n) + '</b> ' + K.esc(label) + '</span>';
+  // INT-12 : un chiffre avec « href » est un lien vers sa source.
+  c.kpi = (n, label, warn, href) => '<' + (href ? 'a href="' + K.esc(href) + '"' : "span") + ' class="kpi' + (warn ? " warn" : "") + (href ? " kpi-link" : "") + '"><b>' + K.esc(n) + '</b> ' + K.esc(label) + '</' + (href ? "a" : "span") + '>';
   c.avatar = name => '<span class="avatar">' + K.esc(K.initials(name)) + '</span>';
   // opts.big → 44px (personnel, gants) ; opts.label → nom accessible. aria-pressed suit K.setOn.
   c.check = (on, attrs, opts) => { const o = opts || {}; return '<button type="button" class="check' + (on ? " on" : "") + (o.big ? " big" : "") + '" ' + (attrs || "") + (o.label ? ' aria-label="' + K.esc(o.label) + '"' : "") + ' aria-pressed="' + (on ? "true" : "false") + '">' + K.icon("check") + '</button>'; };
@@ -374,8 +388,21 @@
   // et le focus revient à l'élément qui l'a ouvert.
   const modals = [];
   const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  // Clé pour retrouver le déclencheur après un re-rendu (id, sinon premier attribut data-*).
+  const keyOf = el => {
+    if (!el || !el.getAttribute || el === document.body) return null;
+    if (el.id) return "#" + CSS.escape(el.id);
+    for (const a of Array.from(el.attributes || [])) if (a.name.indexOf("data-") === 0 && a.value) return "[" + a.name + '="' + CSS.escape(a.value) + '"]';
+    return null;
+  };
+  // Le focus revient au déclencheur ; s'il a disparu (liste redessinée après l'enregistrement), à son remplaçant.
+  function refocus(back, key) {
+    const tryIt = () => { const a = document.activeElement; if (a && a !== document.body && a.isConnected) return true; const t = back && back.isConnected ? back : (key && document.querySelector(key)); if (t && t.focus) { try { t.focus({ preventScroll: true }); } catch (e) { /* ignore */ } return true; } return false; };
+    if (back && back.isConnected && back.focus) { try { back.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    [60, 400, 1200].forEach(ms => setTimeout(tryIt, ms));
+  }
   function modal(el, onEsc) {
-    const back = document.activeElement, entry = { el };
+    const back = document.activeElement, backKey = keyOf(back), entry = { el };
     modals.push(entry);
     const key = e => {
       if (modals[modals.length - 1] !== entry) return;
@@ -391,7 +418,7 @@
     return () => {
       document.removeEventListener("keydown", key);
       const i = modals.indexOf(entry); if (i >= 0) modals.splice(i, 1);
-      if (back && back.isConnected && back.focus) try { back.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+      refocus(back, backKey);
     };
   }
   // Clavier physique (souris/trackpad) : focus au premier champ ; tactile : pas de clavier qui surgit.
@@ -424,13 +451,49 @@
     const s = document.createElement("div"); s.className = "scrim"; s.setAttribute("role", "dialog"); s.setAttribute("aria-modal", "true");
     s.setAttribute("aria-labelledby", "kPanelTitle");
     s.innerHTML = '<div class="panel" tabindex="-1"' + (o.width ? ' style="width:min(' + o.width + ',100%)"' : "") + '><div class="panel-h"><div><h2 class="h2" id="kPanelTitle">' + K.esc(o.title || "") + '</h2>' + (o.sub ? '<p class="sub">' + K.esc(o.sub) + '</p>' : "") + '</div><button type="button" class="ibtn" data-close aria-label="' + K.t("Sluiten") + '">' + K.icon("x") + '</button></div><div class="panel-b">' + (o.body || "") + '</div>' + (o.footer ? '<div class="panel-f">' + o.footer + '</div>' : "") + '</div>';
-    let release = null, open = true;
-    const close = () => { if (!open) return; open = false; s.remove(); if (release) release(); document.body.style.overflow = ""; if (o.onClose) o.onClose(); };
-    s.querySelector("[data-close]").onclick = close; s.onclick = e => { if (e.target === s) close(); };
-    release = modal(s, close); document.body.style.overflow = "hidden"; document.body.appendChild(s);
+    let release = null, open = true, dirty = false, asking = false;
+    const close = () => { if (!open) return; open = false; dirtyPanels.delete(s); s.remove(); if (release) release(); document.body.style.overflow = ""; if (o.onClose) o.onClose(); };
+    // Fermeture demandée par la personne (×, Échap, clic à côté, Annuleren) : si le formulaire a changé, on demande d'abord.
+    const tryClose = async () => {
+      if (!dirty || o.guard === false) return close();
+      if (asking) return; asking = true;
+      const ok = await K.confirm({ title: K.t("Wijzigingen niet bewaard"), text: K.t("U heeft iets gewijzigd in dit venster. Sluiten zonder te bewaren?"), yes: K.t("Sluiten zonder bewaren"), no: K.t("Verder bewerken"), danger: true });
+      asking = false; if (ok) close();
+    };
+    const markDirty = e => { if (e.target && e.target.closest && e.target.closest(".panel-b") && !e.target.closest("[data-no-dirty]")) { dirty = true; dirtyPanels.add(s); } };
+    s.addEventListener("input", markDirty); s.addEventListener("change", markDirty);
+    s.addEventListener("click", e => { if (dirty && e.target.closest && e.target.closest("[data-cancel]")) { e.preventDefault(); e.stopImmediatePropagation(); tryClose(); } }, true);
+    s.querySelector("[data-close]").onclick = tryClose; s.onclick = e => { if (e.target === s) tryClose(); };
+    release = modal(s, tryClose); document.body.style.overflow = "hidden"; document.body.appendChild(s);
     const first = finePointer() && s.querySelector(".panel-b input:not([type=hidden]),.panel-b select,.panel-b textarea");
     try { (first || s.querySelector(".panel")).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
-    return { el: s, close, body: s.querySelector(".panel-b"), footer: s.querySelector(".panel-f") };
+    return { el: s, close, tryClose, markClean: () => { dirty = false; dirtyPanels.delete(s); }, body: s.querySelector(".panel-b"), footer: s.querySelector(".panel-f") };
+  };
+  // Quitter la page avec un panneau modifié ouvert : le navigateur demande confirmation.
+  const dirtyPanels = new Set();
+  if (global.addEventListener) global.addEventListener("beforeunload", e => { if (dirtyPanels.size) { e.preventDefault(); e.returnValue = ""; } });
+  if (doc && doc.addEventListener) doc.addEventListener("keydown", e => {
+    // FOR-02 : ⌘/Ctrl+Entrée dans un champ multiligne = bouton principal de la zone.
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && e.target && e.target.tagName === "TEXTAREA") {
+      const zone = e.target.closest(".scrim,form,.card,.mcard,.kc-side") || doc.body;
+      const btn = zone.querySelector(".panel-f .btn-p:not(:disabled), button[type=submit]:not(:disabled), .btn-p:not(:disabled)");
+      if (btn) { e.preventDefault(); btn.click(); }
+      return;
+    }
+    // CLA-07 : « ? » ouvre la liste des raccourcis (jamais pendant la saisie).
+    if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey && !modals.length) {
+      const t = e.target; if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      e.preventDefault(); K.shortcutsHelp();
+    }
+  });
+  // Raccourcis : liste commune, complétée par les pages (K.shortcuts.push([touche, action])).
+  K.shortcuts = [["/", "Zoeken"], ["?", "Sneltoetsen tonen"], ["Esc", "Venster sluiten"], ["⌘/Ctrl + Enter", "Bewaren vanuit een tekstvak"], ["Tab / Shift + Tab", "Volgende / vorige knop"]];
+  K.shortcutsHelp = () => {
+    const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "kKeysTitle");
+    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kKeysTitle">' + K.t("Sneltoetsen") + '</b><dl class="keys">' + K.shortcuts.map(([k, l]) => '<div><dt><kbd>' + K.esc(k) + '</kbd></dt><dd>' + K.esc(K.t(l)) + '</dd></div>').join("") + '</dl><div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Sluiten") + '</button></div></div>';
+    let release = null; const done = () => { d.remove(); if (release) release(); };
+    d.querySelector("[data-no]").onclick = done; d.onclick = e => { if (e.target === d) done(); };
+    release = modal(d, done); document.body.appendChild(d); d.querySelector("[data-no]").focus();
   };
   const delegated = new WeakMap();
   K.on = (root, ev, sel, fn) => {
@@ -442,7 +505,18 @@
   };
   K.$ = (sel, root) => (root || document).querySelector(sel);
   K.$$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
-  K.setErr = (fieldId, msg) => { const f = document.getElementById(fieldId); if (!f) return; const e = f.querySelector("[data-err]"); if (e) e.textContent = msg || ""; const i = f.querySelector(".input"); if (i) { if (msg) i.setAttribute("aria-invalid", "true"); else i.removeAttribute("aria-invalid"); } };
+  // FOR-05 : message lié au champ (aria-describedby) ; après une série de setErr, le focus va à la première erreur.
+  let errFocus = 0;
+  K.setErr = (fieldId, msg) => {
+    const f = document.getElementById(fieldId); if (!f) return;
+    const e = f.querySelector("[data-err]"); if (e) { e.textContent = msg || ""; if (!e.id) e.id = fieldId + "-err"; }
+    const i = f.querySelector(".input");
+    if (i) { if (msg) { i.setAttribute("aria-invalid", "true"); if (e) i.setAttribute("aria-describedby", e.id); } else i.removeAttribute("aria-invalid"); }
+    if (msg && !errFocus && typeof document.querySelector === "function") errFocus = setTimeout(() => {
+      errFocus = 0;
+      try { const a = document.activeElement; if (a && a.getAttribute && a.getAttribute("aria-invalid") === "true") return; const first = document.querySelector('[aria-invalid="true"]'); if (first && first.focus) first.focus(); } catch (err) { /* ignore */ }
+    }, 0);
+  };
   // Bouton en cours : désactivé, aria-busy, largeur gelée (pas de saut de mise en page), libellé « …ing… ».
   K.busy = (btn, on, label) => { if (!btn) return; if (on) { btn.dataset.label = btn.textContent; btn.style.minWidth = btn.offsetWidth ? btn.offsetWidth + "px" : ""; btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = label || K.t("Bezig…"); } else { btn.disabled = false; btn.removeAttribute("aria-busy"); btn.style.minWidth = ""; if (btn.dataset.label) btn.textContent = btn.dataset.label; } };
   K.hashParams = () => { const h = location.hash.replace(/^#\/?/, ""); const [path, q] = h.split("?"); const p = {}; new URLSearchParams(q || "").forEach((v, k) => { p[k] = v; }); return { path: path || "", params: p }; };

@@ -103,7 +103,9 @@
   S.MODES = ["Contant", "Overschrijving", "Bancontact", "Andere"];
   S.telLink = (tel, label) => tel ? '<a class="btn btn-o btn-sm" href="tel:' + K.esc(String(tel).replace(/[^+\d]/g, "")) + '">' + K.icon("phone") + K.esc(label || "Bellen") + '</a>' : "";
   S.when = v => v ? K.date(K.isoDay(v)) + " " + K.time(v) : "";
-  S.uitzTag = o => o.uitzondering ? '<span class="tag" style="color:var(--danger);border-color:var(--danger-line)" title="' + K.esc(o.uitzonderingNota || "") + '">' + K.esc(o.uitzondering) + '</span>' : "";
+  // INT-10 : l'exception et sa note sont lisibles sans survol (tactile) ; le texte complet reste aussi dans la fiche.
+  S.uitzTag = o => o.uitzondering ? '<span class="tag" style="color:var(--danger);border-color:var(--danger-line);white-space:normal">' + K.esc(o.uitzondering + (o.uitzonderingNota ? " · " + o.uitzonderingNota : "")) + '</span>' : "";
+  S.noteLine = o => o.notes ? '<div class="note-line"><b>Nota</b> ' + K.esc(o.notes) + '</div>' : "";
   S.payTxt = o => o.paiement === "Payé" ? "Betaald" + (o.payeLe ? " op " + S.when(o.payeLe) : "") + (o.modePaiement ? " · " + o.modePaiement : "") : "Openstaand";
   // Journaal (Correcties + uitzondering + creditnota) als tijdlijn-items (.tl).
   S.journalHtml = o => String(o.correcties || "").split("\n").map(s => s.trim()).filter(Boolean).map(c => '<div><i style="background:var(--st-new)"></i><div>' + (/^.*?·\s*(Creditnota|Betaald|Terug op openstaand|Uitzondering)/.test(c) ? "Journaal" : "Correctie") + '<small>' + K.esc(c) + '</small></div></div>').join("");
@@ -115,10 +117,10 @@
     const t = S.totals(o);
     const p = K.panel({ title: "Ontvangst bevestigen", sub: o.client + " · " + o.ref, body:
       '<div class="notice" style="background:var(--canvas)"><div><b>' + K.esc(S.lineTxt(o)) + '</b><div class="quiet" style="font-size:12px;margin-top:2px">' + K.esc((o.klant && o.klant.adresse || "").replace(/\n/g, ", ")) + (o.notes ? ' · „' + K.esc(o.notes) + '”' : "") + '</div><div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b class="mono">Te innen (incl. btw): ' + K.esc(K.eur(t.incl)) + '</b><span class="quiet" style="font-size:12px">' + K.esc(K.eur(t.excl)) + ' excl. + ' + K.esc(K.eur(t.btw)) + ' btw</span>' + S.telLink(o.klant && o.klant.tel) + '</div></div></div>' +
-      K.c.field("Ontvangen door", K.c.input("recipient", { placeholder: "Naam van wie de levering aanneemt", attrs: ' autocomplete="off"' }), { id: "fRec", req: true }) +
+      K.c.field("Ontvangen door", K.c.input("recipient", { placeholder: "bv. Sofie (keuken)…", attrs: ' autocomplete="off"' }), { id: "fRec", req: true }) +
       K.c.field("Betaling", '<div class="opt"><button type="button" data-pay="En attente" class="on">Later / overschrijving</button><button type="button" data-pay="Payé">Contant betaald · ' + K.eur(t.incl) + '</button></div>', { id: "fPay" }) +
       K.c.field("Uitzondering (optioneel)", '<select class="input" id="uitz"><option value="">Geen · levering in orde</option>' + S.UITZ.map(u => '<option>' + u + '</option>').join("") + '</select>', { id: "fUitz", hint: "Afwezig, geweigerd, gedeeltelijk of beschadigd: wordt bij de bestelling bewaard en in het journaal genoteerd." }) +
-      '<div id="fUitzNota" style="display:none">' + K.c.field("Nota bij de uitzondering", K.c.input("uitzNota", { placeholder: "bv. 2 kg zalm geweigerd, doos beschadigd", attrs: ' maxlength="200" autocomplete="off"' }), {}) + '</div>' +
+      '<div id="fUitzNota" style="display:none">' + K.c.field("Nota bij de uitzondering", K.c.input("uitzNota", { placeholder: "bv. 2 kg zalm geweigerd, doos beschadigd…", attrs: ' maxlength="200" autocomplete="off"' }), {}) + '</div>' +
       K.c.field("Bewijs (optioneel)", K.c.input("proof", { type: "url", placeholder: "https://… link naar foto of handtekening" }), { id: "fProof", hint: "Enkel een https-link wordt bewaard. Foto's uploaden komt in een volgende versie." }) +
       '<div class="notice" style="font-size:12.5px"><div><b>Wat gebeurt er:</b> status → Geleverd, het factuurnummer wordt toegekend, de factuur is meteen beschikbaar en de klant krijgt ze per e-mail.</div></div><div id="dErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="dOk">Bevestigen</button>' });
@@ -159,7 +161,7 @@
     const refresh = () => { const n = state.filter(Boolean).length; p.el.querySelector("#vCount").textContent = n + " van " + lines.length + " gecontroleerd"; p.el.querySelector("#vOk").disabled = n !== lines.length; };
     const draw = () => {
       p.el.querySelector("#vl").innerHTML = lines.map(lineHtml).join("");
-      K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v)); lines[i].qty = v; inp.value = v; }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(Number(String(inp.value).replace(",", ".")) || 0)); });
+      K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v)); lines[i].qty = v; inp.value = v; }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0)); });
       refresh();
     };
     draw();
@@ -239,14 +241,14 @@
     const isKg = u => /kg/i.test(u);
     const p = K.panel({ title: "Creditnota maken", sub: o.client + " · factuur " + (o.factuurnummer || o.ref), body:
       '<div class="field"><label>Te crediteren artikelen</label><div class="card" id="cnL">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-cn="' + i + '"', { label: "Crediteren: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b><div class="quiet" style="font-size:12px">geleverd ' + K.esc(K.qty(l.qty) + " " + K.unit(l.unit)) + (l.price != null ? " · " + K.esc(K.eur(l.price)) : "") + '</div></div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" max="' + l.qty + '" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '"><button type="button" data-inc aria-label="Meer">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div></div>' +
-      K.c.field("Reden", K.c.input("cnMotif", { placeholder: "bv. 2 kg zalm geweigerd bij levering", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fCnMotif", req: true, hint: "Komt op de creditnota en in het journaal." }) +
+      K.c.field("Reden", K.c.input("cnMotif", { placeholder: "bv. 2 kg zalm geweigerd bij levering…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fCnMotif", req: true, hint: "Komt op de creditnota en in het journaal." }) +
       '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer;border:1px solid var(--line);border-radius:8px">' + K.c.check(false, 'id="cnRetour"', { label: "Retour in voorraad" }) + '<div><b>Retour in voorraad</b><div class="quiet" style="font-size:12px">De gecrediteerde aantallen gaan terug in de voorraad (beweging „Klantretour”).</div></div></label>' +
       '<div class="notice" style="font-size:12.5px;margin-top:10px"><div><b>Bedrag:</b> <span id="cnSum" class="mono">' + K.esc(K.eur(0)) + '</span> excl. btw · nummer CN-… wordt op de server toegekend. Eén creditnota per factuur.</div></div><div id="cnErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="cnOk" disabled>Creditnota maken</button>' });
     let retour = false;
     const sum = () => { const s = pick.reduce((a, x, i) => a + (x.on && lines[i].price != null ? lines[i].price * x.qty : 0), 0); p.el.querySelector("#cnSum").textContent = K.eur(s); p.el.querySelector("#cnOk").disabled = !pick.some(x => x.on && x.qty > 0); };
     K.on(p.el, "click", "[data-cn]", (e, t) => { const i = +t.dataset.cn; pick[i].on = !pick[i].on; K.setOn(t, pick[i].on); sum(); });
-    K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.min(lines[i].qty, Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v))); pick[i].qty = v; inp.value = v; sum(); }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(Number(String(inp.value).replace(",", ".")) || 0)); });
+    K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.min(lines[i].qty, Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v))); pick[i].qty = v; inp.value = v; sum(); }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0)); });
     p.el.querySelector("#cnRetour").onclick = e => { retour = !retour; K.setOn(e.currentTarget, retour); };
     p.el.querySelector("[data-cancel]").onclick = p.close;
     p.el.querySelector("#cnOk").onclick = async () => {
@@ -280,7 +282,7 @@
       (opts.length ? '<div class="field"><label>Wat wilt u doen?</label><div class="card" id="cOpts">' + opts.map((c, i) => '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer" data-copt="' + i + '">' + K.c.check(false, 'data-cchk="' + i + '"', { label: c.title }) + '<div><b' + (c.danger ? ' style="color:var(--danger)"' : "") + '>' + K.esc(c.title) + '</b><div class="quiet" style="font-size:12px">' + K.esc(c.text) + '</div></div></label>').join("") + '</div></div>' : K.c.warn(o.statut === "Facturée" ? "Geleverd en gefactureerd. Terugdraaien kan enkel een beheerder; een fout in de aantallen wordt met een creditnota rechtgezet." : "Geen correctie mogelijk in deze stap.")) +
       (o.statut === "Facturée" && o.paiement === "Payé" ? K.c.warn("Deze factuur staat op <b>betaald</b>. Zet ze eerst terug op openstaand (fiche → „Terug op openstaand”).") : "") +
       (o.statut === "Facturée" && o.creditnota ? K.c.warn("Er bestaat al een creditnota (<b>" + K.esc(o.creditnota.nummer) + "</b>) op deze factuur: de ontvangst kan niet meer ongedaan gemaakt worden.") : "") +
-      K.c.field("Reden", K.c.input("cReden", { placeholder: "bv. klant belde af, verkeerde dag, per ongeluk vertrokken", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fReden", req: true, hint: "Wordt bij de bestelling bewaard (Correcties)." }) +
+      K.c.field("Reden", K.c.input("cReden", { placeholder: "bv. klant belde af, verkeerde dag, per ongeluk vertrokken…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fReden", req: true, hint: "Wordt bij de bestelling bewaard (Correcties)." }) +
       '<div id="cErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="cOk" disabled>Bevestigen</button>' });
     let chosen = -1;
@@ -303,7 +305,7 @@
     const p = K.panel({ title: "Leverdag en nota aanpassen", sub: o.client + " · " + o.ref, body:
       K.c.field("Leverdag", '<input type="date" class="input" id="eDay" value="' + K.esc(o.dateLiv || "") + '" min="' + K.today() + '">', { id: "fDay", hint: "Geen levering op zondag." }) +
       K.c.field("Nota (voor magazijn en chauffeur)", '<textarea class="input" id="eNote" rows="3" maxlength="500">' + K.esc(o.notes || "") + '</textarea>', {}) +
-      K.c.field("Reden van de wijziging", K.c.input("eReden", { placeholder: "bv. klant belde: liever donderdag", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fEReden", req: true }) + '<div id="eErr"></div>',
+      K.c.field("Reden van de wijziging", K.c.input("eReden", { placeholder: "bv. klant belde: liever donderdag…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fEReden", req: true }) + '<div id="eErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="eOk">Opslaan</button>' });
     p.el.querySelector("[data-cancel]").onclick = p.close;
     p.el.querySelector("#eOk").onclick = async () => {
