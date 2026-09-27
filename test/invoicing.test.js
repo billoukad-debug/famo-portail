@@ -113,3 +113,37 @@ test("statut de paiement réservé au beheerder", async () => {
   assert.equal((await call("updateorder.js", { id: "recORD0005", paiement: "Payé" }, { headers: cookie("staff") })).statusCode, 403);
   assert.equal((await call("updateorder.js", { id: "recORD0005", paiement: "Payé" }, { headers: cookie("admin") })).statusCode, 200);
 });
+
+// ---- Stock sous concurrence (audit B-10, B-11) ----
+async function seedStock(orders, qty) {
+  await seed(orders);
+  await store().replaceAll("Configuratie", [rec("recCONF", { Bedrijfsnaam: "FAMO Seafood", "BTW-tarief": 6, "Voorraad afboeken": true })]);
+  await store().replaceAll("Stock", [rec("recSTK1", { Produit: "Tong", "Quantité disponible": qty })]);
+  await store().replaceAll("Mouvements de stock", []);
+}
+const PRETE = (id, qty) => rec(id, { "Référence": "CMD-2026-" + id.slice(-4), Date: new Date().toISOString().slice(0, 10), Statut: "Prête", "Préparation validée": true, Client: ["recCLA"], "Lignes (produits / quantités)": "Tong × " + qty + " kg [€18.49]", Total: 18.49 * qty });
+
+test("3 commandes du même produit partent ensemble : 3 décomptes (8 → 5)", async () => {
+  await seedStock([PRETE("recDEP0001", 1), PRETE("recDEP0002", 1), PRETE("recDEP0003", 1)], 8);
+  const r = await Promise.all(["recDEP0001", "recDEP0002", "recDEP0003"].map((id) => call("updateorder.js", { id, statut: "Sortie en livraison" }, { headers: cookie("staff") })));
+  r.forEach((x) => assert.equal(x.statusCode, 200, JSON.stringify(x.payload)));
+  assert.equal((await store().get("Stock", "recSTK1")).fields["Quantité disponible"], 5);
+});
+
+test("double « Vertrekt » sur deux instances : un seul décompte", async () => {
+  await seedStock([PRETE("recDEP0004", 2)], 8);
+  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; return require(p); };
+  const a = inst(), b = inst();
+  const go = async (h) => { const res = mkRes(); await h({ method: "POST", body: { id: "recDEP0004", statut: "Sortie en livraison" }, headers: cookie("staff"), query: {} }, res); return res; };
+  const [x, y] = await Promise.all([go(a), go(b)]);
+  assert.deepStrictEqual([x.statusCode, y.statusCode].sort(), [200, 409]);
+  assert.equal((await store().get("Stock", "recSTK1")).fields["Quantité disponible"], 6);
+});
+
+test("stock insuffisant : rien n'est décompté, départ refusé", async () => {
+  await seedStock([PRETE("recDEP0005", 5)], 3);
+  const r = await call("updateorder.js", { id: "recDEP0005", statut: "Sortie en livraison" }, { headers: cookie("staff") });
+  assert.equal(r.statusCode, 409);
+  assert.equal((await store().get("Stock", "recSTK1")).fields["Quantité disponible"], 3);
+  assert.ok(!(await store().get("Commandes", "recDEP0005")).fields["Stock afgeboekt"], "réservation annulée");
+});

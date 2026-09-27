@@ -5,6 +5,7 @@ const __prices = require("../lib/prices");
 const __lev = require("../lib/levering");
 const __mail = require("../lib/ordermail");
 const __bill = require("../lib/billing");
+const __atomic = require("../lib/atomic");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -104,6 +105,24 @@ async function moveStock(lignes, sign){
     const previous = requested.get(key) || { nom: item.nom, qty: 0 };
     previous.qty += item.qty;
     requested.set(key, previous);
+  }
+  // Moteur SQL (production) : variations atomiques par article. Trois commandes du même produit
+  // qui partent ensemble décomptent bien trois fois (avant : lecture puis écriture d'une valeur
+  // absolue, la dernière écrasait les autres — audit B-10).
+  if (__atomic.store()) {
+    for (const it of requested.values()){
+      const rec = recs.find(r => norm(r.fields["Produit"]) === norm(it.nom));
+      if (!rec){ report.missing.push(it.nom); continue; }
+      const r = await __atomic.adjust("Stock", rec.id, "Quantité disponible", sign * it.qty, sign < 0 ? { min: 0 } : null);
+      if (!r.ok) { report.insufficient.push({ nom: it.nom, available: r.before || 0, requested: it.qty }); continue; }
+      report.done.push({ nom: it.nom, qty: it.qty, van: r.before, naar: r.after, id: rec.id });
+    }
+    if (sign < 0 && (report.missing.length || report.insufficient.length)) {
+      for (const d of report.done) await __atomic.adjust("Stock", d.id, "Quantité disponible", d.qty); // rien de partiel
+      return { ...report, done: [] };
+    }
+    report.done.forEach(d => { delete d.id; });
+    return report;
   }
   const updates = [];
   for (const it of requested.values()){
@@ -484,9 +503,14 @@ async function handle(req, res, body, id){
       }
       const rules = await __lev.loadRules(at);
       if (rules.voorraadAfboeken && !f["Stock afgeboekt"]) {
+        // Deux tablettes appuient sur « Vertrekt » en même temps, sur deux instances : une seule
+        // réserve le décompte (écriture conditionnelle, audit B-11). Airtable : verrou mémoire seul.
+        const claimed = await __atomic.claim("Commandes", id, "Stock afgeboekt", false, true);
+        if (claimed === false) return res.status(409).json({ error: "Deze bestelling is al vertrokken (ander toestel)." });
         const useLines = (typeof lignes === "string" ? fields["Lignes (produits / quantités)"] : f["Lignes (produits / quantités)"]);
         stockReport = await moveStock(useLines, -1);
         if (stockReport.error || stockReport.missing.length || stockReport.insufficient.length) {
+          if (claimed) await __atomic.claim("Commandes", id, "Stock afgeboekt", true, false);
           return res.status(409).json({
             error: stockReport.error || "Voorraadcontrole mislukt",
             stock: stockReport
@@ -549,7 +573,7 @@ async function handle(req, res, body, id){
     if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets om bij te werken" });
 
     const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-    if (j.error) { await undoStock(stockReport, -1); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" }); }
+    if (j.error) { await undoStock(stockReport, -1); if (fields["Stock afgeboekt"]) await __atomic.claim("Commandes", id, "Stock afgeboekt", true, false); return res.status(500).json({ error: j.error.message || "Bijwerken mislukt" }); }
     if (stockReport && fields["Stock afgeboekt"]) {
       const movementError = await createStockMovements(stockReport, f["Référence"] || id, "Sortie livraison");
       if (movementError) stockReport.journalWarning = movementError;
