@@ -8,6 +8,7 @@ const __mail = require("../lib/mail");
 const __prices = require("../lib/prices");
 const __ordermail = require("../lib/ordermail");
 const __lev = require("../lib/levering");
+const __bill = require("../lib/billing");
 const BASE = "appcdduLth9iGX8I0";
 const REC = /^[A-Za-z0-9]{1,40}$/;
 
@@ -135,6 +136,7 @@ async function statusPayload() {
     id: r.id,
     nom: r.fields["Nom"] || "",
     adresse: r.fields["Lieu de livraison"] || "",
+    facturatieadres: r.fields["Facturatieadres"] || "",
     tel: r.fields["Téléphone"] || "",
     btw: r.fields["BTW-nummer"] || "",
     klantnr: r.fields["Klantnummer"] || "",
@@ -248,8 +250,15 @@ module.exports = async (req, res) => {
         "BIC": clean(body.bic, 20).replace(/\s+/g, "").toUpperCase(),
         "Betalingsvoorwaarden": clean(body.betalingsvoorwaarden, 200),
         "Leveringsvoorwaarden": clean(body.leveringsvoorwaarden, 500),
-        "Bestellingen e-mail": clean(body.bestellingenEmail, 120).toLowerCase()
+        "Bestellingen e-mail": clean(body.bestellingenEmail, 120).toLowerCase(),
+        // Mentions légales (WVV art. 2:20) et mode de facturation (lib/billing.js).
+        "Juridische naam": clean(body.juridischeNaam, 120),
+        "Rechtsvorm": clean(body.rechtsvorm, 40),
+        "RPR": clean(body.rpr, 120)
       };
+      const mode = clean(body.facturatie, 20);
+      if (mode && !__bill.MODES.includes(mode)) return res.status(400).json({ error: "Ongeldige facturatie: Boekhouder of Portaal" });
+      fields["Facturatie"] = mode || "Boekhouder";
       if (fields["Bestellingen e-mail"] && !__mail.isEmail(fields["Bestellingen e-mail"])) {
         return res.status(400).json({ error: "Ongeldig e-mailadres voor bestelmeldingen" });
       }
@@ -479,6 +488,8 @@ module.exports = async (req, res) => {
       const fields = {
         "Nom": nom,
         "Lieu de livraison": clean(body.adresse, 250),
+        // Adresse du siège (facture, UBL) si différente du lieu de livraison (audit C-16).
+        "Facturatieadres": clean(body.facturatieadres, 250),
         "Téléphone": clean(body.tel, 40),
         "BTW-nummer": clean(body.btw, 40),
         "Klantnummer": clean(body.klantnr, 40),
@@ -490,6 +501,9 @@ module.exports = async (req, res) => {
       if (fields["Email"] && !__mail.isEmail(fields["Email"])) {
         return res.status(400).json({ error: "Ongeldig e-mailadres voor deze klant" });
       }
+      // N° TVA belge : contrôle modulo 97 (il devient l'adresse Peppol du client dans l'UBL).
+      const tva = fields["BTW-nummer"].toUpperCase().replace(/[\s.]/g, "");
+      if (tva && /^(BE)?\d{9,10}$/.test(tva)) { const d = tva.replace(/\D/g, "").padStart(10, "0"); if (97 - (Number(d.slice(0, 8)) % 97) !== Number(d.slice(8))) return res.status(400).json({ error: "Ongeldig Belgisch BTW-nummer voor deze klant (controlecijfers)" }); }
 
       let saved;
       if (body.id) {

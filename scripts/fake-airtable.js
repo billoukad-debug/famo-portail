@@ -15,7 +15,7 @@ const SCHEMA = {
   Clients: {
     // Gearchiveerd : plus de connexion ni de présence dans les listes (api/catalogue authClient, api/staff).
     // Favorieten : JSON {favorieten:[ids], standaard:{id:qty}} synchronisé entre appareils (api/klantorder).
-    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select" },
+    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Facturatieadres": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select" },
     selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
   },
   Catalogue: {
