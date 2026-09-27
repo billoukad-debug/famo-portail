@@ -28,7 +28,7 @@ function seed(db) {
   const P = (name) => products.find((p) => p.fields["Produit"] === name);
   db.create("Stock", products.filter((p) => p.fields["Actif"]).map((p, i) => ({ "Produit": p.fields["Produit"], "Quantité disponible": [12, 8, 6, 3, 1, 20, 14, 9, 7, 5, 200, 4][i] || 5, "Seuil bas": 4 })));
   const clients = db.create("Clients", [
-    { "Nom": "Aloha Poke Bowls", "Email": "keuken@alohapoke.example", "Téléphone": "+32 489 33 99 96", "Lieu de livraison": "Jezusstraat 32\n2000 Antwerpen", "Gebruikersnaam": "aloha", "Wachtwoord": "welkom123", "BTW-nummer": "BE 0123.456.789", "Klantnummer": "K-001", "Infos générales": "Levering via de achterdeur, bellen bij aankomst.", "Articles habituels": "Zalm, vannamei 26-30, tonijn" },
+    { "Nom": "Aloha Poke Bowls", "Email": "keuken@alohapoke.example", "Téléphone": "+32 3 000 00 01", "Lieu de livraison": "Jezusstraat 32\n2000 Antwerpen", "Gebruikersnaam": "aloha", "Wachtwoord": "welkom123", "BTW-nummer": "BE 0123.456.789", "Klantnummer": "K-001", "Infos générales": "Levering via de achterdeur, bellen bij aankomst.", "Articles habituels": "Zalm, vannamei 26-30, tonijn" },
     { "Nom": "Brasserie De Kaai", "Email": "chef@dekaai.example", "Téléphone": "+32 3 123 45 67", "Lieu de livraison": "Waalsekaai 10\n2000 Antwerpen", "Gebruikersnaam": "dekaai", "Wachtwoord": "kaai2026!", "BTW-nummer": "BE 0987.654.321", "Klantnummer": "K-002" },
     { "Nom": "Vishandel Nora", "Téléphone": "+32 3 765 43 21", "Lieu de livraison": "Turnhoutsebaan 200\n2140 Borgerhout", "Gebruikersnaam": "nora", "Wachtwoord": "nora-vis-1", "Klantnummer": "K-003" }
   ]);
@@ -48,7 +48,7 @@ function seed(db) {
   ]);
   db.create("Aanvragen", [
     { "Bedrijfsnaam": "Sushi Sato", "Contactpersoon": "Yuki Sato", "Email": "yuki@sushisato.example", "Telefoon": "+32 470 11 22 33", "Adres": "Meir 12, 2000 Antwerpen", "Notities": "Wij zoeken een vaste leverancier voor sashimi-kwaliteit.", "Status": "Nieuw" },
-    { "Bedrijfsnaam": "AYBI group", "Contactpersoon": "Bilal Kaddouri", "Email": "aybi@example.com", "Telefoon": "+32 489 33 99 96", "Adres": "Rue Constant Deraedt 10", "Status": "Verwerkt" }
+    { "Bedrijfsnaam": "Voorbeeld BV", "Contactpersoon": "Jan Janssens", "Email": "info@voorbeeld.example", "Telefoon": "+32 3 000 00 00", "Adres": "Voorbeeldstraat 1", "Status": "Verwerkt" }
   ]);
   db.save();
   return { configId: cfg.id, products, clients };
