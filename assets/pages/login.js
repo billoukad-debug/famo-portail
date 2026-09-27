@@ -1,5 +1,6 @@
 (function () {
-  const cfg = window.__LOGIN || { want: "staff" };
+  // Rôle demandé par la page : <body data-login="admin|staff"> (pas de script inline : CSP).
+  const cfg = window.__LOGIN || { want: document.body.dataset.login === "admin" ? "admin" : "staff" };
   const admin = cfg.want === "admin";
   const app = document.getElementById("app");
   const denied = new URLSearchParams(location.search).get("denied") === "1";
