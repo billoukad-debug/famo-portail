@@ -655,6 +655,12 @@
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
+    // G-20 : au téléphone la navigation défile à l'horizontale — un fondu montre qu'il reste des onglets,
+    // et l'onglet de la page est ramené dans la vue.
+    const sideEl = app.querySelector(".side");
+    const edge = () => { const max = sideEl.scrollWidth - sideEl.clientWidth; sideEl.classList.toggle("more-r", max - sideEl.scrollLeft > 4); sideEl.classList.toggle("more-l", sideEl.scrollLeft > 4); };
+    const onNav = sideEl.querySelector(".nav.on"); if (onNav && sideEl.scrollWidth > sideEl.clientWidth) sideEl.scrollLeft = Math.max(0, onNav.offsetLeft - (sideEl.clientWidth - onNav.offsetWidth) / 2);
+    sideEl.addEventListener("scroll", edge, { passive: true }); if (global.addEventListener) global.addEventListener("resize", edge); edge();
     K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
     globalSearch(app);
     return document.getElementById("page");

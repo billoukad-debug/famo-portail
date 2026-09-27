@@ -23,8 +23,14 @@ const PAIRS = [
   ["danger", "card", 4.5, "message d'erreur"], ["danger", "danger-bg", 4.5, "alerte"], ["klei", "card", 4.5, "« uw prijs »"],
   ["st-new-ink", "st-new-bg", 4.5, "statut Ontvangen"], ["st-ready-ink", "st-ready-bg", 4.5, "statut Klaar"], ["st-road-ink", "st-road-bg", 4.5, "statut Onderweg"],
   ["st-done-ink", "st-done-bg", 4.5, "statut Geleverd"], ["st-inv-ink", "st-inv-bg", 4.5, "statut Gefactureerd"],
-  ["line-input", "card", 3, "bordure des champs (WCAG 1.4.11)"], ["line-input", "canvas", 3, "bordure des champs (fond crème)"], ["p", "canvas", 3, "anneau de focus"]
+  ["line-input", "card", 3, "bordure des champs (WCAG 1.4.11)"], ["line-input", "canvas", 3, "bordure des champs (fond crème)"], ["p", "canvas", 3, "anneau de focus"],
+  // Couples relevés par le contrôle du rendu (evidence G-07 / G-16) : ce que l'écran affiche vraiment.
+  ["p-deep", "p-soft", 4.5, "choix .opt / catégorie sélectionnés"], ["ink-2", "p-soft", 4.5, "texte discret sur une ligne choisie"],
+  ["white", "p", 4.5, "barre panier, connexion équipe (sans opacité)"], ["white", "ink", 4.5, "toast"], ["p-soft", "ink", 4.5, "action d'un toast"],
+  ["p-soft", "danger", 4.5, "action d'un toast d'erreur"], ["white", "p-deep", 4.5, "bouton principal survolé"],
+  ["line-input", "card", 3, "contour de la recherche et des filtres (.search, dates van / tot)"], ["p", "card", 3, "anneau du champ quantité (stepper)"]
 ];
+// Le rendu réel (opacités, fonds superposés) est vérifié par scripts/ux-audit.js (ACC-05) sur chaque écran.
 let bad = 0;
 for (const [fg, bg, min, use] of PAIRS) {
   if (!T[fg] || !T[bg]) { console.log("?  " + fg + " / " + bg + " : variable absente"); bad++; continue; }
