@@ -204,3 +204,22 @@ test("api/config : comptes en COUNT SQL, cache CDN seulement sur la réponse pub
   const staff = await callApi("config", { headers: { cookie: cookie() }, query: { public: "1" } });
   assert.equal(staff.headers["cache-control"], undefined, "personnel connecté : jamais la version en cache");
 });
+
+test("lib/airtable : lecture sur 429 -> attente de la pénalité puis nouvel essai ; écriture inchangée", async () => {
+  const airtable = require(path.join(ROOT, "lib", "airtable.js"));
+  const saved = globalThis.fetch;
+  process.env.AIRTABLE_429_WAIT_MS = "40";
+  const calls = [];
+  try {
+    globalThis.fetch = async (url, o) => { calls.push({ t: Date.now(), m: (o && o.method) || "GET" }); return new Response(JSON.stringify(calls.length === 1 ? { error: { type: "RATE_LIMIT" } } : { records: [] }), { status: calls.length === 1 ? 429 : 200 }); };
+    const r = await airtable.at("Clients");
+    assert.deepEqual(r, { records: [] });
+    assert.equal(calls.length, 2);
+    assert.ok(calls[1].t - calls[0].t >= 35, "attente respectée avant de relire");
+    calls.length = 0;
+    globalThis.fetch = async () => { calls.push(1); return new Response(JSON.stringify({ error: { type: "RATE_LIMIT", message: "trop" } }), { status: 429 }); };
+    const twice = await airtable.at("Clients");
+    assert.equal(twice.error.type, "RATE_LIMIT", "une seule attente : ensuite l'erreur remonte");
+    assert.equal(calls.length, 2);
+  } finally { globalThis.fetch = saved; delete process.env.AIRTABLE_429_WAIT_MS; }
+});
