@@ -53,7 +53,7 @@ const SCHEMA = {
   },
   Stock: { fields: { "Produit": "text", "Quantité disponible": "number", "Seuil bas": "number", "Produit lié": "links" }, primary: "Produit" },
   "Mouvements de stock": { fields: { "Mouvement": "text", "Date et heure": "datetime", "Type": "select", "Produit": "text", "Quantité": "number", "Stock avant": "number", "Stock après": "number", "Référence commande": "text", "Note": "text" }, selects: { "Type": ["Sortie livraison", "Correction inventaire", "Entrée stock", "Retour client", "Annulation sortie"] }, primary: "Mouvement" },
-  "Prix négociés": { fields: { "Libellé": "text", "Client": "links", "Produit": "links", "Prix négocié": "number" }, primary: "Libellé" },
+  "Prix négociés": { fields: { "Libellé": "text", "Client": "links", "Produit": "links", "Prix négocié": "number", "Geldig van": "date", "Geldig tot": "date" }, primary: "Libellé" },
   Configuratie: {
     // Règles de livraison et de facturation lues par lib/levering.js : Besteldeadline "22:00",
     // Leverdagen "ma,di,wo,do,vr,za", Gesloten dagen (une date ISO par ligne), Minimum bestelling,

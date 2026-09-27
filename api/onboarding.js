@@ -153,7 +153,9 @@ async function statusPayload() {
     id: r.id,
     clientId: (r.fields["Client"] || [])[0] || "",
     productId: (r.fields["Produit"] || [])[0] || "",
-    prix: __prices.negotiatedValue(r.fields["Prix négocié"])
+    prix: __prices.negotiatedValue(r.fields["Prix négocié"]),
+    van: __prices.periodOf(r.fields).van,
+    tot: __prices.periodOf(r.fields).tot
   }));
 
   const stockList = (stock.records || []).map(r => ({
@@ -562,7 +564,7 @@ const handler = async (req, res) => {
         const neg = await atAll(encodeURIComponent("Prix négociés"));
         const client = Object.assign({}, cur.fields); delete client["Wachtwoord"]; delete client["Commandes"]; delete client["Prix négociés"];
         return res.status(200).json({ ok: true, export: { exportedAt: new Date().toISOString(), client,
-          prijzen: (neg.records || []).filter(r => (r.fields["Client"] || []).includes(body.id)).map(r => ({ product: r.fields["Produit"], prijs: r.fields["Prix négocié"] })),
+          prijzen: (neg.records || []).filter(r => (r.fields["Client"] || []).includes(body.id)).map(r => Object.assign({ product: r.fields["Produit"], prijs: r.fields["Prix négocié"] }, __prices.periodOf(r.fields))),
           bestellingen: mine.map(r => { const f = Object.assign({}, r.fields); delete f["Client"]; delete f["Idempotentie"]; return f; }) } });
       }
       // Anonymiser : seulement un client archivé. On garde ce que les factures doivent montrer pendant
@@ -704,6 +706,11 @@ const handler = async (req, res) => {
       const prix = __prices.negotiatedValue(body.prix);
       if (!clientId || !productId) return res.status(400).json({ error: "Klant en product zijn verplicht" });
       if (!prixVide && prix === null) return res.status(400).json({ error: "Ongeldige prijs" });
+      // Période facultative (audit H-07) : prix d'action ou de la semaine, à côté du prix permanent.
+      const van = body.van ? __prices.iso(body.van) : "", tot = body.tot ? __prices.iso(body.tot) : "";
+      if ((body.van && !van) || (body.tot && !tot)) return res.status(400).json({ error: "Datum: JJJJ-MM-DD" });
+      if (van && tot && tot < van) return res.status(400).json({ error: "„Geldig tot” ligt vóór „Geldig van”" });
+      if ((van || tot) && prixVide) return res.status(400).json({ error: "Een tijdelijke prijs heeft een bedrag nodig" });
       // Prix négocié suspect (0, < ½ ou > 2 × le prix de base) : confirmation explicite (audit L-04).
       if (!prixVide && body.confirm !== true && REC.test(productId)) {
         const p = await at(`Catalogue/${productId}`);
@@ -716,13 +723,15 @@ const handler = async (req, res) => {
       const existing = (all.records || []).find(r => {
         const c = r.fields["Client"] || [];
         const p = r.fields["Produit"] || [];
-        return c.includes(clientId) && p.includes(productId);
+        const per = __prices.periodOf(r.fields);
+        return c.includes(clientId) && p.includes(productId) && per.van === van && per.tot === tot;
       });
       const fields = {
         "Client": [clientId],
         "Produit": [productId],
         "Prix négocié": prix === null ? null : Math.round(prix * 100) / 100
       };
+      if (van || tot) { fields["Geldig van"] = van || null; fields["Geldig tot"] = tot || null; }
       let saved;
       if (existing) {
         saved = await at(`${encodeURIComponent("Prix négociés")}/${existing.id}`, {
@@ -778,7 +787,7 @@ const handler = async (req, res) => {
         const existing = (all.records || []).find(r => {
           const c = r.fields["Client"] || [];
           const p = r.fields["Produit"] || [];
-          return c.includes(clientId) && p.includes(productId);
+          return c.includes(clientId) && p.includes(productId) && !__prices.isPeriod(__prices.periodOf(r.fields)); // grille = prix permanents
         });
         const fields = {
           "Client": [clientId],
