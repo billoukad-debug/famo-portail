@@ -63,6 +63,9 @@ module.exports = async (req, res) => {
       }));
     res.status(200).json({ orders });
   } catch (e) {
+    // 503 : base injoignable pendant la vérification du mot de passe (authClient, D-06 :
+    // à lever dans api/catalogue.js) — jamais présentée comme un mauvais mot de passe.
+    if (e && e.status === 503) { L.error("database onbereikbaar", { err: e }); return res.status(503).json({ error: "Database tijdelijk onbereikbaar. Probeer opnieuw." }); }
     { L.error("serverfout", { err: e }); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };
