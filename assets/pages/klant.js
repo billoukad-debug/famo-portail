@@ -101,7 +101,15 @@
     if (orders && !force) return orders;
     const d = await api("/api/orders", { json: creds(), retry: true });
     orders = d.orders || [];
+    K.setBadges({ bestellingen: orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").length });
+    K.session.set("famoKlantOrdersAt", Date.now());
     return orders;
+  }
+  // Pastille « Bestellingen » (factures à payer) : les commandes sont relues au plus toutes les 15 min en arrière-plan.
+  function refreshOrderBadge() {
+    const at = K.session.get("famoKlantOrdersAt", 0);
+    if (orders || Date.now() - at < 15 * 60 * 1000) return;
+    loadOrders(true).catch(() => {});
   }
 
   /* ---------- catalogus ---------- */
@@ -305,7 +313,7 @@
       ? '<div class="tl"><div><i class="on"></i><div><b>' + K.t("Ontvangen") + '</b><small>' + K.esc(when["Reçue"]) + '</small></div></div><div><i class="on" style="background:var(--danger)"></i><div><b>' + K.t("Geannuleerd") + '</b><small>' + K.esc([stamp(o.annuleeLe), o.motifAnnulation ? K.t("Reden") + ": " + K.t(o.motifAnnulation) : ""].filter(Boolean).join(" · ")) + '</small></div></div></div>'
       : '<div class="tl">' + K.STATUSES.map((st, i) => '<div><i' + (i <= idx ? ' class="on"' : "") + '></i><div>' + (i <= idx ? '<b>' + K.esc(K.status(st)) + '</b>' : K.esc(K.status(st))) + (when[st] ? '<small>' + K.esc(when[st]) + '</small>' : "") + '</div></div>').join("") + '</div>';
     const row = (label, value) => value ? '<div class="row"><div>' + K.esc(label) + '<small style="white-space:pre-line">' + K.esc(value) + '</small></div></div>' : "";
-    const body = '<div class="mcard" style="margin-bottom:10px">' + tl + '</div>' +
+    const body = '<div class="mcard" style="margin-bottom:10px">' + tl + '</div>' + (o.statut === "Prête" ? '<p class="quiet" style="font-size:12.5px;margin:0 0 10px">' + K.t("Wordt klaargezet · wijzigen of annuleren: bel Famo.") + '</p>' : "") +
       (o.uitzondering ? K.c.warn('<b>' + K.t("Uitzondering levering") + '</b> ' + K.esc(o.uitzondering)) + '<div style="height:10px"></div>' : "") +
       '<div class="mcard" style="margin-bottom:10px"><div class="sec" style="margin:0 0 6px">' + K.t("Artikelen") + '</div><div style="display:flex;flex-direction:column;gap:6px;font-size:13px">' + lines.map(l => '<div style="display:flex;justify-content:space-between;gap:10px"><span>' + K.esc(K.qty(l.qty) + "× " + l.name + (l.unit ? " · " + K.unit(l.unit) : "") + (l.comment ? " (" + l.comment + ")" : "")) + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>').join("") + '<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--line);padding-top:6px"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div></div>' +
       '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") +
@@ -319,8 +327,7 @@
   }
   // Zelfde knoppen op de kaart en in het paneel : één binding per host.
   function bindOrderActions(root) {
-    K.on(root, "click", "[data-open]", (e, t) => { if (e.target.closest("button,a")) return; openOrder(t.dataset.open); });
-    K.on(root, "keydown", "[data-open]", (e, t) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openOrder(t.dataset.open); } });
+    K.on(root, "click", "[data-open]", (e, t) => { const b = e.target.closest("button,a"); if (b && b !== t) return; openOrder(t.dataset.open); });
     K.on(root, "click", "[data-cancel-order]", async (e, t) => {
       const ref = t.dataset.cancelOrder;
       if (!(await K.confirm({ title: K.t("Bestelling") + " " + ref + " " + K.t("annuleren?"), text: K.t("Ze wordt niet klaargezet en niet geleverd. U kunt ze daarna opnieuw bestellen."), yes: K.t("Annuleren"), no: K.t("Behouden"), danger: true }))) return;
@@ -361,9 +368,12 @@
     const list = orders.filter(o => ordFilter === "lopend" ? open(o) : ordFilter === "geleverd" ? !open(o) : ordFilter === "tebetalen" ? unpaid(o) : true);
     const nUnpaid = orders.filter(unpaid).length;
     const chips = '<div class="cats">' + [["lopend", K.t("Lopend")], ["geleverd", K.t("Geleverd · documenten")], ["tebetalen", K.t("Te betalen") + (nUnpaid ? " · " + nUnpaid : "")], ["alles", K.t("Alles")]].map(([k, l]) => '<button type="button" data-of="' + k + '"' + (k === ordFilter ? ' class="on"' : "") + '>' + l + '</button>').join("") + '</div>';
-    const card = o => { const cancelled = o.statut === K.CANCELLED; return '<div class="mcard" style="display:flex;flex-direction:column;gap:6px' + (cancelled ? ";opacity:.75" : "") + '"><div data-open="' + K.esc(o.ref) + '" role="button" tabindex="0" style="display:flex;flex-direction:column;gap:6px;cursor:pointer"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) : K.date(o.date)) + '</b>' + badge(o) + '</div><div class="muted" style="font-size:12.5px;white-space:normal">' + K.esc(K.linesSummary(o.lignes)) + '</div><div style="display:flex;justify-content:space-between;align-items:center"><span class="mono quiet" style="font-size:11px">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</span><span style="display:flex;align-items:center;gap:8px"><b class="mono">' + K.eur(o.total) + '</b><span class="quiet" style="font-size:12px;display:inline-flex;align-items:center">' + K.t("Details") + K.icon("chev") + '</span></span></div></div><div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">' + actions(o) + '</div>' + (o.statut === "Prête" ? '<div class="quiet" style="font-size:12px">' + K.t("Wordt klaargezet · wijzigen of annuleren: bel Famo.") + '</div>' : "") + '</div>'; };
+    // Une ligne par commande (et plus une carte) : date, articles, statut, montant ; sur ordinateur les documents
+    // et « Opnieuw bestellen » restent sur la ligne. Tout le reste (wijzigen, annuleren, détail) : clic sur la ligne.
+    const quick = o => { const r = ' data-ref="' + K.esc(o.ref) + '"'; return (o.statut === "Facturée" ? '<button type="button" class="btn btn-o btn-sm" data-doc="invoice"' + r + '>' + K.t("Factuur") + '</button>' : "") + (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<button type="button" class="btn btn-o btn-sm" data-doc="delivery"' + r + '>' + K.t("Leveringsbon") + '</button>' : "") + '<button type="button" class="btn btn-ghost btn-sm" data-reorder="' + K.esc(o.ref) + '">' + K.t("Opnieuw bestellen") + '</button>'; };
+    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
     const empty = ordFilter === "lopend" ? K.c.empty(K.t("Geen lopende bestellingen"), K.tt("Bestel vóór {t} voor levering morgen.", { t: deadline() }), '<a class="btn btn-p btn-sm" href="#/catalogus" style="margin-top:6px">' + K.t("Naar de catalogus") + '</a>') : ordFilter === "tebetalen" ? K.c.empty(K.t("Geen openstaande facturen"), K.t("Alles is betaald. Dank u wel.")) : K.c.empty(K.t("Niets in deze lijst"));
-    shell("bestellingen", '<div class="mlist grid">' + (ordFilter === "tebetalen" && list.length ? '<div class="full">' + statement(list) + '</div>' : "") + (list.length ? list.map(card).join("") : '<div class="full">' + empty + '</div>') + '</div>', topbar(K.t("Mijn bestellingen"), cat.client.nom).slice(0, -6) + chips + "</div>");
+    shell("bestellingen", '<div class="mlist grid">' + (ordFilter === "tebetalen" && list.length ? '<div class="full">' + statement(list) + '</div>' : "") + (list.length ? '<div class="olist full">' + list.map(card).join("") + '</div>' : '<div class="full">' + empty + '</div>') + '</div>', topbar(K.t("Mijn bestellingen"), cat.client.nom).slice(0, -6) + chips + "</div>");
     K.on(app, "click", "[data-of]", (e, t) => { ordFilter = t.dataset.of; renderOrderList(); });
     bindOrderActions(app);
   }
@@ -477,6 +487,7 @@
   // INT-07 : chaque vue retrouve sa position de défilement (retour du panier vers le catalogue).
   const scrollPos = {}; let curPath = null;
   function render() {
+    setTimeout(() => { K.setBadges({}); refreshOrderBadge(); }, 0);
     const { path } = K.hashParams();
     closePanel();
     if (curPath !== null) scrollPos[curPath] = window.scrollY;

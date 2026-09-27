@@ -17,8 +17,28 @@
     S.window = Number(o.window) || 0;
     S.config = c.config || S.config; S.loadedAt = fresh ? fresh.at : Date.now();
     if (global.FamoDocuments && S.config) FamoDocuments.setCompany(S.config);
+    S.badges();
     return S;
   };
+  // Pastilles de la navigation, calculées sur les commandes déjà chargées (aucun appel en plus) :
+  // à confirmer (Ontvangen), à préparer aujourd'hui, à livrer aujourd'hui, factures ouvertes.
+  // Voorraad et Beheer demandent un petit appel : au plus toutes les 15 min, et seulement onglet visible.
+  S.badges = () => {
+    const t = K.today(), c = S.counts();
+    K.setBadges({
+      "bestellingen.html": c.prep,
+      "entrepot.html": S.orders.filter(o => o.statut === "Reçue" && o.day === t).length,
+      "leveringen.html": S.orders.filter(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t).length,
+      "documenten.html": c.unpaid
+    });
+    const every = 15 * 60 * 1000, seen = K.session.get("famoBadgesAt", {}) || {}, now = Date.now();
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    const due = k => !(seen[k] && now - seen[k] < every);
+    const mark = k => { seen[k] = now; K.session.set("famoBadgesAt", seen); };
+    if (due("stock") && document.querySelector('[data-badge="stock.html"]')) { mark("stock"); K.api("/api/stock").then(d => S.stockBadge(d.items)).catch(() => {}); }
+    if (due("beheer") && K.staff.isAdmin() && document.querySelector('[data-badge="beheer.html"]')) { mark("beheer"); K.api("/api/onboarding?counts=1").then(d => K.setBadges({ "beheer.html": Number(d.aanvragen) || 0 })).catch(() => {}); }
+  };
+  S.stockBadge = items => K.setBadges({ "stock.html": (items || []).filter(i => i.quantity <= i.lowThreshold).length }); // = « n onder drempel » de Voorraad
   S.byId = id => S.orders.find(o => o.id === id);
   // Automatisch vernieuwen (elke 60 s) : enkel als het tabblad zichtbaar is en niemand bezig is
   // (paneel open, slepen, typen). Nieuwe bestellingen → melding + teller in de tabtitel.

@@ -120,7 +120,7 @@
     // beschikbaarheid
     "Nog {n}": "Encore {n}", "Uitverkocht": "Épuisé", "Slechts {n} beschikbaar.": "Seulement {n} disponible(s).",
     // bestelling detail
-    "Details": "Détails", "Artikelen": "Articles", "Verloop": "Suivi", "Klaar": "Préparée", "Geleverd": "Livrée", "Gefactureerd": "Facturée", "Geannuleerd": "Annulée", "Betaald": "Payée", "Reden": "Motif",
+    "Details": "Détails", "details": "détails", "Artikelen": "Articles", "Verloop": "Suivi", "Klaar": "Préparée", "Geleverd": "Livrée", "Gefactureerd": "Facturée", "Geannuleerd": "Annulée", "Betaald": "Payée", "Reden": "Motif",
     "Factuurnummer": "Numéro de facture", "Gefactureerd op": "Facturée le", "Geleverd op": "Livrée le", "Ontvangen door": "Réceptionné par", "Betaald op": "Payée le", "Uitzondering levering": "Exception de livraison",
     "Creditnota": "Note de crédit", "Uw opmerking": "Votre remarque", "Besteld op": "Commandée le", "Gewenste leverdag": "Jour de livraison souhaité", "Sluiten": "Fermer",
     "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
@@ -526,6 +526,18 @@
   const NAV_DAILY = [["bestellingen.html", "Bestellingen", "orders"], ["entrepot.html", "Magazijn", "box"], ["leveringen.html", "Leveringen", "truck"]];
   // Invoeren en Voorraad staan open voor het personeel (bestelling ingeven aan de telefoon, voorraad
   // tellen) ; enkel verwijderen in Voorraad en Beheer blijven voor de beheerder (server : adminOk).
+  // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
+  // Les derniers chiffres restent en session : la page suivante les affiche avant d'avoir rechargé.
+  const BADGE_TXT = { "bestellingen.html": "nieuw te bevestigen", "entrepot.html": "vandaag klaar te zetten", "leveringen.html": "vandaag te leveren", "documenten.html": "onbetaalde facturen", "stock.html": "onder de drempel", "beheer.html": "nieuwe aanvragen", "aanvragen": "nieuwe aanvragen", "bestellingen": "te betalen" };
+  K.setBadges = map => {
+    const all = Object.assign(K.session.get("famoBadges", {}) || {}, map || {});
+    if (map && Object.keys(map).length) K.session.set("famoBadges", all);
+    K.$$("[data-badge]").forEach(el => {
+      const n = Number(all[el.dataset.badge]) || 0;
+      el.hidden = !n; el.textContent = n > 99 ? "99+" : String(n);
+      el.setAttribute("aria-label", n + " " + (K.t(BADGE_TXT[el.dataset.badge] || "")));
+    });
+  };
   const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];
   const NAV_STAFF_MORE = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"]];
   K.shell = function (opts) {
@@ -537,7 +549,7 @@
     const portal = o.portal || (admin ? "beheer" : "personeel");
     document.body.classList.remove("portal-klant", "portal-personeel", "portal-beheer");
     document.body.classList.add("portal-" + portal);
-    const link = ([href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="/' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span></a>';
+    const link = ([href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="/' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span><b class="nbadge" data-badge="' + href + '" hidden></b></a>';
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
@@ -552,6 +564,7 @@
     const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
+    K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
     K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
     globalSearch(app);
     return document.getElementById("page");
@@ -607,7 +620,7 @@
   };
   K.klantTabs = active => {
     const tabs = [["catalogus", "Catalogus", "list"], ["bestellingen", "Bestellingen", "orders"], ["favorieten", "Favorieten", "star"], ["account", "Account", "user"]];
-    return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + '</a>').join("") + '</nav>';
+    return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + (k === "bestellingen" ? '<b class="nbadge" data-badge="bestellingen" hidden></b>' : "") + '</a>').join("") + '</nav>';
   };
   global.K = K;
 })(window);
