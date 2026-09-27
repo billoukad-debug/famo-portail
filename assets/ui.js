@@ -660,7 +660,7 @@
   // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
   // Les derniers chiffres restent en session : la page suivante les affiche avant d'avoir rechargé.
   // [enkelvoud, meervoud] : « 1 onbetaalde factuur », « 2 onbetaalde facturen ».
-  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["vandaag klaar te zetten"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
+  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
   K.plural = (n, one, many) => n + " " + (Number(n) === 1 ? one : (many || one));
   K.setBadges = map => {
     const all = Object.assign(K.session.get("famoBadges", {}) || {}, map || {});

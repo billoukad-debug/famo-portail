@@ -49,7 +49,7 @@
     const t = K.today(), c = S.counts();
     K.setBadges({
       "bestellingen.html": c.prep,
-      "entrepot.html": S.orders.filter(o => o.statut === "Reçue" && o.day === t).length,
+      "entrepot.html": S.orders.filter(o => o.statut === "Reçue" && o.day && o.day <= K.addDays(t, 1)).length, // Magazijn s'ouvre sur « morgen » (G-13)
       "leveringen.html": S.orders.filter(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t).length,
       "documenten.html": c.unpaid
     });

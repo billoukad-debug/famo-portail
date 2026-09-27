@@ -421,7 +421,7 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:0}
 /* G-07 · 1.4.3 : texte discret sur une ligne choisie (fond bleu pâle) → ink-2 (4,57:1 au lieu de 4,38) */
 .prod.on .quiet,.prod.on .pm,.prod.on .pp s{color:var(--ink-2)}
 /* G-07 : pages de connexion de l'équipe — texte blanc plein sur le bleu (4,79:1), sans opacité */
-.lg-left [style*="opacity"]{opacity:1!important}.lg-left small{color:#fff!important}
+.lg-left small{color:#fff}
 /* G-08 : libellé d'un groupe qui n'est pas un champ (Leveradres) */
 .field>.flabel{font-size:13px;font-weight:500;color:var(--ink)}
 /* G-12 · cibles tactiles ≥ 44 px (hauteur ET largeur) : icônes, champs compacts, prix Beheer */

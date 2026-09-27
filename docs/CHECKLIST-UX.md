@@ -36,6 +36,7 @@ Contrôles automatiques (portail de dev lancé avec `node scripts/dev.js`) :
 
 ```
 node scripts/ux-audit.js          # FOR-01, ACC-02/03/04, INT-01, INT-03, MEP-04 sur 27 écrans × 2 largeurs (1280, 390)
+node scripts/kbd-audit.js         # parcours clavier seul (client 390/1440, équipe, Beheer) : focus masqué, anneau, nom, piège, Entrée ; BASE local uniquement
                                   # non couverts : order.html, beheer.html#/journaal
 node scripts/check.js             # règles métier + tests unitaires (dont K.eur)
 grep -nE "transition:\s*all" assets/ui.css                        # vide attendu
@@ -59,7 +60,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | INT-04 | Mise à jour optimiste : l'écran change au clic, se réconcilie à la réponse. | Quantités, favoris, panier : instantanés (local). | ⚠️ Changements de statut côté équipe : on attend Airtable (bouton « …ing… » immédiat). Optimiste = risque de montrer une livraison qui n'a pas eu lieu. |
 | INT-05 | Action destructive = **Annuler** (≈ 6 s) ou confirmation ; jamais immédiate sans recours. | Vertrekken, Betaald, retrait d'un article du panier → toast « Ongedaan maken ». Annuler une commande, supprimer un produit → `K.confirm`. | ✅ (🔧 retrait du panier depuis le panneau ordinateur, toast d'annulation 6 s). |
 | INT-06 | L'URL porte l'état (onglet, vue, filtre). | Vues et onglets dans le `#` (`#/tabel`, `#/bord`, `#/catalogus`). | ⚠️ Filtres et recherche mémorisés par appareil (`localStorage`), pas dans l'URL : partager un lien filtré n'est pas un besoin à FAMO. |
-| INT-07 | Retour arrière restaure le défilement. | Klant : descendre dans le catalogue, ouvrir Account, revenir. | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — chaque vue doit retrouver sa position (400 px → retour catalogue à 400 px). |
+| INT-07 | Retour arrière restaure le défilement. | Klant : descendre dans le catalogue, ouvrir Account, revenir. | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — chaque vue doit retrouver sa position (400 px → retour catalogue à 400 px). |
 | INT-08 | Tout glisser-déposer a un équivalent clic et clavier (WCAG 2.5.7). | Bord : boutons Valideren / Vertrekken / Geleverd. Leveringen : ▲▼. Beheer → Volgorde : ▲▼. | 🔧 ▲▼ de Leveringen **visibles sur téléphone** (étaient masqués ≤ 560 px) ; ▲▼ **ajoutés** en Beheer → Volgorde (catégories et produits). |
 | INT-09 | Autofocus seulement avec clavier physique, sur le champ principal. | `K.panel` : premier champ focalisé si `pointer: fine`, sinon le panneau (pas de clavier qui surgit). | 🔧 |
 | INT-10 | Jamais d'information indispensable seulement dans `title=`. | `grep ' title="'` : 17 occurrences relues une par une. | 🔧 la note de commande est affichée en clair dans Entrepot et Leveringen (elle n'était visible qu'au survol, donc jamais sur téléphone) ; l'exception de livraison montre sa note dans l'étiquette. Restent en `title=` : des doublons d'un texte visible ou de la fiche (lignes, paiement). |
@@ -72,20 +73,20 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 |---|---|---|---|
 | CLA-01 | Chaque parcours se fait au clavier. | `ux-audit` (CLA-01) + parcours au clavier à la main. | 🔧 `ux-audit` vérifie maintenant que tout ce qui a un curseur main est atteignable au clavier : 0 écart sur 27 écrans × 2 largeurs. |
 | CLA-02 | Anneau de focus visible partout (`:focus-visible` 2 px `--p`). | `assets/ui.css` : règle globale `:focus-visible` ; champs : bordure + halo 3 px. | ✅ |
-| CLA-03 | Rien de collant ne masque le focus ou une ancre. | `html { scroll-padding-top: 84px }` (barre de 64 px + 16 + marge). | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — 🔧 |
-| CLA-04 | Panneau et dialogue = modal APG : `role="dialog"`, `aria-modal`, titre lié, Tab/Maj+Tab bouclent, Échap ferme **seulement le plus haut**, focus **rendu au déclencheur**. | À la main : 25× Tab et 25× Maj+Tab restent dans le panneau ; Échap sur la confirmation laisse le panneau ouvert ; le focus revient au bouton puis à la carte. | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — 🔧 (avant : pas de piège à focus, Échap fermait confirmation **et** panneau, focus perdu sur `body`). |
+| CLA-03 | Rien de collant ne masque le focus ou une ancre. | `html { scroll-padding-top: 84px }` (barre de 64 px + 16 + marge). | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 |
+| CLA-04 | Panneau et dialogue = modal APG : `role="dialog"`, `aria-modal`, titre lié, Tab/Maj+Tab bouclent, Échap ferme **seulement le plus haut**, focus **rendu au déclencheur**. | À la main : 25× Tab et 25× Maj+Tab restent dans le panneau ; Échap sur la confirmation laisse le panneau ouvert ; le focus revient au bouton puis à la carte. | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 (avant : pas de piège à focus, Échap fermait confirmation **et** panneau, focus perdu sur `body`). |
 | CLA-05 | Menu « ⋯ » = bouton de menu APG. | — | — pas de menu déroulant. La recherche globale suit le motif liste (↑↓ Entrée Échap). |
 | CLA-06 | Palette d'actions ⌘K. | — | — hors périmètre FAMO ; `/` ouvre la recherche globale (commande, klant, artikel, factuur). |
 | CLA-07 | `?` affiche les raccourcis. | Appuyer sur `?` sur n'importe quel écran ; taper `?` dans un champ : rien. | 🔧 `?` ouvre la liste des raccourcis (communs + ceux de la page), ignoré pendant la saisie, Échap ferme. |
 | CLA-08 | Raccourcis cohérents entre écrans. | `/` = recherche sur toutes les pages de l'équipe et dans le catalogue client. | ✅ ; 🔧 `/` va aussi à la recherche du catalogue client (`aria-keyshortcuts`). |
 | CLA-09 | Édition en ligne : Entrée valide, Échap annule. | `K.prompt` : Entrée valide, Échap annule. Grille des prix : saisie directe puis « Prijzen opslaan ». | ✅ |
-| CLA-10 | Quand l'élément focalisé disparaît, le focus va au suivant. | Beheer : modifier un produit, enregistrer → focus sur son « Bewerken ». | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — 🔧 à la fermeture d'un panneau, le focus revient au bouton qui l'a ouvert, **même si la liste a été redessinée** (retrouvé par son identifiant) ; ⚠️ carte qui quitte une colonne après une action (Entrepot) : focus non repositionné. |
+| CLA-10 | Quand l'élément focalisé disparaît, le focus va au suivant. | Beheer : modifier un produit, enregistrer → focus sur son « Bewerken ». | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 à la fermeture d'un panneau, le focus revient au bouton qui l'a ouvert, **même si la liste a été redessinée** (retrouvé par son identifiant) ; ⚠️ carte qui quitte une colonne après une action (Entrepot) : focus non repositionné. |
 
 ## 4. Formulaires & saisie (FOR)
 
 | ID | Règle | Vérifier chez FAMO | État |
 |---|---|---|---|
-| FOR-01 | Chaque champ a un libellé lié (`for`) ou un `aria-label`. | `ux-audit`. | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — 🔧 **78 champs** sans libellé lié : `K.c.field` déduit maintenant le `for` de l'`id` du champ ; prix négociés et grille des prix : `aria-label` « produit · klant » ; sélecteur Klant d'Invoeren. |
+| FOR-01 | Chaque champ a un libellé lié (`for`) ou un `aria-label`. | `ux-audit`. | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 **78 champs** sans libellé lié : `K.c.field` déduit maintenant le `for` de l'`id` du champ ; prix négociés et grille des prix : `aria-label` « produit · klant » ; sélecteur Klant d'Invoeren. |
 | FOR-02 | Entrée soumet ; ⌘/Ctrl+Entrée dans un `textarea`. | Beheer → produit → Omschrijving : Ctrl+Entrée enregistre (à la main). | 🔧 ⌘/Ctrl+Entrée dans un champ multiligne déclenche le bouton principal de la zone (panneau, formulaire, carte). |
 | FOR-03 | Bouton d'envoi : désactivé pendant l'envoi, indicateur, **pas de saut de largeur** ; deux clics = une action. | `K.busy` : `disabled`, `aria-busy`, largeur figée, « Opslaan… ». Serveur : une seule requête à la fois par commande **sur une même instance** (`inflight` en mémoire dans `updateorder`, pas de verrou entre instances Vercel), contrôles de statut (409), numéros FA/CN dédoublonnés après écriture (`ensureUnique`). | 🔧 largeur + `aria-busy` ; ⚠️ idempotence serveur partielle : deux requêtes simultanées sur deux instances ne sont pas exclues. |
 | FOR-04 | Ne pas pré-désactiver l'envoi. | Winkelmand sous le minimum : bouton désactivé **avec** le montant manquant affiché juste au-dessus. | ⚠️ assumé : la raison est visible, pas besoin de cliquer pour la voir. |
@@ -130,7 +131,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | ETA-09 | Fraîcheur visible. | Équipe : rafraîchissement 60 s + alerte nouvelle commande + compteur dans l'onglet. | ⚠️ pas d'horodatage « mis à jour il y a… » affiché. |
 | ETA-10 | Message d'erreur = ce qui s'est passé + la sortie. | « Sessie verlopen → opnieuw aanmelden », « Slechts 3 beschikbaar », minimum manquant. | ✅ |
 | ETA-11 | Navigation lente : indicateur. | Squelette dès l'ouverture d'une page. | ✅ |
-| ETA-12 | **Pastilles de compteur** dans la navigation pour ce qui attend une action : Bestellingen (à confirmer), Magazijn (à préparer aujourd'hui), Leveringen (à livrer aujourd'hui), Documenten (factures ouvertes), Voorraad (sous le seuil), Beheer et onglet Aanvragen (demandes nouvelles), Bestellingen client (factures à payer). Le chiffre = celui de la page ; nommé pour les lecteurs d'écran ; aucun appel en plus pour les commandes, ≤ 1 appel / 15 min pour Voorraad et Beheer. Pourquoi : on sait où agir sans ouvrir chaque écran (Nielsen #1). | Chaque pastille égale le compteur de sa page (à la main). | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — 🔧 (27/09) — demande de Bilal. |
+| ETA-12 | **Pastilles de compteur** dans la navigation pour ce qui attend une action : Bestellingen (à confirmer), Magazijn (à préparer aujourd'hui), Leveringen (à livrer aujourd'hui), Documenten (factures ouvertes), Voorraad (sous le seuil), Beheer et onglet Aanvragen (demandes nouvelles), Bestellingen client (factures à payer). Le chiffre = celui de la page ; nommé pour les lecteurs d'écran ; aucun appel en plus pour les commandes, ≤ 1 appel / 15 min pour Voorraad et Beheer. Pourquoi : on sait où agir sans ouvrir chaque écran (Nielsen #1). | Chaque pastille égale le compteur de sa page (à la main). | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 (27/09) — demande de Bilal. |
 
 ## 7. Mise en page & typographie (MEP)
 
@@ -184,8 +185,8 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | ACC-02 | Bouton icône = `aria-label`. | `ux-audit`. | 🔧 case « Voorraad automatisch afboeken » sans nom. |
 | ACC-03 | Icônes décoratives `aria-hidden`. | `K.icon` pose `aria-hidden="true"`. | ✅ |
 | ACC-04 | Lien d'évitement, `lang`, `<title>`, un seul `h1`. | `ux-audit` + à la main (Tab 1 = « Naar de inhoud », Entrée = focus sur le contenu). | 🔧 lien d'évitement + `<main>` sur les portails équipe, beheer, client et la page d'accueil (le lien déplace le focus sans toucher au `#` du routeur) ; titres de pages client en `h1`. |
-| ACC-05 | Contraste AA ; survol et focus plus contrastés. | `node scripts/contrast-check.js`. | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — 🔧 mesuré par `scripts/contrast-check.js` (dans `check.js` et la CI) : 24 couples texte / fond, tous AA. Corrigés : texte discret sur en-tête de tableau (4,45 → 4,71), texte d'alerte (4,47 → 4,68), **bordure des champs** (1,76 → 3,19 sur blanc, 3,03 sur crème ; WCAG 1.4.11). |
-| ACC-06 | États annoncés : `aria-current`, `aria-pressed`, `aria-expanded`, `aria-busy`. | Onglets, favoris, catégories (🔧 `aria-pressed`), dépliage (🔧), boutons en cours (🔧). | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — ✅ |
+| ACC-05 | Contraste AA ; survol et focus plus contrastés. | `node scripts/contrast-check.js`. | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 mesuré par `scripts/contrast-check.js` (dans `check.js` et la CI) : 24 couples texte / fond, tous AA. Corrigés : texte discret sur en-tête de tableau (4,45 → 4,71), texte d'alerte (4,47 → 4,68), **bordure des champs** (1,76 → 3,19 sur blanc, 3,03 sur crème ; WCAG 1.4.11). |
+| ACC-06 | États annoncés : `aria-current`, `aria-pressed`, `aria-expanded`, `aria-busy`. | Onglets, favoris, catégories (🔧 `aria-pressed`), dépliage (🔧), boutons en cours (🔧). | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — ✅ |
 | ACC-07 | Couleur jamais seule. | Statuts : pastille + texte ; « uw prijs » + prix barré. | ✅ |
 
 ## 11. Performance perçue (PER)
@@ -258,3 +259,5 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 [WCAG-258]: https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html
 [WCAG-257]: https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html
 [WCAG-413]: https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html
+
+- **Mise à jour du 27/09/2026 (lot accessibilité fusionné)** : INT-07, CLA-03, CLA-04, CLA-10, FOR-01, FOR-02, ETA-12, ACC-05, ACC-06 vérifiés par `scripts/kbd-audit.js` et `scripts/ux-audit.js` (0 écart, les deux tournent dans la CI) ; pastille Magazijn = à préparer aujourd'hui et demain ; `--ink-3` = #66645D.

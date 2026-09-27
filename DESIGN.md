@@ -36,7 +36,7 @@ Grammaire Airbnb DESIGN.md, radius Anthropic/Claude, une seule nuance d'action :
 --card:    #FFFFFF   /* cartes posées sur le canvas */
 --ink:     #232323   /* texte uniquement — jamais un bouton noir */
 --ink-2:   #6A6A6A   /* corps secondaire */
---ink-3:   #737169   /* méta, libellés discrets */
+--ink-3:   #66645D   /* méta, libellés discrets */
 --line:    #E3E0D6   --line-soft: #EDEBE4   --line-strong: #C7C3B7
 --p:       #4876A2   /* TOUTE action : bouton principal, lien, onglet actif, sélection */
 --p-deep:  #3F6690   /* survol / pressé */
