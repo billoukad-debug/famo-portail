@@ -35,7 +35,9 @@ const SCHEMA = {
       // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
       "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text",
       // Taux de TVA figés par ligne au passage en « Facturée » (JSON { produit: taux }, lib/billing.js).
-      "BTW per lijn": "text"
+      "BTW per lijn": "text",
+      // Clé d'idempotence envoyée par le portail client (api/order.js) : pas de doublon sur un renvoi.
+      "Idempotentie": "text"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],

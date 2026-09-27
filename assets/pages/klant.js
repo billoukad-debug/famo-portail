@@ -253,7 +253,10 @@
     const pre = dayErr(cart.day); if (pre) { document.getElementById("orderErr").innerHTML = K.c.error(pre); return; }
     K.busy(btn, true, K.t("Bestelling versturen…")); document.getElementById("orderErr").innerHTML = "";
     try {
-      const d = await api("/api/order", { json: Object.assign({}, creds(), { items, notes: cart.note || "", dateLivraison: cart.day }) });
+      // Clé d'idempotence gardée avec le panier jusqu'au succès : un envoi répété après une réponse
+      // perdue (réseau mobile) retrouve la même commande au lieu d'en créer une deuxième (B-19).
+      if (!cart.key) { cart.key = (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); saveCart(); }
+      const d = await api("/api/order", { json: Object.assign({}, creds(), { items, notes: cart.note || "", dateLivraison: cart.day, idempotencyKey: cart.key }) });
       lastOrder = { ref: d.ref, total: d.total, day: cart.day, items: items.map(i => ({ nom: byId(i.productId).nom, qty: i.quantity, prix: byId(i.productId).prix })), at: Date.now(), mail: d.mail, email: (cat.client && cat.client.email) || "" };
       K.session.set("famoLastOrder", lastOrder);
       cart = { items: {}, comments: {}, note: "", day: "" }; saveCart(); orders = null;

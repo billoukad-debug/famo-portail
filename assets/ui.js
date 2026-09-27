@@ -126,6 +126,7 @@
     "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
     "Bestelling geannuleerd · artikelen in de winkelmand": "Commande annulée · articles dans le panier", "Geannuleerd door klant": "Annulée par le client",
     // openstaande facturen
+    "Toch opslaan": "Enregistrer quand même",
     "incl. btw": "TVAC", "Pro forma": "Pro forma", "Uw facturen en betaalgegevens ontvangt u van onze boekhouding (via Peppol).": "Vos factures et coordonnées de paiement vous sont envoyées par notre comptabilité (via Peppol).",
     "Openstaande facturen": "Factures ouvertes", "Totaal openstaand": "Total à payer", "Mededeling": "Communication", "Kopiëren": "Copier", "Gekopieerd": "Copié", "Betaalgegevens": "Coordonnées de paiement",
     "Kopiëren lukt niet op dit toestel.": "La copie n'est pas possible sur cet appareil.", "Geen openstaande facturen": "Aucune facture ouverte", "Alles is betaald. Dank u wel.": "Tout est payé. Merci.",
@@ -277,7 +278,17 @@
       return d;
     };
     try { return await once(); }
-    catch (err) { if (retry && (err.network || err.status >= 500)) { await new Promise(res => setTimeout(res, 800)); return once(); } throw err; }
+    catch (err) {
+      if (retry && (err.network || err.status >= 500)) { await new Promise(res => setTimeout(res, 800)); return once(); }
+      // Garde-fou serveur (prix à 0, ×2, ÷2…) : « toch opslaan ? » puis même requête avec confirmation.
+      if (err.status === 409 && err.payload && err.payload.needConfirm && o.body && K.confirm) {
+        if (!(await K.confirm({ title: K.t("Bevestigen"), text: err.message, yes: K.t("Toch opslaan"), no: K.t("Annuleren") }))) throw err;
+        const body = Object.assign(JSON.parse(o.body), { confirm: true, confirmPrice: true });
+        o.body = JSON.stringify(body);
+        return once();
+      }
+      throw err;
+    }
   };
   // Laadblok met « Opnieuw proberen » : voert fn uit ; bij een fout toont de container de melding
   // en een link die fn opnieuw start. Retourneert wat fn retourneert (undefined bij een fout).

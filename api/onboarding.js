@@ -9,6 +9,7 @@ const __prices = require("../lib/prices");
 const __ordermail = require("../lib/ordermail");
 const __lev = require("../lib/levering");
 const __bill = require("../lib/billing");
+const __guard = require("../lib/guardrails");
 const BASE = "appcdduLth9iGX8I0";
 const REC = /^[A-Za-z0-9]{1,40}$/;
 
@@ -314,6 +315,8 @@ module.exports = async (req, res) => {
       const cat = clean(body.cat, 80) || "Algemeen";
       if (!nom) return res.status(400).json({ error: "Productnaam is verplicht" });
       if (!Number.isFinite(base) || base < 0) return res.status(400).json({ error: "Ongeldige basisprijs" });
+      // Garde-fous (audit L-04) : un prix de base à 0 ou à 1 500 000 € est une faute de frappe.
+      if (base === 0 || base > __guard.MAX_BASE_PRICE) return res.status(400).json({ error: "Basisprijs moet tussen € 0,01 en € " + __guard.MAX_BASE_PRICE + " liggen" });
       if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig product-id" });
       const fields = {
         "Produit": nom,
@@ -671,6 +674,12 @@ module.exports = async (req, res) => {
       const prix = __prices.negotiatedValue(body.prix);
       if (!clientId || !productId) return res.status(400).json({ error: "Klant en product zijn verplicht" });
       if (!prixVide && prix === null) return res.status(400).json({ error: "Ongeldige prijs" });
+      // Prix négocié suspect (0, < ½ ou > 2 × le prix de base) : confirmation explicite (audit L-04).
+      if (!prixVide && body.confirm !== true && REC.test(productId)) {
+        const p = await at(`Catalogue/${productId}`);
+        const why = __guard.suspiciousPrice(prix, p && p.fields && p.fields["Prix de base"]);
+        if (why) return __guard.needConfirm(res, "Controleer deze prijs: " + why + ". Toch opslaan?");
+      }
 
       const all = await atAll(encodeURIComponent("Prix négociés"));
       if (all.error) return res.status(500).json(all);
@@ -718,6 +727,13 @@ module.exports = async (req, res) => {
       const rows = Array.isArray(body.prices) ? body.prices.slice(0, 200) : [];
       if (!clientId) return res.status(400).json({ error: "Klant is verplicht" });
       if (!rows.length) return res.status(400).json({ error: "Geen prijzen om op te slaan" });
+      // Prix suspects de la grille (0, < ½ ou > 2 × le prix de base) : liste à confirmer (audit L-04).
+      if (body.confirm !== true && rows.some(r => r && r.prix !== null && r.prix !== undefined && String(r.prix).trim() !== "")) {
+        const cat = await atAll("Catalogue");
+        const base = new Map((cat.records || []).map(r => [r.id, r.fields["Prix de base"]]));
+        const odd = rows.map(r => { const p = __prices.negotiatedValue(r && r.prix); const why = p === null ? "" : __guard.suspiciousPrice(p, base.get(clean(r.productId, 40))); const nm = ((cat.records || []).find(c => c.id === clean(r.productId, 40)) || { fields: {} }).fields["Produit"]; return why ? (nm || "product") + ": " + why : ""; }).filter(Boolean);
+        if (odd.length) return __guard.needConfirm(res, "Controleer deze prijzen: " + odd.slice(0, 5).join(" · ") + (odd.length > 5 ? " …" : "") + ". Toch opslaan?");
+      }
 
       const all = await atAll(encodeURIComponent("Prix négociés"));
       if (all.error) return res.status(500).json(all);

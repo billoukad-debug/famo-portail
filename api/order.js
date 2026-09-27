@@ -48,7 +48,7 @@ async function buildOrderLines(clientId, items){
   for (const item of items) {
     const productId = String(item && item.productId || "");
     const quantity = numberOf(item && item.quantity);
-    if (!productId || quantity <= 0 || quantity > 100000) throw new Error("Ongeldige hoeveelheid");
+    if (!productId || quantity <= 0 || quantity > 1000) throw new Error("Ongeldige hoeveelheid");
     if (!products.has(productId)) throw new Error("Artikel is niet beschikbaar");
     if (!/kg/i.test(String(products.get(productId).fields["Unité"] || "")) && !Number.isInteger(quantity)) {
       throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
@@ -71,7 +71,7 @@ async function buildOrderLines(clientId, items){
     // Keep the agreed unit price with the order. It makes a later invoice
     // reproducible even if the catalogue price changes in the meantime.
     lines.push(`${name} × ${quantity}${unit ? " " + unit : ""} [€${price.toFixed(2)}]${comment ? " (" + comment + ")" : ""}`);
-    total += price * quantity;
+    total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * quantity); // = le prix écrit dans la ligne (B-09)
   }
   return { lignes: lines.join("\n"), total: roundMoney(total) };
 }
@@ -144,6 +144,21 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: `Minimum bestelling: € ${rules.minimum.toFixed(2).replace(".", ",")} excl. btw (nu € ${order.total.toFixed(2).replace(".", ",")})` });
     }
 
+    // Idempotence et doublons (audit B-19, L-07) : le portail envoie une clé par panier.
+    //  - même clé déjà enregistrée → la même commande est renvoyée, rien n'est recréé ;
+    //  - mêmes articles, même client, même jour (clé différente) → confirmation demandée.
+    const key = /^[A-Za-z0-9-]{8,64}$/.test(String(body.idempotencyKey || "")) ? String(body.idempotencyKey) : "";
+    if (key) {
+      const today0 = __lev.brusselsToday();
+      const f = encodeURIComponent(`AND({Date}='${today0}',{Statut}!='Annulée')`);
+      const recent = await at(`Commandes?filterByFormula=${f}`);
+      const mine = ((recent && recent.records) || []).filter(r => (r.fields["Client"] || []).includes(clientId));
+      const same = mine.find(r => r.fields["Idempotentie"] === key);
+      if (same) return res.status(200).json({ ref: same.fields["Référence"], id: same.id, total: same.fields["Total"], duplicate: true });
+      const twin = mine.find(r => r.fields["Lignes (produits / quantités)"] === order.lignes && (r.fields["Date livraison souhaitée"] || "") === dateLivraison);
+      if (twin && body.confirm !== true) return res.status(409).json({ error: "U plaatste vandaag al dezelfde bestelling (" + (twin.fields["Référence"] || "") + "). Nogmaals bestellen?", needConfirm: true });
+    }
+
     const ref = await __orderNumber.nextOrderRef(at);
     const today = __lev.brusselsToday();
     const fields = {
@@ -157,6 +172,7 @@ module.exports = async (req, res) => {
       "Client": [clientId]
     };
     if (dateLivraison) fields["Date livraison souhaitée"] = dateLivraison;
+    if (key) fields["Idempotentie"] = key;
 
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Commandes`, {
       method: "POST",

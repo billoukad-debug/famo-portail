@@ -892,16 +892,18 @@ async function main() {
       return json(/Prix négociés/.test(u) ? NEG_P : { records: [] });
     };
     try {
-      const save = async prix => {
+      const save = async (prix, confirm) => {
         const res = mkRes();
-        await onboardingP({ method: "POST", body: { action: "savePrice", clientId: "clientPrix", productId: "pNieuw", prix }, headers: adminCookieHdr }, res);
+        await onboardingP({ method: "POST", body: { action: "savePrice", clientId: "clientPrix", productId: "pNieuw", prix, confirm }, headers: adminCookieHdr }, res);
         return res;
       };
       assert.equal((await save("")).statusCode, 200, "P6 champ vide accepté");
       assert.strictEqual(written.pop()["Prix négocié"], null, "P6 champ vide enregistré vide, pas 0");
       assert.equal((await save(null)).statusCode, 200, "P6 prix null accepté");
       assert.strictEqual(written.pop()["Prix négocié"], null, "P6 prix null enregistré vide");
-      assert.equal((await save(0)).statusCode, 200, "P6 0 accepté");
+      // Prix 0 : garde-fou (L-04) → confirmation explicite demandée, rien d'écrit ; accepté une fois confirmé.
+      const z = await save(0); assert.equal(z.statusCode, 409, "P6 0 à confirmer"); assert.equal(z.payload.needConfirm, true); assert.equal(written.length, 0, "P6 rien écrit avant confirmation");
+      assert.equal((await save(0, true)).statusCode, 200, "P6 0 accepté après confirmation");
       assert.strictEqual(written.pop()["Prix négocié"], 0, "P6 0 saisi enregistré 0");
       assert.equal((await save("abc")).statusCode, 400, "P6 prix illisible refusé");
       assert.equal((await save(-2)).statusCode, 400, "P6 prix négatif refusé");

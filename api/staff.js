@@ -30,7 +30,7 @@ async function buildOrderLines(clientId, items){
   for (const item of items) {
     const productId = String(item && item.productId || "");
     const quantity = numberOf(item && item.quantity);
-    if (!productId || quantity <= 0 || quantity > 100000 || !products.has(productId)) throw new Error("Ongeldig artikel of aantal");
+    if (!productId || quantity <= 0 || quantity > 1000 || !products.has(productId)) throw new Error("Ongeldig artikel of aantal");
     if (!/kg/i.test(String(products.get(productId).fields["Unité"] || "")) && !Number.isInteger(quantity)) {
       throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
     }
@@ -44,7 +44,7 @@ async function buildOrderLines(clientId, items){
   for (const [productId, item] of merged) {
     const fields = products.get(productId).fields;
     const price = __prices.unitPrice(products.get(productId), prices);
-    total += price * item.quantity;
+    total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * item.quantity); // = le prix écrit dans la ligne (B-09)
     lines.push(`${fields["Produit"] || "Artikel"} × ${item.quantity}${fields["Unité"] ? " " + fields["Unité"] : ""} [€${price.toFixed(2)}]${item.comment ? " (" + item.comment + ")" : ""}`);
   }
   return { lignes: lines.join("\n"), total: Math.round(total * 100) / 100 };

@@ -6,6 +6,7 @@ const __lev = require("../lib/levering");
 const __mail = require("../lib/ordermail");
 const __bill = require("../lib/billing");
 const __atomic = require("../lib/atomic");
+const __guard = require("../lib/guardrails");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -41,7 +42,7 @@ function formatLine(l){
 //   2. sinon le prix négocié du client, sinon le prix de base.
 // Le prix [€x] envoyé par le navigateur n'est accepté que d'un beheerder (remise
 // volontaire) ; pour le personnel il est ignoré. Total recalculé ici, jamais celui du navigateur.
-async function normalizeLines(txt, clientId, storedTxt, allowPriceOverride){
+async function normalizeLines(txt, clientId, storedTxt, allowPriceOverride, confirmPrice){
   const frozen = new Map(parseLines(storedTxt).filter(l => l.price != null).map(l => [norm(l.nom), l.price]));
   const lines = parseLines(txt).map(l => {
     const keep = frozen.has(norm(l.nom)) ? frozen.get(norm(l.nom)) : null;
@@ -49,6 +50,7 @@ async function normalizeLines(txt, clientId, storedTxt, allowPriceOverride){
     return Object.assign({}, l, { price });
   });
   if (!lines.length || lines.some(line => line.qty <= 0)) throw new Error("Ongeldige hoeveelheid in de voorbereiding");
+  if (lines.some(line => line.qty > __guard.MAX_QTY)) throw new Error("Hoeveelheid boven " + __guard.MAX_QTY + " per lijn: controleer de invoer");
   const catalogue = await atAll("Catalogue");
   if (catalogue.error) throw new Error(catalogue.error.message || "Catalogus kon niet worden gelezen");
   const byName = new Map((catalogue.records || []).map(record => [norm(record.fields["Produit"]), record]));
@@ -67,7 +69,12 @@ async function normalizeLines(txt, clientId, storedTxt, allowPriceOverride){
       throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
     }
     const price = line.price != null ? money(line.price) : money(__prices.unitPrice(product, negByProduct));
-    total += price * line.qty;
+    // Prix forcé par le beheerder, suspect (0, < ½ ou > 2 × le prix normal) : confirmation (audit L-04).
+    if (allowPriceOverride && line.price != null && !confirmPrice && money(line.price) !== money(frozen.get(norm(line.nom)))) {
+      const why = __guard.suspiciousPrice(price, __prices.unitPrice(product, negByProduct));
+      if (why) throw Object.assign(new Error("Controleer de prijs van " + product.fields["Produit"] + ": " + why + ". Toch opslaan?"), { needConfirm: true });
+    }
+    total += __bill.vat.r2(price * line.qty); // ligne arrondie au cent (règle unique, audit B-09)
     out.push(formatLine({ nom: product.fields["Produit"], qty: line.qty, unit, price, comment: line.comment }));
   }
   return { lignes: out.join("\n"), total: money(total) };
@@ -457,8 +464,9 @@ async function handle(req, res, body, id){
     if (typeof lignes === "string") {
       let normalized;
       try {
-        normalized = await normalizeLines(lignes, (f["Client"] || [])[0], f["Lignes (produits / quantités)"], __auth.adminOk(req));
+        normalized = await normalizeLines(lignes, (f["Client"] || [])[0], f["Lignes (produits / quantités)"], __auth.adminOk(req), body.confirmPrice === true);
       } catch (error) {
+        if (error.needConfirm) return __guard.needConfirm(res, error.message);
         return res.status(400).json({ error: String(error.message || error) });
       }
       fields["Lignes (produits / quantités)"] = normalized.lignes;

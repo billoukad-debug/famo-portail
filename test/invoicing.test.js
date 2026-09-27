@@ -147,3 +147,19 @@ test("stock insuffisant : rien n'est décompté, départ refusé", async () => {
   assert.equal((await store().get("Stock", "recSTK1")).fields["Quantité disponible"], 3);
   assert.ok(!(await store().get("Commandes", "recDEP0005")).fields["Stock afgeboekt"], "réservation annulée");
 });
+
+// ---- Commande client : idempotence et doublons (audit B-19, L-07) ----
+test("même clé renvoyée → même commande ; mêmes articles le même jour → confirmation", async () => {
+  await seed([]);
+  const token = ca.issueToken({ id: "recCLA", fields: (await store().get("Clients", "recCLA")).fields });
+  const body = (key, extra) => Object.assign({ token, items: [{ productId: "recP1", quantity: 2 }], idempotencyKey: key }, extra || {});
+  const a = await call("order.js", body("cle-panier-0001"));
+  assert.equal(a.statusCode, 200, JSON.stringify(a.payload));
+  const b = await call("order.js", body("cle-panier-0001"));
+  assert.equal(b.statusCode, 200); assert.equal(b.payload.id, a.payload.id); assert.equal(b.payload.duplicate, true);
+  const c = await call("order.js", body("cle-panier-0002"));
+  assert.equal(c.statusCode, 409); assert.equal(c.payload.needConfirm, true);
+  const d = await call("order.js", body("cle-panier-0002", { confirm: true }));
+  assert.equal(d.statusCode, 200); assert.notEqual(d.payload.id, a.payload.id);
+  assert.equal((await store().list("Commandes")).length, 2);
+});
