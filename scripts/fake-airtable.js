@@ -37,7 +37,9 @@ const SCHEMA = {
       // Taux de TVA figés par ligne au passage en « Facturée » (JSON { produit: taux }, lib/billing.js).
       "BTW per lijn": "text",
       // Clé d'idempotence envoyée par le portail client (api/order.js) : pas de doublon sur un renvoi.
-      "Idempotentie": "text"
+      "Idempotentie": "text",
+      // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
+      "Lots": "text"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
@@ -55,8 +57,14 @@ const SCHEMA = {
     // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
     // Facturatie : « Boekhouder » (défaut : facture légale chez le comptable, documents pro forma) ou
     // « Portaal ». Juridische naam / Rechtsvorm / RPR : mentions du Code des sociétés (art. 2:20).
-    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
+    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Lots verplicht": "checkbox", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
     selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
+  },
+  // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
+  // (fournisseur, réception) et, par les commandes, un pas en aval (qui a reçu le lot).
+  Lots: {
+    fields: { "Lotnummer": "text", "Produit": "text", "Leverancier": "text", "Ontvangen op": "date", "Wetenschappelijke naam": "text", "Vangstgebied": "text", "Vistuig": "text", "Productiemethode": "text", "Ontdooid": "checkbox", "THT": "date", "Hoeveelheid": "number", "Actief": "checkbox", "Nota": "text" },
+    primary: "Lotnummer"
   },
   Aanvragen: {
     fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select" },

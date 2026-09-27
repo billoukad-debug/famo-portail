@@ -256,7 +256,9 @@ const handler = async (req, res) => {
         // Mentions légales (WVV art. 2:20) et mode de facturation (lib/billing.js).
         "Juridische naam": clean(body.juridischeNaam, 120),
         "Rechtsvorm": clean(body.rechtsvorm, 40),
-        "RPR": clean(body.rpr, 120)
+        "RPR": clean(body.rpr, 120),
+        // Traçabilité : un lot par article obligatoire avant « Klaar » (api/updateorder.js).
+        "Lots verplicht": body.lotsVerplicht === true
       };
       const mode = clean(body.facturatie, 20);
       if (mode && !__bill.MODES.includes(mode)) return res.status(400).json({ error: "Ongeldige facturatie: Boekhouder of Portaal" });

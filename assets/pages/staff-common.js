@@ -195,8 +195,13 @@
     const lines = orig.map(l => Object.assign({}, l));
     const state = lines.map(() => false);
     let catalogue = null;
+    // Traçabilité : lot par article (api/lots). Un seul lot actif pour ce produit → présélectionné.
+    let lotsBy = null;
+    const lotKey = n => String(n || "").trim().toLowerCase();
+    const chosen = {}; Object.entries(o.lots || {}).forEach(([k, v]) => { if (v && v[0]) chosen[lotKey(k)] = v[0].id; });
+    const lotSelect = (l, i) => { const list = (lotsBy && lotsBy[lotKey(l.name)]) || []; if (!list.length) return ""; if (!chosen[lotKey(l.name)] && list.length === 1) chosen[lotKey(l.name)] = list[0].id; return '<select class="input" data-lot="' + i + '" aria-label="Lot voor ' + K.esc(l.name) + '" style="margin-top:6px;min-height:36px;font-size:12.5px"><option value="">— lot kiezen —</option>' + list.map(x => '<option value="' + K.esc(x.id) + '"' + (chosen[lotKey(l.name)] === x.id ? " selected" : "") + '>' + K.esc(x.lotnummer + (x.leverancier ? " · " + x.leverancier : "") + (x.tht ? " · THT " + K.date(x.tht) : "")) + '</option>').join("") + '</select>'; };
     const isKg = u => /kg/i.test(u);
-    const lineHtml = (l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(state[i], 'data-v="' + i + '"', { label: "Gecontroleerd: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet" style="font-size:12px">„' + K.esc(l.comment) + '”</div>' : "") + (l.added ? '<div class="quiet" style="font-size:12px">toegevoegd · prijs volgens afspraak klant</div>' : "") + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '"><button type="button" data-inc aria-label="Meer">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>';
+    const lineHtml = (l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(state[i], 'data-v="' + i + '"', { label: "Gecontroleerd: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet" style="font-size:12px">„' + K.esc(l.comment) + '”</div>' : "") + (l.added ? '<div class="quiet" style="font-size:12px">toegevoegd · prijs volgens afspraak klant</div>' : "") + lotSelect(l, i) + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '"><button type="button" data-inc aria-label="Meer">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>';
     const p = K.panel({ title: "Artikelen valideren", sub: o.client + " · " + o.ref + " · levering " + K.relDay(o.day), body:
       '<div class="card" id="vl"></div>' +
       '<div id="vAdd" style="display:none">' + K.c.field("Product toevoegen", '<div style="display:flex;gap:6px"><input class="input" id="vSearch" list="vList" placeholder="Zoek in de catalogus…" autocomplete="off" style="flex:1"><datalist id="vList"></datalist><button type="button" class="btn btn-o" id="vAddOk">Toevoegen</button></div>', { id: "fVAdd", hint: "De prijs wordt op de server bepaald (afgesproken prijs van de klant, anders basisprijs)." }) + '</div>' +
@@ -210,6 +215,8 @@
       refresh();
     };
     draw();
+    K.api("/api/lots").then(d => { lotsBy = {}; (d.lots || []).forEach(x => { (lotsBy[lotKey(x.produit)] = lotsBy[lotKey(x.produit)] || []).push(x); }); draw(); }).catch(() => {});
+    K.on(p.el, "change", "[data-lot]", (e, t) => { chosen[lotKey(lines[+t.dataset.lot].name)] = t.value; });
     K.on(p.el, "click", "[data-v]", (e, t) => { const i = +t.dataset.v; state[i] = !state[i]; K.setOn(t, state[i]); refresh(); });
     p.el.querySelector("#vAddBtn").onclick = async () => {
       const box = p.el.querySelector("#vAdd"); box.style.display = ""; p.el.querySelector("#vAddBtn").style.display = "none";
@@ -237,7 +244,8 @@
       const btn = p.el.querySelector("#vOk"); K.busy(btn, true, "Klaarzetten…");
       const changed = kept.length !== orig.length || kept.some(l => { const x = orig.find(y => y.name === l.name); return !x || x.qty !== l.qty; });
       try {
-        await S.update(o.id, Object.assign({ statut: "Prête", preparationValidee: true }, changed ? { lignes: kept.map(K.formatLine).join("\n") } : {}));
+        const lots = {}; kept.forEach(l => { const id = chosen[lotKey(l.name)]; if (id) lots[l.name] = id; });
+        await S.update(o.id, Object.assign({ statut: "Prête", preparationValidee: true }, changed ? { lignes: kept.map(K.formatLine).join("\n") } : {}, Object.keys(lots).length ? { lots } : {}));
         p.close(); K.toast(o.client + " staat klaar"); if (onDone) onDone();
       } catch (err) { p.el.querySelector("#vErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
     };

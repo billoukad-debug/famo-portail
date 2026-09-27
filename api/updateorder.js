@@ -8,6 +8,7 @@ const __bill = require("../lib/billing");
 const __atomic = require("../lib/atomic");
 const __guard = require("../lib/guardrails");
 const __journal = require("../lib/journal");
+const __trace = require("../lib/trace");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -505,6 +506,28 @@ async function handle(req, res, body, id){
     if (preparationValidee === true) {
       fields["Préparation validée"] = true;
       fields["Préparée le"] = new Date().toISOString();
+    }
+
+    // Lots livrés (traçabilité, audit C-13) : choisis à la préparation, figés en instantané.
+    if (body.lots !== undefined) {
+      if (departed) return res.status(409).json({ error: "Deze levering is al onderweg: de loten liggen vast" });
+      const lotRecs = await atAll("Lots");
+      if (lotRecs.error) return res.status(500).json({ error: "Loten onleesbaar" });
+      const cur0 = typeof lignes === "string" ? fields["Lignes (produits / quantités)"] : f["Lignes (produits / quantités)"];
+      const r = __trace.resolve(body.lots, parseLines(cur0), lotRecs.records || []);
+      if (r.error) return res.status(400).json({ error: r.error });
+      fields["Lots"] = JSON.stringify(Object.assign({}, __trace.parseLots(f["Lots"]) || {}, r.lots));
+    }
+    // « Lots verplicht » (Configuratie) : pas de « Klaar » sans lot pour chaque article.
+    if (statut === "Prête") {
+      const st = __journal.store();
+      const cf = st ? (((await st.list("Configuratie"))[0] || {}).fields || {}) : {};
+      if (cf["Lots verplicht"]) {
+        const have = __trace.parseLots(fields["Lots"] || f["Lots"]) || {};
+        const cur1 = typeof lignes === "string" ? fields["Lignes (produits / quantités)"] : f["Lignes (produits / quantités)"];
+        const zonder = parseLines(cur1).filter(l => !Object.keys(have).some(k => norm(k) === norm(l.nom)) ).map(l => l.nom);
+        if (zonder.length) return res.status(409).json({ error: "Kies een lot voor: " + zonder.join(", ") });
+      }
     }
 
     let stockReport = null, factuurnummer = null, mail = null;

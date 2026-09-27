@@ -37,7 +37,8 @@ module.exports = async (req, res) => {
         client: client.fields["Nom"] || "",
         klant: { nom: client.fields["Nom"] || "", adresse: client.fields["Lieu de livraison"] || "", btw: client.fields["BTW-nummer"] || "", klantnr: client.fields["Klantnummer"] || "", taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL" },
         livreeLe: f["Livrée le"] || "", receptionnePar: f["Réceptionné par"] || "",
-        factureeLe: f["Facturée le"] || "", btwPerLine
+        factureeLe: f["Facturée le"] || "", btwPerLine,
+        lots: (() => { try { return f["Lots"] ? JSON.parse(f["Lots"]) : null; } catch (e) { return null; } })()
       },
       config: {
         bedrijfsnaam: c["Bedrijfsnaam"] || "FAMO Seafood", adres: c["Adres"] || "", plaats: c["Postcode en plaats"] || "", btw: c["BTW-nummer"] || "",

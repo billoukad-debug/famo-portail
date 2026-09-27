@@ -52,6 +52,7 @@ module.exports = async (req, res) => {
       bestellingenEmail: (c["Bestellingen e-mail"] || "").trim(),
       // Mode de facturation et mentions légales (Code des sociétés, art. 2:20) : lib/billing.js.
       facturatie: __bill.modeOf(c),
+      lotsVerplicht: !!c["Lots verplicht"],
       legal: __bill.legalOf(c)
     };
     config.legalMissing = __bill.legalMissing(config.legal);
