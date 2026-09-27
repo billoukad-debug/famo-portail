@@ -7,6 +7,7 @@ const __mail = require("../lib/ordermail");
 const __bill = require("../lib/billing");
 const __atomic = require("../lib/atomic");
 const __guard = require("../lib/guardrails");
+const __journal = require("../lib/journal");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -386,7 +387,7 @@ async function makeCreditnota(req, res, id, f, body){
   return res.status(200).json({ ok: true, creditnota: { nummer, lignes: out.join("\n"), montant, le: fields["Creditnota le"], motif }, stock: stockReport });
 }
 
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "Alleen POST toegestaan" });
   if (!staffCodeReady(res)) return;
   try {
@@ -602,5 +603,20 @@ async function handle(req, res, body, id){
     res.status(200).json({ ok: true, stock: stockReport, factuurnummer, mail });
   }
 }
+// Journal d'audit (lib/journal.js, moteur SQL) : chaque action réussie sur une commande, qui,
+// quand, et chaque champ avant → après (lignes, prix, statut, paiement, corrections…).
+module.exports = async (req, res) => {
+  let body = {};
+  try { body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {}); } catch (e) { body = {}; }
+  const id = REC.test(String(body.id || "")) ? String(body.id) : "";
+  const before = id && __journal.store() ? await __journal.get("Commandes", id) : null;
+  await handler(req, res);
+  if (!before || res.statusCode !== 200) return;
+  const after = await __journal.get("Commandes", id);
+  const actie = body.correction ? "Correctie: " + body.correction : body.creditnota ? "Creditnota" : body.paiement ? "Betaalstatus: " + body.paiement
+    : body.statut ? "Status → " + body.statut : typeof body.lignes === "string" ? "Lijnen gewijzigd" : body.volgorde !== undefined ? "Volgorde levering" : "Bestelling bijgewerkt";
+  await __journal.log({ wie: __auth.actorOf(req), rol: __auth.roleOf(req), actie, object: "Commandes", record: id, referentie: (after || before)["Référence"] || "",
+    wijzigingen: __journal.diff(before, after), reden: body.reden || (body.creditnota && body.creditnota.motif) || body.uitzonderingNota || "" });
+};
 module.exports.parseLines = parseLines;
 module.exports.formatLine = formatLine;

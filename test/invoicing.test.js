@@ -163,3 +163,30 @@ test("même clé renvoyée → même commande ; mêmes articles le même jour �
   assert.equal(d.statusCode, 200); assert.notEqual(d.payload.id, a.payload.id);
   assert.equal((await store().list("Commandes")).length, 2);
 });
+
+// ---- Journal d'audit en ajout seul (audit B-12, L-01, L-02) ----
+test("journal : prix de base, IBAN, code et action sur commande — qui, avant → après, jamais un secret", async () => {
+  await seed([SORTIE("recORD0009")]);
+  await store().replaceAll("Journaal", []);
+  const post = (body) => call("onboarding.js", body, { headers: cookie("admin") });
+  let r = await post({ action: "saveProduct", id: "recP1", nom: "Tong", unite: "kg", base: 21.5, cat: "Vis" });
+  assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+  r = await post({ action: "saveConfig", bedrijfsnaam: "FAMO Seafood", btw: "BE0788705713", iban: "BE68539007547034", leverdagen: "ma,di" });
+  assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+  r = await post({ action: "saveCode", role: "staff", code: "geheim-nieuw-123" });
+  r = await call("updateorder.js", { id: "recORD0009", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, { headers: cookie("staff") });
+  assert.equal(r.statusCode, 200);
+  const j = await call("journaal.js", null, { method: "GET", headers: cookie("admin") });
+  assert.equal(j.statusCode, 200); assert.equal(j.payload.enabled, true);
+  const rows = j.payload.rows;
+  const prod = rows.find((x) => x.Actie === "saveProduct");
+  assert.deepStrictEqual(prod.Wijzigingen.find((w) => w.veld === "Prix de base"), { veld: "Prix de base", voor: "18.49", na: "21.5" });
+  assert.equal(prod.Wie, "beheerder");
+  const conf = rows.find((x) => x.Actie === "saveConfig");
+  assert.deepStrictEqual(conf.Wijzigingen.find((w) => w.veld === "IBAN"), { veld: "IBAN", voor: "BE71096123456769", na: "BE68539007547034" });
+  const ord = rows.find((x) => x.Object === "Commandes");
+  assert.equal(ord.Actie, "Status → Facturée"); assert.equal(ord.Wie, "personeel"); assert.equal(ord.Referentie, "CMD-2026-0009");
+  assert.ok(ord.Wijzigingen.some((w) => w.veld === "Factuurnummer" && /^FA-/.test(w.na)));
+  assert.ok(!JSON.stringify(rows).includes("geheim-nieuw-123"), "jamais un code en clair dans le journal");
+  assert.equal((await call("journaal.js", null, { method: "GET", headers: cookie("staff") })).statusCode, 401);
+});

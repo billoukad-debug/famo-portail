@@ -277,11 +277,21 @@
       const m = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})\s*·\s*(.*?)\s*·\s*(.*?)(?:\s+—\s+(.*))?$/.exec(line);
       rows.push(m ? { at: m[3] + "-" + m[2] + "-" + m[1] + "T" + m[4] + ":" + m[5], when: m[1] + "/" + m[2] + "/" + m[3] + " " + m[4] + ":" + m[5], wat: m[6], wie: m[7], reden: m[8] || "", o } : { at: "", when: "", wat: line, wie: "", reden: "", o });
     }));
+    // Journal d'audit (api/journaal, ajout seul) : prix, configuratie, klanten, codes, bestellingen — voor → na.
+    try {
+      const j = await K.api("/api/journaal?limit=1000");
+      (j.rows || []).forEach(e => {
+        const d = new Date(e.Tijdstip), p = n => String(n).padStart(2, "0");
+        const when = Number.isNaN(d.getTime()) ? "" : p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+        const wijz = (e.Wijzigingen || []).slice(0, 6).map(w => w.veld + ": " + (w.voor || "—") + " → " + (w.na || "—")).join(" · ");
+        rows.push({ at: String(e.Tijdstip || "").slice(0, 16), when, wat: e.Actie + (wijz ? " — " + wijz : ""), wie: e.Wie, reden: e.Reden || "", o: e.Object === "Commandes" ? { id: e.Record, ref: e.Referentie, client: "" } : { id: "", ref: e.Referentie || e.Object, client: e.Object } });
+      });
+    } catch (err) { /* journal indisponible (Airtable) : les correcties des bestellingen restent affichées */ }
     rows.sort((a, b) => b.at.localeCompare(a.at));
     const show = () => {
       const t = jq.toLowerCase(), list = rows.filter(r => !t || (r.wat + " " + r.wie + " " + r.reden + " " + r.o.ref + " " + r.o.client).toLowerCase().includes(t));
       page.querySelector("#jlist").innerHTML = list.length ? '<div class="tblwrap"><table class="tbl"><caption class="sr-only">Journaal</caption><thead><tr><th scope="col">Wanneer</th><th scope="col">Bestelling</th><th scope="col">Klant</th><th scope="col">Actie</th><th scope="col">Door</th><th scope="col">Reden</th></tr></thead><tbody>' +
-        list.slice(0, 500).map(r => '<tr><td class="mono" style="white-space:nowrap">' + K.esc(r.when || "—") + '</td><td class="mono"><a href="/order.html?id=' + encodeURIComponent(r.o.id) + '">' + K.esc(r.o.ref) + '</a></td><td>' + K.esc(r.o.client || "") + '</td><td class="wrap">' + K.esc(r.wat) + '</td><td>' + K.esc(r.wie || "—") + '</td><td class="wrap muted">' + K.esc(r.reden || "") + '</td></tr>').join("") + '</tbody></table></div>' + (list.length > 500 ? '<p class="quiet" style="font-size:12px">De 500 recentste van ' + list.length + ' regels. Verfijn met het zoekveld.</p>' : "")
+        list.slice(0, 500).map(r => '<tr><td class="mono" style="white-space:nowrap">' + K.esc(r.when || "—") + '</td><td class="mono">' + (r.o.id ? '<a href="/order.html?id=' + encodeURIComponent(r.o.id) + '">' + K.esc(r.o.ref) + '</a>' : K.esc(r.o.ref || "—")) + '</td><td>' + K.esc(r.o.client || "") + '</td><td class="wrap">' + K.esc(r.wat) + '</td><td>' + K.esc(r.wie || "—") + '</td><td class="wrap muted">' + K.esc(r.reden || "") + '</td></tr>').join("") + '</tbody></table></div>' + (list.length > 500 ? '<p class="quiet" style="font-size:12px">De 500 recentste van ' + list.length + ' regels. Verfijn met het zoekveld.</p>' : "")
         : K.c.empty(rows.length ? "Niets gevonden" : "Nog geen wijzigingen", rows.length ? "Probeer een ander woord." : "Correcties, betalingen en creditnota's verschijnen hier.");
     };
     page.querySelector(".content").innerHTML = '<div class="card"><div class="card-h" style="gap:10px;flex-wrap:wrap"><label class="search" style="flex:1 1 240px;max-width:420px">' + K.icon("search") + '<input id="jq" aria-label="Journaal doorzoeken" placeholder="Bestelling, klant, actie of medewerker…" value="' + K.esc(jq) + '"></label><span class="quiet" style="font-size:12.5px">' + rows.length + ' regel' + (rows.length === 1 ? "" : "s") + '</span></div><div id="jlist"></div></div>';

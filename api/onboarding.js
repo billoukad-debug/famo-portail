@@ -10,6 +10,7 @@ const __ordermail = require("../lib/ordermail");
 const __lev = require("../lib/levering");
 const __bill = require("../lib/billing");
 const __guard = require("../lib/guardrails");
+const __journal = require("../lib/journal");
 const BASE = "appcdduLth9iGX8I0";
 const REC = /^[A-Za-z0-9]{1,40}$/;
 
@@ -207,7 +208,7 @@ async function statusPayload() {
   };
 }
 
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
   if (!__auth.hasCode()) {
     return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt." });
   }
@@ -804,4 +805,29 @@ module.exports = async (req, res) => {
   } catch (e) {
     return res.status(500).json({ error: String(e.message || e) });
   }
+};
+
+// Journal d'audit (lib/journal.js, moteur SQL) : chaque action Beheer réussie, avec l'état de
+// l'enregistrement avant → après (prix de base, IBAN, taux de TVA, archivage, suppressions…).
+// Codes, PIN et mots de passe : jamais la valeur, seulement « gewijzigd ».
+const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", saveClient: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
+  resetPassword: "Clients", revokeAccess: "Clients", saveMedewerker: "Medewerkers", deleteMedewerker: "Medewerkers", closeAanvraag: "Aanvragen", deletePrice: "Prix négociés" };
+module.exports = async (req, res) => {
+  const st = __journal.store();
+  if (req.method !== "POST" || !st) return handler(req, res);
+  let body = {};
+  try { body = parseBody(req) || {}; } catch (e) { return handler(req, res); }
+  const action = clean(body.action, 40);
+  if (!action || action === "previewCredentials") return handler(req, res);
+  let table = TARGET[action] || "", id = table && REC.test(String(body.id || "")) ? String(body.id) : "";
+  if (action === "saveConfig") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
+  const before = id ? await __journal.get(table, id) : null;
+  await handler(req, res);
+  if (res.statusCode !== 200) return;
+  const after = id ? await __journal.get(table, id) : null;
+  const skip = /^(action|foto|data|image|file)/i;
+  const wijz = id ? __journal.diff(before, after) : Object.entries(body).filter(([k]) => !skip.test(k)).map(([k, v]) => ({ veld: k, voor: "", na: /wachtwoord|password|hash|code|token|pin|secret/i.test(k) ? "•••" : (typeof v === "string" ? v : JSON.stringify(v)).slice(0, 300) }));
+  const f = after || before || {};
+  await __journal.log({ wie: __auth.actorOf(req), rol: __auth.roleOf(req), actie: action, object: table || "Beheer", record: id,
+    referentie: f["Produit"] || f["Nom"] || f["Bedrijfsnaam"] || f["Naam"] || body.nom || body.clientId || "", wijzigingen: wijz, reden: body.reden || "" });
 };
