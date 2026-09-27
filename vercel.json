@@ -2,6 +2,20 @@
   "regions": [
     "fra1"
   ],
+  "crons": [
+    {
+      "path": "/api/backup-cron",
+      "schedule": "17 2 * * *"
+    }
+  ],
+  "functions": {
+    "api/backup-cron.js": {
+      "maxDuration": 120
+    },
+    "api/dbadmin.js": {
+      "maxDuration": 120
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
