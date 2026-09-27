@@ -254,3 +254,42 @@ test("A-03 / A-09 : nouveau PIN 6-12 chiffres et unique", async () => {
   const own = first.body.medewerkers.find((m) => m.naam === "Eerste");
   assert.equal((await save({ id: own.id, naam: "Eerste", pin: "908172" })).statusCode, 200, "son propre PIN n'est pas un doublon");
 });
+
+// ---- A-08 : jeton client borné à 7 jours, révoqué à la déconnexion -----------------------------
+test("A-08 : renouvellement sans fin impossible (7 jours après la connexion)", async () => {
+  await put("Clients", { "Nom": "Duur", "Gebruikersnaam": "duur", "Wachtwoord": ca.hashPassword("goed-wachtwoord") });
+  const login = await callApi("catalogue", { method: "POST", body: { user: "duur", pw: "goed-wachtwoord" } });
+  assert.equal(login.statusCode, 200);
+  let tok = login.body.token;
+  const iat = ca.readToken(tok).iat;
+  // Le client rouvre le catalogue toutes les 11 h (jeton de 12 h) : renouvelé, l'iat reste celui de la connexion.
+  let h = 11;
+  for (; h < 7 * 24 - 11; h += 11) {
+    const r = await later(h * 3600000, () => callApi("catalogue", { method: "POST", body: { token: tok } }));
+    assert.equal(r.statusCode, 200, "heure " + h);
+    tok = r.body.token;
+  }
+  const parts = tok.split(".");
+  assert.equal(Number(parts[4]), iat, "iat conservé");
+  assert.ok(Number(parts[2]) <= iat + ca.MAX_AGE_MS, "échéance jamais au-delà de 7 jours");
+  const r7 = await later(7 * 86400000 + 60000, () => callApi("catalogue", { method: "POST", body: { token: tok } }));
+  assert.equal(r7.statusCode, 401, "après 7 jours : nouvelle connexion obligatoire");
+  assert.equal(r7.body.expired, true);
+});
+
+test("A-08 : déconnexion serveur → les jetons du client sur tous ses appareils tombent", async () => {
+  const id = await put("Clients", { "Nom": "Uit", "Gebruikersnaam": "uitlog", "Wachtwoord": ca.hashPassword("goed-wachtwoord") });
+  const tablet = (await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } })).body.token;
+  const phone = (await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } })).body.token;
+  assert.equal((await callApi("catalogue", { method: "POST", body: { token: phone } })).statusCode, 200);
+  const out = await callApi("klantwachtwoord", { method: "POST", body: { action: "logout", token: tablet } });
+  assert.equal(out.statusCode, 200, JSON.stringify(out.body));
+  assert.equal((await store().get("Clients", id)).fields["Sessiegeneratie"], 1);
+  assert.equal((await callApi("catalogue", { method: "POST", body: { token: tablet } })).statusCode, 401);
+  assert.equal((await callApi("catalogue", { method: "POST", body: { token: phone } })).statusCode, 401, "l'autre appareil aussi");
+  assert.equal((await callApi("klantwachtwoord", { method: "POST", body: { action: "logout", token: tablet } })).statusCode, 200, "déconnexion répétée : neutre");
+  const again = await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } });
+  assert.equal(again.statusCode, 200);
+  assert.equal(ca.readToken(again.body.token).gen, 1, "nouvelle connexion à la nouvelle génération");
+  assert.equal((await callApi("catalogue", { method: "POST", body: { token: again.body.token } })).statusCode, 200);
+});

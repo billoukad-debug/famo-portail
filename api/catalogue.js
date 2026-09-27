@@ -54,7 +54,8 @@ async function authClient(user, pw, token){
     if (!t) return null;
     const rec = await at(`Clients/${t.id}`);
     const stored = rec && !rec.error && rec.fields && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"];
-    if (!stored || __ca.fingerprint(stored) !== t.fp) return null;
+    if (!stored || __ca.fingerprint(stored) !== t.fp || __ca.generationOf(rec) !== t.gen) return null;
+    rec.tokenIat = t.iat; // renouvellement : la durée maximale court depuis la connexion
     return rec;
   }
   if (!user || !pw) return null;
@@ -146,7 +147,7 @@ module.exports = async (req, res) => {
     res.status(200).json({
       client: { id: clientId, taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL", nom: client.fields["Nom"], adresse: client.fields["Lieu de livraison"] || "", email: (client.fields["Email"] || "").trim(), tel: client.fields["Téléphone"] || "", klantnr: client.fields["Klantnummer"] || "", btw: client.fields["BTW-nummer"] || "", favorieten },
       products,
-      token: __ca.issueToken(client),
+      token: __ca.issueToken(client, client.tokenIat),
       company: Object.assign(companyFrom(cfgFields), { levering: __lev.publicRules(rules), iban: rules ? (cfgFields["IBAN"] || "").trim() : "", bic: (cfgFields["BIC"] || "").trim() })
     });
   } catch (e) {

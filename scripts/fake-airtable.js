@@ -17,7 +17,9 @@ const SCHEMA = {
     // Favorieten : JSON {favorieten:[ids], standaard:{id:qty}} synchronisé entre appareils (api/klantorder).
     fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select",
       // Verrou persistant anti-force brute (api/catalogue authClient) : échecs consécutifs, blocage.
-      "Echecs": "number", "Geblokkeerd tot": "datetime" },
+      "Echecs": "number", "Geblokkeerd tot": "datetime",
+      // Sessiegeneratie : +1 à la déconnexion, révoque les jetons du client (lib/clientauth.js).
+      "Sessiegeneratie": "number" },
     selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
   },
   Catalogue: {

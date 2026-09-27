@@ -1,6 +1,7 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 // Le client change lui-même son mot de passe (Klant → Account).
 // POST {user, pw, nieuw} : pw = le mot de passe ACTUEL, retapé par le client.
+// POST {action:"logout", token} : déconnexion serveur (tous les appareils du client).
 //
 // Le client modifié est TOUJOURS celui que authClient vient de vérifier (gebruikersnaam
 // + mot de passe actuel). Aucun identifiant de client n'est lu dans le body : sans le
@@ -40,6 +41,21 @@ module.exports = async (req, res) => {
     let q = req.body;
     if (typeof q === "string") q = JSON.parse(q || "{}");
     if (!q) q = {};
+
+    // ---- Déconnexion : POST {action:"logout", token}. La génération du client (+1) révoque
+    // tous ses jetons, sur tous ses appareils. Réponse identique si le jeton ne vaut plus rien.
+    if (q.action === "logout") {
+      const client = q.token ? await authClient(null, null, q.token) : null;
+      if (client) {
+        const saved = await at(`Clients/${encodeURIComponent(client.id)}`, { method: "PATCH", body: JSON.stringify({ fields: { "Sessiegeneratie": __ca.generationOf(client) + 1 } }) });
+        if (!saved || saved.error) {
+          console.error("[klantwachtwoord] logout", saved && saved.error && saved.error.type);
+          return res.status(500).json({ error: "Afmelden mislukt. Probeer opnieuw." });
+        }
+      }
+      return res.status(200).json({ ok: true });
+    }
+
     const pw = typeof q.pw === "string" ? q.pw : "";
     const nieuw = typeof q.nieuw === "string" ? q.nieuw : "";
 
@@ -66,8 +82,9 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: "Wachtwoord wijzigen mislukt. Probeer het later opnieuw." });
     }
     _rl.delete(rlKey);
-    return res.status(200).json({ ok: true, token: __ca.issueToken({ id: client.id, fields: { "Wachtwoord": hashed } }) });
+    return res.status(200).json({ ok: true, token: __ca.issueToken({ id: client.id, fields: Object.assign({}, client.fields, { "Wachtwoord": hashed }) }) });
   } catch (e) {
+    console.error("[klantwachtwoord]", e && e.message || e);
     return res.status(500).json({ error: "Wachtwoord wijzigen mislukt. Probeer het later opnieuw." });
   }
 };
