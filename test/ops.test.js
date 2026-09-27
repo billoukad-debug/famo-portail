@@ -193,6 +193,8 @@ test("D-01 : cron nocturne -> CRON_SECRET exigé, gzip en pièce jointe à la bo
     assert.match(mails[1].text, /handmatig/);
     const st = await callApi("dbadmin", { headers: admin() });
     assert.equal(st.body.lastBackup.big, true);
+    const h = await callApi("health", {});
+    assert.equal(h.body.checks.backup.ok, false, "la santé montre le dernier envoi raté");
   } finally {
     globalThis.fetch = prev;
     delete process.env.CRON_SECRET; delete process.env.RESEND_API_KEY; delete process.env.BACKUP_MAX_BYTES;
@@ -258,6 +260,34 @@ test("L-03 + D-08 + D-07 : copie protégée, photos rapatriées dans famo_files,
     assert.equal(fix.body.photos.downloaded, 1);
     assert.match((await ds.state.store.get("Catalogue", p.id)).fields.Foto[0].url, /^\/api\/foto\?id=att/);
   } finally { restore(); }
+});
+
+test("D-03 : /api/health -> 200 sain, 503 base injoignable, aucune donnée personnelle", async () => {
+  await populate();
+  process.env.VERCEL_GIT_COMMIT_SHA = "abcdef1234567890";
+  try {
+    const h = await callApi("health", {});
+    assert.equal(h.statusCode, 200, JSON.stringify(h.body));
+    assert.equal(h.body.ok, true);
+    assert.equal(h.body.version, "abcdef1");
+    assert.equal(h.body.checks.database.ok, true);
+    assert.equal(h.body.checks.config.ok, true);
+    assert.equal(typeof h.body.checks.mail.configured, "boolean");
+    assert.equal(h.headers["cache-control"], "no-store");
+    const txt = JSON.stringify(h.body);
+    for (const leak of ["FAMO Seafood", "@", "BE", "welkom"]) assert.ok(!txt.includes(leak) || leak === "BE" && !/BE\d{2}/.test(txt), "fuite : " + leak);
+    const head = await callApi("health", { method: "HEAD" });
+    assert.equal(head.statusCode, 200);
+    const ping = ds.state.store.ping;
+    ds.state.store.ping = async () => { throw new Error("connect ECONNREFUSED"); };
+    const lines = [], prevSink = log._setSink(lines);
+    try {
+      const down = await callApi("health", {});
+      assert.equal(down.statusCode, 503);
+      assert.equal(down.body.checks.database.ok, false);
+      assert.equal(lines[0].niveau, "error");
+    } finally { ds.state.store.ping = ping; log._setSink(prevSink); }
+  } finally { delete process.env.VERCEL_GIT_COMMIT_SHA; }
 });
 
 test("D-04 : journal JSON corrélable (x-vercel-id), secrets masqués", () => {
