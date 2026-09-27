@@ -407,3 +407,40 @@ test("A-04 : hashAllPasswords hache tout Wachtwoord en clair, compteur pour Syst
   }
   assert.equal((await act("securityStatus")).body.klareWachtwoorden, 0);
 });
+
+// ---- A-10 : Origin + JSON sur les requêtes qui modifient ----------------------------------------
+test("A-10 : garde Origin / Content-Type", async () => {
+  const guard = require(path.join(ROOT, "lib", "guard.js"));
+  const req = (headers, method) => ({ method: method || "POST", headers: Object.assign({ host: "portaal.famo.test" }, headers) });
+  assert.equal(guard.sameOrigin(req({ origin: "https://portaal.famo.test" })), true);
+  assert.equal(guard.sameOrigin(req({ origin: "https://evil.test" })), false);
+  assert.equal(guard.sameOrigin(req({ origin: "https://portaal.famo.test.evil.test" })), false);
+  assert.equal(guard.sameOrigin(req({ origin: "null" })), false, "Origin null (iframe sandbox, no-referrer)");
+  assert.equal(guard.sameOrigin(req({ referer: "https://portaal.famo.test/beheer.html" })), true, "Referer à défaut d'Origin");
+  assert.equal(guard.sameOrigin(req({ referer: "https://evil.test/x" })), false);
+  assert.equal(guard.sameOrigin(req({ "content-type": "application/json" })), true, "sans Origin ni Referer : JSON accepté");
+  assert.equal(guard.sameOrigin(req({ "content-type": "text/plain" })), false, "sans Origin ni Referer : formulaire refusé");
+  assert.equal(guard.sameOrigin(req({ origin: "http://localhost:4401", host: "localhost:4401" })), true, "serveur de dev");
+  assert.equal(guard.sameOrigin(req({ origin: "https://www.famoseafood.be", host: "famo-portail.vercel.app", "x-forwarded-host": "famo-portail.vercel.app" })), false);
+  process.env.PORTAL_URL = "https://www.famoseafood.be";
+  try { assert.equal(guard.sameOrigin(req({ origin: "https://www.famoseafood.be", host: "famo-portail.vercel.app" })), true, "PORTAL_URL accepté"); } finally { delete process.env.PORTAL_URL; }
+  assert.equal(guard.requireJson(req({ "content-type": "application/json; charset=utf-8" })), true);
+  for (const ct of ["application/x-www-form-urlencoded", "multipart/form-data; boundary=x", "text/plain;charset=UTF-8"]) assert.equal(guard.requireJson(req({ "content-type": ct })), false, ct);
+  // Sur les vrais handlers : refus AVANT toute lecture de la base.
+  const evil = await callApi("session", { method: "POST", headers: { host: "portaal.famo.test", origin: "https://evil.test", "content-type": "application/json" }, body: { code: "team-sec-code" } });
+  assert.equal(evil.statusCode, 403); assert.equal(evil.headers["set-cookie"], undefined);
+  const form = await callApi("klantorder", { method: "POST", headers: { host: "portaal.famo.test", origin: "https://portaal.famo.test", "content-type": "application/x-www-form-urlencoded" }, body: { action: "reset" } });
+  assert.equal(form.statusCode, 415);
+  const good = await callApi("session", { method: "POST", headers: { host: "portaal.famo.test", origin: "https://portaal.famo.test", "content-type": "application/json" }, body: { code: "team-sec-code" } });
+  assert.equal(good.statusCode, 200);
+  const del = await callApi("session", { method: "DELETE", headers: { host: "portaal.famo.test", origin: "https://evil.test" } });
+  assert.equal(del.statusCode, 403, "DELETE aussi");
+  assert.equal((await callApi("session", { method: "GET", headers: { host: "portaal.famo.test", origin: "https://evil.test" } })).statusCode, 401, "GET non concerné");
+  // Chaque handler qui accepte POST porte la garde en première ligne.
+  const fs = require("fs");
+  for (const f of fs.readdirSync(path.join(ROOT, "api")).filter((x) => x.endsWith(".js"))) {
+    const src = fs.readFileSync(path.join(ROOT, "api", f), "utf8");
+    if (!/method\s*(!==|===)\s*"POST"|method\s*===\s*"DELETE"/.test(src)) continue;
+    assert.match(src, /module\.exports = async \(req, res\) => \{\n {2}if \(require\("\.\.\/lib\/guard"\)\.blocked\(req, res\)\) return;/, "garde absente de api/" + f);
+  }
+});

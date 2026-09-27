@@ -51,6 +51,7 @@ async function buildOrderLines(clientId, items){
 }
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (!staffCodeReady(res)) return;
   try {
     // ---------- POST : créer une commande au nom d'un client ----------

@@ -98,6 +98,7 @@ function clientIp(req) {
 // DELETE       -> deconnexion (invalide le cookie). DELETE ?all=1 (beheerder) : deconnecte
 //                 TOUT le monde (generation globale +1), y compris l'appelant.
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (!auth.hasCode()) {
     return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
   }

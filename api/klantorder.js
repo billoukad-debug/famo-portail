@@ -44,6 +44,7 @@ async function findOwnOrder(client, ref){
 }
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (req.method !== "POST") return res.status(405).json({ error: "Gebruik POST." });
   try {
     let q = req.body;

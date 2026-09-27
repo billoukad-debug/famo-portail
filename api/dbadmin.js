@@ -45,6 +45,7 @@ async function airtableAll(table) {
 const sumTotal = (recs) => Math.round((recs || []).reduce((s, r) => s + (Number((r.fields || {})["Total"]) || 0), 0) * 100) / 100;
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (!__auth.hasCode()) return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt." });
   if (!__auth.adminOk(req)) return res.status(403).json({ error: "Enkel de beheerder kan de database beheren" });
   const t = targetStore();
