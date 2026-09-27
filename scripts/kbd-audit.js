@@ -20,6 +20,8 @@ try { ({ chromium } = require("playwright")); } catch (e) { ({ chromium } = requ
 const B = process.env.BASE || "http://localhost:4200";
 const EXE = process.env.CHROMIUM || (require("fs").existsSync("/opt/pw-browsers/chromium-1194/chrome-linux/chrome") ? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" : undefined);
 const VERBOSE = !!process.env.VERBOSE;
+// Le parcours passe une commande, la livre et crée un produit de test : jamais contre la production.
+if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(B) && process.env.KBD_ALLOW_REMOTE !== "1") { console.error("kbd-audit écrit des données (commande, livraison, produit) : BASE doit être un portail de dev local (" + B + " refusé ; KBD_ALLOW_REMOTE=1 pour forcer)."); process.exit(2); }
 const issues = {};
 const add = (k, v) => { (issues[k] = issues[k] || new Set()).add(v); };
 const log = s => { if (VERBOSE) console.log(s); };
