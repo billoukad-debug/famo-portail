@@ -181,10 +181,16 @@ async function main() {
   sres = mkRes(); await session({ method: "GET", headers: {} }, sres);
   assert.equal(sres.statusCode, 401, "sans session -> 401");
 
-  // token expire -> 401
-  const expired = authlib.sign(Date.now() - 1000);
+  // token expire -> 401. Le jeton est bien signé et porte un rôle valable : seule
+  // l'échéance le rend invalide (un jeton sans rôle serait refusé pour une autre raison
+  // et le test passerait même si le contrôle d'expiration disparaissait).
+  const notExpired = authlib.sign(Date.now() + 100000, "staff");
+  sres = mkRes(); await session({ method: "GET", headers: { cookie: "famo_sess=" + encodeURIComponent(notExpired) } }, sres);
+  assert.equal(sres.statusCode, 200, "jeton signe non expire (temoin) doit etre accepte");
+  const expired = authlib.sign(Date.now() - 1000, "staff");
   sres = mkRes(); await session({ method: "GET", headers: { cookie: "famo_sess=" + encodeURIComponent(expired) } }, sres);
   assert.equal(sres.statusCode, 401, "session expiree doit etre refusee");
+  assert.equal(authlib.verify(authlib.sign(Date.now() - 1000, "admin")), null, "jeton admin expire refuse");
 
   // token falsifie -> 401
   sres = mkRes(); await session({ method: "GET", headers: { cookie: "famo_sess=" + encodeURIComponent(tok.split(".")[0] + ".AAAA") } }, sres);
@@ -1751,7 +1757,15 @@ async function main() {
     const forged = tok.replace(/^k\.recL\./, "k.recX.");
     r = await call(cat, { token: forged }, []);
     assert.equal(r.res.statusCode, 401, "AX5 jeton falsifié → refusé sans lecture"); assert.equal(r.calls.length, 0);
-    assert.equal(ca.readToken("k.recL.1.abc.def"), null, "AX5 jeton périmé refusé");
+    assert.equal(ca.readToken("k.recL.1.abc.def"), null, "AX5 jeton non signé refusé");
+    // Jeton correctement signé mais périmé : seule l'échéance doit le faire refuser.
+    const hmacAX = require(path.join(ROOT, "lib", "staffauth")).hmac;
+    const fpAX = ca.fingerprint(upPw);
+    const signedAX = exp => { const p = "k.recL." + exp + "." + fpAX; return p + "." + hmacAX(p); };
+    assert.deepEqual(ca.readToken(signedAX(Date.now() + 60000)), { id: "recL", fp: fpAX }, "AX5 témoin : jeton signé non périmé accepté");
+    assert.equal(ca.readToken(signedAX(Date.now() - 1000)), null, "AX5 jeton signé périmé refusé");
+    r = await call(cat, { token: signedAX(Date.now() - 1000) }, []);
+    assert.equal(r.res.statusCode, 401, "AX5 jeton périmé → 401"); assert.equal(r.calls.length, 0, "AX5 jeton périmé : aucune lecture");
   }
   // --- AY. Ordre du catalogue (glisser-déposer Beheer) : validation, seuls les changements écrits ---
   {
