@@ -184,3 +184,23 @@ test("api/orders : filtre client dans la formule, sur les deux moteurs (ids en S
   assert.equal(clientFormula({ id: "recX", fields: {} }).includes("FIND"), false, "client sans nom : fenêtre seule");
   assert.ok(clientFormula({ id: "recCLIaaaaaaaaaaa", fields: { Nom: "O'Brien" } }).includes("O\\'Brien"), "nom échappé");
 });
+
+test("api/config : comptes en COUNT SQL, cache CDN seulement sur la réponse publique", async () => {
+  await seedPortal(40);
+  let reads = 0;
+  const realList = ds.state.store.list;
+  ds.state.store.list = async (t, w) => { reads++; return realList(t, w); };
+  try {
+    const st = await callApi("config", { headers: { cookie: cookie() }, query: { status: "1" } });
+    assert.equal(st.statusCode, 200, JSON.stringify(st.body));
+    assert.deepEqual([st.body.status.orders, st.body.status.clients, st.body.status.catalogue, st.body.status.aanvragen], [40, 2, 1, 1]);
+    assert.equal(reads, 3, "Configuratie + 2 comptes filtrés ; les 4 autres en COUNT(*)");
+    assert.equal(st.headers["cache-control"], undefined, "réponse beheer jamais en cache");
+  } finally { ds.state.store.list = realList; }
+  const pub = await callApi("config", { query: { public: "1" } });
+  assert.equal(pub.statusCode, 200);
+  assert.equal(pub.headers["cache-control"], "public, s-maxage=300, stale-while-revalidate=600");
+  assert.equal(pub.body.config.iban, undefined, "réponse publique sans IBAN");
+  const staff = await callApi("config", { headers: { cookie: cookie() }, query: { public: "1" } });
+  assert.equal(staff.headers["cache-control"], undefined, "personnel connecté : jamais la version en cache");
+});
