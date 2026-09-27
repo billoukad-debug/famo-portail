@@ -161,20 +161,36 @@
     // Catégorie affichée = traduction (K.cat) ; la valeur Airtable reste la clé de filtre.
     const all = (cat.products || []).slice().sort(K.byVolgorde);
     const byCat = K.catOrder(cat.products, p => K.cat(p.cat));
-    const products = all.filter(p => (!q || (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat) + " " + (p.omschrijving || "")).toLowerCase().includes(q)) && (catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : K.cat(p.cat) === catFilter)));
+    // E-08 : la recherche ne redessine plus la liste — toutes les lignes de la catégorie sont posées une fois,
+    // la frappe ne fait que masquer / montrer (applyQuery), après une courte pause.
+    const products = all.filter(p => catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : K.cat(p.cat) === catFilter));
+    const hay = new Map(products.map(p => [p.id, (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat) + " " + (p.omschrijving || "")).toLowerCase()]));
     const catNames = Array.from(new Set(all.map(p => K.cat(p.cat)))).sort(byCat);
     const count = c => c === "Alles" ? all.length : c === "Favorieten" ? all.filter(p => favs[p.id]).length : all.filter(p => K.cat(p.cat) === c).length;
     const cats = ["Alles", "Favorieten", ...catNames];
-    const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" && !q ? "Favorieten" : K.cat(p.cat)); (groups[g] = groups[g] || []).push(p); });
+    const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" ? "Favorieten" : K.cat(p.cat)); (groups[g] = groups[g] || []).push(p); });
     const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : byCat(a, b)));
     const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + count(c) + '</span></button>';
     const top = '<div class="mtop"><div class="mrow"><span class="logo">F</span><div style="min-width:0;flex:1"><h1 class="ktitle">' + K.t("Catalogus") + '</h1><span class="quiet ksub">' + K.esc(cat.client.nom) + ' · ' + K.esc(K.tt("bestel vóór {t} voor morgen", { t: deadline() })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div>' +
       '<label class="search" style="max-width:none">' + K.icon("search") + '<input id="q" type="search" placeholder="' + K.t("Zoek een product…") + '" aria-label="' + K.t("Zoek een product…") + '" aria-keyshortcuts="/" value="' + K.esc(q) + '" autocomplete="off" spellcheck="false"></label>' +
       '<div class="cats" role="group" aria-label="' + K.t("Categorieën") + '">' + cats.map(catBtn).join("") + '</div></div>';
     const head = '<div class="prhead" aria-hidden="true"><span>' + K.t("Product") + '</span><span>' + K.t("Kaliber") + '</span><span>' + K.t("Eenheid") + '</span><span>' + K.t("Prijs excl. btw") + '</span><span></span><span>' + K.t("Aantal") + '</span></div>';
-    const list = products.length ? head + order.map(g => '<h2 class="sec">' + K.esc(K.t(g)) + ' <span class="quiet">' + groups[g].length + '</span></h2>' + groups[g].map(productRow).join("")).join("") : K.c.empty(q ? K.t("Niets gevonden voor") + " „" + q + "”" : K.t("Nog geen favorieten"), q ? K.t("Probeer een ander woord of kies een categorie.") : K.t("Tik op de ster bij een product om het hier te zien."));
+    const list = products.length ? head + order.map(g => '<h2 class="sec">' + K.esc(K.t(g)) + ' <span class="quiet" data-gn>' + groups[g].length + '</span></h2>' + groups[g].map(productRow).join("")).join("") + '<div id="noHit" role="status"></div>' : K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product om het hier te zien."));
     shell("catalogus", '<div class="kgrid"><nav class="kside" aria-label="' + K.t("Categorieën") + '">' + cats.map(catBtn).join("") + '</nav><div class="mlist" id="list">' + list + '</div><aside class="kcart" id="cartPanel" aria-label="' + K.t("Winkelmand") + '">' + cartPanelHtml() + '</aside></div><div id="cartbarBox">' + cartbarHtml() + '</div>', top);
-    const qi = document.getElementById("q"); qi.addEventListener("input", K.debounce(() => { q = qi.value.trim().toLowerCase(); const pos = qi.selectionStart; renderCatalogus(); const n2 = document.getElementById("q"); n2.focus(); n2.setSelectionRange(pos, pos); }, 150));
+    const applyQuery = () => {
+      const box = document.getElementById("list"); if (!box) return;
+      let sec = null, n = 0, total = 0;
+      const endGroup = () => { if (!sec) return; sec.classList.toggle("hidden", !n); const c = sec.querySelector("[data-gn]"); if (c) c.textContent = n; };
+      for (const el of box.children) {
+        if (el.tagName === "H2") { endGroup(); sec = el; n = 0; }
+        else if (el.classList.contains("prod")) { const ok = !q || (hay.get(el.dataset.id) || "").includes(q); el.classList.toggle("hidden", !ok); if (ok) { n++; total++; } }
+      }
+      endGroup();
+      const ph = box.querySelector(".prhead"); if (ph) ph.classList.toggle("hidden", !total);
+      const nh = document.getElementById("noHit"); if (nh) nh.innerHTML = total || !q ? "" : K.c.empty(K.t("Niets gevonden voor") + " „" + q + "”", K.t("Probeer een ander woord of kies een categorie."));
+    };
+    applyQuery();
+    const qi = document.getElementById("q"); qi.addEventListener("input", K.debounce(() => { q = qi.value.trim().toLowerCase(); applyQuery(); }, 120));
     K.on(app, "click", "[data-cat]", (e, t) => { catFilter = t.dataset.cat; renderCatalogus(); const b = K.$$('[data-cat="' + CSS.escape(catFilter) + '"]', app).find(x => x.offsetParent); if (b) b.focus(); });
     K.on(app, "click", "[data-fav]", (e, t) => { const id = t.dataset.fav; setFav(id, !favs[id]); K.setOn(t, !!favs[id]); });
     K.on(app, "click", "[data-x]", (e, t) => {
