@@ -507,7 +507,7 @@
     K.on(app, "click", "[data-goto]", () => { ordFilter = "geleverd"; });
     K.on(app, "click", "[data-profile]", openProfilePanel);
     document.getElementById("pwChange").onclick = openPasswordPanel;
-    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
+    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { try { const c = K.klant.creds(); if (c && c.token) await K.api("/api/klantwachtwoord", { json: { action: "logout", token: c.token } }); } catch (e) { /* hors ligne : le jeton local est quand même effacé */ } K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
   }
 
   /* ---------- router ---------- */
