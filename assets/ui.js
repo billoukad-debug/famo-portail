@@ -146,7 +146,8 @@
     "Download mislukt: voorbeeld niet geladen.": "Téléchargement impossible : aperçu non chargé.", "PDF genereren…": "Création du PDF…", "PDF gedownload:": "PDF téléchargé :", "PDF downloaden mislukt.": "Le téléchargement du PDF a échoué.",
     "PDF-bibliotheek niet beschikbaar.": "Module PDF indisponible.", "PDF-bibliotheek kon niet worden geladen.": "Le module PDF n'a pas pu être chargé.", "Geen geldige PDF gegenereerd (geen HTML-hernoemd bestand).": "Aucun PDF valide n'a été créé.",
     // pastilles (aria-label) : enkelvoud / meervoud
-    "factuur te betalen": "facture à payer", "facturen te betalen": "factures à payer"
+    "factuur te betalen": "facture à payer", "facturen te betalen": "factures à payer",
+    "Opmerking bij": "Remarque pour", "Filter": "Filtre", "Bekijken": "Voir"
   };
   // Servermeldingen met een getal erin : één patroon per melding, vertaald bij het tonen.
   const FR_PAT = [[/^Na (\d{2}:\d{2}) kan niet meer voor morgen besteld worden\. Kies een latere leverdag\.$/, "Après $1, il n'est plus possible de commander pour demain. Choisissez un jour plus tard."], [/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
@@ -378,7 +379,30 @@
   c.check = (on, attrs, opts) => { const o = opts || {}; return '<button type="button" class="check' + (on ? " on" : "") + (o.big ? " big" : "") + '" ' + (attrs || "") + (o.label ? ' aria-label="' + K.esc(o.label) + '"' : "") + ' aria-pressed="' + (on ? "true" : "false") + '">' + K.icon("check") + '</button>'; };
   // Interrupteur visuel + état accessible en une fois (check, toggle, favoriet).
   K.setOn = (el, on) => { if (!el) return; el.classList.toggle("on", !!on); el.setAttribute("aria-pressed", on ? "true" : "false"); const line = el.closest(".line"); if (line) line.classList.toggle("ok", !!on); };
-  c.stepper = (id, value, opts) => { const o = opts || {}; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.t("Minder") + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.t("Aantal") + '"><button type="button" data-inc aria-label="' + K.t("Meer") + '">+</button></div>'; };
+  // ACC-06 / G-06 : l'état « choisi » (classe .on) est toujours exposé, quel que soit le code qui la pose :
+  // choix .opt, filtres .cats, langue → aria-pressed ; vues .views et onglets .tabs → aria-current="page".
+  // Un groupe .opt / .cats devient role=group, nommé par le libellé de son champ (ou aria-label).
+  let stateUid = 0, statePending = false;
+  K.syncStates = root => {
+    const r = root || document;
+    if (!r.querySelectorAll) return;
+    r.querySelectorAll(".opt, .cats, .lang").forEach(g => {
+      if (!g.hasAttribute("role")) g.setAttribute("role", "group");
+      if (g.hasAttribute("aria-label") || g.hasAttribute("aria-labelledby")) return;
+      const f = g.closest(".field"), l = f && f.querySelector(":scope > label, :scope > .flabel");
+      if (l) { if (!l.id) l.id = "kGrp" + (++stateUid); g.setAttribute("aria-labelledby", l.id); }
+      else if (g.dataset.label) g.setAttribute("aria-label", g.dataset.label);
+    });
+    r.querySelectorAll(".opt > button, .cats > button, .lang > button, .kside > button").forEach(b => b.setAttribute("aria-pressed", b.classList.contains("on") ? "true" : "false"));
+    r.querySelectorAll(".views > a, .views > button, .tabs > a").forEach(a => { if (a.classList.contains("on")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  };
+  if (doc && doc.addEventListener && typeof global.MutationObserver === "function") {
+    const start = () => new global.MutationObserver(() => { if (statePending) return; statePending = true; Promise.resolve().then(() => { statePending = false; K.syncStates(doc); }); })
+      .observe(doc.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
+    if (doc.body) start(); else doc.addEventListener("DOMContentLoaded", start);
+  }
+  // opts.name : nom du produit dans chaque libellé (« Meer: Zalmfilet ») — sinon dix « Meer » identiques (G-27).
+  c.stepper = (id, value, opts) => { const o = opts || {}, n = o.name ? ": " + o.name : ""; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.esc(K.t("Minder") + n) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.esc(K.t("Aantal") + n) + '"><button type="button" data-inc aria-label="' + K.esc(K.t("Meer") + n) + '">+</button></div>'; };
   K.c = c;
 
   /* ---------- toast / dialoog / paneel ---------- */
@@ -619,12 +643,12 @@
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
-    const side = '<aside class="side" data-famo-nav><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       link(["stock.html", "Voorraad", "stock"]) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
-      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></aside>';
+      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
     const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';

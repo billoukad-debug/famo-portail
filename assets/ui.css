@@ -407,3 +407,8 @@ a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration
 @media (min-width:900px){.sticky-list{position:sticky;top:76px}.sticky-list #clist{max-height:calc(100vh - 230px);overflow-y:auto}}
 /* G-03 : titre focalisé par le script après un changement de vue (tabindex=-1) : pas d'anneau, ce n'est pas une commande */
 h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:0}
+/* G-08 : libellé d'un groupe qui n'est pas un champ (Leveradres) */
+.field>.flabel{font-size:13px;font-weight:500;color:var(--ink)}
+/* G-24 : suivi de commande en liste */
+ol.tl{list-style:none;margin:0;padding:4px 0}ol.tl>li{display:flex;gap:12px;align-items:flex-start;padding:6px 0;font-size:13.5px}
+ol.steps{list-style:none;margin:0}

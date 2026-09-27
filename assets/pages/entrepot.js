@@ -12,9 +12,9 @@
   function header() {
     const list = dayOrders(); const prep = list.filter(o => o.statut === "Reçue").length;
     return '<div class="page-h"><div><h1 class="h1">Magazijn</h1><p class="sub">' + K.esc(K.dateLong(day)) + ' · ' + list.length + ' bestelling' + (list.length === 1 ? "" : "en") + ' · ' + prep + ' te bereiden</p></div><span class="spacer"></span>' +
-      '<div class="opt" style="flex:0 0 auto"><button type="button" data-day="' + K.today() + '"' + (day === K.today() ? ' class="on"' : "") + '>Vandaag</button><button type="button" data-day="' + K.addDays(K.today(), 1) + '"' + (day === K.addDays(K.today(), 1) ? ' class="on"' : "") + '>Morgen</button><input type="date" class="input" id="pickDay" aria-label="Kies een dag" value="' + day + '" style="width:auto;min-height:44px"></div>' +
+      '<div class="opt" style="flex:0 0 auto" role="group" aria-label="Dag"><button type="button" data-day="' + K.today() + '"' + (day === K.today() ? ' class="on"' : "") + '>Vandaag</button><button type="button" data-day="' + K.addDays(K.today(), 1) + '"' + (day === K.addDays(K.today(), 1) ? ' class="on"' : "") + '>Morgen</button><input type="date" class="input" id="pickDay" aria-label="Kies een dag" value="' + day + '" style="width:auto;min-height:44px"></div>' +
       '<button type="button" class="btn btn-o btn-sm" id="print">' + K.icon("print") + 'Verzamellijst</button></div>' +
-      '<div class="views"><a href="#/dag"' + (view === "dag" ? ' class="on"' : "") + '>' + K.icon("table") + 'Dag</a><a href="#/bord"' + (view === "bord" ? ' class="on"' : "") + '>' + K.icon("board") + 'Bord</a></div>';
+      '<nav class="views" aria-label="Weergave"><a href="#/dag"' + (view === "dag" ? ' class="on"' : "") + '>' + K.icon("table") + 'Dag</a><a href="#/bord"' + (view === "bord" ? ' class="on"' : "") + '>' + K.icon("board") + 'Bord</a></nav>';
   }
   function verzamel(list) {
     const agg = new Map();
