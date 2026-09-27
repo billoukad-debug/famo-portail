@@ -17,6 +17,7 @@ Vert = déployable. `check.js` refuse une version de fichier périmée (sinon un
 - Interface : dialogues maison (`K.confirm`, `K.prompt`), jamais `alert()` ; aucun code personnel en storage ni en URL.
 - Néerlandais : `caisse` n'est jamais affiché tel quel (→ `kassa` via `K.unit`).
 - Chaque page charge `assets/ui.css` + `assets/ui.js` et a un meta viewport.
+- Contrastes AA des couleurs du thème (`scripts/contrast-check.js`, voir `docs/CHECKLIST-UX.md` ACC-05).
 - Tests unitaires `test/*.test.js`.
 
 ## Règles de la maison

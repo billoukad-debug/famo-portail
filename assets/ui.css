@@ -2,13 +2,13 @@
    Radius 4 · 6 · 8 · 12 (geen pillen op wat je aanraakt). Plus Jakarta Sans. Klassen en variabelen blijven dezelfde als v2. */
 :root{
   --p:#4876A2;--p-soft:#E4EDF5;--p-deep:#3F6690;
-  --ink:#232323;--ink-2:#6A6A6A;--ink-3:#737169;--line:#E3E0D6;--line-soft:#EDEBE4;--line-strong:#C7C3B7;--canvas:#FAF9F5;--soft:#F1EFE8;--card:#FFFFFF;
+  --ink:#232323;--ink-2:#6A6A6A;--ink-3:#6F6D65;--line:#E3E0D6;--line-soft:#EDEBE4;--line-strong:#C7C3B7;--line-input:#939087;--canvas:#FAF9F5;--soft:#F1EFE8;--card:#FFFFFF;
   --st-new:#B7841A;--st-new-bg:#F5EEDC;--st-new-ink:#7A5410;
   --st-ready:#4876A2;--st-ready-bg:#E4EDF5;--st-ready-ink:#36597D;
   --st-road:#2E4F70;--st-road-bg:#E1E7EE;--st-road-ink:#2E4F70;
   --st-done:#5F7A48;--st-done-bg:#E8EEE0;--st-done-ink:#4A6137;
   --st-inv:#8A8883;--st-inv-bg:#EFEDE6;--st-inv-ink:#5E5E5E;
-  --danger:#B8432E;--danger-bg:#F7E6E1;--danger-line:#EBC7BD;--warn-line:#EADCB8;--ok-line:#CFDCC0;--gold:#AD5830;--klei:#AD5830;
+  --danger:#B3412D;--danger-bg:#F7E6E1;--danger-line:#EBC7BD;--warn-line:#EADCB8;--ok-line:#CFDCC0;--gold:#AD5830;--klei:#AD5830;
   --neutral-300:#D2CEC4;--th-bg:#F6F4EE;--row-hover:#F6F4EE;--row-ok:#EEF3E9;--day-wk:#F6F4EE;--sk-a:#EFEDE6;--sk-b:#F8F7F2;
   --p-klant:#4876A2;--p-personeel:#4876A2;--p-beheer:#4876A2;
   --r-xs:4px;--r-sm:6px;--r:8px;--r-lg:12px;--tap:44px;--side:240px;--rail:88px;
@@ -67,7 +67,7 @@ svg.ico,.ico svg,svg[data-ico]{width:18px;height:18px;stroke:currentColor;fill:n
 .card-h{padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .card-b{padding:16px 18px}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}.field>label{font-size:13px;font-weight:500;color:var(--ink)}
-.input,select.input,textarea.input{min-height:var(--tap);border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:0 12px;background:var(--card);font:inherit;color:var(--ink);width:100%;outline:0;min-width:0}
+.input,select.input,textarea.input{min-height:var(--tap);border:1px solid var(--line-input);border-radius:var(--r-sm);padding:0 12px;background:var(--card);font:inherit;color:var(--ink);width:100%;outline:0;min-width:0}
 textarea.input{padding:10px 12px;min-height:76px;resize:vertical}
 .input:focus{border-color:var(--p);box-shadow:0 0 0 3px var(--p-soft)}
 .input[aria-invalid=true]{border-color:var(--danger)}
@@ -76,7 +76,7 @@ textarea.input{padding:10px 12px;min-height:76px;resize:vertical}
 .check.on{background:var(--p);border-color:var(--p)}.check svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:0}.check.on svg{opacity:1}
 .check.big{width:48px;height:48px}.check.big svg{width:24px;height:24px}
 .toggle{width:44px;height:26px;border-radius:13px;background:var(--neutral-300);position:relative;flex:none;border:0;cursor:pointer;padding:0}.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}.toggle.on{background:var(--p)}.toggle.on::after{left:21px}
-.stepper{display:inline-flex;align-items:center;border:1px solid var(--line-strong);border-radius:var(--r-sm);height:var(--tap);background:var(--card);flex:none}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line-input);border-radius:var(--r-sm);height:var(--tap);background:var(--card);flex:none}
 .stepper button{width:44px;height:100%;border:0;background:transparent;color:var(--ink);font-size:20px;cursor:pointer;display:grid;place-items:center}.stepper button:hover{background:var(--soft)}
 .stepper input{width:44px;border:0;text-align:center;font:inherit;font-weight:600;background:transparent;outline:0;-moz-appearance:textfield;color:var(--ink);font-variant-numeric:tabular-nums}.stepper input::-webkit-inner-spin-button{-webkit-appearance:none}
 .stepper.on{border-color:var(--p);box-shadow:inset 0 0 0 1px var(--p)}
@@ -362,5 +362,12 @@ h1,h2,h3,.h1,.h2{text-wrap:balance}p{text-wrap:pretty}
 .tlink{display:inline-flex;align-items:center;min-height:44px}
 .kv-favorieten .btn{white-space:normal;text-align:center;line-height:1.25;padding-top:8px;padding-bottom:8px;height:auto}
 /* INT-03 : au tactile, toute commande fait au moins 44 px de haut (Fitts, WCAG 2.5.8) */
-@media (pointer:coarse){.stepper{height:46px}.btn,.btn-sm,.opt>button,.lang>button,.linkbtn,.th-sort,.brand,.cats button{min-height:44px}.skip{padding:13px 16px}}
+@media (pointer:coarse){.stepper{height:46px}a.kpi-link{display:inline-flex;align-items:center;min-height:44px}.btn,.btn-sm,.opt>button,.lang>button,.linkbtn,.th-sort,.brand,.cats button{min-height:44px}.skip{padding:13px 16px}}
 .mvbtns{display:inline-flex;gap:2px;margin-left:auto;flex:none}.mvbtns .ibtn{width:36px;height:36px;font-size:12px}@media (pointer:coarse){.mvbtns .ibtn{width:44px;height:44px}}
+/* CLA-07 : liste des raccourcis */
+.keys{margin:4px 0;display:flex;flex-direction:column;gap:6px;font-size:13px}.keys>div{display:flex;gap:12px;align-items:center}.keys dt{min-width:132px}.keys dd{margin:0;color:var(--ink-2)}
+kbd{display:inline-block;font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;padding:4px 7px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:6px;background:var(--card);color:var(--ink)}
+/* INT-12 : cartes chiffrées cliquables */
+a.kp-link{color:inherit;text-decoration:none;display:block;transition:border-color .12s}a.kp-link:hover{border-color:var(--p);text-decoration:none}a.kp-link em{color:var(--p-deep)}
+a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration:underline}
+.note-line{font-size:12.5px;color:var(--ink);background:var(--klei-soft,var(--soft));border-radius:var(--r-xs);padding:4px 8px;margin-top:4px;white-space:normal;overflow-wrap:anywhere}.note-line b{font-weight:600;margin-right:4px}

@@ -15,7 +15,7 @@
   const clientName = id => { const o = S.orders.find(x => x.clientId === id); return o ? o.client : id; };
   function header() {
     const c = S.counts();
-    return '<div class="page-h"><div><h1 class="h1">Bestellingen</h1><p class="sub">' + K.esc(K.dateLong(K.today())) + '</p></div><span class="spacer"></span>' + K.c.kpi(c.today, "vandaag") + K.c.kpi(c.prep, "te bereiden") + (c.late ? K.c.kpi(c.late, "te laat", true) : "") + (K.staff.isAdmin() ? '<a class="btn btn-p btn-sm" href="/invoer.html">' + K.icon("plus") + 'Nieuwe bestelling</a>' : "") + '</div>' +
+    return '<div class="page-h"><div><h1 class="h1">Bestellingen</h1><p class="sub">' + K.esc(K.dateLong(K.today())) + '</p></div><span class="spacer"></span>' + K.c.kpi(c.today, "vandaag") + K.c.kpi(c.prep, "te bereiden") + (c.late ? K.c.kpi(c.late, "te laat", true, "#/tabel?status=late") : "") + (K.staff.isAdmin() ? '<a class="btn btn-p btn-sm" href="/invoer.html">' + K.icon("plus") + 'Nieuwe bestelling</a>' : "") + '</div>' +
       '<div class="views">' + [["tabel", "Tabel", "table"], ["bord", "Bord", "board"], ["kalender", "Kalender", "cal"]].map(([k, l, i]) => '<a href="#/' + k + '"' + (view === k ? ' class="on"' : "") + '>' + K.icon(i) + l + '</a>').join("") + '</div>' +
       '<div class="tools"><label class="search" style="max-width:280px">' + K.icon("search") + '<input id="q" aria-label="Zoeken" placeholder="Zoek klant, referentie, artikel…" value="' + K.esc(filter.q) + '"></label>' +
       '<select class="input tool" id="fStatus" aria-label="Status" style="width:auto;padding:0 8px"><option value="open"' + (filter.status === "open" ? " selected" : "") + '>Open bestellingen</option><option value="all"' + (filter.status === "all" ? " selected" : "") + '>Alle</option><option value="Reçue"' + (filter.status === "Reçue" ? " selected" : "") + '>Ontvangen</option><option value="Prête"' + (filter.status === "Prête" ? " selected" : "") + '>Klaar</option><option value="Sortie en livraison"' + (filter.status === "Sortie en livraison" ? " selected" : "") + '>Onderweg</option><option value="Facturée"' + (filter.status === "Facturée" ? " selected" : "") + '>Geleverd</option><option value="unpaid"' + (filter.status === "unpaid" ? " selected" : "") + '>Openstaande betaling</option><option value="late"' + (filter.status === "late" ? " selected" : "") + '>Te laat</option><option value="Annulée"' + (filter.status === "Annulée" ? " selected" : "") + '>Geannuleerd</option></select>' +
@@ -105,7 +105,7 @@
   });
   S.bindActions(page, () => render());
   // Kolomkop : eerste klik oplopend, tweede aflopend, derde terug naar standaard.
-  K.on(page, "click", "[data-sort]", (e, t) => { e.stopPropagation(); const k = t.dataset.sort; sort = sort.key !== k ? { key: k, dir: 1 } : sort.dir > 0 ? { key: k, dir: -1 } : { key: "", dir: 1 }; render(); });
+  K.on(page, "click", "[data-sort]", (e, t) => { e.stopPropagation(); const k = t.dataset.sort; sort = sort.key !== k ? { key: k, dir: 1 } : sort.dir > 0 ? { key: k, dir: -1 } : { key: "", dir: 1 }; render(); const b = page.querySelector('[data-sort="' + k + '"]'); if (b) b.focus(); });
   // Bord : een kaart naar de volgende kolom slepen = dezelfde stap als de knop (valideren, vertrekken,
   // ontvangst bevestigen) ; één kolom terug = Corrigeren (met reden). Andere sprongen worden geweigerd.
   const FLOW = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
@@ -119,7 +119,12 @@
     else K.toast("Eén stap per keer: sleep naar de volgende kolom.", { kind: "err" });
     return false; // de kaart verhuist pas na bevestiging (render na de stap)
   } });
-  window.addEventListener("hashchange", () => { const h = K.hashParams(); if (h.path && h.path !== view) { view = h.path; K.store.set("famoOrdersView", view); render(); } });
+  window.addEventListener("hashchange", () => {
+    const h = K.hashParams(); let again = false;
+    if (h.path && h.path !== view) { view = h.path; K.store.set("famoOrdersView", view); again = true; }
+    if (h.params.status && h.params.status !== filter.status) { filter.status = h.params.status; again = true; } // lien d'un chiffre (INT-12)
+    if (again) render();
+  });
   async function load(force, all) {
     try { await S.load(force, all); render(); }
     catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message, true) + '</div>'; K.on(page, "click", "[data-retry]", e => { e.preventDefault(); load(true); }); }

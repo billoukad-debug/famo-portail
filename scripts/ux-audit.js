@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 /* global document, getComputedStyle, matchMedia, innerWidth, location */
+// CLA-01 : aussi « cliquable hors clavier » (curseur main sans bouton, lien ni tabindex).
 // Contrôles automatiques de docs/CHECKLIST-UX.md sur toutes les pages, à 1280 px et 390 px (tactile) :
 // FOR-01 libellés · ACC-02 noms accessibles · ACC-03 alt · ACC-04 h1 / lien d'évitement / titre / lang ·
 // INT-01 pas de <a href="#"> ni de onclick hors bouton · INT-03 cibles 24 px (44 px au tactile) · MEP-04 pas de défilement horizontal.
@@ -44,6 +45,14 @@ const pages = { staff: ["/bestellingen.html#/tabel", "/bestellingen.html#/bord",
           const inline = e.tagName === "A" && getComputedStyle(e).display === "inline" && e.parentElement && /\S/.test(e.parentElement.textContent.replace(e.textContent, ""));
           if (inline) return; // WCAG 2.5.8 : lien dans une phrase exempté
           if (rc.height < min - 0.5 || rc.width < Math.min(min, 24) - 0.5) out.push(["INT-03 cible < " + min + "px", (name(e) || e.className).slice(0, 40) + " " + Math.round(rc.width) + "×" + Math.round(rc.height)]);
+        });
+        // CLA-01 : tout ce qui a l'air cliquable (curseur main) doit être atteignable au clavier.
+        document.querySelectorAll("body *").forEach(e => {
+          if (!vis(e) || getComputedStyle(e).cursor !== "pointer") return;
+          if (e.matches("a[href],button,input,select,textarea,label,summary,[tabindex]") || e.closest("a[href],button,label,summary,[tabindex]:not([tabindex='-1'])")) return;
+          if (e.querySelector("a[href],button,input,select,textarea,[tabindex]:not([tabindex='-1'])")) return; // une commande clavier existe dans la zone
+          if (e.parentElement && getComputedStyle(e.parentElement).cursor === "pointer") return; // déjà signalé au niveau du parent
+          out.push(["CLA-01 cliquable hors clavier", (e.className || e.tagName) + " " + (e.textContent || "").trim().slice(0, 30)]);
         });
         document.querySelectorAll('a[href="#"]').forEach(e => out.push(["INT-01 lien href=#", e.outerHTML.slice(0, 80)]));
         document.querySelectorAll("[onclick]").forEach(e => { if (!/^(BUTTON|A|INPUT)$/.test(e.tagName)) out.push(["INT-01 onclick sur " + e.tagName, e.outerHTML.slice(0, 60)]); });

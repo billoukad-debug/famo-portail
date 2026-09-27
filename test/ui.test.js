@@ -31,3 +31,9 @@ test("K.on remplace un gestionnaire délégué identique au lieu de le cumuler",
   assert.equal(first, 0);
   assert.equal(second, 1);
 });
+test("parseNum : saisies belges et internationales (FOR-06)", () => {
+  const cases = [["1 404,48", 1404.48], ["1.404,48", 1404.48], ["1404.48", 1404.48], ["1,404.48", 1404.48], ["12,5", 12.5], ["12.5", 12.5], ["€ 12,50", 12.5], ["1 404,48", 1404.48], ["1.500", 1500], ["0,5", 0.5], ["-3,2", -3.2], [" 7 ", 7], [5, 5]];
+  for (const [inp, out] of cases) assert.equal(K.parseNum(inp), out, JSON.stringify(inp));
+  for (const bad of ["", "abc", "1,2,3x", null]) assert.ok(Number.isNaN(K.parseNum(bad)), JSON.stringify(bad));
+  assert.equal(K.numIn("1 404,48"), "1404.48"); assert.equal(K.numIn(""), "");
+});

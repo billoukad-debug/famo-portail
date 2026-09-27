@@ -1,7 +1,7 @@
 (async function () {
   if (!(await K.requireStaff({ admin: true }))) return;
   const page = K.shell({ portal: "beheer" });
-  const TABS = [["overzicht", "Overzicht"], ["aanvragen", "Aanvragen"], ["klanten", "Klanten"], ["producten", "Producten"], ["prijzen", "Prijzen"], ["rapportage", "Rapportage"], ["bedrijf", "Bedrijfsgegevens"], ["toegang", "Toegang"], ["status", "Systeemstatus"]];
+  const TABS = [["overzicht", "Overzicht"], ["aanvragen", "Aanvragen"], ["klanten", "Klanten"], ["producten", "Producten"], ["prijzen", "Prijzen"], ["rapportage", "Rapportage"], ["journaal", "Journaal"], ["bedrijf", "Bedrijfsgegevens"], ["toegang", "Toegang"], ["status", "Systeemstatus"]];
   const DAGEN = [["ma", "maandag"], ["di", "dinsdag"], ["wo", "woensdag"], ["do", "donderdag"], ["vr", "vrijdag"], ["za", "zaterdag"], ["zo", "zondag"]];
   // pendingCreds : net aangemaakt wachtwoord, één keer getoond bovenaan de klantfiche (overleeft de hash-herrender).
   let D = null, tab = K.hashParams().path || "overzicht", sel = K.hashParams().params.klant || "", pendingCreds = null;
@@ -33,7 +33,7 @@
     if (st.aanvragen) issues.push([st.aanvragen + ' nieuwe aanvraag' + (st.aanvragen === 1 ? "" : "en") + ' wachten.', '#/aanvragen']);
     page.innerHTML = head("Klanten, producten, prijzen en instellingen", '<a class="btn btn-o btn-sm" href="/invoer.html">' + K.icon("plus") + 'Bestelling invoeren</a><button type="button" class="btn btn-p btn-sm" data-new-client>Nieuwe klant</button>') +
       '<div class="content" style="padding-top:16px">' +
-      '<div class="kpis"><div class="kp"><small>Open bestellingen</small><b>' + orders.filter(o => !K.isClosed(o)).length + '</b><em>' + c.today + ' vandaag</em></div><div class="kp"><small>Openstaand te betalen</small><b class="mono">' + K.eur(c.unpaidSum) + '</b><em>' + c.unpaid + ' factu' + (c.unpaid === 1 ? "ur" : "ren") + '</em></div><div class="kp"><small>Klanten</small><b>' + st.clients + '</b><em>' + st.credentials + ' met toegang</em></div><div class="kp"><small>Producten actief</small><b>' + st.catalogue + '</b><em>' + st.prijzen + ' prijsafspraken</em></div></div>' +
+      '<div class="kpis"><a class="kp kp-link" href="/bestellingen.html"><small>Open bestellingen</small><b>' + orders.filter(o => !K.isClosed(o)).length + '</b><em>' + c.today + ' vandaag</em></a><a class="kp kp-link" href="/documenten.html#/open"><small>Openstaand te betalen</small><b class="mono">' + K.eur(c.unpaidSum) + '</b><em>' + c.unpaid + ' factu' + (c.unpaid === 1 ? "ur" : "ren") + '</em></a><a class="kp kp-link" href="#/klanten"><small>Klanten</small><b>' + st.clients + '</b><em>' + st.credentials + ' met toegang</em></a><a class="kp kp-link" href="#/producten"><small>Producten actief</small><b>' + st.catalogue + '</b><em>' + st.prijzen + ' prijsafspraken</em></a></div>' +
       (issues.length ? '<div class="card"><div class="card-h"><h2 class="h2">Aandachtspunten</h2></div>' + issues.map(([t, h]) => '<div class="stop" style="min-height:48px"><span class="chip st-new"><i></i>!</span><span style="flex:1">' + t + '</span><a class="btn btn-o btn-sm" href="' + h + '">Bekijken</a></div>').join("") + '</div>' : K.c.ok("Alles is ingevuld. Geen aandachtspunten.")) +
       '<div class="card"><div class="card-h"><h2 class="h2">Laatste bestellingen</h2><a class="btn btn-o btn-sm" href="/bestellingen.html">Alle bestellingen</a></div>' + (orders.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th>Levering</th><th>Klant</th><th>Artikelen</th><th>Status</th><th class="num">Bedrag</th></tr></thead><tbody>' + orders.slice(0, 6).map(o => '<tr class="row" data-open="' + o.id + '"><td><b>' + K.esc(K.relDay(o.day)) + '</b></td><td>' + K.esc(o.client) + '</td><td class="muted">' + K.esc(S.lineTxt(o)) + '</td><td style="width:130px">' + K.stCell(o.statut) + '</td><td class="num mono">' + K.eur(o.total) + '</td></tr>').join("") + '</tbody></table></div>' : '<div class="empty" style="margin:12px">Nog geen bestellingen.</div>') + '</div></div>';
     K.on(page, "click", "tr[data-open]", (e, t) => { location.href = "/order.html?id=" + encodeURIComponent(t.dataset.open); });
@@ -50,14 +50,31 @@
   }
 
   /* ---------- klanten ---------- */
+  // EDI-02 : un panneau d'édition ouvert est dans l'URL (#/klanten?edit=klant:rec…) ; ce lien le rouvre directement.
+  function setEdit(v) {
+    const h = K.hashParams(), params = Object.assign({}, h.params); if (v) params.edit = v; else delete params.edit;
+    const qs = new URLSearchParams(params).toString();
+    try { history.replaceState(null, "", location.pathname + location.search + "#/" + (h.path || tab) + (qs ? "?" + qs : "")); } catch (e) { /* ignore */ }
+  }
+  function editPanel(key, opts) {
+    if (key) setEdit(key);
+    const prev = opts.onClose; opts.onClose = () => { if (key) setEdit(null); if (prev) prev(); };
+    return K.panel(opts);
+  }
+  function openFromUrl() {
+    const e = K.hashParams().params.edit || ""; if (!e || document.querySelector(".scrim")) return;
+    const [kind, id] = e.split(":");
+    if (kind === "product") { const pr = (D.products || []).find(x => x.id === id); if (pr) productPanel(pr); else setEdit(null); }
+    if (kind === "klant") { const cl = clientById(id); if (cl) clientPanel(cl); else setEdit(null); }
+  }
   function clientPanel(c, prefill) {
     const v = Object.assign({ nom: "", adresse: "", tel: "", email: "", btw: "", klantnr: "", user: "", taal: "NL" }, c || {}, prefill || {});
     let taal = v.taal === "FR" ? "FR" : "NL";
-    const p = K.panel({ title: c ? c.nom : "Nieuwe klant", sub: c ? "Klantfiche bewerken" : "Gebruikersnaam en wachtwoord worden automatisch aangemaakt", body:
+    const p = editPanel(c ? "klant:" + c.id : "", { title: c ? c.nom : "Nieuwe klant", sub: c ? "Klantfiche bewerken" : "Gebruikersnaam en wachtwoord worden automatisch aangemaakt", body:
       K.c.field("Naam van de zaak", K.c.input("cNom", { value: v.nom }), { id: "fNom", req: true }) +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Telefoon", K.c.input("cTel", { value: v.tel, type: "tel" }), {}) + K.c.field("E-mail (bevestigingen)", K.c.input("cMail", { value: v.email, type: "email" }), { id: "fMail" }) + '</div>' +
       K.c.field("Leveradres", '<textarea class="input" id="cAdr" rows="2">' + K.esc(v.adresse) + '</textarea>', {}) +
-      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("BTW-nummer", K.c.input("cBtw", { value: v.btw, placeholder: "BE 0xxx.xxx.xxx" }), {}) + K.c.field("Klantnummer", K.c.input("cNr", { value: v.klantnr, placeholder: "bv. K-004" }), {}) + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("BTW-nummer", K.c.input("cBtw", { value: v.btw, placeholder: "BE 0xxx.xxx.xxx" }), {}) + K.c.field("Klantnummer", K.c.input("cNr", { value: v.klantnr, placeholder: "bv. K-004…" }), {}) + '</div>' +
       K.c.field("Taal van de documenten", '<div class="opt" role="group" aria-label="Taal van de documenten">' + [["NL", "Nederlands"], ["FR", "Français"]].map(([k, l]) => '<button type="button" data-taal="' + k + '"' + (taal === k ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l + '</button>').join("") + '</div>', { hint: "Leveringsbon, factuur en creditnota worden in deze taal opgemaakt." }) +
       (c ? K.c.field("Gebruikersnaam", K.c.input("cUser", { value: v.user }), { hint: "Wijzigen? De klant moet het nieuwe login kennen." }) + '<label style="display:flex;gap:10px;align-items:center;font-size:13px">' + K.c.check(false, 'id="cGen"') + 'Nieuw wachtwoord aanmaken en tonen</label>' : "") +
       K.c.field(c ? "Of zelf een nieuw wachtwoord kiezen (optioneel)" : "Eigen wachtwoord (optioneel)", K.c.input("cPw", { attrs: ' autocomplete="new-password"' }), { id: "fPw", hint: "Minstens 8 tekens. Leeg = automatisch aangemaakt." + (c ? " Leeg + vinkje uit = wachtwoord blijft." : "") }) +
@@ -82,13 +99,16 @@
     };
   }
   function klanten() {
-    const all = D.clients || [], list = all.filter(x => !x.gearchiveerd), arch = all.filter(x => x.gearchiveerd);
+    // CHI-09 : liste triable (nom, numéro client, sans e-mail d'abord), choix gardé sur l'appareil.
+    const ksort = K.store.get("famoKlantenSort", "naam");
+    const KS = { naam: (a, b) => String(a.nom || "").localeCompare(String(b.nom || ""), "nl"), nr: (a, b) => String(a.klantnr || "~").localeCompare(String(b.klantnr || "~"), "nl", { numeric: true }), mail: (a, b) => (a.email ? 1 : 0) - (b.email ? 1 : 0) || String(a.nom || "").localeCompare(String(b.nom || ""), "nl") };
+    const all = (D.clients || []).slice().sort(KS[ksort] || KS.naam), list = all.filter(x => !x.gearchiveerd), arch = all.filter(x => x.gearchiveerd);
     if (!sel && list.length) sel = list[0].id; const c = clientById(sel);
     const prods = (D.products || []).filter(p => p.actif);
     const row = x => '<a href="#/klanten?klant=' + x.id + '" class="stop" data-c="' + x.id + '" style="min-height:48px;text-decoration:none;color:inherit' + (x.id === sel ? ";background:var(--p-soft)" : "") + '">' + K.c.avatar(x.nom) + '<div style="flex:1;min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(x.nom) + '</b><span class="quiet" style="font-size:11.5px">' + K.esc(x.klantnr || x.user || "") + (x.email ? "" : " · geen e-mail") + '</span></div></a>';
     page.innerHTML = head(list.length + " klanten · " + D.status.credentials + " met toegang" + (arch.length ? " · " + arch.length + " gearchiveerd" : ""), '<button type="button" class="btn btn-p btn-sm" data-new-client>' + K.icon("plus") + 'Nieuwe klant</button>') +
       '<div class="content" style="padding-top:16px;display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start" id="two">' +
-      '<div><div class="card"><div class="card-h"><label class="search">' + K.icon("search") + '<input id="cq" placeholder="Zoeken…"></label></div><div id="clist">' + list.map(row).join("") + '</div></div>' + (arch.length ? fold("Gearchiveerd", arch.length, '<div id="alist">' + arch.map(row).join("") + '</div>') : "") + '</div>' +
+      '<div><div class="card"><div class="card-h" style="gap:8px;flex-wrap:wrap"><label class="search" style="flex:1 1 150px">' + K.icon("search") + '<input id="cq" aria-label="Klant zoeken" placeholder="Naam of klantnummer…"></label><select class="input tool" id="ksort" aria-label="Sorteren" style="width:auto;padding:0 8px">' + [["naam", "Naam A–Z"], ["nr", "Klantnummer"], ["mail", "Zonder e-mail eerst"]].map(([k, l]) => '<option value="' + k + '"' + (ksort === k ? " selected" : "") + '>' + l + '</option>').join("") + '</select></div><div id="clist">' + list.map(row).join("") + '</div></div>' + (arch.length ? fold("Gearchiveerd", arch.length, '<div id="alist">' + arch.map(row).join("") + '</div>') : "") + '</div>' +
       '<div id="detail" style="display:flex;flex-direction:column;gap:14px;min-width:0">' + (c && pendingCreds && pendingCreds.id === c.id ? credsBox(pendingCreds) : "") + (c ? '<div class="card card-b"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h2 class="h2">' + K.esc(c.nom) + '</h2>' + (c.gearchiveerd ? '<span class="chip st-cancel"><i></i>Gearchiveerd</span>' : c.user && c.hasPassword ? '<span class="chip st-done"><i></i>Toegang actief</span>' : '<span class="chip st-new"><i></i>Geen toegang</span>') + '<span class="spacer"></span>' + (c.gearchiveerd ? '<button type="button" class="btn btn-p btn-sm" data-unarchive="' + c.id + '">Herstellen</button>' : '<button type="button" class="btn btn-o btn-sm" data-reset="' + c.id + '">Nieuw wachtwoord</button>' + (c.user && c.hasPassword ? '<button type="button" class="btn btn-ghost btn-sm" data-revoke="' + c.id + '" style="color:var(--danger)">Toegang blokkeren</button>' : "") + '<button type="button" class="btn btn-ghost btn-sm" data-archive="' + c.id + '">Archiveren</button>') + '<button type="button" class="btn btn-o btn-sm" data-edit="' + c.id + '">Bewerken</button><a class="btn btn-o btn-sm" href="/bestellingen.html?klant=' + encodeURIComponent(c.id) + '">Bestellingen</a></div>' +
         (c.gearchiveerd ? K.c.warn("<b>Gearchiveerd.</b> De klant kan niet aanmelden en staat niet in de lijsten. Fiche, prijzen en bestellingen blijven bewaard. „Herstellen” zet alles terug.") : "") +
         '<div class="kv" style="margin-top:12px"><div><small>Gebruikersnaam</small><span class="mono">' + K.esc(c.user || "—") + '</span></div><div><small>Klantnummer</small>' + K.esc(c.klantnr || "—") + '</div><div><small>Telefoon</small>' + (c.tel ? '<a href="tel:' + K.esc(c.tel.replace(/\s+/g, "")) + '">' + K.esc(c.tel) + '</a>' : "—") + '</div><div><small>E-mail</small>' + (c.email ? K.esc(c.email) : '<span style="color:var(--danger)">ontbreekt — geen bevestigingsmails</span>') + '</div><div style="grid-column:1/-1"><small>Leveradres</small><span style="white-space:pre-line">' + K.esc(c.adresse || "—") + '</span></div><div><small>BTW</small>' + K.esc(c.btw || "—") + '</div></div></div>' +
@@ -96,10 +116,11 @@
     if (window.innerWidth < 900) page.querySelector("#two").style.gridTemplateColumns = "1fr";
     if (c && pendingCreds && pendingCreds.id === c.id) pendingCreds = null;
     if (c && c.gearchiveerd) { const d = page.querySelector("details"); if (d) d.open = true; }
+    const ks = page.querySelector("#ksort"); if (ks) ks.onchange = () => { K.store.set("famoKlantenSort", ks.value); render(); const n = page.querySelector("#ksort"); if (n) n.focus(); };
     const cq = page.querySelector("#cq"); if (cq) cq.addEventListener("input", () => { const s = cq.value.toLowerCase(); K.$$("[data-c]", page).forEach(a => { a.style.display = a.textContent.toLowerCase().includes(s) ? "" : "none"; }); });
     const changed = new Map();
     K.on(page, "input", "[data-price]", (e, t) => { changed.set(t.dataset.price, t.value); page.querySelector("#savePrices").disabled = !changed.size; page.querySelector("#savePrices").textContent = "Prijzen opslaan (" + changed.size + ")"; });
-    const sp = page.querySelector("#savePrices"); if (sp) sp.onclick = async () => { K.busy(sp, true, "Opslaan…"); try { const d = await post({ action: "saveClientPrices", clientId: c.id, prices: Array.from(changed.entries()).map(([productId, prix]) => ({ productId, prix: String(prix).replace(",", ".") })) }); const bad = (d.results || []).filter(r => !r.ok); if (bad.length) K.toast(bad.length + " prijs(en) niet opgeslagen: " + bad[0].error, { kind: "err" }); else K.toast("Prijzen opgeslagen"); render(); } catch (err) { K.toast(err.message, { kind: "err" }); K.busy(sp, false); } };
+    const sp = page.querySelector("#savePrices"); if (sp) sp.onclick = async () => { K.busy(sp, true, "Opslaan…"); try { const d = await post({ action: "saveClientPrices", clientId: c.id, prices: Array.from(changed.entries()).map(([productId, prix]) => ({ productId, prix: K.numIn(prix) })) }); const bad = (d.results || []).filter(r => !r.ok); if (bad.length) K.toast(bad.length + " prijs(en) niet opgeslagen: " + bad[0].error, { kind: "err" }); else K.toast("Prijzen opgeslagen"); render(); } catch (err) { K.toast(err.message, { kind: "err" }); K.busy(sp, false); } };
     K.on(page, "click", "[data-edit]", (e, t) => clientPanel(clientById(t.dataset.edit)));
     K.on(page, "click", "[data-archive]", async (e, t) => {
       const cl = clientById(t.dataset.archive);
@@ -151,10 +172,10 @@
     });
   }
     const fotoHtml = f => (f ? '<img src="' + K.esc(f) + '" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:none">' : '<span class="avatar" style="width:56px;height:56px;border-radius:8px">' + K.icon("camera") + '</span>');
-    const pn = K.panel({ title: p ? p.nom : "Nieuw product", sub: p ? "Product bewerken" : "Verschijnt in de klantcatalogus zodra actief", body:
+    const pn = editPanel(p ? "product:" + p.id : "", { title: p ? p.nom : "Nieuw product", sub: p ? "Product bewerken" : "Verschijnt in de klantcatalogus zodra actief", body:
       K.c.field("Naam (zoals de klant het ziet)", K.c.input("pNom", { value: v.nom }), { id: "fPNom", req: true, hint: p ? "Hernoemen? Voorraad en open bestellingen worden mee hernoemd; geleverde bestellingen houden de oude naam." : undefined }) +
-      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">' + K.c.field("Kaliber", K.c.input("pKal", { value: v.kaliber, placeholder: "bv. 16/20" }), {}) + K.c.field("Eenheid", '<select class="input" id="pUnit">' + [["caisse", "kassa"], ["pièce", "stuk"], ["kg", "kg"], ["carton", "doos"]].map(([val, l]) => '<option value="' + val + '"' + (v.unite === val ? " selected" : "") + '>' + l + '</option>').join("") + '</select>', {}) + K.c.field("Basisprijs excl. btw", K.c.input("pBase", { value: v.base === "" ? "" : String(v.base).replace(".", ","), attrs: ' inputmode="decimal"' }), { id: "fPBase", req: true }) + '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Categorie", K.c.input("pCat", { value: v.cat, placeholder: "bv. Vis, Schelpdieren, Schaaldieren", attrs: ' list="cats"' }) + '<datalist id="cats">' + Array.from(new Set((D.products || []).map(x => x.cat).filter(Boolean))).map(x => '<option value="' + K.esc(x) + '">').join("") + '</datalist>', {}) + K.c.field("BTW-tarief (%)", K.c.input("pBtw", { value: v.btwTarief == null ? "" : v.btwTarief, placeholder: "standaard " + D.config.btwTarief + " %", attrs: ' inputmode="decimal"' }), { id: "fPBtw", hint: "Leeg = standaardtarief uit Bedrijfsgegevens." }) + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">' + K.c.field("Kaliber", K.c.input("pKal", { value: v.kaliber, placeholder: "bv. 16/20…" }), {}) + K.c.field("Eenheid", '<select class="input" id="pUnit">' + [["caisse", "kassa"], ["pièce", "stuk"], ["kg", "kg"], ["carton", "doos"]].map(([val, l]) => '<option value="' + val + '"' + (v.unite === val ? " selected" : "") + '>' + l + '</option>').join("") + '</select>', {}) + K.c.field("Basisprijs excl. btw", K.c.input("pBase", { value: v.base === "" ? "" : String(v.base).replace(".", ","), attrs: ' inputmode="decimal"' }), { id: "fPBase", req: true }) + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Categorie", K.c.input("pCat", { value: v.cat, placeholder: "bv. Vis, Schelpdieren, Schaaldieren…", attrs: ' list="cats"' }) + '<datalist id="cats">' + Array.from(new Set((D.products || []).map(x => x.cat).filter(Boolean))).map(x => '<option value="' + K.esc(x) + '">').join("") + '</datalist>', {}) + K.c.field("BTW-tarief (%)", K.c.input("pBtw", { value: v.btwTarief == null ? "" : v.btwTarief, placeholder: "standaard " + D.config.btwTarief + " %", attrs: ' inputmode="decimal"' }), { id: "fPBtw", hint: "Leeg = standaardtarief uit Bedrijfsgegevens." }) + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Voorraad (optioneel)", K.c.input("pStock", { value: stockRow ? stockRow.quantity : "", attrs: ' inputmode="decimal"' }), { hint: D.config.voorraadAfboeken ? "Wordt bij vertrek automatisch afgeboekt." : "Wordt niet automatisch afgetrokken (instelbaar in Bedrijfsgegevens)." }) + K.c.field("Drempel", K.c.input("pLow", { value: stockRow ? stockRow.lowThreshold : "", attrs: ' inputmode="decimal"' }), {}) + '</div>' +
       K.c.field("Omschrijving voor de klant (optioneel)", '<textarea class="input" id="pDesc" rows="2" maxlength="400" placeholder="bv. Wilde zeebaars uit de Noordzee, gevangen met de lijn…">' + K.esc(v.omschrijving || "") + '</textarea>', { for: "pDesc", hint: "Verschijnt wanneer de klant het product openklapt." }) +
       '<label style="display:flex;gap:10px;align-items:center;font-size:13px"><button type="button" class="toggle' + (v.actif ? " on" : "") + '" id="pActif" aria-pressed="' + (v.actif ? "true" : "false") + '"></button>Actief in de catalogus</label>' +
@@ -183,10 +204,10 @@
     };
     pn.el.querySelector("#pOk").onclick = async () => {
       const val = id => pn.el.querySelector("#" + id).value.trim();
-      const nom = val("pNom"), base = Number(val("pBase").replace(",", ".")), btw = val("pBtw").replace(",", "."), btwN = Number(btw);
+      const nom = val("pNom"), base = K.parseNum(val("pBase")), btw = K.numIn(val("pBtw")), btwN = Number(btw);
       K.setErr("fPNom", nom ? "" : "Verplicht."); K.setErr("fPBase", Number.isFinite(base) && val("pBase") !== "" ? "" : "Geef een prijs."); K.setErr("fPBtw", btw === "" || (Number.isFinite(btwN) && btwN >= 0 && btwN <= 100) ? "" : "0 tot 100."); if (!nom || !Number.isFinite(base) || val("pBase") === "" || (btw !== "" && !(Number.isFinite(btwN) && btwN >= 0 && btwN <= 100))) return;
       const btn = pn.el.querySelector("#pOk"); K.busy(btn, true, "Opslaan…");
-      try { await post({ action: "saveProduct", id: p ? p.id : undefined, nom, cat: val("pCat"), unite: val("pUnit"), base, kaliber: val("pKal"), omschrijving: val("pDesc"), btwTarief: btw === "" ? "" : btwN, actif, stock: val("pStock") === "" ? undefined : Number(val("pStock").replace(",", ".")), lowThreshold: val("pLow") === "" ? undefined : Number(val("pLow").replace(",", ".")) }); pn.close(); K.toast("Product opgeslagen"); render(); }
+      try { await post({ action: "saveProduct", id: p ? p.id : undefined, nom, cat: val("pCat"), unite: val("pUnit"), base, kaliber: val("pKal"), omschrijving: val("pDesc"), btwTarief: btw === "" ? "" : btwN, actif, stock: val("pStock") === "" ? undefined : K.parseNum(val("pStock")), lowThreshold: val("pLow") === "" ? undefined : K.parseNum(val("pLow")) }); pn.close(); K.toast("Product opgeslagen"); render(); }
       catch (err) { if (err.status === 409) K.setErr("fPNom", "Die naam bestaat al."); pn.el.querySelector("#pErr").innerHTML = K.c.error(err.status === 409 ? "Er bestaat al een product met die naam. Kies een andere naam (of pas dat product aan)." : err.message); K.busy(btn, false); }
     };
   }
@@ -236,7 +257,7 @@
     K.on(page, "input", "[data-m]", (e, t) => { changed.set(t.dataset.m, t.value); const b = page.querySelector("#saveAll"); b.disabled = false; b.textContent = "Wijzigingen opslaan (" + changed.size + ")"; });
     page.querySelector("#saveAll").onclick = async () => {
       const b = page.querySelector("#saveAll"); K.busy(b, true, "Opslaan…"); let fail = 0;
-      const byClient = {}; changed.forEach((v, k) => { const [cid, pid] = k.split("|"); (byClient[cid] = byClient[cid] || []).push({ productId: pid, prix: String(v).replace(",", ".") }); });
+      const byClient = {}; changed.forEach((v, k) => { const [cid, pid] = k.split("|"); (byClient[cid] = byClient[cid] || []).push({ productId: pid, prix: K.numIn(v) }); });
       for (const cid of Object.keys(byClient)) { try { const d = await post({ action: "saveClientPrices", clientId: cid, prices: byClient[cid] }); fail += (d.results || []).filter(r => !r.ok).length; } catch (err) { fail++; } }
       K.toast(fail ? fail + " prijs(en) niet opgeslagen" : "Prijzen opgeslagen", { kind: fail ? "err" : "" }); render();
     };
@@ -244,6 +265,28 @@
 
   /* ---------- rapportage ---------- */
   let rapCache = null, rapJaar = "";
+  // EDI-06 : journal global — toutes les corrections, paiements, creditnota's et exceptions (champ Correcties),
+  // du plus récent au plus ancien, avec lien vers la commande. Format d'une ligne : « jj/mm/aaaa hh:mm · action · qui — raison ».
+  let jq = "";
+  async function journaal() {
+    page.innerHTML = head("Wie wijzigde wat, en wanneer · correcties, betalingen, creditnota's en uitzonderingen") + '<div class="content" style="padding-top:16px">' + K.c.skeleton(3) + '</div>';
+    if (!rapCache) { try { rapCache = await K.api("/api/allorders?all=1"); } catch (err) { page.querySelector(".content").innerHTML = K.c.error(err.message, true); K.on(page, "click", "[data-retry]", e => { e.preventDefault(); rapCache = null; render(); }); return; } }
+    const rows = [];
+    (rapCache.orders || []).forEach(o => String(o.correcties || "").split("\n").map(x => x.trim()).filter(Boolean).forEach(line => {
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})\s*·\s*(.*?)\s*·\s*(.*?)(?:\s+—\s+(.*))?$/.exec(line);
+      rows.push(m ? { at: m[3] + "-" + m[2] + "-" + m[1] + "T" + m[4] + ":" + m[5], when: m[1] + "/" + m[2] + "/" + m[3] + " " + m[4] + ":" + m[5], wat: m[6], wie: m[7], reden: m[8] || "", o } : { at: "", when: "", wat: line, wie: "", reden: "", o });
+    }));
+    rows.sort((a, b) => b.at.localeCompare(a.at));
+    const show = () => {
+      const t = jq.toLowerCase(), list = rows.filter(r => !t || (r.wat + " " + r.wie + " " + r.reden + " " + r.o.ref + " " + r.o.client).toLowerCase().includes(t));
+      page.querySelector("#jlist").innerHTML = list.length ? '<div class="tblwrap"><table class="tbl"><caption class="sr-only">Journaal</caption><thead><tr><th scope="col">Wanneer</th><th scope="col">Bestelling</th><th scope="col">Klant</th><th scope="col">Actie</th><th scope="col">Door</th><th scope="col">Reden</th></tr></thead><tbody>' +
+        list.slice(0, 500).map(r => '<tr><td class="mono" style="white-space:nowrap">' + K.esc(r.when || "—") + '</td><td class="mono"><a href="/order.html?id=' + encodeURIComponent(r.o.id) + '">' + K.esc(r.o.ref) + '</a></td><td>' + K.esc(r.o.client || "") + '</td><td class="wrap">' + K.esc(r.wat) + '</td><td>' + K.esc(r.wie || "—") + '</td><td class="wrap muted">' + K.esc(r.reden || "") + '</td></tr>').join("") + '</tbody></table></div>' + (list.length > 500 ? '<p class="quiet" style="font-size:12px">De 500 recentste van ' + list.length + ' regels. Verfijn met het zoekveld.</p>' : "")
+        : K.c.empty(rows.length ? "Niets gevonden" : "Nog geen wijzigingen", rows.length ? "Probeer een ander woord." : "Correcties, betalingen en creditnota's verschijnen hier.");
+    };
+    page.querySelector(".content").innerHTML = '<div class="card"><div class="card-h" style="gap:10px;flex-wrap:wrap"><label class="search" style="flex:1 1 240px;max-width:420px">' + K.icon("search") + '<input id="jq" aria-label="Journaal doorzoeken" placeholder="Bestelling, klant, actie of medewerker…" value="' + K.esc(jq) + '"></label><span class="quiet" style="font-size:12.5px">' + rows.length + ' regel' + (rows.length === 1 ? "" : "s") + '</span></div><div id="jlist"></div></div>';
+    show();
+    const qi = page.querySelector("#jq"); qi.addEventListener("input", K.debounce(() => { jq = qi.value.trim(); show(); }, 150));
+  }
   async function rapportage() {
     page.innerHTML = head("Omzet, klanten, producten en btw · op basis van geleverde (gefactureerde) bestellingen") + '<div class="content" style="padding-top:16px">' + K.c.skeleton(3) + '</div>';
     if (!rapCache) { try { rapCache = await K.api("/api/allorders?all=1"); } catch (err) { page.querySelector(".content").innerHTML = K.c.error(err.message, true); K.on(page, "click", "[data-retry]", e => { e.preventDefault(); rapCache = null; render(); }); return; } }
@@ -295,7 +338,7 @@
     page.innerHTML = head("Verschijnt op facturen, leveringsbonnen en e-mails", '<button type="button" class="btn btn-o btn-sm" id="preview">Voorbeeldfactuur</button><button type="button" class="btn btn-p btn-sm" id="save">Opslaan</button>') +
       '<div class="content" style="padding-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start" id="two">' +
       '<div class="card card-b" style="display:flex;flex-direction:column;gap:12px"><h2 class="h2">Identiteit</h2>' + f("Bedrijfsnaam", "bedrijfsnaam", c.bedrijfsnaam) + '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + f("Adres", "adres", c.adres) + f("Postcode en plaats", "plaats", c.plaats) + f("BTW-nummer", "btw", c.btw) + f("BTW-tarief (%)", "btwTarief", c.btwTarief, { attrs: ' inputmode="decimal"' }, { hint: "Standaard; per product instelbaar." }) + f("Telefoon", "telefoon", c.telefoon, { type: "tel" }) + f("E-mail (op documenten)", "email", c.email, { type: "email" }) + '</div></div>' +
-      '<div class="card card-b" style="display:flex;flex-direction:column;gap:12px"><h2 class="h2">Bank &amp; voorwaarden</h2>' + (D.status.ibanOntbreekt ? K.c.warn("<b>IBAN ontbreekt.</b> Zolang dit leeg is, tonen facturen voorbeeldbankgegevens.") : "") + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">' + f("IBAN", "iban", c.iban, { placeholder: "BE00 0000 0000 0000" }) + f("BIC", "bic", c.bic) + '</div><div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">' + f("Betalingsvoorwaarden (onder de factuur)", "betalingsvoorwaarden", c.betalingsvoorwaarden, { placeholder: "bv. Betaalbaar binnen 14 dagen" }) + f("Betaaltermijn (dagen)", "betaaltermijnDagen", c.betaaltermijnDagen, { type: "number", attrs: ' min="0" max="120" inputmode="numeric"' }, { hint: "Vervaldatum op de factuur." }) + '</div>' + K.c.field("Leveringsvoorwaarden (onder de leveringsbon)", '<textarea class="input" id="leveringsvoorwaarden" rows="3">' + K.esc(c.leveringsvoorwaarden || "") + '</textarea>', {}) + '</div>' +
+      '<div class="card card-b" style="display:flex;flex-direction:column;gap:12px"><h2 class="h2">Bank &amp; voorwaarden</h2>' + (D.status.ibanOntbreekt ? K.c.warn("<b>IBAN ontbreekt.</b> Zolang dit leeg is, tonen facturen voorbeeldbankgegevens.") : "") + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">' + f("IBAN", "iban", c.iban, { placeholder: "BE00 0000 0000 0000" }) + f("BIC", "bic", c.bic) + '</div><div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">' + f("Betalingsvoorwaarden (onder de factuur)", "betalingsvoorwaarden", c.betalingsvoorwaarden, { placeholder: "bv. Betaalbaar binnen 14 dagen…" }) + f("Betaaltermijn (dagen)", "betaaltermijnDagen", c.betaaltermijnDagen, { type: "number", attrs: ' min="0" max="120" inputmode="numeric"' }, { hint: "Vervaldatum op de factuur." }) + '</div>' + K.c.field("Leveringsvoorwaarden (onder de leveringsbon)", '<textarea class="input" id="leveringsvoorwaarden" rows="3">' + K.esc(c.leveringsvoorwaarden || "") + '</textarea>', {}) + '</div>' +
       '<div class="card card-b" style="display:flex;flex-direction:column;gap:12px"><h2 class="h2">Bestellen &amp; leveren</h2><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + f("Besteldeadline (UU:MM)", "besteldeadline", c.besteldeadline || lev.deadline || "22:00", { placeholder: "22:00", attrs: ' inputmode="numeric" maxlength="5"' }, { hint: "Vóór dit uur besteld = morgen geleverd." }) + f("Minimum bestelling (€ excl. btw)", "minimumBestelling", c.minimumBestelling ? String(c.minimumBestelling).replace(".", ",") : "", { placeholder: "0 = geen minimum", attrs: ' inputmode="decimal"' }) + '</div>' +
       K.c.field("Leverdagen", '<div class="opt" id="dagen" style="gap:6px">' + DAGEN.map(([k, l]) => '<button type="button" data-dag="' + k + '"' + (dagen.includes(k) ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + ' title="' + l + '" style="flex:1;min-width:44px;padding:0 6px">' + k + '</button>').join("") + '</div>', { id: "f_leverdagen" }) +
       K.c.field("Gesloten dagen (één datum per regel, JJJJ-MM-DD)", '<textarea class="input" id="geslotenDagen" rows="3" placeholder="2026-12-25\n2027-01-01" style="font-family:inherit">' + K.esc(c.geslotenDagen || "") + '</textarea>', { id: "f_geslotenDagen", hint: "Feestdagen en verlof: op die dagen kan niemand een levering kiezen." }) +
@@ -306,7 +349,7 @@
     K.on(page, "click", "[data-dag]", (e, t) => { const on = !t.classList.contains("on"); t.classList.toggle("on", on); t.setAttribute("aria-pressed", on ? "true" : "false"); });
     const af = page.querySelector("#afboeken"); af.onclick = () => K.setOn(af, !af.classList.contains("on"));
     page.querySelector("#preview").onclick = async () => { try { await K.docs(); } catch (e) { K.toast(e.message, { kind: "err" }); return; } const cfg = collect(); FamoDocuments.setCompany(cfg); const sample = { ref: "CMD-2026-0001", client: "Voorbeeldklant", klant: { adresse: "Straat 1, 2000 Antwerpen", btw: "BE 0000.000.000", klantnr: "K-000" }, lignes: "Vannamei garnalen 16/20 × 2 caisse [€9.50]\nZalmfilet × 1 kg [€20.20]", total: 39.2, factuurnummer: "FA-2026-0000", paiement: "En attente", dateLiv: K.today() }; famoDocPreview.open({ html: FamoDocuments.build(sample, "invoice"), filename: "Famo-Voorbeeldfactuur.pdf", title: "Voorbeeldfactuur", meta: "met de gegevens zoals nu ingevuld" }); };
-    function collect() { const v = id => page.querySelector("#" + id).value.trim(); return { bedrijfsnaam: v("bedrijfsnaam"), adres: v("adres"), plaats: v("plaats"), btw: v("btw"), btwTarief: Number(v("btwTarief").replace(",", ".")), telefoon: v("telefoon"), email: v("email"), iban: v("iban"), bic: v("bic"), betalingsvoorwaarden: v("betalingsvoorwaarden"), leveringsvoorwaarden: v("leveringsvoorwaarden"), bestellingenEmail: v("bestellingenEmail"), besteldeadline: v("besteldeadline"), leverdagen: K.$$("[data-dag].on", page).map(b => b.dataset.dag).join(","), geslotenDagen: v("geslotenDagen"), minimumBestelling: v("minimumBestelling").replace(",", "."), betaaltermijnDagen: v("betaaltermijnDagen") === "" ? "" : Number(v("betaaltermijnDagen")), voorraadAfboeken: af.classList.contains("on") }; }
+    function collect() { const v = id => page.querySelector("#" + id).value.trim(); return { bedrijfsnaam: v("bedrijfsnaam"), adres: v("adres"), plaats: v("plaats"), btw: v("btw"), btwTarief: K.parseNum(v("btwTarief")), telefoon: v("telefoon"), email: v("email"), iban: v("iban"), bic: v("bic"), betalingsvoorwaarden: v("betalingsvoorwaarden"), leveringsvoorwaarden: v("leveringsvoorwaarden"), bestellingenEmail: v("bestellingenEmail"), besteldeadline: v("besteldeadline"), leverdagen: K.$$("[data-dag].on", page).map(b => b.dataset.dag).join(","), geslotenDagen: v("geslotenDagen"), minimumBestelling: K.numIn(v("minimumBestelling")), betaaltermijnDagen: v("betaaltermijnDagen") === "" ? "" : Number(v("betaaltermijnDagen")), voorraadAfboeken: af.classList.contains("on") }; }
     // Fout van de server bij het juiste veld tonen (IBAN, BIC, BTW-nummer, deadline, …) én bovenaan.
     const FIELD_ERR = [[/iban/i, "f_iban"], [/\bbic\b/i, "f_bic"], [/btw-nummer/i, "f_btw"], [/besteldeadline/i, "f_besteldeadline"], [/gesloten dagen/i, "f_geslotenDagen"], [/minimumbedrag/i, "f_minimumBestelling"], [/betaaltermijn/i, "f_betaaltermijnDagen"], [/bestelmeldingen/i, "f_bestellingenEmail"], [/bedrijfsnaam/i, "f_bedrijfsnaam"]];
     const clearErrs = () => FIELD_ERR.forEach(([, id]) => K.setErr(id, ""));
@@ -329,7 +372,7 @@
   function medewerkerPanel(m) {
     const v = Object.assign({ naam: "", rol: "personeel", actief: true }, m || {});
     const p = K.panel({ title: m ? m.naam : "Nieuwe medewerker", sub: m ? "Medewerker bewerken" : "Persoonlijke PIN: aanmelden op naam", body:
-      K.c.field("Naam", K.c.input("mNaam", { value: v.naam, placeholder: "Voornaam (zoals in het logboek)" }), { id: "fMNaam", req: true }) +
+      K.c.field("Naam", K.c.input("mNaam", { value: v.naam, placeholder: "bv. Karim…" }), { id: "fMNaam", req: true }) +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Rol", '<select class="input" id="mRol">' + [["personeel", "Personeel"], ["beheerder", "Beheerder"]].map(([k, l]) => '<option value="' + k + '"' + (v.rol === k ? " selected" : "") + '>' + l + '</option>').join("") + '</select>', { hint: "Beheerder: ook Beheer, Invoeren en Voorraad." }) + K.c.field(m ? "Nieuwe PIN (leeg = ongewijzigd)" : "PIN", K.c.input("mPin", { type: "password", attrs: ' inputmode="numeric" autocomplete="new-password"' }), { id: "fMPin", req: !m, hint: "Minstens 4 cijfers. Wordt versleuteld bewaard." }) + '</div>' +
       '<label style="display:flex;gap:10px;align-items:center;font-size:13px">' + K.c.check(!!v.actief, 'id="mActief"') + 'Actief (kan aanmelden)</label><div id="mErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="mOk">Opslaan</button>' });
@@ -416,9 +459,10 @@
   async function render(force) {
     if (force || !D) { try { await load(); } catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content" style="padding-top:20px">' + K.c.error(err.message, true) + '</div>'; K.on(page, "click", "[data-retry]", e => { e.preventDefault(); render(true); }); return; } }
     if (!D.config) D.config = {};
-    const views = { overzicht, aanvragen, klanten, producten, prijzen, rapportage, bedrijf, toegang, status };
+    const views = { overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status };
     if (force) rapCache = null;
     views[tab] ? await views[tab]() : overzicht();
+    openFromUrl();
   }
   K.on(page, "click", "[data-new-client]", () => clientPanel(null));
   K.on(page, "click", "[data-new-product]", () => productPanel(null));

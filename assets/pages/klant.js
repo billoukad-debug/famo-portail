@@ -160,7 +160,7 @@
     const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : byCat(a, b)));
     const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + count(c) + '</span></button>';
     const top = '<div class="mtop"><div class="mrow"><span class="logo">F</span><div style="min-width:0;flex:1"><h1 class="ktitle">' + K.t("Catalogus") + '</h1><span class="quiet ksub">' + K.esc(cat.client.nom) + ' · ' + K.esc(K.tt("bestel vóór {t} voor morgen", { t: deadline() })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div>' +
-      '<label class="search" style="max-width:none">' + K.icon("search") + '<input id="q" type="search" placeholder="' + K.t("Zoek een product…") + '" aria-label="' + K.t("Zoek een product…") + '" value="' + K.esc(q) + '" autocomplete="off" spellcheck="false"></label>' +
+      '<label class="search" style="max-width:none">' + K.icon("search") + '<input id="q" type="search" placeholder="' + K.t("Zoek een product…") + '" aria-label="' + K.t("Zoek een product…") + '" aria-keyshortcuts="/" value="' + K.esc(q) + '" autocomplete="off" spellcheck="false"></label>' +
       '<div class="cats">' + cats.map(catBtn).join("") + '</div></div>';
     const head = '<div class="prhead" aria-hidden="true"><span>' + K.t("Product") + '</span><span>' + K.t("Kaliber") + '</span><span>' + K.t("Eenheid") + '</span><span>' + K.t("Prijs excl. btw") + '</span><span></span><span>' + K.t("Aantal") + '</span></div>';
     const list = products.length ? head + order.map(g => '<h2 class="sec">' + K.esc(K.t(g)) + ' <span class="quiet">' + groups[g].length + '</span></h2>' + groups[g].map(productRow).join("")).join("") : K.c.empty(q ? K.t("Niets gevonden voor") + " „" + q + "”" : K.t("Nog geen favorieten"), q ? K.t("Probeer een ander woord of kies een categorie.") : K.t("Tik op de ster bij een product om het hier te zien."));
@@ -202,7 +202,7 @@
       };
       st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step);
       st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step);
-      inp.addEventListener("change", () => set(Number(String(inp.value).replace(",", ".")) || 0));
+      inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0));
     });
   }
 
@@ -216,7 +216,7 @@
       '<div class="mcard" style="display:flex;flex-direction:column;gap:10px"><div class="field"><label>' + K.t("Leverdag") + '</label><div class="opt">' + days.map(d => '<button type="button" data-day="' + d + '"' + (d === cart.day ? ' class="on"' : "") + '>' + K.esc(K.date(d)) + '</button>').join("") + '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap"><label for="otherDay" style="font-size:13px;margin:0">' + K.t("Andere dag") + '</label><input type="date" class="input" id="otherDay" style="flex:1;min-width:160px' + (otherDay ? ";border-color:var(--p);color:var(--p)" : "") + '" min="' + firstDay() + '" max="' + lastDay() + '" value="' + (otherDay ? cart.day : "") + '"></div><div id="dayErr"></div><span class="quiet" style="font-size:12px">' + K.esc(K.tt("Levering op {d}. Vóór {t} besteld = morgen geleverd.", { d: daysLabel(), t: deadline() })) + '</span></div>' +
       '<div class="field"><label>' + K.t("Leveradres") + '</label><div class="input" style="display:flex;align-items:center;white-space:pre-line;min-height:44px;padding:8px 12px;font-size:13px">' + K.esc(cat.client.adresse || K.t("Adres bij Famo bekend")) + '</div><span class="quiet" style="font-size:12px">' + K.t("Ander adres? Zet het in de opmerking.") + '</span></div>' +
-      '<div class="field"><label>' + K.t("Opmerking voor Famo") + '</label><textarea class="input" id="note" rows="2" placeholder="' + K.t("bv. graag achteraan bellen") + '">' + K.esc(cart.note || "") + '</textarea></div></div>' +
+      '<div class="field"><label>' + K.t("Opmerking voor Famo") + '</label><textarea class="input" id="note" rows="2" placeholder="' + K.t("bv. graag achteraan bellen…") + '">' + K.esc(cart.note || "") + '</textarea></div></div>' +
       '<div class="mcard" style="display:flex;flex-direction:column;gap:6px;font-size:13px"><div style="display:flex;justify-content:space-between"><span>' + K.t("Totaal excl. btw") + '</span><b class="mono">' + K.eur(total) + '</b></div><div class="quiet" style="font-size:12px">' + K.esc(K.tt("De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór {t} voor levering morgen.", { t: deadline() })) + (min > 0 ? ' · ' + K.esc(K.tt("Minimumbestelling {m} excl. btw", { m: K.eur(min) })) : "") + '</div></div>' +
       (below ? K.c.warn(K.esc(K.tt("Minimumbestelling {m} excl. btw · nog {r} toe te voegen.", { m: K.eur(min), r: K.eur(min - total) }))) : "") +
       '<div id="orderErr"></div>' +
@@ -474,10 +474,15 @@
     app.innerHTML = '<div class="kwrap" style="padding:20px" id="boot"></div>';
     return K.retryBox("boot", async () => { document.getElementById("boot").innerHTML = K.c.skeleton(3); await loadCatalogue(); render(); });
   }
+  // INT-07 : chaque vue retrouve sa position de défilement (retour du panier vers le catalogue).
+  const scrollPos = {}; let curPath = null;
   function render() {
     const { path } = K.hashParams();
     closePanel();
-    window.scrollTo(0, 0);
+    if (curPath !== null) scrollPos[curPath] = window.scrollY;
+    curPath = path || "catalogus";
+    const y = scrollPos[curPath] || 0;
+    requestAnimationFrame(() => window.scrollTo(0, y));
     switch (path) {
       case "winkelmand": return renderWinkelmand();
       case "bevestigd": return renderBevestigd();
@@ -488,5 +493,11 @@
     }
   }
   window.addEventListener("hashchange", route);
+  K.shortcuts.splice(0, 1, ["/", "Zoek een product…"]);
+  document.addEventListener("keydown", e => {
+    if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+    const qi = document.getElementById("q"); if (qi) { e.preventDefault(); qi.focus(); qi.select(); }
+  });
   route();
 })();

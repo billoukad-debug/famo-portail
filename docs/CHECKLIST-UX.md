@@ -56,41 +56,41 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | INT-04 | Mise à jour optimiste : l'écran change au clic, se réconcilie à la réponse. | Quantités, favoris, panier : instantanés (local). | ⚠️ Changements de statut côté équipe : on attend Airtable (bouton « …ing… » immédiat). Optimiste = risque de montrer une livraison qui n'a pas eu lieu. |
 | INT-05 | Action destructive = **Annuler** (≈ 6 s) ou confirmation ; jamais immédiate sans recours. | Vertrekken, Betaald, retrait d'un article du panier → toast « Ongedaan maken ». Annuler une commande, supprimer un produit → `K.confirm`. | ✅ (🔧 retrait du panier depuis le panneau ordinateur, toast d'annulation 6 s). |
 | INT-06 | L'URL porte l'état (onglet, vue, filtre). | Vues et onglets dans le `#` (`#/tabel`, `#/bord`, `#/catalogus`). | ⚠️ Filtres et recherche mémorisés par appareil (`localStorage`), pas dans l'URL : partager un lien filtré n'est pas un besoin à FAMO. |
-| INT-07 | Retour arrière restaure le défilement. | Klant : ouvrir Winkelmand puis revenir au catalogue. | ⏳ Le routeur remonte en haut à chaque vue (`scrollTo(0,0)`). Mineur. |
+| INT-07 | Retour arrière restaure le défilement. | Klant : descendre dans le catalogue, ouvrir Account, revenir (`rest-e2e`). | 🔧 chaque vue retrouve sa position (test : 400 px → retour catalogue à 400 px). |
 | INT-08 | Tout glisser-déposer a un équivalent clic et clavier (WCAG 2.5.7). | Bord : boutons Valideren / Vertrekken / Geleverd. Leveringen : ▲▼. Beheer → Volgorde : ▲▼. | 🔧 ▲▼ de Leveringen **visibles sur téléphone** (étaient masqués ≤ 560 px) ; ▲▼ **ajoutés** en Beheer → Volgorde (catégories et produits). |
 | INT-09 | Autofocus seulement avec clavier physique, sur le champ principal. | `K.panel` : premier champ focalisé si `pointer: fine`, sinon le panneau (pas de clavier qui surgit). | 🔧 |
-| INT-10 | Jamais d'information indispensable seulement dans `title=`. | `grep ' title="'` : 17 occurrences ; les boutons icône ont aussi un `aria-label`. | ⏳ notes tronquées (Bestellingen, Leveringen, Entrepot) : vérifier une par une que le texte complet est lisible ailleurs. |
+| INT-10 | Jamais d'information indispensable seulement dans `title=`. | `grep ' title="'` : 17 occurrences relues une par une. | 🔧 la note de commande est affichée en clair dans Entrepot et Leveringen (elle n'était visible qu'au survol, donc jamais sur téléphone) ; l'exception de livraison montre sa note dans l'étiquette. Restent en `title=` : des doublons d'un texte visible ou de la fiche (lignes, paiement). |
 | INT-11 | Même menu au « ⋯ » et au clic droit. | — | — pas de menu contextuel : les actions sont visibles sur la ligne. |
-| INT-12 | Cliquer un chiffre ouvre sa source. | Beheer → Overzicht : les cartes renvoient vers la liste concernée. | ⏳ non vérifié carte par carte. |
+| INT-12 | Cliquer un chiffre ouvre sa source. | Beheer → Overzicht, Bestellingen, Documenten : cliquer chaque chiffre. | 🔧 les 4 cartes d'Overzicht sont des liens (commandes, factures ouvertes, klanten, producten) ; « te laat » ouvre Bestellingen filtré, « onbetaalde facturen » ouvre Documenten → Openstaand. |
 
 ## 3. Clavier & focus (CLA)
 
 | ID | Règle | Vérifier chez FAMO | État |
 |---|---|---|---|
-| CLA-01 | Chaque parcours se fait au clavier. | Klant : commander, ouvrir une commande, l'annuler (test `kbd-e2e`). Beheer : réordonner (▲▼, Entrée). | ✅ pour ces parcours ; ⏳ pas de passe complète clavier sur chaque écran de l'équipe. |
+| CLA-01 | Chaque parcours se fait au clavier. | `ux-audit` (CLA-01) + parcours testés au clavier (`kbd-e2e`, `rest-e2e`). | 🔧 `ux-audit` vérifie maintenant que tout ce qui a un curseur main est atteignable au clavier : 0 écart sur 27 écrans × 2 largeurs. |
 | CLA-02 | Anneau de focus visible partout (`:focus-visible` 2 px `--p`). | `assets/ui.css` : règle globale `:focus-visible` ; champs : bordure + halo 3 px. | ✅ |
 | CLA-03 | Rien de collant ne masque le focus ou une ancre. | `html { scroll-padding-top: 84px }` (barre de 64 px + 16 + marge). | 🔧 |
 | CLA-04 | Panneau et dialogue = modal APG : `role="dialog"`, `aria-modal`, titre lié, Tab/Maj+Tab bouclent, Échap ferme **seulement le plus haut**, focus **rendu au déclencheur**. | `kbd-e2e` : 25× Tab et 25× Maj+Tab restent dans le panneau ; Échap sur la confirmation laisse le panneau ouvert ; le focus revient au bouton puis à la carte. | 🔧 (avant : pas de piège à focus, Échap fermait confirmation **et** panneau, focus perdu sur `body`). |
 | CLA-05 | Menu « ⋯ » = bouton de menu APG. | — | — pas de menu déroulant. La recherche globale suit le motif liste (↑↓ Entrée Échap). |
 | CLA-06 | Palette d'actions ⌘K. | — | — hors périmètre FAMO ; `/` ouvre la recherche globale (commande, klant, artikel, factuur). |
-| CLA-07 | `?` affiche les raccourcis. | — | ⏳ un seul raccourci (`/`) : pas encore utile. |
-| CLA-08 | Raccourcis cohérents entre écrans. | `/` = recherche sur toutes les pages de l'équipe. | ✅ |
+| CLA-07 | `?` affiche les raccourcis. | Appuyer sur `?` sur n'importe quel écran ; taper `?` dans un champ : rien. | 🔧 `?` ouvre la liste des raccourcis (communs + ceux de la page), ignoré pendant la saisie, Échap ferme. |
+| CLA-08 | Raccourcis cohérents entre écrans. | `/` = recherche sur toutes les pages de l'équipe et dans le catalogue client. | ✅ ; 🔧 `/` va aussi à la recherche du catalogue client (`aria-keyshortcuts`). |
 | CLA-09 | Édition en ligne : Entrée valide, Échap annule. | `K.prompt` : Entrée valide, Échap annule. Grille des prix : saisie directe puis « Prijzen opslaan ». | ✅ |
-| CLA-10 | Quand l'élément focalisé disparaît, le focus va au suivant. | Retrait d'un article dans le panneau panier → focus sur l'article suivant (ou « Bestellen »). | 🔧 pour le panier ; ⏳ ailleurs après un re-rendu complet. |
+| CLA-10 | Quand l'élément focalisé disparaît, le focus va au suivant. | Beheer : modifier un produit, enregistrer → focus sur son « Bewerken » (`rest-e2e`). | 🔧 à la fermeture d'un panneau, le focus revient au bouton qui l'a ouvert, **même si la liste a été redessinée** (retrouvé par son identifiant) ; ⚠️ carte qui quitte une colonne après une action (Entrepot) : focus non repositionné. |
 
 ## 4. Formulaires & saisie (FOR)
 
 | ID | Règle | Vérifier chez FAMO | État |
 |---|---|---|---|
 | FOR-01 | Chaque champ a un libellé lié (`for`) ou un `aria-label`. | `ux-audit`. | 🔧 **78 champs** sans libellé lié : `K.c.field` déduit maintenant le `for` de l'`id` du champ ; prix négociés et grille des prix : `aria-label` « produit · klant » ; sélecteur Klant d'Invoeren. |
-| FOR-02 | Entrée soumet ; ⌘/Ctrl+Entrée dans un `textarea`. | Connexion, mot de passe, profil : Entrée soumet. | ✅ ; ⏳ ⌘+Entrée dans les notes. |
+| FOR-02 | Entrée soumet ; ⌘/Ctrl+Entrée dans un `textarea`. | Beheer → produit → Omschrijving : Ctrl+Entrée enregistre (`rest-e2e`). | 🔧 ⌘/Ctrl+Entrée dans un champ multiligne déclenche le bouton principal de la zone (panneau, formulaire, carte). |
 | FOR-03 | Bouton d'envoi : désactivé pendant l'envoi, indicateur, **pas de saut de largeur** ; deux clics = une action. | `K.busy` : `disabled`, `aria-busy`, largeur figée, « Opslaan… ». Serveur : verrou par commande (`updateorder`), numéros FA/CN uniques. | 🔧 largeur + `aria-busy` ; ✅ idempotence serveur. |
 | FOR-04 | Ne pas pré-désactiver l'envoi. | Winkelmand sous le minimum : bouton désactivé **avec** le montant manquant affiché juste au-dessus. | ⚠️ assumé : la raison est visible, pas besoin de cliquer pour la voir. |
-| FOR-05 | Erreur à côté du champ (`aria-invalid`), focus sur la première erreur. | `K.setErr` : message sous le champ + `aria-invalid`. Mot de passe faux : focus sur le champ. | ✅ ; ⏳ focus automatique sur la première erreur pas généralisé. |
-| FOR-06 | Ne pas bloquer la frappe ; accepter « 12,5 » et « 12.5 ». | Quantités, prix, stock : virgule et point acceptés. | ✅ ; ⏳ « 1 404,48 » (espace de milliers) pas encore accepté dans les prix. |
+| FOR-05 | Erreur à côté du champ (`aria-invalid`), focus sur la première erreur. | Nouveau produit vide → Opslaan : focus sur Naam (`rest-e2e`). | 🔧 message lié au champ (`aria-describedby`) et focus automatique sur la première erreur après validation. |
+| FOR-06 | Ne pas bloquer la frappe ; accepter « 12,5 » et « 12.5 ». | Prix « 1 404,48 » dans Beheer → enregistré 1404.48. | 🔧 `K.parseNum` : « 1 404,48 », « 1.404,48 », « 1404.48 », « € 12,50 », « 12,5 » ; utilisé pour prix, stock, seuils, btw, minimum, quantités (tests unitaires + `rest-e2e`). |
 | FOR-07 | Bons `type` / `inputmode` / `autocomplete`. | Prix `inputmode="decimal"`, e-mail `email`, téléphone `tel`, mots de passe `current/new-password`, recherche `type="search"` sans correcteur. | ✅ (🔧 recherche du catalogue). |
-| FOR-08 | Placeholder = exemple réel terminé par « … ». | « Zoek een product… », « bv. dikke moot… ». | ⏳ quelques exemples sans « … » (« bv. 16/20 »). Mineur. |
-| FOR-09 | Prévenir avant de perdre une saisie. | — | ⏳ panneaux Beheer : fermer ne prévient pas. |
+| FOR-08 | Placeholder = exemple réel terminé par « … ». | « Zoek een product… », « bv. dikke moot… ». | 🔧 les exemples (« bv. … ») finissent par « … » en NL et FR ; ⚠️ gardés tels quels : masques de format (« 22:00 », « BE 0xxx.xxx.xxx », IBAN) et consignes (« Leeg = automatisch »). |
+| FOR-09 | Prévenir avant de perdre une saisie. | Beheer → produit → changer le nom → Échap (`rest-e2e`). | 🔧 panneau modifié : ×, Échap, clic à côté ou « Annuleren » demandent « Sluiten zonder bewaren? » ; quitter la page avec un panneau modifié → alerte du navigateur. Enregistrer ferme sans question. |
 | FOR-10 | Valeurs par défaut intelligentes. | Leverdag = premier jour livrable ; langue des documents = langue de la demande ; klant pré-rempli depuis une aanvraag. | ✅ |
 | FOR-11 | Unité visible dans le champ montant. | Libellés « excl. btw », placeholder = prix de base. | ⚠️ pas de suffixe € dans le champ (une seule devise). |
 | FOR-12 | Dates : raccourcis + saisie libre. | Winkelmand : 6 prochains jours + « Andere dag » ; équipe : Vandaag / Morgen + date. | ✅ |
@@ -101,11 +101,11 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | ID | Règle | Vérifier chez FAMO | État |
 |---|---|---|---|
 | EDI-01 | Chaque donnée est modifiable là où elle est affichée. | Beheer : klanten, producten (🔧 + omschrijving), prijzen, bedrijf, toegang. Équipe : correction d'une commande depuis la fiche. | ✅ |
-| EDI-02 | Un seul panneau d'édition (`K.panel`), fermé par Échap. | `K.panel` partout. | ✅ ; ⏳ pas d'URL `?edit=` pour ouvrir un panneau directement. |
+| EDI-02 | Un seul panneau d'édition (`K.panel`), fermé par Échap. | Copier l'URL avec le panneau ouvert, la rouvrir (`rest-e2e`). | 🔧 Beheer : `#/producten?edit=product:<id>` et `#/klanten?edit=klant:<id>` ouvrent le panneau ; l'URL suit l'ouverture et la fermeture. |
 | EDI-03 | Édition en ligne pour les champs simples. | Grille des prix, notes du panier. | ✅ |
 | EDI-04 | Écriture → toast « Annuler ». | Vertrekken, Betaald, retrait du panier. | ⚠️ partiel : enregistrer un produit ou un klant n'a pas d'annulation (modification visible et re-modifiable). |
 | EDI-05 | Confirmation seulement pour l'irréversible ; le bouton destructif n'a **pas** le focus. | `K.confirm({ danger })` : focus sur « Annuleren / Behouden », `role="alertdialog"`. | 🔧 (avant : focus sur le bouton destructif). |
-| EDI-06 | Journal consultable (qui, quoi, avant → après). | Champ `Correcties` par commande, affiché dans la fiche. | ✅ par commande ; ⏳ pas de journal global. |
+| EDI-06 | Journal consultable (qui, quoi, avant → après). | Beheer → Journaal (2 lignes après e2e : « Betaald (Contant) · beheerder »). | 🔧 Beheer → **Journaal** : toutes les corrections, paiements, creditnota's et exceptions de toutes les commandes, du plus récent au plus ancien, avec recherche et lien vers la commande. |
 | EDI-07 | Les chiffres dérivés se recalculent après une écriture. | Totaux du panier en direct (🔧 sans redessiner la liste) ; équipe : rechargement + `S.autoRefresh` (60 s). | ✅ |
 | EDI-08 | Créer depuis le contexte. | Aanvraag → « Klant aanmaken » pré-rempli (nom, adresse, langue). | ✅ |
 | EDI-09 | Tout ce qui se fait se défait. | Vertrekken ↔ Corrigeren, Betaald ↔ annuler (toast), commande annulée → « Opnieuw bestellen ». | ✅ |
@@ -152,7 +152,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | CHI-06 | Valeur déduite vs prouvée. | — | — |
 | CHI-07 | Un total montre son calcul. | Panier : quantité × prix par ligne, total excl. btw ; facture : détail btw. | ✅ |
 | CHI-08 | Négatif = signe « − » + texte, pas la couleur seule. | Creditnota : montant signé + libellé. | ✅ |
-| CHI-09 | Tableau > 10 lignes : tri (`aria-sort`) et filtre. | Bestellingen : tri + filtres + dates. | ✅ ; ⏳ Documenten, Klanten : filtre texte mais pas de tri par colonne. |
+| CHI-09 | Tableau > 10 lignes : tri (`aria-sort`) et filtre. | Documenten : cliquer « Bedrag » → croissant (`rest-e2e`). | 🔧 Documenten : tri par colonne (`aria-sort`), mémorisé ; Klanten : tri par nom, numéro ou « sans e-mail d'abord ». |
 | CHI-10 | Graphique accessible. | — | — pas de graphique. |
 | CHI-11 | Identifiants visibles et stables. | Référence commande, FA-/CN-, klantnummer. | ✅ |
 
@@ -176,7 +176,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | ACC-02 | Bouton icône = `aria-label`. | `ux-audit`. | 🔧 case « Voorraad automatisch afboeken » sans nom. |
 | ACC-03 | Icônes décoratives `aria-hidden`. | `K.icon` pose `aria-hidden="true"`. | ✅ |
 | ACC-04 | Lien d'évitement, `lang`, `<title>`, un seul `h1`. | `ux-audit` + `kbd-e2e` (Tab 1 = « Naar de inhoud », Entrée = focus sur le contenu). | 🔧 lien d'évitement + `<main>` sur les portails équipe, beheer, client et la page d'accueil (le lien déplace le focus sans toucher au `#` du routeur) ; titres de pages client en `h1`. |
-| ACC-05 | Contraste AA ; survol et focus plus contrastés. | Palette crème (PR #15). | ⏳ pas re-mesuré après ce lot. |
+| ACC-05 | Contraste AA ; survol et focus plus contrastés. | `node scripts/contrast-check.js`. | 🔧 mesuré par `scripts/contrast-check.js` (dans `check.js` et la CI) : 24 couples texte / fond, tous AA. Corrigés : texte discret sur en-tête de tableau (4,45 → 4,71), texte d'alerte (4,47 → 4,68), **bordure des champs** (1,76 → 3,19 sur blanc, 3,03 sur crème ; WCAG 1.4.11). |
 | ACC-06 | États annoncés : `aria-current`, `aria-pressed`, `aria-expanded`, `aria-busy`. | Onglets, favoris, catégories (🔧 `aria-pressed`), dépliage (🔧), boutons en cours (🔧). | ✅ |
 | ACC-07 | Couleur jamais seule. | Statuts : pastille + texte ; « uw prijs » + prix barré. | ✅ |
 
@@ -203,23 +203,33 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 
 ---
 
-## Bilan du passage (26/09/2026)
+## Bilan
 
-- **Corrigé dans ce lot (🔧)** : 26 points, dont les 4 qui changent le plus la sensation :
-  - le portail client en vraie version ordinateur, avec des lignes produit dépliables (MEP-04, MEP-07) ;
-  - les dialogues et panneaux conformes APG : focus piégé puis rendu, Échap qui ne ferme que le plus haut (CLA-04) ;
-  - les ▲▼ partout où l'on peut glisser (INT-08) ;
-  - les libellés liés sur tous les champs (FOR-01).
-- **Écarts assumés (⚠️)** : chacun est justifié dans sa ligne (statuts non optimistes, filtres par appareil, « — », etc.).
-- **Reste à faire (⏳)**, par ordre d'utilité :
-  - FOR-09 (prévenir avant de perdre une saisie dans Beheer) ;
-  - INT-07 (garder la position dans le catalogue) ;
-  - FOR-06 (« 1 404,48 ») ;
-  - CHI-09 (tri Documenten / Klanten) ;
-  - ACC-05 (mesure des contrastes) ;
-  - FOR-08 (placeholders avec « … ») ;
-  - EDI-02 (panneau adressable par l'URL) ;
-  - CLA-07 (`?`).
+- **Passage du 26/09/2026** : 26 points corrigés, dont :
+  - le portail client en vraie version ordinateur (MEP-04, MEP-07) ;
+  - les dialogues APG (CLA-04) ;
+  - les ▲▼ en alternative au glisser (INT-08) ;
+  - les libellés liés (FOR-01).
+- **Passage du 27/09/2026** : les 15 points ⏳ traités :
+  - FOR-09 : prévenir avant de perdre une saisie ;
+  - INT-07 : position gardée ;
+  - FOR-06 : saisie de nombres ;
+  - CHI-09 : tri ;
+  - ACC-05 : contrastes mesurés et corrigés, contrôle ajouté à la CI ;
+  - FOR-08 : placeholders ;
+  - EDI-02 : panneaux par URL ;
+  - CLA-07 : `?` ;
+  - EDI-06 : Journaal global ;
+  - INT-10 : notes visibles sur téléphone ;
+  - INT-12 : chiffres cliquables ;
+  - FOR-02 : Ctrl+Entrée ;
+  - FOR-05 : focus sur l'erreur ;
+  - CLA-10 : focus après re-rendu ;
+  - CLA-01 : contrôle clavier automatique.
+- **Écarts assumés (⚠️)** : chacun est justifié dans sa ligne. Un seul touche encore le clavier : une carte qui quitte une colonne d'Entrepot laisse le focus en place (CLA-10).
+- **Contrôles à relancer après chaque changement d'interface** :
+  - `node scripts/check.js`, qui inclut les contrastes ;
+  - `node scripts/ux-audit.js`.
 
 [WIG]: https://github.com/vercel-labs/web-interface-guidelines
 [WIG-site]: https://vercel.com/design/guidelines
