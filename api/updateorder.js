@@ -4,6 +4,7 @@ const __auth = require("../lib/staffauth");
 const __prices = require("../lib/prices");
 const __lev = require("../lib/levering");
 const __mail = require("../lib/ordermail");
+const __bill = require("../lib/billing");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -135,6 +136,13 @@ async function undoStock(report, sign){
   try { await moveStock(lines, -sign); } catch (e) { console.error("[updateorder] undoStock", e && e.message || e); }
 }
 
+// Mode de facturation, taux par défaut et taux du catalogue (lib/billing.js).
+async function billingContext(){
+  const [conf, cat] = await Promise.all([at(`${encodeURIComponent("Configuratie")}?maxRecords=1`), atAll("Catalogue")]);
+  const c = ((conf && conf.records) || [])[0]; const cf = (c && c.fields) || {};
+  return { mode: __bill.modeOf(cf), fallback: __bill.defaultRate(cf), rates: __bill.ratesFromCatalogue((cat && cat.records) || []) };
+}
+
 // Double tap sur la même instance : une seule requête à la fois par commande.
 const inflight = new Set();
 
@@ -160,6 +168,11 @@ async function ensureUnique(id, field, prefix, number){
 
 async function nextNumber(field, prefix){
   const year = __auth.brusselsYear();
+  const n = await __bill.reserve(prefix + "-" + year, () => maxNumber(field, prefix, year));
+  if (n != null) return `${prefix}-${year}-${String(n).padStart(4, "0")}`;
+  return `${prefix}-${year}-${String(await maxNumber(field, prefix, year) + 1).padStart(4, "0")}`;
+}
+async function maxNumber(field, prefix, year){
   const j = await atAll(`Commandes?fields%5B%5D=${encodeURIComponent(field)}`);
   if (j.error) throw new Error(j.error.message || "Nummering onleesbaar");
   let max = 0;
@@ -169,7 +182,7 @@ async function nextNumber(field, prefix){
     const m = String(v).match(new RegExp("^" + prefix + "-" + year + "-(\\d+)$"));
     if (m) max = Math.max(max, parseInt(m[1], 10));
   });
-  return `${prefix}-${year}-${String(max + 1).padStart(4, "0")}`;
+  return max;
 }
 
 function correctionLine(label, actor, reden){
@@ -312,12 +325,17 @@ async function makeCreditnota(req, res, id, f, body){
   if (!wanted.length) return res.status(400).json({ error: "Kies minstens één artikel om te crediteren" });
   let montant = 0;
   const out = [];
+  // Quantités CUMULÉES par article : deux lignes « 2 kg » sur 2 kg livrés ne passent plus (audit B-13).
+  const livre = new Map(), demande = new Map();
+  delivered.forEach(l => livre.set(norm(l.nom), (livre.get(norm(l.nom)) || 0) + l.qty));
   for (const w of wanted) {
     const d = delivered.find(l => norm(l.nom) === norm(w.nom));
     if (!d) return res.status(400).json({ error: `Artikel staat niet op de factuur: ${w.nom}` });
-    if (!(w.qty > 0) || w.qty > d.qty + 1e-9) return res.status(400).json({ error: `Aantal voor ${w.nom} moet tussen 0 en ${d.qty} liggen` });
+    const max = livre.get(norm(w.nom)) || 0;
+    demande.set(norm(w.nom), (demande.get(norm(w.nom)) || 0) + (w.qty > 0 ? w.qty : 0));
+    if (!(w.qty > 0) || demande.get(norm(w.nom)) > max + 1e-9) return res.status(400).json({ error: `Aantal voor ${w.nom} moet tussen 0 en ${max} liggen (alle lijnen samen)` });
     const price = d.price != null ? money(d.price) : 0;
-    montant += price * w.qty;
+    montant += __bill.vat.r2(price * w.qty); // même règle que les documents (ligne arrondie au cent)
     out.push(formatLine({ nom: d.nom, qty: w.qty, unit: d.unit, price, comment: "" }));
   }
   montant = money(montant);
@@ -336,6 +354,8 @@ async function makeCreditnota(req, res, id, f, body){
   const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
   if (j.error) { await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Creditnota opslaan mislukt" }); }
   const finalNummer = await ensureUnique(id, "Creditnota nummer", "CN", nummer);
+  // Numéro repris (collision) : le journal doit citer le numéro réellement attribué (audit B-18).
+  if (finalNummer !== nummer) await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Correcties": fields["Correcties"].split(nummer).join(finalNummer) } }) });
   if (finalNummer !== nummer) return res.status(200).json({ ok: true, creditnota: { nummer: finalNummer, lignes: out.join("\n"), montant, le: fields["Creditnota le"], motif }, stock: stockReport });
   return res.status(200).json({ ok: true, creditnota: { nummer, lignes: out.join("\n"), montant, le: fields["Creditnota le"], motif }, stock: stockReport });
 }
@@ -386,6 +406,9 @@ async function handle(req, res, body, id){
 
     // Once goods left the warehouse, changing quantities would no longer match
     // the stock movement and the delivery note. Create a correction instead.
+    if (f["Factuurnummer"] && (typeof lignes === "string" || typeof total === "number")) {
+      return res.status(409).json({ error: `Factuur ${f["Factuurnummer"]} bestaat al voor deze bestelling: de lijnen liggen vast. Maak een retour/creditnota.` });
+    }
     if (departed && (typeof lignes === "string" || typeof total === "number" || preparationValidee)) {
       return res.status(409).json({ error: "Deze levering is al onderweg en kan niet meer worden gewijzigd" });
     }
@@ -397,6 +420,7 @@ async function handle(req, res, body, id){
 
     const fields = {};
     if (paiement && !["Payé", "En attente"].includes(paiement)) return res.status(400).json({ error: "Ongeldige betaalstatus" });
+    if (paiement && !__auth.adminOk(req)) return res.status(403).json({ error: "Enkel een beheerder wijzigt de betaalstatus" });
     if (paiement) {
       if (paiement === "Payé" && f["Statut"] !== "Facturée" && statut !== "Facturée") return res.status(409).json({ error: "Enkel een gefactureerde bestelling kan op betaald gezet worden" });
       fields["Statut paiement"] = paiement;
@@ -447,6 +471,9 @@ async function handle(req, res, body, id){
     }
 
     let stockReport = null, factuurnummer = null, mail = null;
+    // Contexte de facturation (Configuratie + taux du catalogue) : lu au plus une fois par requête.
+    let billCtx = null;
+    const getBill = async () => billCtx || (billCtx = await billingContext());
 
     // Stock déduit au moment où la marchandise part réellement, SI Configuratie le
     // demande (« Voorraad afboeken »). Le navigateur ne décide plus (ancien skipStock).
@@ -478,6 +505,17 @@ async function handle(req, res, body, id){
       if (!alreadyConfirmed && !deliveryConfirmed) {
         return res.status(409).json({ error: "Bevestig eerst de ontvangst van de levering" });
       }
+      // Refusée à la porte ou client absent : rien n'a été livré, donc pas de facture (audit B-16).
+      // La commande reste « onderweg » avec l'exception au journal ; le magasin la reprend
+      // (Corrigeren → Terug : remise en stock) ou la relivre.
+      const uitz0 = String(body.uitzondering || "").trim();
+      if (deliveryConfirmed && !alreadyConfirmed && (uitz0 === "Geweigerd" || uitz0 === "Afwezig")) {
+        const nota = String(body.uitzonderingNota || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+        const upd = { "Uitzondering levering": uitz0, "Uitzondering nota": nota, "Correcties": journal(f, correctionLine("Niet geleverd: " + uitz0 + " (geen factuur)", __auth.actorOf(req), nota)) };
+        const w = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: upd }) });
+        if (w.error) return res.status(500).json({ error: "Uitzondering opslaan mislukt" });
+        return res.status(200).json({ ok: true, geleverd: false, uitzondering: uitz0, statut: f["Statut"] || "Sortie en livraison" });
+      }
       if (deliveryConfirmed && !alreadyConfirmed) {
         const receivedBy = String(recipient || "").trim().slice(0, 80);
         if (!receivedBy) return res.status(400).json({ error: "Vul in wie de levering heeft ontvangen" });
@@ -504,6 +542,8 @@ async function handle(req, res, body, id){
       factuurnummer = await nextNumber("Factuurnummer", "FA");
       fields["Factuurnummer"] = factuurnummer;
       fields["Facturée le"] = new Date().toISOString();
+      const bill = await getBill();
+      fields["BTW per lijn"] = JSON.stringify(__bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), null, bill.rates, bill.fallback));
     }
 
     if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets om bij te werken" });
@@ -522,9 +562,10 @@ async function handle(req, res, body, id){
       const rules = await __lev.loadRules(at);
       const nr = factuurnummer || f["Factuurnummer"] || "";
       const m = String(nr).match(/^FA-(\d{4})-(\d{1,6})$/i);
-      let mededeling = "";
-      if (m) { const base = m[1] + m[2].padStart(6, "0"); const digits = base + String(Number(base) % 97 || 97).padStart(2, "0"); mededeling = "+++" + digits.slice(0, 3) + "/" + digits.slice(3, 7) + "/" + digits.slice(7) + "+++"; }
-      mail = await notifyStatus(req, f, "geleverd", { factuurnummer: nr, ontvangenDoor: fields["Réceptionné par"], vervaldatum: __mail.vervaldatum(__lev.brusselsToday(), rules.betaaltermijn), mededeling });
+      const mededeling = m ? __bill.structuredRef(nr) : "";
+      const bill = await getBill();
+      const t = __bill.orderTotals(parseLines(f["Lignes (produits / quantités)"]), fields["BTW per lijn"] ? JSON.parse(fields["BTW per lijn"]) : __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, bill.rates, bill.fallback), bill.fallback);
+      mail = await notifyStatus(req, f, "geleverd", { facturatie: bill.mode, factuurnummer: nr, ontvangenDoor: fields["Réceptionné par"], vervaldatum: __mail.vervaldatum(__lev.brusselsToday(), rules.betaaltermijn), mededeling, totalExcl: t.htva, totalBtw: t.tva, totalIncl: t.total });
     }
     res.status(200).json({ ok: true, stock: stockReport, factuurnummer, mail });
   }

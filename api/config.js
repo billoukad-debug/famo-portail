@@ -2,6 +2,7 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 const { at, atAll } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const __lev = require("../lib/levering");
+const __bill = require("../lib/billing");
 
 // Pagine sur toute la table : au-dela de 100 lignes, un simple pageSize=100
 // mentait sur le compte (plafonne silencieusement).
@@ -37,8 +38,12 @@ module.exports = async (req, res) => {
       leveringsvoorwaarden: (c["Leveringsvoorwaarden"] || "").trim(),
       // Boite interne qui recoit les nouvelles commandes. PRIVEE : volontairement
       // absente de contactOnly ci-dessous, qui part au public et au staff non-admin.
-      bestellingenEmail: (c["Bestellingen e-mail"] || "").trim()
+      bestellingenEmail: (c["Bestellingen e-mail"] || "").trim(),
+      // Mode de facturation et mentions légales (Code des sociétés, art. 2:20) : lib/billing.js.
+      facturatie: __bill.modeOf(c),
+      legal: __bill.legalOf(c)
     };
+    config.legalMissing = __bill.legalMissing(config.legal);
     const rules = __lev.rulesFrom(c);
     config.betaaltermijnDagen = rules.betaaltermijn;
     config.voorraadAfboeken = rules.voorraadAfboeken;
@@ -50,7 +55,8 @@ module.exports = async (req, res) => {
       btw: config.btw,
       telefoon: config.telefoon,
       email: config.email,
-      levering: config.levering
+      levering: config.levering,
+      legal: config.legal
     };
 
     // Public contact block for the client portal (no IBAN/BIC).

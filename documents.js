@@ -15,12 +15,14 @@ window.FamoDocuments=(()=>{
       paid:"Betaald",paidOn:"Betaald op",creditOn:"Creditnota op factuur",reason:"Reden",creditDate:"Creditnotadatum",invoiceDate:"Factuurdatum",dueDate:"Vervaldatum",deliveryDate:"Leverdatum",
       date:"Datum",document:"Document",order:"Bestelling",invoiceNo:"Factuur",customerNo:"Klantnummer",payStatus:"Betaalstatus",customer:"Klant",vat:"BTW",desc:"Beschrijving",qty:"Aantal",unit:"Eenheid",
       unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
-      exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
+      exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
+      proforma:"PRO FORMA",retour:"RETOURBON",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
       unitPrice:"Prix unitaire",subtotal:"Sous-total",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
-      exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
+      exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
+      proforma:"PRO FORMA",retour:"BON DE RETOUR",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
   };
   const langOf=order=>{const v=String((order&&(order.taal||(order.klant&&order.klant.taal)))||"").trim().toLowerCase();return v==="fr"?"fr":"nl";};
   // Company identity from /api/config. Missing IBAN/BIC → temporary example bank (banner on invoice).
@@ -36,8 +38,13 @@ window.FamoDocuments=(()=>{
     betaaltermijnDagen:14,
     betalingsvoorwaarden:"",
     leveringsvoorwaarden:"",
-    exampleBank:false
+    exampleBank:false,
+    facturatie:"boekhouder",
+    legal:{}
   };
+  // Mode de facturation (lib/billing.js) : « boekhouder » = la facture légale vient du comptable
+  // (Billtobox, Peppol) ; les documents du portail sont des pro forma / bons de retour.
+  const accountant=()=>COMPANY.facturatie!=="portaal";
   function setCompany(cfg){
     const base=window.famoCompany?famoCompany.normalize(cfg):{
       nom:String(cfg&& (cfg.nom||cfg.bedrijfsnaam)||"").trim(),
@@ -54,16 +61,19 @@ window.FamoDocuments=(()=>{
     base.betaaltermijnDagen=Number.isFinite(termijn)&&termijn>0?Math.round(termijn):14;
     base.betalingsvoorwaarden=String(cfg&&cfg.betalingsvoorwaarden||"").trim();
     base.leveringsvoorwaarden=String(cfg&&cfg.leveringsvoorwaarden||"").trim();
+    base.facturatie=String(cfg&&cfg.facturatie||"").toLowerCase()==="portaal"?"portaal":"boekhouder";
+    base.legal=cfg&&cfg.legal&&typeof cfg.legal==="object"?cfg.legal:{};
     COMPANY=window.famoCompany?famoCompany.withExampleBank(base):Object.assign({exampleBank:false},base);
     return COMPANY;
   }
   // IBAN et nom obligatoires ; le BIC est facultatif (virement SEPA belge) et n'apparaît que s'il existe.
   function canInvoice(){
-    return !!(COMPANY.iban && COMPANY.nom);
+    if(accountant()) return !!COMPANY.nom;
+    return !!(COMPANY.iban && COMPANY.nom && !COMPANY.exampleBank);
   }
   function invoiceBlockReason(){
     if(!COMPANY.nom) return "Bedrijfsgegevens ontbreken. Vul ze in via Beheer.";
-    if(!COMPANY.iban) return "Factuur geblokkeerd: IBAN ontbreekt. Vul het in via Beheer.";
+    if(!accountant()&&(!COMPANY.iban||COMPANY.exampleBank)) return "Factuur geblokkeerd: IBAN ontbreekt. Vul het in via Beheer.";
     return "";
   }
   function usingExampleBank(){ return !!COMPANY.exampleBank; }
@@ -77,7 +87,8 @@ window.FamoDocuments=(()=>{
     return"+++"+digits.slice(0,3)+"/"+digits.slice(3,7)+"/"+digits.slice(7)+"+++";
   };
   const number=(order,type)=>{
-    if(type==="invoice") return order.factuurnummer||"—";
+    if(type==="invoice") return accountant()?(order.factuurnummer?"PF-"+String(order.factuurnummer).replace(/^FA-/i,""):"—"):(order.factuurnummer||"—");
+    if(type==="credit"&&accountant()) return "RB-"+String((order.creditnota&&order.creditnota.nummer)||order.factuurnummer||order.ref||"").replace(/^(CN|FA|CMD)-/i,"");
     if(type==="credit") return (order.creditnota&&order.creditnota.nummer)||("CN-"+String(order.factuurnummer||order.ref||"").replace(/^FA-/i,"").replace(/^CMD-/i,""));
     return "LB-"+String(order.ref||"").replace(/^CMD-/,"");
   };
@@ -111,8 +122,8 @@ window.FamoDocuments=(()=>{
       return window.famoDocPreview.filenameFor("delivery",{ref:order.ref||"CMD",number:number(order,"delivery")});
     }
     const safe=v=>String(v||"document").replace(/[^\w.\-]+/g,"-");
-    if(type==="invoice") return "Famo-Factuur-"+safe(order.factuurnummer||order.ref||"FA")+".pdf";
-    if(type==="credit") return "Famo-Creditnota-"+safe(number(order,"credit"))+".pdf";
+    if(type==="invoice") return (accountant()?"Famo-ProForma-":"Famo-Factuur-")+safe(accountant()?number(order,"invoice"):(order.factuurnummer||order.ref||"FA"))+".pdf";
+    if(type==="credit") return (accountant()?"Famo-Retour-":"Famo-Creditnota-")+safe(number(order,"credit"))+".pdf";
     return "Famo-Leveringsbon-"+safe(order.ref||"CMD")+".pdf";
   };
   // Kern van build/buildMany : {title, css, body} — build verpakt het in een volledig document.
@@ -129,39 +140,32 @@ window.FamoDocuments=(()=>{
     const rows=parse(credit?cn.lignes:order.lignes);
     // Prix du catalogue et total de commande HORS TVA (Beheer : « exclusief btw ») : la TVA s'ajoute,
     // arrondie au centime. Avant, elle était retranchée d'un total supposé TTC (≈ 6 % de trop peu).
-    const pct=Number(COMPANY.btwTarief)>0?Number(COMPANY.btwTarief):6;
-    const map=priced?rateMap(order):null;
+    const pct=Number.isFinite(Number(COMPANY.btwTarief))&&Number(COMPANY.btwTarief)>=0?Number(COMPANY.btwTarief):6;
+    const map=priced?(order.btwFrozen&&typeof order.btwFrozen==="object"?order.btwFrozen:rateMap(order)):null;
     const baseTotal=credit?(cn.montant==null?order.total:cn.montant):order.total;
-    // Btw per groep (tarief → grondslag), elk afgerond op de cent. Zonder btwPerLine : één groep = oud gedrag.
-    let htva, groups;
-    if(map && rows.some(r=>r.price!=null)){
-      const acc=new Map();
-      rows.forEach(row=>{
-        if(row.price==null)return;
-        const qty=Number(String(row.qty).replace(",","."))||0;
-        const rate=rateFor(row.name,map,pct);
-        acc.set(rate,(acc.get(rate)||0)+row.price*qty*sign);
-      });
-      groups=Array.from(acc.entries()).sort((a,b)=>a[0]-b[0]).map(([rate,base])=>({rate,base:cents(base)}));
-      htva=cents(groups.reduce((s,g)=>s+g.base,0));
+    // Règle unique (assets/vat.js) : ligne arrondie au cent, base et TVA par taux. Sans prix de ligne
+    // (anciennes commandes), un seul groupe au taux de l'entreprise sur le total stocké.
+    let htva, groups, tva, total;
+    if(rows.some(r=>r.price!=null)&&window.FamoVat){
+      const t=window.FamoVat.totals(rows,name=>rateFor(name,map,pct),sign);
+      htva=t.htva; groups=t.groups; tva=t.tva; total=t.total;
     }else{
       htva=cents(Number(baseTotal||0)*sign);
-      groups=[{rate:pct,base:htva}];
+      groups=[{rate:pct,base:htva,tva:Math.round(htva*pct)/100}];
+      tva=cents(groups[0].tva); total=cents(htva+tva);
     }
-    groups.forEach(g=>{g.tva=Math.round(g.base*g.rate)/100;});
-    const tva=cents(groups.reduce((s,g)=>s+g.tva,0));
-    const total=cents(htva+tva);
     const num=number(order,type);
     const lang=langOf(order), L=T[lang];
-    const title=credit?L.credit:(invoice?L.invoice:L.delivery);
+    const pro=accountant();
+    const title=credit?(pro?L.retour:L.credit):(invoice?(pro?L.proforma:L.invoice):L.delivery);
     // Rendu uniquement à partir d'ici — parse/calculs inchangés (parité M6).
     const nlUnit=value=>L.units[String(value||"").toLowerCase()]||((lang==="nl"&&typeof window!=="undefined"&&window.famoNL)?famoNL.unit(value):value);
     const ibanFmt=value=>String(value||"").replace(/\s+/g,"").replace(/(.{4})/g,"$1 ").trim();
-    const ogm=invoice?structuredRef(order.factuurnummer):"";
+    const ogm=invoice&&!pro?structuredRef(order.factuurnummer):"";
     const lineRows=rows.map(row=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
-      const sub=unitPrice==null?null:unitPrice*qty;
+      const sub=unitPrice==null?null:(window.FamoVat?window.FamoVat.r2(unitPrice*qty):unitPrice*qty);
       return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+'</td><td class="num">'+esc(qtyTxt(row.qty))+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
     const bank='<div class="bank"><div class="banklabel">'+L.bank+'</div>'+
@@ -176,14 +180,17 @@ window.FamoDocuments=(()=>{
     const paidTxt=paid?(order.payeLe?L.paidOn+" "+date(order.payeLe):L.paid):"";
     const terms=COMPANY.betalingsvoorwaarden?esc(COMPANY.betalingsvoorwaarden):"";
     const foot=credit
-      ? L.creditOn+' '+esc(order.factuurnummer||"—")+'.'+(cn.motif?' '+L.reason+': '+esc(cn.motif)+'.':'')+(terms?' '+terms:'')
+      ? (pro?L.order+' '+esc(order.ref||"—"):L.creditOn+' '+esc(order.factuurnummer||"—"))+'.'+(cn.motif?' '+L.reason+': '+esc(cn.motif)+'.':'')+(terms?' '+terms:'')
       : (invoice
         ? terms
         : esc(COMPANY.leveringsvoorwaarden||"").replace(/\n/g,'<br>'));
-    const banners=(invoice&&COMPANY.exampleBank?'<div class="banner"><b>'+L.exampleBanner+'</b> '+(lang==="nl"&&window.famoCompany?esc(famoCompany.EXAMPLE.label):L.exampleFix)+'</div>':'');
+    const notice=pro&&priced?'<div class="banner"><b>'+esc(credit?L.notCredit:L.notInvoice)+'</b></div>':'';
+    const banners=notice+(invoice&&!pro&&COMPANY.exampleBank?'<div class="banner"><b>'+L.exampleBanner+'</b> '+(lang==="nl"&&window.famoCompany?esc(famoCompany.EXAMPLE.label):L.exampleFix)+'</div>':'');
     // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
     const mark='<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="#4876A2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25V1.75h9.5"/><path d="M3.75 8h3.05c1.5 0 1.85-1.4 3.35-1.4s1.6 1.4 3.1 1.4"/></g></svg>';
     const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?L.vat+" "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
+    const lg=COMPANY.legal||{};
+    const legalLine=[lg.naam?(lg.naam+(lg.rechtsvorm&&!String(lg.naam).toLowerCase().split(/[^a-z0-9.]+/).includes(String(lg.rechtsvorm).toLowerCase())?" "+lg.rechtsvorm:"")):"",lg.ondernemingsnummer?L.companyNo+" "+lg.ondernemingsnummer:"",lg.rpr||"",lg.naam&&lg.handelsnaam&&lg.handelsnaam!==lg.naam?L.tradeName+" "+lg.handelsnaam:""].filter(Boolean).map(esc).join(" · ");
     const mast='<header class="mast"><div class="brand">'+mark+'<div class="wordmark">'+esc(COMPANY.nom||"—")+'</div></div><div class="coords">'+(coords||'<em>'+L.noCompany+'</em>')+'</div></header>';
     const klant=order.klant||{};
     const metaCell=(label,value,mono)=>value?'<div><div class="metalabel">'+label+'</div><div class="metavalue'+(mono?' mono':'')+'">'+esc(value)+'</div></div>':'';
@@ -195,15 +202,15 @@ window.FamoDocuments=(()=>{
     const dates=credit
       ? metaCell(L.creditDate,date(cn.le||todayIso()))
       : (invoice
-        ? metaCell(L.invoiceDate,date(factuurdatum))+metaCell(L.dueDate,date(vervaldatum))+(leverdatum?metaCell(L.deliveryDate,date(leverdatum)):"")
+        ? (pro?metaCell(L.date,date(factuurdatum)):metaCell(L.invoiceDate,date(factuurdatum))+metaCell(L.dueDate,date(vervaldatum)))+(leverdatum?metaCell(L.deliveryDate,date(leverdatum)):"")
         : metaCell(L.date,date(order.livreeLe||todayIso()))+(leverdatum?metaCell(L.deliveryDate,date(leverdatum)):""));
     const metaband='<div class="metaband">'+
       metaCell(L.document,num,true)+
       metaCell(L.order,order.ref,true)+
-      (!invoice&&order.factuurnummer?metaCell(L.invoiceNo,order.factuurnummer,true):"")+
+      (!invoice&&!pro&&order.factuurnummer?metaCell(L.invoiceNo,order.factuurnummer,true):"")+
       dates+
       (klant.klantnr?metaCell(L.customerNo,klant.klantnr,true):"")+
-      (invoice&&paidTxt?metaCell(L.payStatus,paidTxt):"")+
+      (invoice&&!pro&&paidTxt?metaCell(L.payStatus,paidTxt):"")+
       '</div>';
     const klantBlock='<section class="party"><h2>'+L.customer+'</h2><div class="partyname">'+esc(order.client)+'</div>'+
       (klant.adresse?'<div class="partymeta">'+esc(klant.adresse).replace(/\n/g,"<br>")+'</div>':'')+
@@ -257,8 +264,8 @@ window.FamoDocuments=(()=>{
       '.doc+.doc{margin-top:38px}'+
       '@media print{thead{display:table-header-group}tr{page-break-inside:avoid}.totals,.banner,.metaband{page-break-inside:avoid}.doc+.doc{margin-top:0}}';
     const body=mast+'<h1>'+title+'</h1>'+metaband+banners+klantBlock+table+
-      (priced?totals+(invoice?bank:''):'')+
-      (foot?'<div class="foot">'+foot+'</div>':'');
+      (priced?totals+(invoice&&!pro?bank:''):'')+
+      (foot||legalLine?'<div class="foot">'+[foot,legalLine].filter(Boolean).join('<br>')+'</div>':'');
     return{num,title,css,body,lang};
   }
   const wrap=(titleTxt,css,inner,lang)=>'<!doctype html><html lang="'+(lang||"nl")+'"><head><meta charset="utf-8"><title>'+esc(titleTxt)+'</title><style>'+css+'</style></head><body>'+inner+'</body></html>';

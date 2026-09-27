@@ -33,7 +33,9 @@ const SCHEMA = {
       // Exception à la réception (absent, refusé, partiel, abîmé) + ordre de tournée.
       "Uitzondering levering": "select", "Uitzondering nota": "text", "Volgorde levering": "number",
       // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
-      "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text"
+      "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text",
+      // Taux de TVA figés par ligne au passage en « Facturée » (JSON { produit: taux }, lib/billing.js).
+      "BTW per lijn": "text"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
@@ -49,8 +51,10 @@ const SCHEMA = {
     // Règles de livraison et de facturation lues par lib/levering.js : Besteldeadline "22:00",
     // Leverdagen "ma,di,wo,do,vr,za", Gesloten dagen (une date ISO par ligne), Minimum bestelling,
     // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
-    fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
-    primary: "Bedrijfsnaam"
+    // Facturatie : « Boekhouder » (défaut : facture légale chez le comptable, documents pro forma) ou
+    // « Portaal ». Juridische naam / Rechtsvorm / RPR : mentions du Code des sociétés (art. 2:20).
+    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
+    selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
   },
   Aanvragen: {
     fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select" },

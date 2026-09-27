@@ -114,7 +114,8 @@ module.exports = async (req, res) => {
       client: { id: clientId, taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL", nom: client.fields["Nom"], adresse: client.fields["Lieu de livraison"] || "", email: (client.fields["Email"] || "").trim(), tel: client.fields["Téléphone"] || "", klantnr: client.fields["Klantnummer"] || "", btw: client.fields["BTW-nummer"] || "", favorieten },
       products,
       token: __ca.issueToken(client),
-      company: Object.assign(companyFrom(cfgFields), { levering: __lev.publicRules(rules), iban: rules ? (cfgFields["IBAN"] || "").trim() : "", bic: (cfgFields["BIC"] || "").trim() })
+      // Coordonnées bancaires seulement si le portail émet les factures (mode Portaal, lib/billing.js).
+      company: Object.assign(companyFrom(cfgFields), { levering: __lev.publicRules(rules), facturatie: require("../lib/billing").modeOf(cfgFields), legal: require("../lib/billing").legalOf(cfgFields) }, require("../lib/billing").modeOf(cfgFields) === "portaal" ? { iban: (cfgFields["IBAN"] || "").trim(), bic: (cfgFields["BIC"] || "").trim() } : { iban: "", bic: "" })
     });
   } catch (e) {
     console.error("[catalogue]", e && e.message || e);

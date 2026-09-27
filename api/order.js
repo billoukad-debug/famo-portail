@@ -82,6 +82,7 @@ async function notifyOrderMail(ctx) {
   const cfg = await __mail.loadMailConfig(at);
   return __mail.notifyNewOrder({
     ref: ctx.ref,
+    recordId: ctx.recordId,
     date: ctx.date,
     dateLivraison: ctx.dateLivraison,
     notes: ctx.notes,

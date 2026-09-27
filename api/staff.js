@@ -99,6 +99,7 @@ module.exports = async (req, res) => {
           const url = __mail.portalUrl(req);
           return __mail.notifyNewOrder({
             ref,
+            recordId: j.records[0].id,
             date: fields["Date"],
             dateLivraison,
             notes: notes || "",

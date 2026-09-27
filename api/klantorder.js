@@ -36,10 +36,10 @@ const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
 async function findOwnOrder(client, ref){
   const safe = escapeFormula(String(ref || "").slice(0, 40));
   if (!safe) return null;
-  const found = await at(`Commandes?filterByFormula=${encodeURIComponent(`{Référence}='${safe}'`)}&maxRecords=1`);
-  const rec = ((found && found.records) || [])[0];
-  if (!rec || !(rec.fields["Client"] || []).includes(client.id)) return null;
-  return rec;
+  const found = await at(`Commandes?filterByFormula=${encodeURIComponent(`{Référence}='${safe}'`)}&maxRecords=10`);
+  // Parmi les commandes à cette référence, celle de CE client : un doublon de numéro ne doit
+  // pas rendre sa commande introuvable (audit B-01).
+  return ((found && found.records) || []).find(r => (r.fields["Client"] || []).includes(client.id)) || null;
 }
 
 module.exports = async (req, res) => {

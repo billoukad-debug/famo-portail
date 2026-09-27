@@ -126,6 +126,7 @@
     "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
     "Bestelling geannuleerd · artikelen in de winkelmand": "Commande annulée · articles dans le panier", "Geannuleerd door klant": "Annulée par le client",
     // openstaande facturen
+    "incl. btw": "TVAC", "Pro forma": "Pro forma", "Uw facturen en betaalgegevens ontvangt u van onze boekhouding (via Peppol).": "Vos factures et coordonnées de paiement vous sont envoyées par notre comptabilité (via Peppol).",
     "Openstaande facturen": "Factures ouvertes", "Totaal openstaand": "Total à payer", "Mededeling": "Communication", "Kopiëren": "Copier", "Gekopieerd": "Copié", "Betaalgegevens": "Coordonnées de paiement",
     "Kopiëren lukt niet op dit toestel.": "La copie n'est pas possible sur cet appareil.", "Geen openstaande facturen": "Aucune facture ouverte", "Alles is betaald. Dank u wel.": "Tout est payé. Merci.",
     // favorieten synchronisatie
@@ -238,7 +239,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "7ad917c1af";
+  K.DOCS_VER = "2b8521b54a";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -249,7 +250,7 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    docsLoading = ["/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
+    docsLoading = ["/assets/vat.js", "/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;

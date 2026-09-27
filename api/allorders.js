@@ -71,6 +71,8 @@ module.exports = async (req, res) => {
       correcties: r.fields["Correcties"] || "",
       uitzondering: r.fields["Uitzondering levering"] || "",
       uitzonderingNota: r.fields["Uitzondering nota"] || "",
+      // Taux figés à la facturation (lib/billing.js) : prioritaires sur le catalogue actuel.
+      btwFrozen: (() => { try { return r.fields["BTW per lijn"] ? JSON.parse(r.fields["BTW per lijn"]) : null; } catch (e) { return null; } })(),
       volgorde: Number.isFinite(Number(r.fields["Volgorde levering"])) && r.fields["Volgorde levering"] !== undefined ? Number(r.fields["Volgorde levering"]) : null,
       creditnota: r.fields["Creditnota nummer"] ? {
         nummer: r.fields["Creditnota nummer"], lignes: r.fields["Creditnota lignes"] || "", montant: Number(r.fields["Creditnota montant"] || 0),

@@ -38,6 +38,10 @@ function clearModule(rel) {
   delete require.cache[abs];
 }
 
+// Facturation (api/updateorder.js billingContext) : Configuratie puis Catalogue, lus une fois quand
+// un numéro de facture est attribué (taux figés, lib/billing.js).
+const BILL = () => [{ records: [{ fields: {} }] }, { records: [] }];
+
 async function call(handler, body, replies, opts) {
   opts = opts || {};
   const originalFetch = global.fetch;
@@ -795,7 +799,8 @@ async function main() {
     });
 
     // O4 — la ligne apparaît sur la facture, pas sur le bon de livraison.
-    FamoDocs.setCompany({ bedrijfsnaam: "Famo", iban: "BE68539007547034", bic: "GKCCBEBB" });
+    // Mode « portaal » : la facture du portail porte l'OGM (en mode boekhouder, jamais : test/documents.test.js).
+    FamoDocs.setCompany({ bedrijfsnaam: "Famo", iban: "BE68539007547034", bic: "GKCCBEBB", facturatie: "portaal" });
     const order = { ref: "CMD-1", client: "Resto Test", factuurnummer: "FA-2026-0001", lignes: "Zalm × 2 kg [€12.50]", total: 25 };
     const invoiceHtml = FamoDocs.build(order, "invoice");
     assert.match(invoiceHtml, /<span>Mededeling<\/span><b class="mono">\+\+\+202\/6000\/00192\+\+\+<\/b>/, "O4 Mededeling sur la facture");
@@ -1301,29 +1306,32 @@ async function main() {
     const FACT = extra => ({ fields: Object.assign({ Statut: "Facturée", Factuurnummer: "FA-2026-0001", "Référence": "CMD-40", "Livraison confirmée": true, "Statut paiement": "En attente", "Lignes (produits / quantités)": "Mosselen × 2 caisse [€28.00]\nZalm × 1.5 kg [€20.00]", Client: ["cliAQ"] }, extra || {}) });
     let r, b;
     // 1. Betaald : enkel op een factuur ; datum + wijze ; terug op openstaand wist beide.
-    r = await call(uo, { id: "o1", paiement: "Payé", modePaiement: "Contant" }, [{ fields: { Statut: "Prête" } }], { headers: cookieHdr });
+    r = await call(uo, { id: "o1", paiement: "Payé", modePaiement: "Contant" }, [{ fields: { Statut: "Prête" } }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 409, "AQ1 betaald enkel na factuur"); assert.equal(methodCallsX(r, "PATCH").length, 0);
-    r = await call(uo, { id: "o1", paiement: "Payé", modePaiement: "Bancontact" }, [FACT(), { fields: {} }], { headers: cookieHdr });
+    // Le personnel ne gère pas les encaissements (réponse du client, 27/09/2026) : 403 sans écriture.
+    r = await call(uo, { id: "o1", paiement: "Payé" }, [FACT()], { headers: cookieHdr });
+    assert.equal(r.res.statusCode, 403, "AQ1 personeel mag de betaalstatus niet wijzigen"); assert.equal(methodCallsX(r, "PATCH").length, 0);
+    r = await call(uo, { id: "o1", paiement: "Payé", modePaiement: "Bancontact" }, [FACT(), { fields: {} }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ1 betaald op factuur");
     b = cmdPatch(r);
     assert.equal(b.fields["Statut paiement"], "Payé"); assert.ok(Date.parse(b.fields["Payé le"]) > 0, "AQ1 Payé le"); assert.equal(b.fields["Mode de paiement"], "Bancontact");
-    assert.match(b.fields.Correcties, /Betaald \(Bancontact\) · personeel$/, "AQ1 journal");
-    r = await call(uo, { id: "o1", paiement: "Payé", modePaiement: "Cheque" }, [FACT()], { headers: cookieHdr });
+    assert.match(b.fields.Correcties, /Betaald \(Bancontact\) · beheerder$/, "AQ1 journal");
+    r = await call(uo, { id: "o1", paiement: "Payé", modePaiement: "Cheque" }, [FACT()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 400, "AQ1 betaalwijze inconnue"); assert.match(r.res.payload.error, /betaalwijze/);
-    r = await call(uo, { id: "o1", paiement: "Payé" }, [FACT(), { fields: {} }], { headers: cookieHdr });
-    b = cmdPatch(r); assert.equal(b.fields["Mode de paiement"], undefined, "AQ1 wijze facultatief"); assert.match(b.fields.Correcties, /Betaald · personeel$/);
-    r = await call(uo, { id: "o1", paiement: "Payé" }, [FACT({ "Statut paiement": "Payé" }), { fields: {} }], { headers: cookieHdr });
+    r = await call(uo, { id: "o1", paiement: "Payé" }, [FACT(), { fields: {} }], { headers: adminCookieHdr });
+    b = cmdPatch(r); assert.equal(b.fields["Mode de paiement"], undefined, "AQ1 wijze facultatief"); assert.match(b.fields.Correcties, /Betaald · beheerder$/);
+    r = await call(uo, { id: "o1", paiement: "Payé" }, [FACT({ "Statut paiement": "Payé" }), { fields: {} }], { headers: adminCookieHdr });
     assert.equal(cmdPatch(r).fields.Correcties, undefined, "AQ1 déjà payé : pas de doublon dans le journal");
-    r = await call(uo, { id: "o1", paiement: "En attente", reden: "verkeerde klant" }, [FACT({ "Statut paiement": "Payé", "Payé le": "2026-09-01T10:00:00.000Z", "Mode de paiement": "Contant" }), { fields: {} }], { headers: cookieHdr });
+    r = await call(uo, { id: "o1", paiement: "En attente", reden: "verkeerde klant" }, [FACT({ "Statut paiement": "Payé", "Payé le": "2026-09-01T10:00:00.000Z", "Mode de paiement": "Contant" }), { fields: {} }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ1 terug op openstaand"); b = cmdPatch(r);
-    assert.equal(b.fields["Payé le"], null); assert.equal(b.fields["Mode de paiement"], null); assert.match(b.fields.Correcties, /Terug op openstaand · personeel — verkeerde klant$/);
-    r = await call(uo, { id: "o1", paiement: "Gratis" }, [FACT()], { headers: cookieHdr }); assert.equal(r.res.statusCode, 400, "AQ1 betaalstatus inconnu");
+    assert.equal(b.fields["Payé le"], null); assert.equal(b.fields["Mode de paiement"], null); assert.match(b.fields.Correcties, /Terug op openstaand · beheerder — verkeerde klant$/);
+    r = await call(uo, { id: "o1", paiement: "Gratis" }, [FACT()], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AQ1 betaalstatus inconnu");
     // 2. Dubbele ontvangstbevestiging (dubbeltik, tweede toestel) → 409, niets herschreven.
     r = await call(uo, { id: "o2", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji" }, [FACT()], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 409, "AQ2 al bevestigd"); assert.match(r.res.payload.error, /al bevestigd/); assert.equal(methodCallsX(r, "PATCH").length, 0);
     // 3. Uitzondering bij levering : op de bestelling én in het journaal ; onbekende → 400.
     const SORTIE = { fields: { Statut: "Sortie en livraison", "Référence": "CMD-41", "Préparation validée": true, "Lignes (produits / quantités)": "Mosselen × 2 caisse [€28.00]", Client: ["cliAQ"] } };
-    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Gedeeltelijk", uitzonderingNota: "1 doos\nte weinig" }, [SORTIE, { records: [{ fields: { Factuurnummer: "FA-" + yearX + "-0007" } }] }, { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
+    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Gedeeltelijk", uitzonderingNota: "1 doos\nte weinig" }, [SORTIE, { records: [{ fields: { Factuurnummer: "FA-" + yearX + "-0007" } }] }, ...BILL(), { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ3 uitzondering"); assert.equal(r.res.payload.factuurnummer, "FA-" + yearX + "-0008", "AQ3 factuurnummer volgt");
     b = cmdPatch(r);
     assert.equal(b.fields["Uitzondering levering"], "Gedeeltelijk"); assert.equal(b.fields["Uitzondering nota"], "1 doos te weinig", "AQ3 nota op één regel");
@@ -1331,7 +1339,7 @@ async function main() {
     assert.match(b.fields.Correcties, /Uitzondering bij levering: Gedeeltelijk · personeel — 1 doos te weinig$/, "AQ3 journal");
     r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Verdwenen" }, [SORTIE], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 400, "AQ3 onbekende uitzondering"); assert.match(r.res.payload.error, /Ongeldige uitzondering/);
-    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji" }, [SORTIE, { records: [] }, { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
+    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji" }, [SORTIE, { records: [] }, ...BILL(), { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
     b = cmdPatch(r); assert.equal(b.fields["Uitzondering levering"], undefined, "AQ3 zonder uitzondering niets geschreven"); assert.equal(b.fields.Correcties, undefined);
     // 4. Volgorde levering : enig veld, ook na vertrek ; 1..999 of leeg ; nooit op een geannuleerde.
     r = await call(uo, { id: "o4", volgorde: 3 }, [{ fields: { Statut: "Prête" } }, { fields: {} }], { headers: cookieHdr });
@@ -1669,11 +1677,11 @@ async function main() {
     }
     const ACT = fav => ({ records: [{ id: "a", fields: { Gebruikersnaam: "aloha", Wachtwoord: HP("w"), Nom: "Aloha", Favorieten: fav } }] });
     const CATZ = { records: [{ id: "pz", fields: { Produit: "Zalm", "Prix de base": 10, "Unité": "kg" } }] };
-    let r = await call(cat, { user: "aloha", pw: "w" }, [ACT(JSON.stringify({ favorieten: ["recAAAAAAAAAAAAAA"], standaard: { recAAAAAAAAAAAAAA: 2 } })), CATZ, { records: [] }, { records: [{ fields: { "Voorraad afboeken": true, IBAN: "BE68539007547034", Leverdagen: "di", Bedrijfsnaam: "Famo" } }] }, { records: [{ fields: { Produit: " zalm", "Quantité disponible": 3 } }] }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }]);
+    let r = await call(cat, { user: "aloha", pw: "w" }, [ACT(JSON.stringify({ favorieten: ["recAAAAAAAAAAAAAA"], standaard: { recAAAAAAAAAAAAAA: 2 } })), CATZ, { records: [] }, { records: [{ fields: { "Voorraad afboeken": true, IBAN: "BE68539007547034", Leverdagen: "di", Bedrijfsnaam: "Famo", Facturatie: "Portaal" } }] }, { records: [{ fields: { Produit: " zalm", "Quantité disponible": 3 } }] }, { records: [{ fields: { Bedrijfsnaam: "Famo" } }] }]);
     assert.equal(r.res.statusCode, 200, "AW2 actieve klant");
     assert.deepEqual(r.res.payload.client.favorieten, { favorieten: ["recAAAAAAAAAAAAAA"], standaard: { recAAAAAAAAAAAAAA: 2 } }, "AW2 favorieten meegegeven");
     assert.equal(r.res.payload.products[0].voorraad, 3, "AW2 voorraad zichtbaar (op naam) wanneer afboeken aan staat");
-    assert.equal(r.res.payload.company.iban, "BE68539007547034"); assert.deepEqual(r.res.payload.company.levering.leverdagen, ["di"]); assert.equal(r.res.payload.company.bedrijfsnaam, "Famo");
+    assert.equal(r.res.payload.company.iban, "BE68539007547034"); assert.equal(r.res.payload.company.facturatie, "portaal"); // IBAN seulement en mode Portaal assert.deepEqual(r.res.payload.company.levering.leverdagen, ["di"]); assert.equal(r.res.payload.company.bedrijfsnaam, "Famo");
     r = await call(cat, { user: "aloha", pw: "w" }, [ACT("{{niet json"), CATZ, { records: [] }, { records: [{ fields: {} }] }, { records: [{ fields: {} }] }]);
     assert.equal(r.res.statusCode, 200, "AW3 zonder afboeken"); assert.equal(r.res.payload.products[0].voorraad, undefined, "AW3 geen voorraad getoond"); assert.equal(r.calls.filter(c => /\/Stock/.test(c.url)).length, 0, "AW3 Stock niet gelezen");
     assert.deepEqual(r.res.payload.client.favorieten, { favorieten: [], standaard: {} }, "AW3 onleesbare favorieten → leeg");
@@ -1692,6 +1700,7 @@ async function main() {
     let r = await call(uo, { id: "recZZ", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
       PRETE_OUT,
       { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0007" } }] }, // nextNumber → 0008
+      ...BILL(),                                                               // taux figés
       { fields: {} },                                                         // PATCH commande
       { records: [{ id: "recAA" }, { id: "recZZ" }] },                        // 0008 existe deux fois
       { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0008" } }] }, // nextNumber → 0009
@@ -1702,7 +1711,7 @@ async function main() {
     assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0009", "AX1 doublon détecté → numéro suivant");
     assert.equal(JSON.parse(r.calls.filter(isPatch).pop().options.body).fields.Factuurnummer, "FA-" + yearAX + "-0009", "AX1 le nouveau numéro est écrit");
     r = await call(uo, { id: "recAA", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
-      PRETE_OUT, { records: [] }, { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
+      PRETE_OUT, { records: [] }, ...BILL(), { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
     ], { headers: cookieHdr });
     assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0001", "AX1 le plus petit identifiant garde son numéro");
     assert.equal(r.calls.filter(isPatch).length, 1, "AX1 aucune renumérotation pour celui qui garde");
@@ -1799,9 +1808,9 @@ async function main() {
   {
     const sb = { console, document: { documentElement: {}, addEventListener() {}, querySelector() { return null; } }, localStorage: { getItem() { return null; }, setItem() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} }, navigator: { language: "nl" }, location: { search: "", pathname: "/", hash: "" } };
     sb.window = sb; vm.createContext(sb);
-    for (const f of ["assets/ui.js", "staff-company.js", "documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), sb);
+    for (const f of ["assets/ui.js", "assets/vat.js", "staff-company.js", "documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), sb);
     const D = sb.FamoDocuments;
-    D.setCompany({ nom: "FAMO Seafood", adresse: "Kaai 1", cp: "2000 Antwerpen", btw: "BE 0123.456.789", iban: "BE71096123456769" });
+    D.setCompany({ nom: "FAMO Seafood", adresse: "Kaai 1", cp: "2000 Antwerpen", btw: "BE 0123.456.789", iban: "BE71096123456769", facturatie: "portaal" });
     const base = { ref: "CMD-2026-0007", client: "Chez Paul", lignes: "Mosselen × 2 caisse [€28.00]\nZalm × 1.5 kg [€20.00]", total: 86, dateLiv: "2026-09-28", factuurnummer: "FA-2026-0007", factureeLe: "2026-09-28T08:00:00Z" };
     const nl = D.build(Object.assign({}, base, { klant: { taal: "NL", btw: "BE 1" } }), "delivery");
     const fr = D.build(Object.assign({}, base, { klant: { taal: "FR", btw: "BE 1" } }), "delivery");
