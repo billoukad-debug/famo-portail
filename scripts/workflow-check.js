@@ -1370,6 +1370,28 @@ async function main() {
     assert.equal(r.res.statusCode, 200, "AQ5 retour in voorraad");
     assert.equal(JSON.parse(r.calls.find(c => /\/Stock$/.test(c.url) && (c.options.method || "").toUpperCase() === "PATCH").options.body).records[0].fields["Quantité disponible"], 5, "AQ5 voorraad +1");
     const mv = JSON.parse(r.calls.find(c => /Mouvements/.test(c.url)).options.body).records[0].fields;
+    // 5b. Deux creditnota simultanées lisent le même maximum : ensureUnique (après
+    // l'écriture) détecte le doublon, le plus grand identifiant reprend le numéro suivant.
+    {
+      const rr = await call(uo, { id: "recZZ", creditnota: { motif: "beschadigd", lignes: "Mosselen × 1" } }, [
+        FACT(),
+        { records: [{ fields: { "Creditnota nummer": "CN-" + yearX + "-0002" } }] }, // nextNumber → 0003
+        { fields: {} },                                                            // PATCH commande
+        { records: [{ id: "recAA" }, { id: "recZZ" }] },                           // 0003 existe deux fois
+        { records: [{ fields: { "Creditnota nummer": "CN-" + yearX + "-0003" } }] }, // nextNumber → 0004
+        { fields: {} },                                                            // PATCH nouveau numéro
+        { records: [{ id: "recZZ" }] }                                             // 0004 unique
+      ], { headers: adminCookieHdr });
+      assert.equal(rr.res.statusCode, 200, "AQ5b creditnota malgré le doublon");
+      assert.equal(rr.res.payload.creditnota.nummer, "CN-" + yearX + "-0004", "AQ5b doublon CN détecté → numéro suivant");
+      const lastPatch = rr.calls.filter(c => (c.options.method || "").toUpperCase() === "PATCH").pop();
+      assert.equal(JSON.parse(lastPatch.options.body).fields["Creditnota nummer"], "CN-" + yearX + "-0004", "AQ5b le nouveau numéro est écrit");
+      const rk = await call(uo, { id: "recAA", creditnota: { motif: "beschadigd", lignes: "Mosselen × 1" } }, [
+        FACT(), { records: [] }, { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
+      ], { headers: adminCookieHdr });
+      assert.equal(rk.res.payload.creditnota.nummer, "CN-" + yearX + "-0001", "AQ5b le plus petit identifiant garde son numéro");
+      assert.equal(rk.calls.filter(c => (c.options.method || "").toUpperCase() === "PATCH").length, 1, "AQ5b aucune renumérotation pour celui qui garde");
+    }
     assert.equal(mv.Type, "Retour client"); assert.equal(mv["Quantité"], 1); assert.equal(mv["Référence commande"], "CMD-40"); assert.equal(mv["Stock après"], 5);
     assert.deepEqual(r.res.payload.stock.done, [{ nom: "Mosselen", qty: 1, van: 4, naar: 5 }]);
     // 6. Gardes : geen annulering zodra een factuur bestaat ; geen terug zodra een creditnota bestaat ; terug wist de uitzondering.
