@@ -6,6 +6,10 @@
     {
       "path": "/api/backup-cron",
       "schedule": "17 2 * * *"
+    },
+    {
+      "path": "/api/reminders-cron",
+      "schedule": "43 7 * * *"
     }
   ],
   "functions": {

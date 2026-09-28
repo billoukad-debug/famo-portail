@@ -90,6 +90,7 @@ module.exports = async (req, res) => {
       uitzonderingNota: r.fields["Uitzondering nota"] || "",
       // Taux figés à la facturation (lib/billing.js) : prioritaires sur le catalogue actuel.
       besteld: r.fields["Lignes besteld"] || "",
+      herinneringen: [r.fields["Herinnering 1 op"] || "", r.fields["Herinnering 2 op"] || ""].filter(Boolean),
       lots: (() => { try { return r.fields["Lots"] ? JSON.parse(r.fields["Lots"]) : null; } catch (e) { return null; } })(),
       btwFrozen: (() => { try { return r.fields["BTW per lijn"] ? JSON.parse(r.fields["BTW per lijn"]) : null; } catch (e) { return null; } })(),
       volgorde: Number.isFinite(Number(r.fields["Volgorde levering"])) && r.fields["Volgorde levering"] !== undefined ? Number(r.fields["Volgorde levering"]) : null,

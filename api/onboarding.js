@@ -113,7 +113,9 @@ async function statusPayload() {
     minimumBestelling: Number(c["Minimum bestelling"]) > 0 ? Number(c["Minimum bestelling"]) : 0,
     betaaltermijnDagen: Number(c["Betaaltermijn dagen"]) > 0 ? Number(c["Betaaltermijn dagen"]) : 14,
     voorraadAfboeken: !!c["Voorraad afboeken"],
-    voorwaarden: __terms.current(c)
+    voorwaarden: __terms.current(c),
+    herinneringen: !!c["Herinneringen aan"],
+    lotsVerplicht: !!c["Lots verplicht"]
   };
   config.levering = __lev.publicRules(__lev.rulesFrom(c));
 
@@ -279,7 +281,9 @@ const handler = async (req, res) => {
         "Rechtsvorm": clean(body.rechtsvorm, 40),
         "RPR": clean(body.rpr, 120),
         // Traçabilité : un lot par article obligatoire avant « Klaar » (api/updateorder.js).
-        "Lots verplicht": body.lotsVerplicht === true
+        "Lots verplicht": body.lotsVerplicht === true,
+        // Relances de paiement automatiques (H-01) : mode Portaal seulement (lib/reminders.js).
+        "Herinneringen aan": body.herinneringen === true
       };
       const mode = clean(body.facturatie, 20);
       if (mode && !__bill.MODES.includes(mode)) return res.status(400).json({ error: "Ongeldige facturatie: Boekhouder of Portaal" });

@@ -89,6 +89,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
 | `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
 | `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
+| `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, order.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |
 
 ### `Stock` — stock par produit
@@ -133,6 +134,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Beheerderscode hash`, `Personeelscode hash` | texte | onboarding (saveCode) | session | Empreinte scrypt ; remplace `ADMIN_CODE` / `STAFF_CODE` ; vide = code de l'environnement. Jamais renvoyée. |
 | `Besteldeadline` (HH:MM), `Leverdagen` (`ma,di,…`), `Gesloten dagen` (dates ISO, une par ligne), `Minimum bestelling` (€), `Betaaltermijn dagen`, `Voorraad afboeken` (case) | texte / nombre / case | onboarding | levering | Règles de commande, de livraison et de stock. |
 | `Voorwaarden NL`, `Voorwaarden FR`, `Voorwaarden versie` | texte, texte, texte (`AAAA-MM-JJ HH:MM:SS`) | onboarding (saveVoorwaarden ; « Publiceren » change la version) | config (?voorwaarden=1 public, version dans le bloc contact), catalogue, order, signup, klantorder, documents | Conditions générales (C-12, lib/terms.js). Version vide = rien à accepter ; version publiée = chaque client l'accepte avant sa commande suivante (order : 409 `needTerms`). |
+| `Herinneringen aan`, `Lots verplicht` | case, case | onboarding (saveConfig, Beheer → Bedrijf) | reminders-cron ; updateorder | Relances de paiement automatiques (Portaal seulement) ; lot obligatoire avant « Klaar ». |
 
 ### `Aanvragen` — demandes d'accès publiques
 

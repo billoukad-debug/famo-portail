@@ -161,3 +161,16 @@ test("notify* sans clé : skipped disabled, aucun fetch, ne jette jamais", async
     global.fetch = saved;
   }
 });
+
+test("C-15 : e-mails client en français quand Taal = FR (sujet, corps, montants fr-BE), équipe en NL", () => {
+  const fr = { ...base, klant: { ...klant, taal: "FR" } };
+  const c = om.buildCustomerMail(fr);
+  assert.match(c.subject, /^Confirmation de votre commande CMD-2026-0007/);
+  assert.match(c.text, /53,00\s€/); assert.ok(!/Bedankt|Totaal|Referentie/.test(c.text), "aucun texte NL");
+  const g = om.buildStatusMail({ ...fr, status: "geleverd", facturatie: "portaal", totalExcl: 53, totalIncl: 56.18, factuurnummer: "FA-2026-0101", vervaldatum: "2026-10-25", mededeling: "+++202/6000/10167+++" });
+  assert.match(g.subject, /livrée/); assert.match(g.text, /56,18\s€/); assert.match(g.html, /lang="fr"/);
+  const b = om.buildStatusMail({ ...fr, status: "geleverd", totalExcl: 53, totalIncl: 56.18, factuurnummer: "FA-2026-0101" });
+  assert.match(b.text, /Peppol/); assert.ok(!/FA-2026-0101/.test(b.text), "mode boekhouder : pas de numéro de facture");
+  assert.match(om.buildTeamMail(fr).subject, /Nieuwe bestelling|bestelling/i, "e-mail interne en néerlandais");
+  assert.equal(om.clientFrom({ fields: { Taal: "fr" } }).taal, "FR");
+});

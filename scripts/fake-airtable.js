@@ -47,6 +47,8 @@ const SCHEMA = {
       // Lignes telles que COMMANDÉES (figées à la création) : la ligne réelle peut ensuite être
       // corrigée au poids livré ; les documents montrent l'écart « besteld / geleverd » (audit H-04).
       "Lignes besteld": "text",
+      // Relances de paiement envoyées (lib/reminders.js, H-01).
+      "Herinnering 1 op": "datetime", "Herinnering 2 op": "datetime",
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
       "Lots": "text"
     },
@@ -66,7 +68,7 @@ const SCHEMA = {
     // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
     // Facturatie : « Boekhouder » (défaut : facture légale chez le comptable, documents pro forma) ou
     // « Portaal ». Juridische naam / Rechtsvorm / RPR : mentions du Code des sociétés (art. 2:20).
-    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Lots verplicht": "checkbox", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox",
+    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Lots verplicht": "checkbox", "Herinneringen aan": "checkbox", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox",
       // Sessiegeneratie : +1 = toutes les sessions staff révoquées (lib/staffauth.js, api/session.js).
       "Sessiegeneratie": "number",
       // Verrou global des connexions par PIN (api/session.js) : un PIN n'identifie pas son compte.
