@@ -326,6 +326,18 @@
     show();
     const qi = page.querySelector("#jq"); qi.addEventListener("input", K.debounce(() => { jq = qi.value.trim(); show(); }, 150));
   }
+  // Marge brute (schatting) en voorraadwaarde (H-05/H-06/H-11) : /api/marge, aankoopprijs per lot.
+  async function margeCard() {
+    const box = document.createElement("div"); box.style.marginTop = "16px"; page.querySelector(".content").appendChild(box);
+    box.innerHTML = '<div class="card card-b">' + K.c.skeleton(1) + '</div>';
+    let m; try { m = await K.api("/api/marge?van=" + rapJaar + "-01-01&tot=" + rapJaar + "-12-31"); } catch (err) { box.innerHTML = '<div class="card card-b">' + K.c.error("Marge: " + err.message) + '</div>'; return; }
+    const pct = v => v == null ? "—" : K.num(v) + " %", t = m.totaal;
+    box.innerHTML = '<div class="card"><div class="card-h"><div><h2 class="h2">Marge ' + K.esc(rapJaar) + ' (schatting)</h2><p class="sub" style="white-space:normal">Omzet excl. btw min aankoopprijs van het geleverde lot (anders de laatste aankoopprijs van het product). Creditnota\'s in mindering. Geen boekhouding: gewichtsverschillen en verlies zijn niet meegeteld.</p></div></div>' +
+      '<div class="kpis" style="padding:0 16px 12px"><div class="kp"><small>Brutomarge</small><b class="mono">' + K.eur(t.marge) + '</b><em>' + pct(t.pct) + ' op ' + K.eur(t.omzetMetKost) + '</em></div><div class="kp"><small>Aankoopwaarde</small><b class="mono">' + K.eur(t.kost) + '</b></div><div class="kp"><small>Omzet zonder aankoopprijs</small><b class="mono">' + K.eur(t.zonderKost) + '</b><em>' + (t.zonderKost > 0 ? "vul de aankoopprijs in bij de loten" : "alles gedekt") + '</em></div><div class="kp"><small>Voorraadwaarde nu</small><b class="mono">' + K.eur(m.voorraadWaarde) + '</b><em>' + (m.voorraadZonderPrijs ? m.voorraadZonderPrijs + " product(en) zonder prijs" : "laatste aankoopprijs") + '</em></div></div>' +
+      '<div class="tblwrap"><table class="tbl"><thead><tr><th>Product</th><th class="num">Aantal</th><th class="num">Omzet</th><th class="num">Aankoop</th><th class="num">Marge</th><th class="num">%</th></tr></thead><tbody>' +
+      (m.producten.length ? m.producten.slice(0, 60).map(x => '<tr><td><b>' + K.esc(x.produit) + '</b>' + (x.zonderKost > 0 ? '<div class="quiet" style="font-size:11px">' + K.eur(x.zonderKost) + ' zonder aankoopprijs</div>' : "") + '</td><td class="num mono">' + K.esc(K.qty(x.qty) + " " + K.unit(x.unit)) + '</td><td class="num mono">' + K.eur(x.omzet) + '</td><td class="num mono">' + K.eur(x.kost) + '</td><td class="num mono">' + K.eur(x.marge) + '</td><td class="num mono">' + pct(x.pct) + '</td></tr>').join("") : '<tr><td colspan="6" class="quiet">Nog geen gefactureerde bestellingen dit jaar.</td></tr>') +
+      '</tbody></table></div></div>';
+  }
   async function rapportage() {
     page.innerHTML = head("Omzet, klanten, producten en btw · op basis van geleverde (gefactureerde) bestellingen") + '<div class="content" style="padding-top:16px">' + K.c.skeleton(3) + '</div>';
     if (!rapCache) { try { rapCache = await K.api("/api/allorders?all=1"); } catch (err) { page.querySelector(".content").innerHTML = K.c.error(err.message, true); K.on(page, "click", "[data-retry]", e => { e.preventDefault(); rapCache = null; render(); }); return; } }
@@ -366,6 +378,7 @@
       card("Per product", "Hoeveelheid en omzet", "product", tbl([["Product"], ["Aantal", 1], ["Omzet", 1]], prods.slice(0, 40).map(p => '<tr><td><b>' + K.esc(p.name) + '</b></td><td class="num mono">' + K.esc(K.qty(p.qty) + " " + K.unit(p.unit)) + '</td><td class="num mono">' + K.eur(p.total) + (p.noPrice ? ' <span class="tag" title="regels zonder prijs">±</span>' : "") + '</td></tr>'))) +
       '</div>' + (unpaid.length ? '<div class="card" style="margin-top:16px"><div class="card-h"><div><h2 class="h2">Openstaande facturen</h2><p class="sub">Alle jaren · geleverd, nog niet betaald</p></div><button type="button" class="btn btn-o btn-sm" data-csv="open">CSV</button></div>' + tbl([["Factuur"], ["Klant"], ["Datum"], ["Bedrag", 1]], unpaid.sort((a, b) => dayOf(a).localeCompare(dayOf(b))).map(o => '<tr class="row" data-open="' + o.id + '"><td class="mono">' + K.esc(o.factuurnummer || o.ref) + '</td><td>' + K.esc(o.client) + '</td><td' + (K.addDays(dayOf(o), Number(D.config.betaaltermijnDagen) || 14) < K.today() ? ' style="color:var(--danger)"' : "") + '>' + K.esc(K.date(dayOf(o))) + '</td><td class="num mono">' + K.eur(o.total) + '</td></tr>')) + '</div>' : "") + '</div>';
     if (window.innerWidth < 900) page.querySelector("#two").style.gridTemplateColumns = "1fr";
+    margeCard();
     page.querySelector("#rapJaar").onchange = e => { rapJaar = e.target.value; render(); };
     K.on(page, "click", "tr[data-open]", (e, t) => { location.href = "/order.html?id=" + encodeURIComponent(t.dataset.open); });
     K.on(page, "click", "[data-csv]", (e, t) => {

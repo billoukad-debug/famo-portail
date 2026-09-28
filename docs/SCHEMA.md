@@ -136,6 +136,15 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Voorwaarden NL`, `Voorwaarden FR`, `Voorwaarden versie` | texte, texte, texte (`AAAA-MM-JJ HH:MM:SS`) | onboarding (saveVoorwaarden ; « Publiceren » change la version) | config (?voorwaarden=1 public, version dans le bloc contact), catalogue, order, signup, klantorder, documents | Conditions générales (C-12, lib/terms.js). Version vide = rien à accepter ; version publiée = chaque client l'accepte avant sa commande suivante (order : 409 `needTerms`). |
 | `Herinneringen aan`, `Lots verplicht` | case, case | onboarding (saveConfig, Beheer → Bedrijf) | reminders-cron ; updateorder | Relances de paiement automatiques (Portaal seulement) ; lot obligatoire avant « Klaar ». |
 
+### `Lots` — lots reçus (traçabilité, marge)
+
+| Champ | Type | Écrit par | Lu par | Remarque |
+|---|---|---|---|---|
+| `Lotnummer`, `Produit`, `Leverancier`, `Ontvangen op` | texte, texte, texte, date | lots (POST) | lots, updateorder (Klaarzetten), margin | Un pas en amont (règl. 178/2002 art. 18). `Produit` = nom du catalogue. |
+| `Wetenschappelijke naam`, `Vangstgebied`, `Vistuig`, `Productiemethode`, `Ontdooid`, `THT` | texte, texte, texte, liste, case, date | lots | bon de livraison (instantané) | Mentions du règl. 1379/2013 art. 35. |
+| `Hoeveelheid`, `Actief`, `Nota` | nombre, case, texte | lots | lots | Inactif = plus proposé à la préparation. |
+| `Aankoopprijs` | nombre (€ HTVA par unité) | lots (beheerder seul) | marge (beheerder seul) | Jamais dans l'instantané copié dans la commande : ni le personnel ni le client ne le voient (H-05). |
+
 ### `Aanvragen` — demandes d'accès publiques
 
 | Champ | Type | Écrit par | Lu par |

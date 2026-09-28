@@ -44,6 +44,8 @@
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + f("Wetenschappelijke naam", "wetenschappelijkeNaam", v.wetenschappelijkeNaam, { placeholder: "bv. Solea solea" }) + f("Vangstgebied (FAO) of land van kweek", "vangstgebied", v.vangstgebied, { placeholder: "bv. FAO 27 IV Noordzee" }) + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + K.c.field("Productiemethode", '<select class="input" id="productiemethode"><option value="">—</option>' + methodes.map(m => '<option' + (m === v.productiemethode ? " selected" : "") + '>' + K.esc(m) + '</option>').join("") + '</select>', { id: "f_productiemethode" }) + f("Vistuig", "vistuig", v.vistuig, { placeholder: "bv. boomkorren" }) + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">' + f("THT / uiterste consumptiedatum", "tht", v.tht, { type: "date" }) + f("Hoeveelheid (optioneel)", "hoeveelheid", v.hoeveelheid, { attrs: ' inputmode="decimal"' }) + '</div>' +
+      // Prix d'achat (H-05) : beheerder seul ; sert à la marge et à la valeur du stock (Beheer → Rapportage).
+      (K.staff.isAdmin() ? f("Aankoopprijs per eenheid, excl. btw (optioneel)", "aankoopprijs", v.aankoopprijs == null ? "" : String(v.aankoopprijs).replace(".", ","), { attrs: ' inputmode="decimal"' }) : "") +
       '<label style="display:flex;gap:10px;align-items:center;font-size:13px">' + K.c.check(!!v.ontdooid, 'id="ontdooid" aria-label="Ontdooid"') + 'Ontdooid (vermelding verplicht)</label>' +
       '<label style="display:flex;gap:10px;align-items:center;font-size:13px">' + K.c.check(v.actief !== false, 'id="actief" aria-label="Actief"') + 'Actief (kiesbaar bij het klaarzetten)</label>' +
       f("Nota", "nota", v.nota) + '<div id="lErr"></div>',
@@ -55,6 +57,7 @@
     p.el.querySelector("#lSave").onclick = async () => {
       const val = id => p.el.querySelector("#" + id).value.trim(), on = id => p.el.querySelector("#" + id).classList.contains("on");
       const body = { id: l ? l.id : undefined, lotnummer: val("lotnummer"), produit: val("produit"), leverancier: val("leverancier"), ontvangenOp: val("ontvangenOp"), wetenschappelijkeNaam: val("wetenschappelijkeNaam"), vangstgebied: val("vangstgebied"), vistuig: val("vistuig"), productiemethode: val("productiemethode"), tht: val("tht"), hoeveelheid: val("hoeveelheid"), ontdooid: on("ontdooid"), actief: on("actief"), nota: val("nota") };
+      if (p.el.querySelector("#aankoopprijs")) body.aankoopprijs = val("aankoopprijs");
       const b = p.el.querySelector("#lSave"); K.busy(b, true, "Opslaan…");
       try { await K.api("/api/lots", { json: body }); p.close(); K.toast("Lot " + body.lotnummer + " opgeslagen"); await load(); render(); }
       catch (err) { p.el.querySelector("#lErr").innerHTML = K.c.error(err.message); K.busy(b, false); }

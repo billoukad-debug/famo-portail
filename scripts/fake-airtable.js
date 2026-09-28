@@ -80,7 +80,7 @@ const SCHEMA = {
   // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
   // (fournisseur, réception) et, par les commandes, un pas en aval (qui a reçu le lot).
   Lots: {
-    fields: { "Lotnummer": "text", "Produit": "text", "Leverancier": "text", "Ontvangen op": "date", "Wetenschappelijke naam": "text", "Vangstgebied": "text", "Vistuig": "text", "Productiemethode": "text", "Ontdooid": "checkbox", "THT": "date", "Hoeveelheid": "number", "Actief": "checkbox", "Nota": "text" },
+    fields: { "Lotnummer": "text", "Produit": "text", "Leverancier": "text", "Ontvangen op": "date", "Wetenschappelijke naam": "text", "Vangstgebied": "text", "Vistuig": "text", "Productiemethode": "text", "Ontdooid": "checkbox", "THT": "date", "Hoeveelheid": "number", "Aankoopprijs": "number", "Actief": "checkbox", "Nota": "text" },
     primary: "Lotnummer"
   },
   Aanvragen: {
