@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
         // Coordonnées bancaires seulement si le portail émet la facture (mode Portaal) et qu'elle existe :
         // en mode Boekhouder, la facture et le paiement viennent du comptable.
         iban: invoiced && mode === "portaal" ? (c["IBAN"] || "").trim() : "", bic: invoiced && mode === "portaal" ? (c["BIC"] || "").trim() : "",
-        btwTarief: fallback, facturatie: mode, legal,
+        btwTarief: fallback, facturatie: mode, legal, voorwaardenVersie: require("../lib/terms").current(c).versie,
         betalingsvoorwaarden: (c["Betalingsvoorwaarden"] || "").trim(), leveringsvoorwaarden: (c["Leveringsvoorwaarden"] || "").trim()
       }
     });

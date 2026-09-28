@@ -1234,7 +1234,7 @@ async function main() {
   // --- AO. lib/levering.js : règles de livraison, une seule source (panier, saisie, corrections) ---
   {
     const R = lev.rulesFrom({});
-    assert.deepEqual(R, { deadline: "22:00", dagen: [1, 2, 3, 4, 5, 6], gesloten: [], minimum: 0, betaaltermijn: 14, voorraadAfboeken: false, maxDagen: 60 }, "AO0 règles par défaut");
+    assert.deepEqual(R, { deadline: "22:00", dagen: [1, 2, 3, 4, 5, 6], gesloten: [], minimum: 0, betaaltermijn: 14, voorraadAfboeken: false, voorwaardenVersie: "", maxDagen: 60 }, "AO0 règles par défaut");
     assert.equal(lev.checkDate(okDayX, R), "", "AO1 prochain jour ouvrable accepté");
     assert.match(lev.checkDate(plusX(-1), R), /verleden/, "AO2 hier refusé");
     assert.match(lev.checkDate(plusX(61), R), /60 dagen/, "AO3 au-delà de 60 jours refusé");
@@ -1892,11 +1892,12 @@ async function main() {
   {
     const su = require(path.join(ROOT, "api", "signup.js"));
     const reqBody = taal => ({ bedrijfsnaam: "Chez Paul", contactpersoon: "Paul", email: "paul@chez.test", telefoon: "+32 470 00 00 00", taal });
-    let r = await call(su, reqBody("FR"), [{ records: [{ id: "aan1" }] }, { records: [] }, { records: [] }], { headers: { "x-forwarded-for": "10.0.0.91" } });
+    // 1re lecture : Configuratie (version des conditions générales, C-12), puis l'écriture.
+    let r = await call(su, reqBody("FR"), [{ records: [] }, { records: [{ id: "aan1" }] }, { records: [] }, { records: [] }], { headers: { "x-forwarded-for": "10.0.0.91" } });
     assert.equal(r.res.statusCode, 200, "BA aanvraag ontvangen");
-    assert.equal(JSON.parse(r.calls[0].options.body).records[0].fields.Taal, "FR", "BA aanvraag onthoudt de taal");
-    r = await call(su, reqBody(undefined), [{ records: [{ id: "aan2" }] }, { records: [] }, { records: [] }], { headers: { "x-forwarded-for": "10.0.0.92" } });
-    assert.equal(JSON.parse(r.calls[0].options.body).records[0].fields.Taal, "NL", "BA aanvraag zonder taal → NL");
+    assert.equal(JSON.parse(r.calls[1].options.body).records[0].fields.Taal, "FR", "BA aanvraag onthoudt de taal");
+    r = await call(su, reqBody(undefined), [{ records: [] }, { records: [{ id: "aan2" }] }, { records: [] }, { records: [] }], { headers: { "x-forwarded-for": "10.0.0.92" } });
+    assert.equal(JSON.parse(r.calls[1].options.body).records[0].fields.Taal, "NL", "BA aanvraag zonder taal → NL");
   }
   console.log("✓ BA. Documenten in de taal van de klant (NL/FR), geen standaardzin « goederen in goede staat »");
   console.log("✓ AZ. Bedragen : scherm = documenten = e-mails (€ 1.234,50)");

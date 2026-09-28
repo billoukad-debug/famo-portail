@@ -17,14 +17,14 @@ window.FamoDocuments=(()=>{
       unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
       exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
       lot:"Lot",tht:"THT",thawed:"ontdooid",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
-      proforma:"PRO FORMA",retour:"RETOURBON",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
+      proforma:"PRO FORMA",retour:"RETOURBON",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
       unitPrice:"Prix unitaire",subtotal:"Sous-total",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
       exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
       lot:"Lot",tht:"DLC",thawed:"décongelé",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
-      proforma:"PRO FORMA",retour:"BON DE RETOUR",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
+      proforma:"PRO FORMA",retour:"BON DE RETOUR",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
   };
   const langOf=order=>{const v=String((order&&(order.taal||(order.klant&&order.klant.taal)))||"").trim().toLowerCase();return v==="fr"?"fr":"nl";};
   // Company identity from /api/config. Missing IBAN/BIC → temporary example bank (banner on invoice).
@@ -65,6 +65,7 @@ window.FamoDocuments=(()=>{
     base.leveringsvoorwaarden=String(cfg&&cfg.leveringsvoorwaarden||"").trim();
     base.facturatie=String(cfg&&cfg.facturatie||"").toLowerCase()==="portaal"?"portaal":"boekhouder";
     base.legal=cfg&&cfg.legal&&typeof cfg.legal==="object"?cfg.legal:{};
+    base.voorwaardenVersie=String(cfg&&cfg.voorwaardenVersie||"").trim(); // C-12 : CGV publiées
     COMPANY=window.famoCompany?famoCompany.withExampleBank(base):Object.assign({exampleBank:false},base);
     return COMPANY;
   }
@@ -199,6 +200,8 @@ window.FamoDocuments=(()=>{
     const mark='<svg width="30" height="30" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="#4876A2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25V1.75h9.5"/><path d="M3.75 8h3.05c1.5 0 1.85-1.4 3.35-1.4s1.6 1.4 3.1 1.4"/></g></svg>';
     const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?L.vat+" "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
     const lg=COMPANY.legal||{};
+    const termsUrl=(typeof location!=="undefined"&&/^https?:/.test(location.protocol)?location.origin:"")+"/voorwaarden.html";
+    const termsLine=COMPANY.voorwaardenVersie?esc(L.terms.replace("{v}",COMPANY.voorwaardenVersie).replace("{u}",termsUrl)):"";
     const legalLine=[lg.naam?(lg.naam+(lg.rechtsvorm&&!String(lg.naam).toLowerCase().split(/[^a-z0-9.]+/).includes(String(lg.rechtsvorm).toLowerCase())?" "+lg.rechtsvorm:"")):"",lg.ondernemingsnummer?L.companyNo+" "+lg.ondernemingsnummer:"",lg.rpr||"",lg.naam&&lg.handelsnaam&&lg.handelsnaam!==lg.naam?L.tradeName+" "+lg.handelsnaam:""].filter(Boolean).map(esc).join(" · ");
     const mast='<header class="mast"><div class="brand">'+mark+'<div class="wordmark">'+esc(COMPANY.nom||"—")+'</div></div><div class="coords">'+(coords||'<em>'+L.noCompany+'</em>')+'</div></header>';
     const klant=order.klant||{};
@@ -274,7 +277,7 @@ window.FamoDocuments=(()=>{
       '@media print{thead{display:table-header-group}tr{page-break-inside:avoid}.totals,.banner,.metaband{page-break-inside:avoid}.doc+.doc{margin-top:0}}';
     const body=mast+'<h1>'+title+'</h1>'+metaband+banners+klantBlock+table+
       (priced?totals+(invoice&&!pro?bank:''):'')+
-      (foot||legalLine?'<div class="foot">'+[foot,legalLine].filter(Boolean).join('<br>')+'</div>':'');
+      (foot||legalLine||termsLine?'<div class="foot">'+[foot,termsLine,legalLine].filter(Boolean).join('<br>')+'</div>':'');
     return{num,title,css,body,lang};
   }
   const wrap=(titleTxt,css,inner,lang)=>'<!doctype html><html lang="'+(lang||"nl")+'"><head><meta charset="utf-8"><title>'+esc(titleTxt)+'</title><style>'+css+'</style></head><body>'+inner+'</body></html>';

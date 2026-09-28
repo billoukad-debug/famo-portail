@@ -392,8 +392,10 @@
       K.c.field("Gesloten dagen (één datum per regel, JJJJ-MM-DD)", '<textarea class="input" id="geslotenDagen" rows="3" placeholder="2026-12-25\n2027-01-01" style="font-family:inherit">' + K.esc(c.geslotenDagen || "") + '</textarea>', { id: "f_geslotenDagen", hint: "Feestdagen en verlof: op die dagen kan niemand een levering kiezen." }) +
       '<label style="display:flex;gap:10px;align-items:center;font-size:13px">' + K.c.check(!!c.voorraadAfboeken, 'id="afboeken" aria-label="Voorraad automatisch afboeken bij vertrek"') + '<span>Voorraad automatisch afboeken bij vertrek<span class="quiet" style="font-size:12px;display:block">Enkel aanzetten als de telling in Voorraad klopt.</span></span></label></div>' +
       '<div class="card card-b" style="display:flex;flex-direction:column;gap:12px"><h2 class="h2">E-mail</h2>' + f("Interne postbus (melding bij elke bestelling)", "bestellingenEmail", c.bestellingenEmail, { type: "email" }) + '<div class="notice" style="font-size:12.5px"><div>' + (D.status.mailEnabled ? "E-mail is actief. " : "<b>E-mail is niet actief</b> (RESEND_API_KEY ontbreekt op Vercel). ") + (c.mailFromConfigured ? "Afzender (MAIL_FROM) is ingesteld op Vercel." : "<b>Afzender (MAIL_FROM) ontbreekt op Vercel</b>: mails vertrekken enkel naar de eigenaar van het Resend-account.") + '</div></div></div>' +
+      termsCard(c) +
       '<div id="bErr" style="grid-column:1/-1"></div></div>';
     if (window.innerWidth < 900) page.querySelector("#two").style.gridTemplateColumns = "1fr";
+    termsWire();
     K.on(page, "click", "[data-dag]", (e, t) => { const on = !t.classList.contains("on"); t.classList.toggle("on", on); t.setAttribute("aria-pressed", on ? "true" : "false"); });
     const af = page.querySelector("#afboeken"); af.onclick = () => K.setOn(af, !af.classList.contains("on"));
     page.querySelector("#preview").onclick = async () => { try { await K.docs(); } catch (e) { K.toast(e.message, { kind: "err" }); return; } const cfg = collect(); FamoDocuments.setCompany(cfg); const sample = { ref: "CMD-2026-0001", client: "Voorbeeldklant", klant: { adresse: "Straat 1, 2000 Antwerpen", btw: "BE 0000.000.000", klantnr: "K-000" }, lignes: "Vannamei garnalen 16/20 × 2 caisse [€9.50]\nZalmfilet × 1 kg [€20.20]", total: 39.2, factuurnummer: "FA-2026-0000", paiement: "En attente", dateLiv: K.today() }; famoDocPreview.open({ html: FamoDocuments.build(sample, "invoice"), filename: "Famo-Voorbeeldfactuur.pdf", title: "Voorbeeldfactuur", meta: "met de gegevens zoals nu ingevuld" }); };
@@ -414,6 +416,29 @@
       try { await post(Object.assign({ action: "saveConfig" }, cfg)); S.config = null; K.toast("Bedrijfsgegevens opgeslagen"); render(); }
       catch (err) { const hit = FIELD_ERR.find(([re]) => re.test(err.message)); if (hit) K.setErr(hit[1], err.message); page.querySelector("#bErr").innerHTML = K.c.error(err.message); K.busy(b, false); }
     };
+  }
+
+  // Conditions générales (C-12) : texte NL/FR ; « Publiceren » crée une version que chaque client
+  // accepte avant sa commande suivante (api/order.js refuse sinon).
+  function termsCard(c) {
+    const v = c.voorwaarden || { versie: "", nl: "", fr: "" }, act = (D.clients || []).filter(x => !x.gearchiveerd), ok = v.versie ? act.filter(x => x.voorwaardenVersie === v.versie).length : 0;
+    const ta = (id, label, val) => K.c.field(label, '<textarea class="input" id="' + id + '" rows="8" style="font-family:inherit" maxlength="20000">' + K.esc(val || "") + '</textarea>', { id: "f_" + id });
+    return '<div class="card card-b" style="display:flex;flex-direction:column;gap:12px"><h2 class="h2">Algemene voorwaarden</h2>' +
+      (v.versie ? '<p class="sub" style="white-space:normal;margin:0">Versie <b>' + K.esc(v.versie) + '</b> · ' + ok + ' van ' + act.length + ' klanten aanvaard · <a class="tlink" href="/voorwaarden.html" target="_blank" rel="noopener">bekijken</a></p>' : K.c.warn("Nog geen voorwaarden gepubliceerd: klanten moeten niets aanvaarden. Laat de tekst nakijken door uw juridisch adviseur.")) +
+      ta("vwNl", "Tekst (Nederlands)", v.nl) + ta("vwFr", "Texte (français)", v.fr) +
+      '<p class="quiet" style="font-size:12px;margin:0">Lege regel = nieuwe alinea · een regel die met „# ” begint = tussentitel. Publiceren = nieuwe versie: elke klant aanvaardt ze vóór zijn volgende bestelling.</p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-o btn-sm" id="vwSave">Tekst opslaan</button><button type="button" class="btn btn-p btn-sm" id="vwPub">Publiceren als nieuwe versie</button></div></div>';
+  }
+  function termsWire() {
+    const send = async (publish, b) => {
+      const nl = page.querySelector("#vwNl").value, fr = page.querySelector("#vwFr").value;
+      if (publish && !(await K.confirm({ title: "Nieuwe versie publiceren?", text: "Elke klant moet deze voorwaarden aanvaarden vóór zijn volgende bestelling.", yes: "Publiceren" }))) return;
+      K.busy(b, true, "Opslaan…");
+      try { await post({ action: "saveVoorwaarden", nl, fr, publish }); K.toast(publish ? "Nieuwe versie gepubliceerd" : "Tekst opgeslagen"); render(); } catch (err) { K.toast(err.message, { kind: "err" }); K.busy(b, false); }
+    };
+    const s = page.querySelector("#vwSave"), p = page.querySelector("#vwPub");
+    if (s) s.onclick = () => send(false, s);
+    if (p) p.onclick = () => send(true, p);
   }
 
   /* ---------- toegang ---------- */

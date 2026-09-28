@@ -6,6 +6,7 @@ const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
 const __prices = require("../lib/prices");
+const __terms = require("../lib/terms");
 const __ordermail = require("../lib/ordermail");
 const __authmail = require("../lib/authmail");
 const __lev = require("../lib/levering");
@@ -111,7 +112,8 @@ async function statusPayload() {
     geslotenDagen: String(c["Gesloten dagen"] || "").trim(),
     minimumBestelling: Number(c["Minimum bestelling"]) > 0 ? Number(c["Minimum bestelling"]) : 0,
     betaaltermijnDagen: Number(c["Betaaltermijn dagen"]) > 0 ? Number(c["Betaaltermijn dagen"]) : 14,
-    voorraadAfboeken: !!c["Voorraad afboeken"]
+    voorraadAfboeken: !!c["Voorraad afboeken"],
+    voorwaarden: __terms.current(c)
   };
   config.levering = __lev.publicRules(__lev.rulesFrom(c));
 
@@ -159,6 +161,8 @@ async function statusPayload() {
     user: r.fields["Gebruikersnaam"] || "",
     hasPassword: !!r.fields["Wachtwoord"],
     gearchiveerd: !!r.fields["Gearchiveerd"],
+    voorwaardenVersie: r.fields["Voorwaarden versie"] || "",
+    voorwaardenOp: r.fields["Voorwaarden aanvaard op"] || "",
     taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL"
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
@@ -324,6 +328,22 @@ const handler = async (req, res) => {
         });
       }
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Opslaan mislukt" });
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
+    // ---- Conditions générales (C-12) ----
+    // Texte NL/FR ; « publish » = nouvelle version à faire accepter par chaque client avant sa
+    // commande suivante (api/order.js). Sans publish, seul le texte change (coquille corrigée).
+    if (action === "saveVoorwaarden") {
+      const nl = __terms.clean(body.nl), fr = __terms.clean(body.fr);
+      if (String(body.nl || "").length > __terms.MAX || String(body.fr || "").length > __terms.MAX) return res.status(400).json({ error: "Tekst te lang (max " + __terms.MAX + " tekens)" });
+      if (body.publish === true && !nl && !fr) return res.status(400).json({ error: "Geen tekst om te publiceren" });
+      const existing = await getConfigRecord();
+      if (!existing || existing.error || !existing.id) return res.status(500).json({ error: "Configuratie onleesbaar. Sla eerst de bedrijfsgegevens op." });
+      const fields = { "Voorwaarden NL": nl, "Voorwaarden FR": fr };
+      if (body.publish === true) fields["Voorwaarden versie"] = __terms.newVersion();
+      const saved = await at(`${encodeURIComponent("Configuratie")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
+      if (saved.error) { console.error("[onboarding] voorwaarden", saved.error.type, saved.error.message); return res.status(500).json({ error: "Opslaan mislukt. Probeer opnieuw." }); }
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -936,7 +956,7 @@ module.exports = async (req, res) => {
   const action = clean(body.action, 40);
   if (!action || action === "previewCredentials") return handler(req, res);
   let table = TARGET[action] || "", id = table && REC.test(String(body.id || "")) ? String(body.id) : "";
-  if (action === "saveConfig") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
+  if (action === "saveConfig" || action === "saveVoorwaarden") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
   const before = id ? await __journal.get(table, id) : null;
   await handler(req, res);
   if (res.statusCode !== 200) return;

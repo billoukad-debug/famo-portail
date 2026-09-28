@@ -126,6 +126,10 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: checkDeliveryDate(dateLivraison) });
     }
     const rules = await __lev.loadRules(at);
+    // Conditions générales (C-12) : la version publiée doit être acceptée avant de commander.
+    if (rules.voorwaardenVersie && String(client.fields["Voorwaarden versie"] || "") !== rules.voorwaardenVersie) {
+      return res.status(409).json({ error: "Aanvaard eerst onze algemene voorwaarden.", needTerms: true, versie: rules.voorwaardenVersie });
+    }
     if (dateLivraison) {
       const dateErr = __lev.checkDate(dateLivraison, rules) || __lev.checkCutoff(dateLivraison, rules);
       if (dateErr) return res.status(400).json({ error: dateErr });

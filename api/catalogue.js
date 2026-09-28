@@ -161,6 +161,8 @@ module.exports = async (req, res) => {
     try { const j = JSON.parse(client.fields["Favorieten"] || "{}"); favorieten = { favorieten: Array.isArray(j.favorieten) ? j.favorieten : [], standaard: j.standaard && typeof j.standaard === "object" ? j.standaard : {} }; } catch (e) { /* JSON illisible : vide */ }
 
     res.status(200).json({
+      // Conditions générales (C-12) : version à accepter avant la prochaine commande.
+      voorwaarden: { versie: __lev.rulesFrom(cfgFields).voorwaardenVersie, aanvaard: !require("../lib/terms").needs(client.fields, cfgFields) },
       client: { id: clientId, taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL", nom: client.fields["Nom"], adresse: client.fields["Lieu de livraison"] || "", email: (client.fields["Email"] || "").trim(), tel: client.fields["Téléphone"] || "", klantnr: client.fields["Klantnummer"] || "", btw: client.fields["BTW-nummer"] || "", favorieten },
       products,
       token: __ca.issueToken(client, client.tokenIat),

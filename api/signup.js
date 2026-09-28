@@ -50,6 +50,17 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: "Ongeldig e-mailadres" });
     }
 
+    // Conditions générales (C-12) : si une version est publiée, la case doit être cochée pour
+    // CETTE version (le formulaire renvoie la version affichée) ; elle est gardée comme preuve.
+    let versie = "";
+    try {
+      const conf = await require("../lib/airtable").at(encodeURIComponent("Configuratie") + "?maxRecords=1");
+      versie = require("../lib/terms").current((((conf && conf.records) || [])[0] || {}).fields).versie;
+    } catch (e) { versie = ""; }
+    if (versie && String(body.voorwaarden || "") !== versie) {
+      return res.status(400).json({ error: "Aanvaard de algemene voorwaarden om verder te gaan.", needTerms: true, versie });
+    }
+
     const fields = {
       "Bedrijfsnaam": bedrijfsnaam,
       "Contactpersoon": contactpersoon,
@@ -60,6 +71,7 @@ module.exports = async (req, res) => {
       "Taal": String(body.taal || "").toUpperCase() === "FR" ? "FR" : "NL",
       "Status": "Nieuw"
     };
+    if (versie) fields["Voorwaarden versie"] = versie;
 
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Aanvragen`, {
       method: "POST",

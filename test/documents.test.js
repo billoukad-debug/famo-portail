@@ -163,3 +163,12 @@ test("poids réel (H-04) : « besteld X » seulement là où la livraison diffè
   const fr = D.build({ ...o, klant: { ...o.klant, taal: "FR" } }, "delivery");
   assert.match(fr, /commandé 5/);
 });
+
+test("CGV (C-12) : mention au pied du document quand une version est publiée, NL et FR", () => {
+  const D = load();
+  D.setCompany({ ...CFG, voorwaardenVersie: "2026-09-28 10:05" });
+  assert.match(D.build(ORDER, "delivery"), /Onze algemene verkoopsvoorwaarden zijn van toepassing \(versie 2026-09-28 10:05\) : \/voorwaarden\.html/);
+  assert.match(D.build({ ...ORDER, klant: { ...ORDER.klant, taal: "FR" } }, "invoice"), /Nos conditions générales de vente s'appliquent \(version 2026-09-28 10:05\)/);
+  D.setCompany(CFG);
+  assert.ok(!/verkoopsvoorwaarden zijn van toepassing/.test(D.build(ORDER, "delivery")), "rien sans version publiée");
+});

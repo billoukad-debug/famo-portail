@@ -92,7 +92,7 @@
     if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; return cat; }
     const d = await api("/api/catalogue", { json: creds(), retry: true });
     if (d.token) K.klant.setToken(d.token); // jeton renouvelé à chaque ouverture du catalogue
-    cat = { at: Date.now(), products: d.products || [], client: d.client, company: d.company };
+    cat = { at: Date.now(), products: d.products || [], client: d.client, company: d.company, voorwaarden: d.voorwaarden || null };
     K.session.set(CAT_KEY, cat);
     K.klant.set(Object.assign({}, K.klant.get() || sess, { client: d.client, company: d.company }));
     adoptFavs(d.client);
@@ -262,7 +262,17 @@
     const clear = document.getElementById("clearCart"); if (clear) clear.onclick = async () => { if (await K.confirm({ title: K.t("Winkelmand leegmaken?"), text: K.t("Alle artikelen worden verwijderd."), yes: K.t("Leegmaken"), danger: true })) { cart.items = {}; cart.comments = {}; saveCart(); renderWinkelmand(); } };
     const place = document.getElementById("placeOrder"); if (place) place.onclick = placeOrder;
   }
-  async function placeOrder() {
+  // Conditions générales (C-12) : nouvelle version publiée → lire et accepter avant de commander.
+  async function ensureTerms(versie) {
+    const ok = await K.confirm({ title: K.t("Algemene voorwaarden"), text: K.t("Onze algemene verkoopsvoorwaarden zijn nieuw of gewijzigd. Lees en aanvaard ze om te bestellen."), html: '<a class="tlink" href="/voorwaarden.html" target="_blank" rel="noopener" style="display:inline-block;min-height:44px;line-height:44px">' + K.esc(K.t("Voorwaarden lezen")) + '</a>', yes: K.t("Ik aanvaard"), no: K.t("Later") });
+    if (!ok) return false;
+    await api("/api/klantorder", { json: Object.assign({}, creds(), { action: "acceptTerms", versie }) });
+    if (cat) { cat.voorwaarden = { versie, aanvaard: true }; K.session.set(CAT_KEY, cat); }
+    return true;
+  }
+  async function placeOrder(again) {
+    const tv = cat && cat.voorwaarden;
+    if (tv && tv.versie && !tv.aanvaard) { try { if (!(await ensureTerms(tv.versie))) return; } catch (err) { document.getElementById("orderErr").innerHTML = K.c.error(err.message); return; } }
     const btn = document.getElementById("placeOrder");
     const items = Object.entries(cart.items).filter(([id, qv]) => byId(id) && Number(qv) > 0).map(([id, qv]) => ({ productId: id, quantity: Number(qv), comment: cart.comments[id] || "" }));
     if (!items.length) return;
@@ -279,6 +289,12 @@
       cart = { items: {}, comments: {}, note: "", day: "" }; saveCart(); orders = null;
       K.go("bevestigd");
     } catch (err) {
+      // Version publiée entre-temps (catalogue en cache) : accepter puis renvoyer une fois.
+      if (err.status === 409 && err.payload && err.payload.needTerms && again !== true) {
+        K.busy(btn, false);
+        try { if (await ensureTerms(err.payload.versie)) return placeOrder(true); } catch (e2) { document.getElementById("orderErr").innerHTML = K.c.error(e2.message); }
+        return;
+      }
       document.getElementById("orderErr").innerHTML = K.c.error(err.status === 401 ? K.t("Uw sessie is verlopen. Meld u opnieuw aan.") : err.message);
       K.busy(btn, false);
     }

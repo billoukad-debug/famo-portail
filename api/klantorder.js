@@ -104,6 +104,20 @@ const handler = async (req, res) => {
       return res.status(200).json({ ok: true, ref: f["Référence"] || "", statut: "Annulée", mail });
     }
 
+    // Conditions générales (C-12) : le client accepte la version EN VIGUEUR (celle qu'il a lue).
+    if (action === "acceptTerms") {
+      const conf = await at(encodeURIComponent("Configuratie") + "?maxRecords=1");
+      if (!conf || conf.error) { console.error("[klantorder] terms", conf && conf.error && conf.error.type); return res.status(500).json({ error: "Opslaan mislukt. Probeer opnieuw." }); }
+      const versie = require("../lib/terms").current((((conf.records || [])[0]) || {}).fields).versie;
+      if (!versie) return res.status(200).json({ ok: true, versie: "" });
+      if (String(q.versie || "") !== versie) return res.status(409).json({ error: "De voorwaarden zijn intussen gewijzigd. Lees de nieuwe versie.", needTerms: true, versie });
+      const now = new Date().toISOString();
+      const saved = await at(`Clients/${client.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Voorwaarden versie": versie, "Voorwaarden aanvaard op": now } }) });
+      if (saved.error) { console.error("[klantorder] terms", client.id, saved.error.type, saved.error.message); return res.status(500).json({ error: "Opslaan mislukt. Probeer opnieuw." }); }
+      await require("../lib/journal").log({ wie: client.fields["Nom"] || client.id, rol: "klant", actie: "Voorwaarden aanvaard", object: "Clients", record: client.id, referentie: "versie " + versie, wijzigingen: [{ veld: "Voorwaarden versie", voor: String(client.fields["Voorwaarden versie"] || ""), na: versie }] });
+      return res.status(200).json({ ok: true, versie, op: now });
+    }
+
     if (action === "profile") {
       const email = String(q.email || "").trim().toLowerCase().slice(0, 120);
       const tel = String(q.tel || "").trim().slice(0, 40);

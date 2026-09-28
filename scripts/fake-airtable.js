@@ -19,7 +19,9 @@ const SCHEMA = {
       // Verrou persistant anti-force brute (api/catalogue authClient) : échecs consécutifs, blocage.
       "Echecs": "number", "Geblokkeerd tot": "datetime",
       // Sessiegeneratie : +1 à la déconnexion, révoque les jetons du client (lib/clientauth.js).
-      "Sessiegeneratie": "number" },
+      "Sessiegeneratie": "number",
+      // Conditions générales acceptées (lib/terms.js, C-12).
+      "Voorwaarden versie": "text", "Voorwaarden aanvaard op": "datetime" },
     selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
   },
   Catalogue: {
@@ -68,7 +70,9 @@ const SCHEMA = {
       // Sessiegeneratie : +1 = toutes les sessions staff révoquées (lib/staffauth.js, api/session.js).
       "Sessiegeneratie": "number",
       // Verrou global des connexions par PIN (api/session.js) : un PIN n'identifie pas son compte.
-      "PIN echecs": "number", "PIN geblokkeerd tot": "datetime" },
+      "PIN echecs": "number", "PIN geblokkeerd tot": "datetime",
+      // Conditions générales (C-12) : texte NL/FR et version publiée.
+      "Voorwaarden NL": "text", "Voorwaarden FR": "text", "Voorwaarden versie": "text" },
     selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
   },
   // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
@@ -78,7 +82,7 @@ const SCHEMA = {
     primary: "Lotnummer"
   },
   Aanvragen: {
-    fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select" },
+    fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select", "Voorwaarden versie": "text" },
     selects: { "Status": ["Nieuw", "Verwerkt"], "Taal": ["NL", "FR"] }, primary: "Bedrijfsnaam"
   },
   // Comptes individuels du personnel (api/session : connexion par PIN, api/onboarding : gestion).

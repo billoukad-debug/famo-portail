@@ -86,7 +86,7 @@ test("config publique : identité et règles de livraison, aucune donnée sensib
   assert.equal(c.bedrijfsnaam, "FAMO Seafood");
   assert.ok(c.levering && typeof c.levering === "object", "règles de livraison publiques");
   // « legal » : mentions WVV art. 2:20 que le site doit afficher (publiques par nature).
-  assert.deepEqual(Object.keys(c).sort(), ["adres", "bedrijfsnaam", "btw", "email", "legal", "levering", "plaats", "telefoon"], "seulement le bloc contact et les mentions légales");
+  assert.deepEqual(Object.keys(c).sort(), ["adres", "bedrijfsnaam", "btw", "email", "legal", "levering", "plaats", "telefoon", "voorwaardenVersie"], "seulement le bloc contact, les mentions légales et la version des conditions générales");
   assert.deepEqual(Object.keys(c.legal).sort(), ["btw", "handelsnaam", "naam", "ondernemingsnummer", "rechtsvorm", "rpr"]);
   const txt = JSON.stringify(r.body);
   for (const [label, secret] of [

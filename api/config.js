@@ -1,4 +1,5 @@
 const ds = require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const __terms = require("../lib/terms");
 const { at, atAll } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const __lev = require("../lib/levering");
@@ -53,7 +54,8 @@ module.exports = async (req, res) => {
       // Mode de facturation et mentions légales (Code des sociétés, art. 2:20) : lib/billing.js.
       facturatie: __bill.modeOf(c),
       lotsVerplicht: !!c["Lots verplicht"],
-      legal: __bill.legalOf(c)
+      legal: __bill.legalOf(c),
+      voorwaardenVersie: __terms.current(c).versie
     };
     config.legalMissing = __bill.legalMissing(config.legal);
     const rules = __lev.rulesFrom(c);
@@ -68,7 +70,9 @@ module.exports = async (req, res) => {
       telefoon: config.telefoon,
       email: config.email,
       levering: config.levering,
-      legal: config.legal
+      legal: config.legal,
+      // Conditions générales (C-12) : version publiée ; le texte via ?voorwaarden=1.
+      voorwaardenVersie: __terms.current(c).versie
     };
 
     // Public contact block for the client portal (no IBAN/BIC).
@@ -76,6 +80,10 @@ module.exports = async (req, res) => {
     // cache CDN 5 min, servi périmé 10 min de plus pendant le rafraîchissement. Uniquement
     // cette réponse : les variantes personnel/beheer (IBAN, boîte interne) ne sont jamais
     // mises en cache (aucun Cache-Control public ailleurs).
+    if (String(q.voorwaarden || "") === "1") {
+      res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+      return res.status(200).json({ voorwaarden: __terms.current(c), bedrijfsnaam: contactOnly.bedrijfsnaam, legal: config.legal });
+    }
     if (wantPublic && !staffOk) {
       res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
       return res.status(200).json({ config: contactOnly });

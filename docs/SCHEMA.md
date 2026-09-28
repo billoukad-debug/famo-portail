@@ -41,6 +41,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Gearchiveerd` | case | onboarding | allorders, catalogue, klantorder, staff | Vrai = plus de connexion ni de présence dans les listes. |
 | `Favorieten` | texte (JSON) | klantorder | catalogue | `{favorieten:[ids produit], standaard:{id: qté}}`. |
 | `Taal` | liste `NL` / `FR` | onboarding, (via aanvraag) | allorders, catalogue, klantdoc | Langue du portail et des documents ; NL par défaut. |
+| `Voorwaarden versie`, `Voorwaarden aanvaard op` | texte, date-heure | klantorder (acceptTerms) | order, catalogue, onboarding (compteur Beheer) | Version des conditions générales acceptée et quand ; aussi dans le Journaal (« Voorwaarden aanvaard »). |
 | `Articles habituels`, `Infos générales` | texte | — | — | Hérités d'Airtable, non utilisés par le code (données de démo seulement). |
 | `Commandes`, `Prix négociés` | lien inverse | Airtable | — | Liens inverses Airtable, non utilisés par le code. |
 
@@ -131,6 +132,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Bestellingen e-mail` | texte | onboarding | config (beheerder seul), ordermail | Boîte interne « Interne postbus ». |
 | `Beheerderscode hash`, `Personeelscode hash` | texte | onboarding (saveCode) | session | Empreinte scrypt ; remplace `ADMIN_CODE` / `STAFF_CODE` ; vide = code de l'environnement. Jamais renvoyée. |
 | `Besteldeadline` (HH:MM), `Leverdagen` (`ma,di,…`), `Gesloten dagen` (dates ISO, une par ligne), `Minimum bestelling` (€), `Betaaltermijn dagen`, `Voorraad afboeken` (case) | texte / nombre / case | onboarding | levering | Règles de commande, de livraison et de stock. |
+| `Voorwaarden NL`, `Voorwaarden FR`, `Voorwaarden versie` | texte, texte, texte (`AAAA-MM-JJ HH:MM:SS`) | onboarding (saveVoorwaarden ; « Publiceren » change la version) | config (?voorwaarden=1 public, version dans le bloc contact), catalogue, order, signup, klantorder, documents | Conditions générales (C-12, lib/terms.js). Version vide = rien à accepter ; version publiée = chaque client l'accepte avant sa commande suivante (order : 409 `needTerms`). |
 
 ### `Aanvragen` — demandes d'accès publiques
 
@@ -139,6 +141,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Bedrijfsnaam`, `Contactpersoon`, `Email`, `Telefoon`, `Adres`, `Notities` | texte | signup | onboarding, ordermail |
 | `Status` | liste `Nieuw` / `Verwerkt` | signup (`Nieuw`), onboarding (closeAanvraag) | onboarding |
 | `Taal` | liste `NL` / `FR` | signup | onboarding |
+| `Voorwaarden versie` | texte | signup | onboarding | Version des conditions générales cochée sur le formulaire (preuve). |
 
 ### `Medewerkers` — comptes individuels du personnel
 
