@@ -170,10 +170,24 @@
       (K.staff.isAdmin() ? K.c.field("Betaling", '<div class="opt"><button type="button" data-pay="En attente" class="on">Later / overschrijving</button><button type="button" data-pay="Payé">Contant betaald · ' + K.eur(t.incl) + '</button></div>', { id: "fPay" }) : "") +
       K.c.field("Uitzondering (optioneel)", '<select class="input" id="uitz"><option value="">Geen · levering in orde</option>' + S.UITZ.map(u => '<option>' + u + '</option>').join("") + '</select>', { id: "fUitz", hint: "Afwezig, geweigerd, gedeeltelijk of beschadigd: wordt bij de bestelling bewaard en in het journaal genoteerd." }) +
       '<div id="fUitzNota" style="display:none">' + K.c.field("Nota bij de uitzondering", K.c.input("uitzNota", { placeholder: "bv. 2 kg zalm geweigerd, doos beschadigd…", attrs: ' maxlength="200" autocomplete="off"' }), {}) + '</div>' +
-      K.c.field("Bewijs (optioneel)", K.c.input("proof", { type: "url", placeholder: "https://… link naar foto of handtekening" }), { id: "fProof", hint: "Enkel een https-link wordt bewaard. Foto's uploaden komt in een volgende versie." }) +
+      // Preuve sur place (H-09) : signature au doigt et photo, facultatives ; envoyées APRÈS la confirmation.
+      K.c.field("Handtekening van de ontvanger (optioneel)", '<canvas id="sig" role="img" aria-label="Handtekening: teken met de vinger" style="display:block;width:100%;height:160px;border:1px solid var(--line-input);border-radius:10px;background:#fff"></canvas><div style="display:flex;justify-content:flex-end;margin-top:6px"><button type="button" class="btn btn-ghost btn-sm" id="sigClear">Wissen</button></div>', { id: "fSig", hint: "De naam hierboven blijft verplicht; de handtekening is een extra bewijs." }) +
+      K.c.field("Foto (optioneel)", '<input class="input" type="file" id="proofFoto" accept="image/*" capture="environment">', { id: "fFoto", hint: "Bv. de levering aan de deur. Wordt verkleind voor verzending." }) +
+      K.c.field("Of een link (optioneel)", K.c.input("proof", { type: "url", placeholder: "https://… link naar foto of handtekening" }), { id: "fProof", hint: "Enkel een https-link wordt bewaard." }) +
       '<div class="notice" style="font-size:12.5px"><div><b>Wat gebeurt er:</b> status → Geleverd, het factuurnummer wordt toegekend, de factuur is meteen beschikbaar en de klant krijgt ze per e-mail.</div></div><div id="dErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="dOk">Bevestigen</button>' });
     let pay = "En attente";
+    const sig = window.FamoProof ? window.FamoProof.pad(p.el.querySelector("#sig")) : null;
+    p.el.querySelector("#sigClear").onclick = () => { if (sig) sig.clear(); };
+    // Envoi de la preuve après la confirmation : un échec ici ne défait jamais la livraison.
+    const sendProofs = async () => {
+      const jobs = [];
+      if (sig && !sig.isEmpty()) jobs.push({ soort: "handtekening", contentType: "image/png", base64: sig.toPng() });
+      const file = p.el.querySelector("#proofFoto").files[0];
+      if (file && window.FamoProof) { try { jobs.push(Object.assign({ soort: "foto" }, await window.FamoProof.shrink(file))); } catch (e) { return e.message; } }
+      for (const j of jobs) { try { await K.api("/api/bewijs", { json: Object.assign({ id: o.id }, j) }); } catch (e) { return e.message; } }
+      return "";
+    };
     K.on(p.el, "click", "[data-pay]", (e, t2) => { pay = t2.dataset.pay; K.$$("[data-pay]", p.el).forEach(b => b.classList.toggle("on", b === t2)); });
     p.el.querySelector("#uitz").onchange = e => { p.el.querySelector("#fUitzNota").style.display = e.target.value ? "" : "none"; };
     p.el.querySelector("[data-cancel]").onclick = p.close;
@@ -184,7 +198,11 @@
       const btn = p.el.querySelector("#dOk"); K.busy(btn, true, "Bevestigen…");
       try {
         const d = await S.update(o.id, Object.assign({ statut: "Facturée", deliveryConfirmed: true, recipient: rec, proofUrl: proof || undefined, paiement: pay === "Payé" ? "Payé" : undefined, modePaiement: pay === "Payé" ? "Contant" : undefined }, uitz ? { uitzondering: uitz, uitzonderingNota: nota } : {}));
-        p.close(); K.toast("Geleverd · factuur " + (d.factuurnummer || "") + " aangemaakt" + S.mailTxt(d.mail)); if (onDone) onDone(d);
+        K.busy(btn, true, "Bewijs bewaren…");
+        const proofErr = await sendProofs();
+        p.close(); K.toast((d && d.geleverd === false ? "Uitzondering bewaard" : "Geleverd · factuur " + (d.factuurnummer || "") + " aangemaakt" + S.mailTxt(d.mail)));
+        if (proofErr) K.toast("Levering bevestigd, maar het bewijs werd niet bewaard: " + proofErr, { kind: "err" });
+        if (onDone) onDone(d);
       } catch (err) {
         // Al bevestigd (dubbele tik, tweede toestel) : niets te herstellen, gewoon verversen.
         if (err.status === 409 && /al bevestigd/i.test(err.message)) { p.close(); K.toast(err.message); try { await S.load(true); } catch (e2) { /* toast volstaat */ } if (onDone) onDone(); return; }

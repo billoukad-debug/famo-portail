@@ -1,8 +1,12 @@
-// Photo produit stockée dans la base Postgres/SQLite (voir lib/at-engine.js, upload).
-// GET /api/foto?id=att… -> l'image, en cache long : un id ne change jamais de contenu
-// (une nouvelle photo reçoit un nouvel id). Public, comme le catalogue public d'un
-// grossiste : l'id est aléatoire et imprévisible, et rien de personnel n'y figure.
+// Image stockée dans la base Postgres/SQLite (voir lib/at-engine.js, upload).
+// GET /api/foto?id=att… -> l'image. Un id ne change jamais de contenu (une nouvelle
+// photo reçoit un nouvel id).
+//  - Photo produit (fichier d'un enregistrement Catalogue) : publique, en cache long,
+//    comme le catalogue public d'un grossiste ; l'id est aléatoire et rien de personnel n'y figure.
+//  - Tout autre fichier (preuve de livraison : signature, photo prise chez le client, H-09) :
+//    session personnel exigée, jamais en cache partagé ni persistant (données personnelles).
 const ds = require("../lib/datastore");
+const __auth = require("../lib/staffauth");
 const { Buffer } = require("buffer");
 
 module.exports = async (req, res) => {
@@ -14,10 +18,12 @@ module.exports = async (req, res) => {
   try {
     const f = await store.getFile(id);
     if (!f || !/^image\/(jpeg|png|webp)$/.test(f.contentType)) return res.status(404).json({ error: "Foto niet gevonden" });
+    const isProduct = !!f.recordId && (await store.findTable(f.recordId)) === "Catalogue";
+    if (!isProduct && !(await __auth.staffSession(req))) return res.status(404).json({ error: "Foto niet gevonden" });
     const buf = Buffer.from(f.data, "base64");
     res.setHeader("Content-Type", f.contentType);
     res.setHeader("Content-Length", String(buf.length));
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Cache-Control", isProduct ? "public, max-age=31536000, immutable" : "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.statusCode = 200;
     return res.end(req.method === "HEAD" ? undefined : buf);

@@ -17,14 +17,14 @@ window.FamoDocuments=(()=>{
       unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
       exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
       lot:"Lot",tht:"THT",thawed:"ontdooid",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
-      proforma:"PRO FORMA",retour:"RETOURBON",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
+      proforma:"PRO FORMA",retour:"RETOURBON",receivedBy:"Ontvangen door",signed:"ondertekend",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
       unitPrice:"Prix unitaire",subtotal:"Sous-total",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
       exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
       lot:"Lot",tht:"DLC",thawed:"décongelé",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
-      proforma:"PRO FORMA",retour:"BON DE RETOUR",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
+      proforma:"PRO FORMA",retour:"BON DE RETOUR",receivedBy:"Réceptionné par",signed:"signé",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
   };
   const langOf=order=>{const v=String((order&&(order.taal||(order.klant&&order.klant.taal)))||"").trim().toLowerCase();return v==="fr"?"fr":"nl";};
   // Company identity from /api/config. Missing IBAN/BIC → temporary example bank (banner on invoice).
@@ -222,6 +222,8 @@ window.FamoDocuments=(()=>{
       (!invoice&&!pro&&order.factuurnummer?metaCell(L.invoiceNo,order.factuurnummer,true):"")+
       dates+
       (klant.klantnr?metaCell(L.customerNo,klant.klantnr,true):"")+
+      // Bon de livraison : qui a réceptionné, et s'il a signé sur place (H-09).
+      (!priced&&order.receptionnePar?metaCell(L.receivedBy,order.receptionnePar+((order.preuveLivraison||[]).some(a=>/^handtekening-/.test(a&&a.filename||""))||order.getekend?" · "+L.signed:"")):"")+
       (invoice&&!pro&&paidTxt?metaCell(L.payStatus,paidTxt):"")+
       '</div>';
     const klantBlock='<section class="party"><h2>'+L.customer+'</h2><div class="partyname">'+esc(order.client)+'</div>'+

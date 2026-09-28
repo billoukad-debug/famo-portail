@@ -576,6 +576,10 @@ async function handle(req, res, body, id){
       const uitz0 = String(body.uitzondering || "").trim();
       if (deliveryConfirmed && !alreadyConfirmed && (uitz0 === "Geweigerd" || uitz0 === "Afwezig")) {
         const nota = String(body.uitzonderingNota || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+        // Rejeu (file hors ligne, H-12) : la même exception déjà notée ne s'ajoute pas une deuxième fois au journal.
+        if (f["Uitzondering levering"] === uitz0 && String(f["Uitzondering nota"] || "") === nota) {
+          return res.status(200).json({ ok: true, geleverd: false, uitzondering: uitz0, statut: f["Statut"] || "Sortie en livraison", al: true });
+        }
         const upd = { "Uitzondering levering": uitz0, "Uitzondering nota": nota, "Correcties": journal(f, correctionLine("Niet geleverd: " + uitz0 + " (geen factuur)", __auth.actorOf(req), nota)) };
         const w = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: upd }) });
         if (w.error) return res.status(500).json({ error: "Uitzondering opslaan mislukt" });

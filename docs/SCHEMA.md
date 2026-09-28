@@ -77,7 +77,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Préparation validée`, `Préparée le` | case, date-heure | updateorder | allorders | Validation article par article. |
 | `Stock afgeboekt` | case | updateorder | allorders | Stock déduit au départ (une seule fois). |
 | `Livrée le`, `Livraison confirmée`, `Réceptionné par` | date-heure, case, texte | updateorder | allorders, klantdoc, orders | Réception. |
-| `Preuve de livraison` | pièces jointes | updateorder | allorders | Lien HTTPS externe seulement. |
+| `Preuve de livraison` | pièces jointes | updateorder (lien https), bewijs (signature PNG `handtekening-…`, photo JPEG `foto-…`, H-09) | allorders, klantdoc (`getekend`), order.html | Ajoutées après la confirmation, jamais remplacées ; servies par /api/foto au personnel seulement (privé, sans cache). |
 | `Factuurnummer`, `Facturée le` | texte, date-heure | updateorder | allorders, klantdoc, orders, ordermail | `FA-AAAA-NNNN`, **numéro interne du portail** (pas la facture légale : `docs/adr/0005-facturation-legale.md`). Dédoublonné par `ensureUnique`. |
 | `Payé le`, `Mode de paiement` | date-heure, liste `Contant` / `Overschrijving` / `Bancontact` / `Andere` | updateorder | allorders, orders | |
 | `Uitzondering levering`, `Uitzondering nota` | liste `Afwezig` / `Geweigerd` / `Gedeeltelijk` / `Beschadigd`, texte | updateorder | allorders, orders | Exception à la réception. |
