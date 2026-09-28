@@ -12,6 +12,7 @@ const __ca = require("../lib/clientauth");
 //             envoyé à l'adresse connue ; l'ancien mot de passe reste valable jusque-là.
 //             Le mot de passe est ensuite posé par api/klantwachtwoord.js (setPassword).
 const { authClient, authUnavailable } = require("./catalogue");
+const __kl = require("../lib/klantlogin");
 const __mail = require("../lib/ordermail");
 const __authmail = require("../lib/authmail");
 
@@ -62,13 +63,14 @@ const handler = async (req, res) => {
       if (!__mail.enabled()) return res.status(200).json(Object.assign({}, neutral, { mail: false }));
       const started = Date.now();
       const answer = async () => { const wait = RESET_MIN_MS - (Date.now() - started); if (wait > 0) await sleep(wait); return res.status(200).json(neutral); };
-      const cl = await at(`Clients?filterByFormula=${encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(user)}'`)}&maxRecords=1`);
-      const rec = ((cl && cl.records) || [])[0];
+      // Client principal ou utilisateur supplémentaire (H-08) : l'e-mail est celui de la fiche de connexion.
+      const found = await __kl.byUser(user).catch(() => null);
       // Accès bloqué par Beheer (mot de passe effacé) : pas de réouverture en libre-service.
-      if (!rec || rec.fields["Gearchiveerd"] || !rec.fields["Wachtwoord"] || String(rec.fields["Email"] || "").toLowerCase().trim() !== email) return answer();
+      if (!__kl.usable(found) || __kl.email(found).toLowerCase() !== email) return answer();
+      const rec = found.client, lg = found.login;
       const cfg = await __mail.loadMailConfig(at);
-      const link = __authmail.passwordLink(__mail.portalUrl(req), __ca.issueResetToken(rec, __ca.RESET_TTL_MS));
-      await __authmail.notifyResetLink({ klant: Object.assign(__mail.clientFrom(rec), { taal: rec.fields["Taal"] }), user: rec.fields["Gebruikersnaam"] || user, link, hours: __ca.RESET_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+      const link = __authmail.passwordLink(__mail.portalUrl(req), __ca.issueResetToken(lg, __ca.RESET_TTL_MS));
+      await __authmail.notifyResetLink({ klant: Object.assign(__mail.clientFrom(rec), { taal: rec.fields["Taal"], email: __kl.email(found), nom: __kl.displayName(lg) || rec.fields["Nom"] }), user: lg.fields["Gebruikersnaam"] || user, link, hours: __ca.RESET_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
       return answer();
     }
 

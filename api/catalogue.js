@@ -1,7 +1,8 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const __prices = require("../lib/prices");
 const __ca = require("../lib/clientauth");
-const { at, atAll, escapeFormula } = require("../lib/airtable");
+const { at, atAll } = require("../lib/airtable");
+const __kl = require("../lib/klantlogin");
 // Anti-abus, première ligne : mémoire d'instance (best-effort sur serverless, chaque
 // instance a sa propre table). Seconde ligne, PERSISTANTE : le verrou par compte en base
 // (Clients « Echecs » / « Geblokkeerd tot »), qui tient sur toutes les instances.
@@ -42,59 +43,56 @@ const LOCK_AFTER = 10, LOCK_MS = 15 * 60000;
 // Échec sur un compte existant : compteur persistant. Deux échecs simultanés peuvent lire
 // la même valeur (un incrément perdu) : borné par le compteur mémoire, sans conséquence.
 // Écriture best-effort : une base sans ces champs (Airtable pas encore migrée) n'empêche rien.
-async function noteFailure(rec){
-  const n = (Number(rec.fields["Echecs"]) || 0) + 1;
-  const fields = n >= LOCK_AFTER ? { "Echecs": 0, "Geblokkeerd tot": new Date(Date.now() + LOCK_MS).toISOString() } : { "Echecs": n };
-  const up = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields }) }).catch(() => null);
-  if (!up || up.error) console.error("[auth] Echecs niet bewaard", rec.id, up && up.error && up.error.type);
-}
-// Base injoignable (réseau, 5xx, quota) ≠ mauvais identifiants (audit D-06) : on lève une
-// erreur au lieu de renvoyer null. Sinon une panne de quelques secondes déconnecte tous les
-// clients (« Sessie verlopen ») et compte comme tentative ratée (verrou).
-const dbDown = (err) => Object.assign(new Error("Database tijdelijk onbereikbaar"), { code: "DB_UNAVAILABLE", cause: err });
-const notFound = (err) => /NOT_FOUND/.test(String(err && (typeof err === "string" ? err : err.type || err.error || "")));
+// Base injoignable (réseau, 5xx, quota) ≠ mauvais identifiants (audit D-06) : lib/klantlogin.js
+// lève DB_UNAVAILABLE au lieu de renvoyer null. Sinon une panne de quelques secondes déconnecte
+// tous les clients (« Sessie verlopen ») et compte comme tentative ratée (verrou).
 function authUnavailable(res, e) {
   if (!e || e.code !== "DB_UNAVAILABLE") return false;
   console.error("[auth] base injoignable", e.cause && (e.cause.type || e.cause.message || e.cause));
   res.status(503).json({ error: "Even geen verbinding met de server. Probeer over een minuut opnieuw.", retry: true });
   return true;
 }
+async function noteFailure(lg){
+  const n = (Number(lg.fields["Echecs"]) || 0) + 1;
+  const fields = n >= LOCK_AFTER ? { "Echecs": 0, "Geblokkeerd tot": new Date(Date.now() + LOCK_MS).toISOString() } : { "Echecs": n };
+  const up = await __kl.patch(lg, fields).catch(() => null);
+  if (!up || up.error) console.error("[auth] Echecs niet bewaard", lg.id, up && up.error && up.error.type);
+}
+// Renvoie la fiche CLIENT (commandes, prix, favoris), avec client.login = la fiche qui porte le
+// mot de passe (le client lui-même, ou un utilisateur supplémentaire de Klantgebruikers, H-08).
 async function authClient(user, pw, token){
   if (token) {
     const t = __ca.readToken(token);
     if (!t) return null;
-    const rec = await at(`Clients/${t.id}`);
-    if (!rec || (rec.error && !notFound(rec.error))) throw dbDown(rec && rec.error);
-    const stored = rec && !rec.error && rec.fields && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"];
-    if (!stored || __ca.fingerprint(stored) !== t.fp || __ca.generationOf(rec) !== t.gen) return null;
-    rec.tokenIat = t.iat; // renouvellement : la durée maximale court depuis la connexion
-    return rec;
+    const r = await __kl.byId(t.id); // panne → DB_UNAVAILABLE (D-06)
+    if (!__kl.usable(r)) return null;
+    const lg = r.login;
+    if (__ca.fingerprint(lg.fields["Wachtwoord"]) !== t.fp || __ca.generationOf(lg) !== t.gen) return null;
+    r.client.login = lg; r.client.tokenIat = t.iat; // renouvellement : la durée maximale court depuis la connexion
+    return r.client;
   }
   if (!user || !pw) return null;
   const key = "auth:" + String(user).toLowerCase().trim();
   const release = reserve(key, AUTH_MAX_FAILS, AUTH_WINDOW_MS);
   if (!release) return null;
-  const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(String(user).toLowerCase().trim())}'`);
-  const cl = await at(`Clients?filterByFormula=${f}`);
-  if (!cl || cl.error) { release(); throw dbDown(cl && cl.error); } // la panne ne compte pas comme échec
-  const rec = cl.records && cl.records[0];
-  const stored = rec && !rec.fields["Gearchiveerd"] && rec.fields["Wachtwoord"]; // archivé : plus de connexion, historique conservé
-  if (!stored) return null;
-  if (Date.parse(rec.fields["Geblokkeerd tot"] || "") > Date.now()) return null; // verrou persistant
-  if (!__ca.checkPassword(stored, pw)) { await noteFailure(rec); return null; }
+  let r;
+  try { r = await __kl.byUser(user); } catch (e) { release(); throw e; } // la panne ne compte pas comme échec
+  if (!__kl.usable(r)) return null; // archivé ou inactif : plus de connexion, historique conservé
+  const lg = r.login, stored = lg.fields["Wachtwoord"];
+  if (Date.parse(lg.fields["Geblokkeerd tot"] || "") > Date.now()) return null; // verrou persistant
+  if (!__ca.checkPassword(stored, pw)) { await noteFailure(lg); return null; }
   release(); _rl.delete(key);
   const fields = {};
   // Texte clair ou empreinte d'un coût dépassé : remplacée maintenant qu'on connaît le mot de passe.
   if (!__ca.isHashed(stored) || __ca.needsRehash(stored)) fields["Wachtwoord"] = __ca.hashPassword(pw);
-  if (Number(rec.fields["Echecs"]) > 0 || rec.fields["Geblokkeerd tot"]) Object.assign(fields, { "Echecs": 0, "Geblokkeerd tot": null });
+  if (Number(lg.fields["Echecs"]) > 0 || lg.fields["Geblokkeerd tot"]) Object.assign(fields, { "Echecs": 0, "Geblokkeerd tot": null });
   if (Object.keys(fields).length) {
-    const up = await at(`Clients/${rec.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-    if (up && !up.error && fields["Wachtwoord"]) rec.fields["Wachtwoord"] = fields["Wachtwoord"];
+    const up = await __kl.patch(lg, fields);
+    if (up && !up.error && fields["Wachtwoord"]) lg.fields["Wachtwoord"] = fields["Wachtwoord"];
   }
-  return rec;
+  r.client.login = lg;
+  return r.client;
 }
-module.exports.authClient = authClient;
-module.exports.authUnavailable = authUnavailable;
 const __lev = require("../lib/levering");
 
 // Photo du produit : lib/photo.js (Airtable https ou /api/foto de la base Postgres).
@@ -165,7 +163,7 @@ module.exports = async (req, res) => {
       voorwaarden: { versie: __lev.rulesFrom(cfgFields).voorwaardenVersie, aanvaard: !require("../lib/terms").needs(client.fields, cfgFields) },
       client: { id: clientId, taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL", nom: client.fields["Nom"], adresse: client.fields["Lieu de livraison"] || "", email: (client.fields["Email"] || "").trim(), tel: client.fields["Téléphone"] || "", klantnr: client.fields["Klantnummer"] || "", btw: client.fields["BTW-nummer"] || "", favorieten },
       products,
-      token: __ca.issueToken(client, client.tokenIat),
+      token: __ca.issueToken(client.login || client, client.tokenIat),
       // Coordonnées bancaires seulement si le portail émet les factures (mode Portaal, lib/billing.js).
       company: Object.assign(companyFrom(cfgFields), { levering: __lev.publicRules(rules), facturatie: require("../lib/billing").modeOf(cfgFields), legal: require("../lib/billing").legalOf(cfgFields) }, require("../lib/billing").modeOf(cfgFields) === "portaal" ? { iban: (cfgFields["IBAN"] || "").trim(), bic: (cfgFields["BIC"] || "").trim() } : { iban: "", bic: "" })
     });
@@ -189,3 +187,6 @@ function companyFrom(c){
   };
 }
 module.exports.authClient = authClient;
+// Après « module.exports = handler » : sinon ces exports seraient perdus (les autres routes client
+// recevaient authUnavailable = undefined, D-06).
+module.exports.authUnavailable = authUnavailable;

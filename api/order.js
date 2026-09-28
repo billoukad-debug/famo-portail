@@ -179,6 +179,9 @@ module.exports = async (req, res) => {
     };
     if (dateLivraison) fields["Date livraison souhaitée"] = dateLivraison;
     if (key) fields["Idempotentie"] = key;
+    // Plusieurs utilisateurs par client (H-08) : qui a passé la commande.
+    const door = require("../lib/klantlogin").displayName(client.login);
+    if (door) fields["Besteld door"] = door;
 
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Commandes`, {
       method: "POST",

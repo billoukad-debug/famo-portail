@@ -11,7 +11,7 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 // Stockage : empreinte scrypt (lib/clientauth.js), jamais le texte clair. La réponse
 // contient un nouveau jeton : l'ancien cesse de valoir dès que le mot de passe change.
 const { authClient, authUnavailable } = require("./catalogue");
-const { at } = require("../lib/airtable");
+const __kl = require("../lib/klantlogin");
 const __ca = require("../lib/clientauth");
 
 const MIN_LEN = 8;
@@ -49,7 +49,8 @@ module.exports = async (req, res) => {
     if (q.action === "logout") {
       const client = q.token ? await authClient(null, null, q.token) : null;
       if (client) {
-        const saved = await at(`Clients/${encodeURIComponent(client.id)}`, { method: "PATCH", body: JSON.stringify({ fields: { "Sessiegeneratie": __ca.generationOf(client) + 1 } }) });
+        const lg = client.login; // la fiche qui porte l'identifiant (client ou utilisateur, H-08)
+        const saved = await __kl.patch(lg, { "Sessiegeneratie": __ca.generationOf(lg) + 1 });
         if (!saved || saved.error) {
           console.error("[klantwachtwoord] logout", saved && saved.error && saved.error.type);
           return res.status(500).json({ error: "Afmelden mislukt. Probeer opnieuw." });
@@ -69,14 +70,14 @@ module.exports = async (req, res) => {
       const gone = { error: "Deze link is verlopen of al gebruikt. Vraag een nieuwe aan.", expired: true };
       const t = __ca.readResetToken(q.token);
       if (!t) return res.status(400).json(gone);
-      const rec = await at(`Clients/${encodeURIComponent(t.id)}`);
-      const f = (rec && !rec.error && rec.fields) || null;
-      if (!f || f["Gearchiveerd"] || __ca.fingerprint(f["Wachtwoord"]) !== t.fp) return res.status(400).json(gone);
+      const r = await __kl.byId(t.id); // client ou utilisateur supplémentaire (H-08)
+      const f = r ? r.login.fields : null;
+      if (!f || r.client.fields["Gearchiveerd"] || (r.login.table !== "Clients" && f["Actief"] === false) || __ca.fingerprint(f["Wachtwoord"]) !== t.fp) return res.status(400).json(gone);
       const fields = { "Wachtwoord": __ca.hashPassword(nieuw) };
       // Le client a prouvé qu'il lit la boîte de son établissement : le verrou anti-force brute
       // est levé (écrit seulement s'il existe, pour une base sans ces champs).
       if (Number(f["Echecs"]) > 0 || f["Geblokkeerd tot"]) Object.assign(fields, { "Echecs": 0, "Geblokkeerd tot": null });
-      const saved = await at(`Clients/${encodeURIComponent(t.id)}`, { method: "PATCH", body: JSON.stringify({ fields }) });
+      const saved = await __kl.patch(r.login, fields);
       if (!saved || saved.error) {
         console.error("[klantwachtwoord] setPassword", t.id, saved && saved.error && saved.error.type);
         return res.status(500).json({ error: "Wachtwoord opslaan mislukt. Probeer het later opnieuw." });
@@ -103,15 +104,12 @@ module.exports = async (req, res) => {
     if (!client) return res.status(401).json({ error: "Uw huidige wachtwoord klopt niet." });
 
     const hashed = __ca.hashPassword(nieuw);
-    const saved = await at(`Clients/${encodeURIComponent(client.id)}`, {
-      method: "PATCH",
-      body: JSON.stringify({ fields: { "Wachtwoord": hashed } })
-    });
+    const saved = await __kl.patch(client.login, { "Wachtwoord": hashed });
     if (!saved || saved.error) {
       return res.status(500).json({ error: "Wachtwoord wijzigen mislukt. Probeer het later opnieuw." });
     }
     _rl.delete(rlKey);
-    return res.status(200).json({ ok: true, token: __ca.issueToken({ id: client.id, fields: Object.assign({}, client.fields, { "Wachtwoord": hashed }) }) });
+    return res.status(200).json({ ok: true, token: __ca.issueToken({ id: client.login.id, fields: Object.assign({}, client.login.fields, { "Wachtwoord": hashed }) }) });
   } catch (e) {
     if (authUnavailable(res, e)) return;
     console.error("[klantwachtwoord]", e && e.message || e);

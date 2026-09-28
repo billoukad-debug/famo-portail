@@ -49,6 +49,9 @@ async function call(handler, body, replies, opts) {
   global.fetch = async (url, options) => {
     // Relecture de la génération de session (lib/staffauth.js, cache 60 s) : hors scénario.
     if (/fields%5B%5D=Sessiegeneratie/.test(String(url))) return json({ records: [] });
+    // Utilisateurs supplémentaires (H-08, lib/klantlogin.js) : aucun dans ces scénarios historiques
+    // (test/klantgebruikers.test.js les couvre sur SQLite).
+    if (/\/Klantgebruikers(\?|$)/.test(String(url)) && !(options && options.method && options.method !== "GET")) return json({ records: [] });
     calls.push({ url: String(url), options: options || {} });
     assert(replies.length, `Appel Airtable inattendu: ${url}`);
     return json(replies.shift());
@@ -999,7 +1002,8 @@ async function main() {
     // AL4d : garde statique — la route ne lit aucun identifiant de client dans le body.
     const srcAL = fs.readFileSync(path.join(ROOT, "api", "klantwachtwoord.js"), "utf8");
     assert.ok(!/q\.(id|clientId|client|recordId)\b/.test(srcAL), "AL4d aucun identifiant client lu dans la requête");
-    assert.match(srcAL, /Clients\/\$\{encodeURIComponent\(client\.id\)\}/, "AL4d PATCH construit depuis le client vérifié");
+    // H-08 : la fiche de connexion vérifiée (client ou utilisateur supplémentaire) porte le mot de passe.
+    assert.match(srcAL, /__kl\.patch\(client\.login, \{ "Wachtwoord": hashed \}\)/, "AL4d PATCH construit depuis la fiche de connexion vérifiée");
 
     // AL5 — GET refusé, nouveau = ancien refusé, 6e tentative ratée bloquée.
     {
@@ -1823,7 +1827,7 @@ async function main() {
     }
     r = await call(cat, { token: signedAX(Date.now() + 60000) }, [DOWN]);
     assert.equal(r.res.statusCode, 503, "AX6 panne pendant la relecture du jeton → 503"); assert.ok(!r.res.payload.expired, "AX6 le client n'est pas déconnecté");
-    r = await call(cat, { token: signedAX(Date.now() + 60000) }, [{ error: { type: "NOT_FOUND" } }]);
+    r = await call(cat, { token: signedAX(Date.now() + 60000) }, [{ error: { type: "NOT_FOUND" } }, { error: { type: "NOT_FOUND" } }]); // Clients puis Klantgebruikers (H-08)
     assert.equal(r.res.statusCode, 401, "AX6 client supprimé → 401 (pas une panne)");
   }
   // --- AY. Ordre du catalogue (glisser-déposer Beheer) : validation, seuls les changements écrits ---

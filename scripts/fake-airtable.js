@@ -49,6 +49,8 @@ const SCHEMA = {
       "Lignes besteld": "text",
       // Relances de paiement envoyées (lib/reminders.js, H-01).
       "Herinnering 1 op": "datetime", "Herinnering 2 op": "datetime",
+      // Utilisateur (supplémentaire) qui a passé la commande (lib/klantlogin.js, H-08).
+      "Besteld door": "text",
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
       "Lots": "text"
     },
@@ -82,6 +84,11 @@ const SCHEMA = {
   Lots: {
     fields: { "Lotnummer": "text", "Produit": "text", "Leverancier": "text", "Ontvangen op": "date", "Wetenschappelijke naam": "text", "Vangstgebied": "text", "Vistuig": "text", "Productiemethode": "text", "Ontdooid": "checkbox", "THT": "date", "Hoeveelheid": "number", "Aankoopprijs": "number", "Actief": "checkbox", "Nota": "text" },
     primary: "Lotnummer"
+  },
+  // Utilisateurs supplémentaires d'un client (H-08) : identifiant et mot de passe propres.
+  Klantgebruikers: {
+    fields: { "Client": "links", "Naam": "text", "Gebruikersnaam": "text", "Wachtwoord": "text", "Email": "email", "Actief": "checkbox", "Sessiegeneratie": "number", "Echecs": "number", "Geblokkeerd tot": "datetime" },
+    primary: "Naam"
   },
   Aanvragen: {
     fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select", "Voorwaarden versie": "text" },

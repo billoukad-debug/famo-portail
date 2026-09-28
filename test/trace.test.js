@@ -74,3 +74,14 @@ test("« Lots verplicht » : pas de « Klaar » sans lot pour chaque article", a
   const ok = await call("updateorder.js", { id: "recORD1", statut: "Prête", preparationValidee: true, lots: { Tong: l.payload.lot.id, Mosselen: l2.payload.lot.id } });
   assert.equal(ok.statusCode, 200, JSON.stringify(ok.payload));
 });
+
+test("lot désactivé : plus proposé à la préparation (case décochée = champ absent), visible avec ?all=1", async () => {
+  await seed();
+  const l = await call("lots.js", LOT);
+  const id = l.payload.lot.id;
+  assert.equal((await call("lots.js", Object.assign({}, LOT, { id, actief: false }))).statusCode, 200);
+  const act = await call("lots.js", null, { method: "GET" });
+  assert.ok(!act.payload.lots.some(x => x.id === id), "inactif : absent de la liste de préparation");
+  const all = await call("lots.js", null, { method: "GET", query: { all: "1" } });
+  assert.equal(all.payload.lots.find(x => x.id === id).actief, false);
+});

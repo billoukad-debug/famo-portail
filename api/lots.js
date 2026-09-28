@@ -10,7 +10,7 @@ const __journal = require("../lib/journal");
 //        (client, date, quantité, statut) : réponse à « qui a reçu le lot X » en cas de rappel AFSCA.
 //   POST /api/lots { id?, lotnummer, produit, leverancier, ontvangenOp, wetenschappelijkeNaam,
 //        vangstgebied, vistuig, productiemethode, ontdooid, tht, hoeveelheid, actief, nota }
-const out = (r, admin) => Object.assign({ id: r.id }, __trace.snapshot(r), { produit: r.fields["Produit"] || "", hoeveelheid: r.fields["Hoeveelheid"] == null ? null : r.fields["Hoeveelheid"], actief: r.fields["Actief"] !== false, nota: r.fields["Nota"] || "" },
+const out = (r, admin) => Object.assign({ id: r.id }, __trace.snapshot(r), { produit: r.fields["Produit"] || "", hoeveelheid: r.fields["Hoeveelheid"] == null ? null : r.fields["Hoeveelheid"], actief: !!r.fields["Actief"], nota: r.fields["Nota"] || "" },
   // Prix d'achat (H-05) : beheerder seul.
   admin ? { aankoopprijs: r.fields["Aankoopprijs"] == null ? null : r.fields["Aankoopprijs"] } : {});
 
@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
         return res.status(200).json({ lot: out(lot, admin), leveringen });
       }
       const all = String(q.all || "") === "1";
-      return res.status(200).json({ lots: recs.filter((r) => all || r.fields["Actief"] !== false).map(r => out(r, admin)).sort((a, b) => String(b.ontvangenOp).localeCompare(String(a.ontvangenOp))), methodes: __trace.METHODS });
+      return res.status(200).json({ lots: recs.filter((r) => all || !!r.fields["Actief"]).map(r => out(r, admin)).sort((a, b) => String(b.ontvangenOp).localeCompare(String(a.ontvangenOp))), methodes: __trace.METHODS });
     }
     if (req.method !== "POST") return res.status(405).json({ error: "Gebruik GET of POST." });
     let b = req.body;

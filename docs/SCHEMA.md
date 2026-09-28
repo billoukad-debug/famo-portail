@@ -89,6 +89,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
 | `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
 | `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
+| `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, order.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
 | `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, order.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |
 
@@ -144,6 +145,17 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Wetenschappelijke naam`, `Vangstgebied`, `Vistuig`, `Productiemethode`, `Ontdooid`, `THT` | texte, texte, texte, liste, case, date | lots | bon de livraison (instantané) | Mentions du règl. 1379/2013 art. 35. |
 | `Hoeveelheid`, `Actief`, `Nota` | nombre, case, texte | lots | lots | Inactif = plus proposé à la préparation. |
 | `Aankoopprijs` | nombre (€ HTVA par unité) | lots (beheerder seul) | marge (beheerder seul) | Jamais dans l'instantané copié dans la commande : ni le personnel ni le client ne le voient (H-05). |
+
+### `Klantgebruikers` — utilisateurs supplémentaires d'un client (H-08)
+
+| Champ | Type | Écrit par | Lu par | Remarque |
+|---|---|---|---|---|
+| `Client` | lien → Clients | onboarding (saveKlantgebruiker) | lib/klantlogin.js | Commandes, prix, favoris et documents sont ceux de ce client. |
+| `Naam`, `Email` | texte | onboarding | order (« Besteld door »), mots de passe oubliés | L'e-mail reçoit le lien d'activation / de réinitialisation. |
+| `Gebruikersnaam` | texte | onboarding | catalogue (connexion) | Unique sur Clients ET Klantgebruikers. |
+| `Wachtwoord` | texte (scrypt) | onboarding (création, reset), klantwachtwoord | catalogue | Jamais en clair ; montré une seule fois dans Beheer à la création. |
+| `Actief` | case | onboarding | lib/klantlogin.js | Décochée = champ absent = pas de connexion ; désactiver déconnecte partout. |
+| `Sessiegeneratie`, `Echecs`, `Geblokkeerd tot` | nombre, nombre, date-heure | klantwachtwoord (logout), catalogue (verrou) | catalogue | Comme sur Clients, mais propres à cet utilisateur. |
 
 ### `Aanvragen` — demandes d'accès publiques
 

@@ -7,6 +7,7 @@ const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
 const __prices = require("../lib/prices");
 const __terms = require("../lib/terms");
+const __kl = require("../lib/klantlogin");
 const __ordermail = require("../lib/ordermail");
 const __authmail = require("../lib/authmail");
 const __lev = require("../lib/levering");
@@ -49,12 +50,20 @@ function genPassword() {
   return out;
 }
 
+// Nom d'utilisateur déjà pris sur les DEUX tables de connexion (Clients, Klantgebruikers, H-08) ?
+// → id de l'enregistrement qui l'a, ou "". Table Klantgebruikers absente (Airtable) : ignorée.
+async function usernameOwner(user) {
+  const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(String(user || "").toLowerCase())}'`);
+  const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
+  if ((hit.records || []).length) return hit.records[0].id;
+  const u = await at(`${encodeURIComponent(__kl.USERS)}?filterByFormula=${f}&maxRecords=1`).catch(() => null);
+  return u && !u.error && (u.records || []).length ? u.records[0].id : "";
+}
+
 async function uniqueUsername(base) {
   let candidate = base;
   for (let i = 0; i < 20; i++) {
-    const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(candidate)}'`);
-    const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
-    if (!(hit.records || []).length) return candidate;
+    if (!(await usernameOwner(candidate))) return candidate;
     candidate = base.slice(0, 14) + "." + (i + 2);
   }
   return base + "." + crypto.randomInt(100, 999);
@@ -516,10 +525,8 @@ const handler = async (req, res) => {
       const generate = body.generate !== false;
       if (!user) user = await uniqueUsername(slugUser(nom));
       else {
-        const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(user)}'`);
-        const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
-        const other = (hit.records || [])[0];
-        if (other && other.id !== body.id) {
+        const other = await usernameOwner(user);
+        if (other && other !== body.id) {
           return res.status(409).json({ error: "Deze gebruikersnaam bestaat al" });
         }
       }
@@ -577,6 +584,69 @@ const handler = async (req, res) => {
       });
     }
 
+    // ---- Utilisateurs supplémentaires d'un client (H-08) : chef, gérant, second établissement…
+    // Chacun son identifiant et son mot de passe ; commandes, prix et documents du client.
+    if (action === "listKlantgebruikers") {
+      const cid = clean(body.clientId, 40);
+      if (!REC.test(cid)) return res.status(400).json({ error: "Ongeldig klant-id" });
+      const all = await atAll(encodeURIComponent(__kl.USERS));
+      if (all.error && !/NOT_FOUND/.test(String(all.error.type || ""))) return res.status(500).json({ error: "Gebruikers onleesbaar" });
+      const users = ((all && all.records) || []).filter(r => (r.fields["Client"] || []).includes(cid)).map(r => ({ id: r.id, naam: r.fields["Naam"] || "", user: r.fields["Gebruikersnaam"] || "", email: r.fields["Email"] || "", actief: !!r.fields["Actief"], hasPassword: !!r.fields["Wachtwoord"] })).sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
+      return res.status(200).json({ ok: true, users });
+    }
+    if (action === "saveKlantgebruiker" || action === "resetKlantgebruiker") {
+      const id = clean(body.id, 40);
+      if (id && !REC.test(id)) return res.status(400).json({ error: "Ongeldig gebruikers-id" });
+      const cur = id ? await at(`${encodeURIComponent(__kl.USERS)}/${id}`) : null;
+      if (id && (!cur || cur.error)) return res.status(404).json({ error: "Gebruiker niet gevonden" });
+      const cid = id ? ((cur.fields["Client"] || [])[0] || "") : clean(body.clientId, 40);
+      if (!REC.test(cid)) return res.status(400).json({ error: "Ongeldig klant-id" });
+      const client = await at(`Clients/${cid}`);
+      if (!client || client.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const fields = {};
+      let password = "";
+      if (action === "saveKlantgebruiker") {
+        const naam = clean(body.naam, 80), email = clean(body.email, 120).toLowerCase();
+        let user = clean(body.user, 40).toLowerCase().replace(/['"\s]+/g, "");
+        if (!naam) return res.status(400).json({ error: "Naam is verplicht" });
+        if (email && !__mail.isEmail(email)) return res.status(400).json({ error: "Ongeldig e-mailadres" });
+        if (!user) user = await uniqueUsername(slugUser(naam));
+        else if (!/^[a-z0-9._-]{3,40}$/.test(user)) return res.status(400).json({ error: "Gebruikersnaam: 3 tot 40 tekens (letters, cijfers, . _ -)" });
+        const owner = await usernameOwner(user);
+        if (owner && owner !== id) return res.status(409).json({ error: "Deze gebruikersnaam bestaat al" });
+        Object.assign(fields, { "Client": [cid], "Naam": naam, "Gebruikersnaam": user, "Email": email, "Actief": body.actief !== false });
+      }
+      if (!id || action === "resetKlantgebruiker") {
+        password = genPassword();
+        // Nouveau mot de passe : les sessions ouvertes de cet utilisateur tombent (génération +1).
+        Object.assign(fields, { "Wachtwoord": __ca.hashPassword(password), "Echecs": 0, "Geblokkeerd tot": null, "Sessiegeneratie": (Number(cur && cur.fields["Sessiegeneratie"]) || 0) + 1 });
+      } else if (fields["Actief"] === false && !!cur.fields["Actief"]) {
+        fields["Sessiegeneratie"] = (Number(cur.fields["Sessiegeneratie"]) || 0) + 1; // désactivé : déconnecté partout
+      }
+      const saved = id
+        ? await at(`${encodeURIComponent(__kl.USERS)}/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) })
+        : await at(encodeURIComponent(__kl.USERS), { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
+      if (!saved || saved.error) { console.error("[onboarding] klantgebruiker", saved && saved.error && saved.error.type); return res.status(500).json({ error: "Gebruiker opslaan mislukt" }); }
+      const rec = saved.records ? saved.records[0] : saved;
+      const all = Object.assign({}, (cur && cur.fields) || {}, fields);
+      let mail = null;
+      if (password && all["Email"] && __ordermail.enabled() && body.sendMail !== false) {
+        mail = await (async () => {
+          const cfg = await __ordermail.loadMailConfig(at);
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id: rec.id, fields: all }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyActivation({ klant: { nom: all["Naam"] || client.fields["Nom"], email: all["Email"], taal: client.fields["Taal"] }, user: all["Gebruikersnaam"], link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+        })().catch(() => null);
+      }
+      return res.status(200).json({ ok: true, id: rec.id, credentials: password ? { id: rec.id, nom: all["Naam"], user: all["Gebruikersnaam"], password } : null, mail });
+    }
+    if (action === "deleteKlantgebruiker") {
+      const id = clean(body.id, 40);
+      if (!REC.test(id)) return res.status(400).json({ error: "Ongeldig gebruikers-id" });
+      const del = await at(`${encodeURIComponent(__kl.USERS)}/${id}`, { method: "DELETE" });
+      if (del && del.error) return res.status(del.error.type === "NOT_FOUND" ? 404 : 500).json({ error: "Gebruiker verwijderen mislukt" });
+      return res.status(200).json({ ok: true });
+    }
+
     // Archiver / réactiver un client : plus de connexion ni de présence dans les listes,
     // fiche, prix et historique conservés. Rien n'est jamais supprimé.
     if (action === "archiveClient" || action === "unarchiveClient") {
@@ -601,7 +671,8 @@ const handler = async (req, res) => {
         const client = Object.assign({}, cur.fields); delete client["Wachtwoord"]; delete client["Commandes"]; delete client["Prix négociés"];
         return res.status(200).json({ ok: true, export: { exportedAt: new Date().toISOString(), client,
           prijzen: (neg.records || []).filter(r => (r.fields["Client"] || []).includes(body.id)).map(r => Object.assign({ product: r.fields["Produit"], prijs: r.fields["Prix négocié"] }, __prices.periodOf(r.fields))),
-          bestellingen: mine.map(r => { const f = Object.assign({}, r.fields); delete f["Client"]; delete f["Idempotentie"]; return f; }) } });
+          bestellingen: mine.map(r => { const f = Object.assign({}, r.fields); delete f["Client"]; delete f["Idempotentie"]; return f; }),
+          gebruikers: ((await atAll(encodeURIComponent(__kl.USERS)).catch(() => ({ records: [] }))).records || []).filter(r => (r.fields["Client"] || []).includes(body.id)).map(r => ({ naam: r.fields["Naam"] || "", gebruikersnaam: r.fields["Gebruikersnaam"] || "", email: r.fields["Email"] || "", actief: !!r.fields["Actief"] })) } });
       }
       // Anonymiser : seulement un client archivé. On garde ce que les factures doivent montrer pendant
       // 10 ans (nom de la société, n° TVA, adresses) ; on efface les données de personnes.
@@ -610,9 +681,12 @@ const handler = async (req, res) => {
       const anon = "anon-" + String(body.id).slice(-6).toLowerCase();
       const w = await at(`Clients/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Email": null, "Téléphone": "", "Gebruikersnaam": anon, "Wachtwoord": "", "Favorieten": "", "Infos générales": "", "Articles habituels": "" } }) });
       if (w.error) return res.status(500).json({ error: "Anonimiseren mislukt" });
-      const withNames = mine.filter(r => r.fields["Réceptionné par"]);
-      if (withNames.length) await atBatch("Commandes", "PATCH", withNames.map(r => ({ id: r.id, fields: { "Réceptionné par": "[geanonimiseerd]" } })), false);
-      return res.status(200).json({ ok: true, geanonimiseerd: { klant: anon, bestellingen: withNames.length }, ...(await statusPayload()) });
+      // Utilisateurs supplémentaires (H-08) : noms et e-mails de personnes → supprimés.
+      const users = ((await atAll(encodeURIComponent(__kl.USERS)).catch(() => ({ records: [] }))).records || []).filter(r => (r.fields["Client"] || []).includes(body.id));
+      for (const u of users) await at(`${encodeURIComponent(__kl.USERS)}/${u.id}`, { method: "DELETE" }).catch(() => null);
+      const withNames = mine.filter(r => r.fields["Réceptionné par"] || r.fields["Besteld door"]);
+      if (withNames.length) await atBatch("Commandes", "PATCH", withNames.map(r => ({ id: r.id, fields: Object.assign({}, r.fields["Réceptionné par"] ? { "Réceptionné par": "[geanonimiseerd]" } : {}, r.fields["Besteld door"] ? { "Besteld door": "[geanonimiseerd]" } : {}) })), false);
+      return res.status(200).json({ ok: true, geanonimiseerd: { klant: anon, bestellingen: withNames.length, gebruikers: users.length }, ...(await statusPayload()) });
     }
 
     // ---- Medewerkers (comptes individuels, PIN haché) ----
@@ -941,7 +1015,8 @@ const handler = async (req, res) => {
 // l'enregistrement avant → après (prix de base, IBAN, taux de TVA, archivage, suppressions…).
 // Codes, PIN et mots de passe : jamais la valeur, seulement « gewijzigd ».
 const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", saveClient: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
-  resetPassword: "Clients", revokeAccess: "Clients", saveMedewerker: "Medewerkers", deleteMedewerker: "Medewerkers", closeAanvraag: "Aanvragen", deletePrice: "Prix négociés" };
+  resetPassword: "Clients", revokeAccess: "Clients", saveMedewerker: "Medewerkers", deleteMedewerker: "Medewerkers", closeAanvraag: "Aanvragen", deletePrice: "Prix négociés",
+  saveKlantgebruiker: "Klantgebruikers", resetKlantgebruiker: "Klantgebruikers", deleteKlantgebruiker: "Klantgebruikers" };
 module.exports = async (req, res) => {
   if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   const st = __journal.store();
