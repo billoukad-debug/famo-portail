@@ -180,11 +180,15 @@
     const sig = window.FamoProof ? window.FamoProof.pad(p.el.querySelector("#sig")) : null;
     p.el.querySelector("#sigClear").onclick = () => { if (sig) sig.clear(); };
     // Envoi de la preuve après la confirmation : un échec ici ne défait jamais la livraison.
-    const sendProofs = async () => {
+    const collectProofs = async () => {
       const jobs = [];
       if (sig && !sig.isEmpty()) jobs.push({ soort: "handtekening", contentType: "image/png", base64: sig.toPng() });
       const file = p.el.querySelector("#proofFoto").files[0];
-      if (file && window.FamoProof) { try { jobs.push(Object.assign({ soort: "foto" }, await window.FamoProof.shrink(file))); } catch (e) { return e.message; } }
+      if (file && window.FamoProof) jobs.push(Object.assign({ soort: "foto" }, await window.FamoProof.shrink(file)));
+      return jobs;
+    };
+    const sendProofs = async () => {
+      let jobs; try { jobs = await collectProofs(); } catch (e) { return e.message; }
       for (const j of jobs) { try { await K.api("/api/bewijs", { json: Object.assign({ id: o.id }, j) }); } catch (e) { return e.message; } }
       return "";
     };
@@ -204,6 +208,14 @@
         if (proofErr) K.toast("Levering bevestigd, maar het bewijs werd niet bewaard: " + proofErr, { kind: "err" });
         if (onDone) onDone(d);
       } catch (err) {
+        // Geen netwerk (camionnette, chambre froide) : la confirmation part dans la file hors ligne (H-12).
+        if (err.network && S.queue) {
+          const body = Object.assign({ id: o.id, statut: "Facturée", deliveryConfirmed: true, recipient: rec, proofUrl: proof || undefined }, uitz ? { uitzondering: uitz, uitzonderingNota: nota } : {});
+          let proofs = [];
+          try { proofs = await collectProofs(); } catch (e2) { proofs = []; }
+          const q = S.queue.add({ orderId: o.id, ref: o.ref, body, proofs });
+          if (q.ok) { p.close(); K.toast("Geen netwerk · in wachtrij, wordt verstuurd zodra er netwerk is" + (q.proofsDropped ? " (zonder foto: te groot om te bewaren)" : "")); S.queueBadge(); if (onDone) onDone(); return; }
+        }
         // Al bevestigd (dubbele tik, tweede toestel) : niets te herstellen, gewoon verversen.
         if (err.status === 409 && /al bevestigd/i.test(err.message)) { p.close(); K.toast(err.message); try { await S.load(true); } catch (e2) { /* toast volstaat */ } if (onDone) onDone(); return; }
         p.el.querySelector("#dErr").innerHTML = K.c.error(err.message); K.busy(btn, false);
@@ -424,5 +436,35 @@
     });
   };
   S.orderCard = o => '<a class="ocard" draggable="false" data-oid="' + K.esc(o.id) + '" href="/order.html?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + (o.statut === "Annulée" ? "inv" : K.stKey(o.statut)) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Openstaand</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
+  // Hors ligne (H-12) : file des confirmations de livraison, rejouée au retour du réseau.
+  S.queue = global.FamoQueue ? global.FamoQueue.create(global.localStorage, "famoOfflineQueue") : null;
+  S.queueBadge = () => {
+    const n = S.queue ? S.queue.size() : 0;
+    let el = document.getElementById("famoQueue");
+    if (!n) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement("div"); el.id = "famoQueue"; el.setAttribute("role", "status"); el.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:60;background:#7A5410;color:#fff;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2)"; document.body.appendChild(el); }
+    el.textContent = n + (n === 1 ? " levering wacht op netwerk" : " leveringen wachten op netwerk");
+  };
+  S.flushQueue = async () => {
+    if (!S.queue || !S.queue.size() || !navigator.onLine) { S.queueBadge(); return; }
+    const out = await S.queue.replay(async it => {
+      try { await K.api("/api/updateorder", { json: it.body }); }
+      catch (e) {
+        if (e.network || e.status >= 500) return "retry";
+        if (!(e.status === 409 && /al bevestigd/i.test(e.message))) { K.toast((it.ref || "") + ": " + e.message, { kind: "err" }); return "drop"; }
+      }
+      for (const j of it.proofs || []) { try { await K.api("/api/bewijs", { json: Object.assign({ id: it.orderId }, j) }); } catch (e) { if (e.network) return "retry"; } }
+      return "ok";
+    });
+    S.queueBadge();
+    if (out.sent) { K.toast(out.sent + (out.sent === 1 ? " levering" : " leveringen") + " uit de wachtrij verstuurd"); S.invalidate(); try { await S.load(true); } catch (e) { /* volgende verversing */ } }
+  };
+  if (S.queue) {
+    global.addEventListener("online", () => { S.flushQueue(); });
+    document.addEventListener("DOMContentLoaded", () => { S.queueBadge(); S.flushQueue(); });
+  }
+  if ("serviceWorker" in navigator && /^https:|^http:\/\/localhost/.test(location.origin)) {
+    global.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => { /* hors ligne sans cache : rien de bloquant */ }); });
+  }
   global.S = S;
 })(window);

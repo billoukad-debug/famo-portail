@@ -323,8 +323,18 @@
     // « name » = voornaam van een persoonlijke PIN (Medewerkers) ; bij een gedeelde code geeft de server de rol terug (personeel/beheerder) : dan geen naam.
     nameOf(d) { const n = String((d && d.name) || "").trim(); return /^(personeel|beheerder)$/i.test(n) ? "" : n; },
     async login(code, want) { const d = await K.api("/api/session", { json: { code: String(code || ""), want: want === "admin" ? "admin" : "staff" } }); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); return d; },
-    async check() { try { const d = await K.api("/api/session"); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); return true; } catch (e) { K.staff.role = null; K.staff.name = ""; return false; } },
-    async logout() { try { await fetch("/api/session", { method: "DELETE", credentials: "include" }); } catch (e) { /* ignore */ } K.staff.role = null; K.staff.name = ""; },
+    // Hors ligne (H-12) : une erreur RÉSEAU n'est pas une déconnexion. On garde le dernier rôle connu
+    // (≤ 12 h, cet appareil) pour afficher la page et vider la file au retour du réseau ; le serveur
+    // reste seul juge de chaque requête.
+    async check() {
+      try { const d = await K.api("/api/session"); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); K.store.set("famoStaffLast", { role: K.staff.role, name: K.staff.name, at: Date.now() }); return true; }
+      catch (e) {
+        const last = e.network ? K.store.get("famoStaffLast", null) : null;
+        if (last && last.role && Date.now() - last.at < 12 * 3600e3) { K.staff.role = last.role; K.staff.name = last.name || ""; K.staff.offline = true; return true; }
+        K.staff.role = null; K.staff.name = ""; if (!e.network) K.store.del("famoStaffLast"); return false;
+      }
+    },
+    async logout() { try { await fetch("/api/session", { method: "DELETE", credentials: "include" }); } catch (e) { /* ignore */ } K.staff.role = null; K.staff.name = ""; K.store.del("famoStaffLast"); },
     isAdmin() { return K.staff.role === "admin"; }
   };
   K.RETURN = "famoReturnTo";
@@ -754,6 +764,7 @@
     const ok = await K.staff.check();
     if (!ok) { K.saveReturn(); location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"); return false; }
     if (o.admin && !K.staff.isAdmin()) { K.saveReturn(); location.replace("/beheer-login.html?denied=1"); return false; }
+    if (K.staff.offline) { K.toast("Geen netwerk · laatst geladen gegevens; bevestigingen gaan in de wachtrij", { kind: "err" }); global.addEventListener("online", () => { K.staff.offline = false; }, { once: true }); }
     document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"), 1200); }, { once: true });
     return true;
   };
