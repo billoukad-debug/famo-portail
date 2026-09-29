@@ -6,7 +6,8 @@
 
   /* ---------- basis ---------- */
   K.esc = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  K.eur = v => "€\u00a0" + (Number(v) || 0).toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // G-19 : montants selon la langue du client — nl-BE « € 1.284,50 », fr-BE « 1 284,50 € » (K.lang est lu plus bas).
+  K.eur = v => { const n = Number(v) || 0; return K.lang === "fr" ? n.toLocaleString("fr-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "\u00a0€" : "€\u00a0" + n.toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   K.num = v => String(Number(v) || 0).replace(".", ",");
   // FOR-06 : « 1 404,48 », « 1.404,48 », « 1404.48 », « 12,5 », « € 12,50 » → nombre ; vide ou illisible → NaN.
   K.parseNum = v => {
@@ -106,7 +107,7 @@
     "Op zondag leveren we niet": "Nous ne livrons pas le dimanche", "Geen artikelen": "Aucun article", "Klant en artikelen vereist": "Client et articles requis", "Ongeldig artikel of aantal": "Article ou quantité invalide",
     "Alleen producten per kg mogen een decimale hoeveelheid hebben": "Seuls les produits au kg acceptent une quantité décimale", "Geen verbinding. Controleer het netwerk en probeer opnieuw.": "Pas de connexion. Vérifiez le réseau et réessayez.",
     "Op die dag leveren we niet": "Nous ne livrons pas ce jour-là", "Op die dag zijn we gesloten": "Nous sommes fermés ce jour-là", "Ongeldige hoeveelheid": "Quantité invalide", "Artikel is niet beschikbaar": "Article indisponible",
-    "Verzoek mislukt": "La demande a échoué", "Niets gewijzigd": "Rien n'a été modifié", "Opslaan mislukt": "Enregistrement impossible", "Annuleren mislukt": "Annulation impossible", "Onbekende actie": "Action inconnue",
+    "Verzoek mislukt": "La demande a échoué", "Niets gewijzigd": "Rien n'a été modifié", "Opslaan mislukt": "Enregistrement impossible", "Opslaan mislukt. Probeer opnieuw.": "Enregistrement impossible. Réessayez.", "Algemene voorwaarden": "Conditions générales", "Onze algemene verkoopsvoorwaarden zijn nieuw of gewijzigd. Lees en aanvaard ze om te bestellen.": "Nos conditions générales de vente sont nouvelles ou ont changé. Lisez-les et acceptez-les pour commander.", "Voorwaarden lezen": "Lire les conditions", "Ik aanvaard": "J'accepte", "Later": "Plus tard", "Ik aanvaard de algemene verkoopsvoorwaarden": "J'accepte les conditions générales de vente", "lezen": "lire", "Aanvaard de algemene voorwaarden om verder te gaan.": "Acceptez les conditions générales pour continuer.", "Aanvaard eerst onze algemene voorwaarden.": "Acceptez d'abord nos conditions générales.", "De voorwaarden zijn intussen gewijzigd. Lees de nieuwe versie.": "Les conditions ont changé entre-temps. Lisez la nouvelle version.", "Voorwaarden": "Conditions", "Even geen verbinding met de server. Probeer over een minuut opnieuw.": "Pas de connexion au serveur pour le moment. Réessayez dans une minute.", "Annuleren mislukt. Probeer opnieuw of bel ons.": "Annulation impossible. Réessayez ou appelez-nous.", "Afmelden mislukt. Probeer opnieuw.": "Déconnexion impossible. Réessayez.", "Deze link is verlopen of al gebruikt. Vraag een nieuwe aan.": "Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau.", "Wachtwoord opslaan mislukt. Probeer het later opnieuw.": "Enregistrement du mot de passe impossible. Réessayez plus tard.", "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een link om een nieuw wachtwoord te kiezen.": "Si les données sont correctes, vous recevrez dans quelques minutes un e-mail avec un lien pour choisir un nouveau mot de passe.", "Verzoek geweigerd: andere herkomst.": "Demande refusée : origine différente.", "Verzoek moet JSON zijn.": "La demande doit être au format JSON.", "Gebruik POST.": "Utilisez POST.", "Gebruik POST. Wachtwoorden horen niet in een URL.": "Utilisez POST. Un mot de passe ne doit pas figurer dans une URL.", "Nogmaals bestellen?": "Commander à nouveau ?", "Annuleren mislukt": "Annulation impossible", "Onbekende actie": "Action inconnue",
     "Vul uw gebruikersnaam en e-mailadres in.": "Indiquez votre identifiant et votre adresse e-mail.", "Te veel aanvragen. Probeer over een uur opnieuw of bel ons.": "Trop de demandes. Réessayez dans une heure ou appelez-nous.",
     "Wachtwoord vernieuwen mislukt. Bel ons.": "Le renouvellement du mot de passe a échoué. Appelez-nous.", "Documentmodule laden mislukt. Controleer de verbinding.": "Impossible de charger le module documents. Vérifiez la connexion.", "Taal van uw documenten": "Langue de vos documents", "Leveringsbonnen en facturen in deze taal.": "Bons de livraison et factures dans cette langue.", "Sessie verlopen. Meld u opnieuw aan.": "Session expirée. Reconnectez-vous.", "Voor vandaag kan niet meer besteld worden. Kies een latere leverdag.": "Il n'est plus possible de commander pour aujourd'hui. Choisissez un jour plus tard.", "Serverfout. Probeer opnieuw.": "Erreur du serveur. Réessayez.", "Opslaan of lezen mislukt. Probeer opnieuw.": "L'enregistrement ou la lecture a échoué. Réessayez.", "Catalogus laden mislukt. Probeer opnieuw.": "Le chargement du catalogue a échoué. Réessayez.", "Aanvraag opslaan mislukt. Bel ons.": "L'enregistrement de la demande a échoué. Appelez-nous.",
     "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons.": "L'envoi de la demande a échoué. Réessayez plus tard ou appelez-nous.",
@@ -126,6 +127,8 @@
     "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
     "Bestelling geannuleerd · artikelen in de winkelmand": "Commande annulée · articles dans le panier", "Geannuleerd door klant": "Annulée par le client",
     // openstaande facturen
+    "Toch opslaan": "Enregistrer quand même", "Privacy": "Confidentialité",
+    "incl. btw": "TVAC", "Pro forma": "Pro forma", "Uw facturen en betaalgegevens ontvangt u van onze boekhouding (via Peppol).": "Vos factures et coordonnées de paiement vous sont envoyées par notre comptabilité (via Peppol).",
     "Openstaande facturen": "Factures ouvertes", "Totaal openstaand": "Total à payer", "Mededeling": "Communication", "Kopiëren": "Copier", "Gekopieerd": "Copié", "Betaalgegevens": "Coordonnées de paiement",
     "Kopiëren lukt niet op dit toestel.": "La copie n'est pas possible sur cet appareil.", "Geen openstaande facturen": "Aucune facture ouverte", "Alles is betaald. Dank u wel.": "Tout est payé. Merci.",
     // favorieten synchronisatie
@@ -139,10 +142,18 @@
     // wachtwoord vergeten
     "Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.": "Indiquez votre identifiant et l'adresse e-mail de votre établissement. S'ils correspondent, nous envoyons un nouveau mot de passe à cette adresse.",
     "Nieuw wachtwoord aanvragen": "Demander un nouveau mot de passe", "E-mailadres van uw zaak": "Adresse e-mail de votre établissement", "E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.": "L'envoi d'e-mail n'est pas possible pour le moment. Appelez-nous ou écrivez-nous pour un nouveau mot de passe.",
-    "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe."
+    "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe.",
+    // documentvoorbeeld (staff-doc-preview.js)
+    "Documentvoorbeeld": "Aperçu du document", "Afdrukken": "Imprimer", "PDF downloaden": "Télécharger le PDF", "Document laden…": "Chargement du document…",
+    "Geen documentinhoud beschikbaar.": "Aucun contenu de document disponible.", "Afdrukken mislukt: voorbeeld niet geladen.": "Impression impossible : aperçu non chargé.", "Afdrukken mislukt. Probeer opnieuw.": "Impression impossible. Réessayez.",
+    "Download mislukt: voorbeeld niet geladen.": "Téléchargement impossible : aperçu non chargé.", "PDF genereren…": "Création du PDF…", "PDF gedownload:": "PDF téléchargé :", "PDF downloaden mislukt.": "Le téléchargement du PDF a échoué.",
+    "PDF-bibliotheek niet beschikbaar.": "Module PDF indisponible.", "PDF-bibliotheek kon niet worden geladen.": "Le module PDF n'a pas pu être chargé.", "Geen geldige PDF gegenereerd (geen HTML-hernoemd bestand).": "Aucun PDF valide n'a été créé.",
+    // pastilles (aria-label) : enkelvoud / meervoud
+    "factuur te betalen": "facture à payer", "facturen te betalen": "factures à payer",
+    "Opmerking bij": "Remarque pour", "Filter": "Filtre", "Bekijken": "Voir"
   };
   // Servermeldingen met een getal erin : één patroon per melding, vertaald bij het tonen.
-  const FR_PAT = [[/^Na (\d{2}:\d{2}) kan niet meer voor morgen besteld worden\. Kies een latere leverdag\.$/, "Après $1, il n'est plus possible de commander pour demain. Choisissez un jour plus tard."], [/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
+  const FR_PAT = [[/^U plaatste vandaag al dezelfde bestelling \(([^)]*)\)\. Nogmaals bestellen\?$/, "Vous avez déjà passé cette même commande aujourd'hui ($1). Commander à nouveau ?"], [/^Na (\d{2}:\d{2}) kan niet meer voor morgen besteld worden\. Kies een latere leverdag\.$/, "Après $1, il n'est plus possible de commander pour demain. Choisissez un jour plus tard."], [/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
   // K.t met plaatshouders : K.tt("Nog {n}", {n: 3}).
   K.tt = (s, vars) => Object.entries(vars || {}).reduce((out, [k, v]) => out.split("{" + k + "}").join(String(v)), K.t(s));
   K.langSwitch = () => '<div class="lang" role="group" aria-label="Taal / Langue">' + ["nl", "fr"].map(l => '<button type="button" data-lang="' + l + '"' + (K.lang === l ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l.toUpperCase() + '</button>').join("") + '</div>';
@@ -153,12 +164,17 @@
   const MONTHS_BY = { nl: ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"], fr: ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"] };
   const DAYS = new Proxy([], { get: (_, i) => DAYS_BY[K.lang][i] }), MONTHS = new Proxy([], { get: (_, i) => MONTHS_BY[K.lang][i] });
   K.parseDate = v => { if (!v) return null; const d = new Date(String(v).includes("T") ? v : v + "T00:00:00"); return Number.isNaN(d.getTime()) ? null : d; };
-  K.isoDay = d => { const x = d instanceof Date ? d : K.parseDate(d); if (!x) return ""; const m = String(x.getMonth() + 1).padStart(2, "0"), day = String(x.getDate()).padStart(2, "0"); return x.getFullYear() + "-" + m + "-" + day; };
+  // G-19 : un horodatage du serveur (« …T14:20:00Z ») s'affiche à l'heure d'Anvers, comme les lignes du journal
+  // écrites par le serveur (Europe/Brussels) — pas à l'heure de l'appareil.
+  const ZONED = /T\d{2}:\d{2}.*(Z|[+-]\d{2}:?\d{2})$/i;
+  const BXL = (() => { try { return new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }); } catch (e) { return null; } })();
+  const bxl = d => { const o = {}; BXL.formatToParts(d).forEach(x => { o[x.type] = x.value; }); return o; };
+  K.isoDay = d => { const x = d instanceof Date ? d : K.parseDate(d); if (!x) return ""; if (BXL && typeof d === "string" && ZONED.test(d)) { const o = bxl(x); return o.year + "-" + o.month + "-" + o.day; } const m = String(x.getMonth() + 1).padStart(2, "0"), day = String(x.getDate()).padStart(2, "0"); return x.getFullYear() + "-" + m + "-" + day; };
   K.today = () => K.isoDay(new Date());
   K.addDays = (iso, n) => { const d = K.parseDate(iso) || new Date(); d.setDate(d.getDate() + n); return K.isoDay(d); };
   K.date = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0"); };
   K.dateLong = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); };
-  K.time = v => { const d = K.parseDate(v); return d ? String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") : ""; };
+  K.time = v => { const d = K.parseDate(v); if (!d) return ""; if (BXL && typeof v === "string" && ZONED.test(v)) { const o = bxl(d); return o.hour + ":" + o.minute; } return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
   K.relDay = iso => { if (!iso) return "—"; const t = K.today(); if (iso === t) return K.t("Vandaag"); if (iso === K.addDays(t, 1)) return K.t("Morgen"); if (iso === K.addDays(t, -1)) return K.t("Gisteren"); return K.date(iso); };
   K.initials = name => String(name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("") || "?";
 
@@ -238,7 +254,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "7ad917c1af";
+  K.DOCS_VER = "0abf2fb0c8";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -249,7 +265,7 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    docsLoading = ["/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
+    docsLoading = ["/assets/vat.js", "/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;
@@ -276,7 +292,17 @@
       return d;
     };
     try { return await once(); }
-    catch (err) { if (retry && (err.network || err.status >= 500)) { await new Promise(res => setTimeout(res, 800)); return once(); } throw err; }
+    catch (err) {
+      if (retry && (err.network || err.status >= 500)) { await new Promise(res => setTimeout(res, 800)); return once(); }
+      // Garde-fou serveur (prix à 0, ×2, ÷2…) : « toch opslaan ? » puis même requête avec confirmation.
+      if (err.status === 409 && err.payload && err.payload.needConfirm && o.body && K.confirm) {
+        if (!(await K.confirm({ title: K.t("Bevestigen"), text: K.errText(err.message), yes: K.t("Toch opslaan"), no: K.t("Annuleren") }))) throw err;
+        const body = Object.assign(JSON.parse(o.body), { confirm: true, confirmPrice: true });
+        o.body = JSON.stringify(body);
+        return once();
+      }
+      throw err;
+    }
   };
   // Laadblok met « Opnieuw proberen » : voert fn uit ; bij een fout toont de container de melding
   // en een link die fn opnieuw start. Retourneert wat fn retourneert (undefined bij een fout).
@@ -297,8 +323,18 @@
     // « name » = voornaam van een persoonlijke PIN (Medewerkers) ; bij een gedeelde code geeft de server de rol terug (personeel/beheerder) : dan geen naam.
     nameOf(d) { const n = String((d && d.name) || "").trim(); return /^(personeel|beheerder)$/i.test(n) ? "" : n; },
     async login(code, want) { const d = await K.api("/api/session", { json: { code: String(code || ""), want: want === "admin" ? "admin" : "staff" } }); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); return d; },
-    async check() { try { const d = await K.api("/api/session"); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); return true; } catch (e) { K.staff.role = null; K.staff.name = ""; return false; } },
-    async logout() { try { await fetch("/api/session", { method: "DELETE", credentials: "include" }); } catch (e) { /* ignore */ } K.staff.role = null; K.staff.name = ""; },
+    // Hors ligne (H-12) : une erreur RÉSEAU n'est pas une déconnexion. On garde le dernier rôle connu
+    // (≤ 12 h, cet appareil) pour afficher la page et vider la file au retour du réseau ; le serveur
+    // reste seul juge de chaque requête.
+    async check() {
+      try { const d = await K.api("/api/session"); K.staff.role = d.role || null; K.staff.name = K.staff.nameOf(d); K.store.set("famoStaffLast", { role: K.staff.role, name: K.staff.name, at: Date.now() }); return true; }
+      catch (e) {
+        const last = e.network ? K.store.get("famoStaffLast", null) : null;
+        if (last && last.role && Date.now() - last.at < 12 * 3600e3) { K.staff.role = last.role; K.staff.name = last.name || ""; K.staff.offline = true; return true; }
+        K.staff.role = null; K.staff.name = ""; if (!e.network) K.store.del("famoStaffLast"); return false;
+      }
+    },
+    async logout() { try { await fetch("/api/session", { method: "DELETE", credentials: "include" }); } catch (e) { /* ignore */ } K.staff.role = null; K.staff.name = ""; K.store.del("famoStaffLast"); },
     isAdmin() { return K.staff.role === "admin"; }
   };
   K.RETURN = "famoReturnTo";
@@ -371,7 +407,30 @@
   c.check = (on, attrs, opts) => { const o = opts || {}; return '<button type="button" class="check' + (on ? " on" : "") + (o.big ? " big" : "") + '" ' + (attrs || "") + (o.label ? ' aria-label="' + K.esc(o.label) + '"' : "") + ' aria-pressed="' + (on ? "true" : "false") + '">' + K.icon("check") + '</button>'; };
   // Interrupteur visuel + état accessible en une fois (check, toggle, favoriet).
   K.setOn = (el, on) => { if (!el) return; el.classList.toggle("on", !!on); el.setAttribute("aria-pressed", on ? "true" : "false"); const line = el.closest(".line"); if (line) line.classList.toggle("ok", !!on); };
-  c.stepper = (id, value, opts) => { const o = opts || {}; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.t("Minder") + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.t("Aantal") + '"><button type="button" data-inc aria-label="' + K.t("Meer") + '">+</button></div>'; };
+  // ACC-06 / G-06 : l'état « choisi » (classe .on) est toujours exposé, quel que soit le code qui la pose :
+  // choix .opt, filtres .cats, langue → aria-pressed ; vues .views et onglets .tabs → aria-current="page".
+  // Un groupe .opt / .cats devient role=group, nommé par le libellé de son champ (ou aria-label).
+  let stateUid = 0, statePending = false;
+  K.syncStates = root => {
+    const r = root || document;
+    if (!r.querySelectorAll) return;
+    r.querySelectorAll(".opt, .cats, .lang").forEach(g => {
+      if (!g.hasAttribute("role")) g.setAttribute("role", "group");
+      if (g.hasAttribute("aria-label") || g.hasAttribute("aria-labelledby")) return;
+      const f = g.closest(".field"), l = f && f.querySelector(":scope > label, :scope > .flabel");
+      if (l) { if (!l.id) l.id = "kGrp" + (++stateUid); g.setAttribute("aria-labelledby", l.id); }
+      else if (g.dataset.label) g.setAttribute("aria-label", g.dataset.label);
+    });
+    r.querySelectorAll(".opt > button, .cats > button, .lang > button, .kside > button").forEach(b => b.setAttribute("aria-pressed", b.classList.contains("on") ? "true" : "false"));
+    r.querySelectorAll(".views > a, .views > button, .tabs > a").forEach(a => { if (a.classList.contains("on")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  };
+  if (doc && doc.addEventListener && typeof global.MutationObserver === "function") {
+    const start = () => new global.MutationObserver(() => { if (statePending) return; statePending = true; Promise.resolve().then(() => { statePending = false; K.syncStates(doc); }); })
+      .observe(doc.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
+    if (doc.body) start(); else doc.addEventListener("DOMContentLoaded", start);
+  }
+  // opts.name : nom du produit dans chaque libellé (« Meer: Zalmfilet ») — sinon dix « Meer » identiques (G-27).
+  c.stepper = (id, value, opts) => { const o = opts || {}, n = o.name ? ": " + o.name : ""; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.esc(K.t("Minder") + n) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.esc(K.t("Aantal") + n) + '"><button type="button" data-inc aria-label="' + K.esc(K.t("Meer") + n) + '">+</button></div>'; };
   K.c = c;
 
   /* ---------- toast / dialoog / paneel ---------- */
@@ -383,26 +442,91 @@
     const a = e.target && e.target.closest && e.target.closest("a.skip"); if (!a) return;
     e.preventDefault(); const t = doc.querySelector(a.getAttribute("href")); if (t) { t.focus(); if (t.scrollIntoView) t.scrollIntoView({ block: "start" }); }
   });
-  K.toast = (msg, opts) => { const o = opts || {}; const el = document.createElement("div"); el.className = "toast" + (o.kind ? " " + o.kind : ""); el.innerHTML = K.esc(msg) + (o.action ? '<button type="button">' + K.esc(o.action) + '</button>' : ""); if (o.action && o.onAction) el.querySelector("button").onclick = () => { o.onAction(); el.remove(); }; toasts().appendChild(el); setTimeout(() => el.remove(), o.ms || (o.action ? 6000 : 4500)); return el; };
+  // G-18 : une erreur reste affichée jusqu'à ce qu'on la ferme (×), annoncée tout de suite (role=alert) ; la même
+  // erreur ne s'empile pas. Un message qui a le focus ou le pointeur ne disparaît pas sous la main (2.2.1).
+  K.toast = (msg, opts) => {
+    const o = opts || {}, err = o.kind === "err", box = toasts(), text = String(msg == null ? "" : msg);
+    if (err) { K.$$(".toast.err", box).filter(x => x.dataset.msg === text).forEach(x => x.remove()); const old = K.$$(".toast.err", box); if (old.length >= 3) old[0].remove(); }
+    const el = document.createElement("div"); el.className = "toast" + (o.kind ? " " + o.kind : ""); el.dataset.msg = text;
+    if (err) el.setAttribute("role", "alert");
+    el.innerHTML = '<span>' + K.esc(text) + '</span>' + (o.action ? '<button type="button" data-toast-act>' + K.esc(o.action) + '</button>' : "") + (err ? '<button type="button" class="toast-x" data-toast-x aria-label="' + K.esc(K.t("Sluiten")) + '">×</button>' : "");
+    const remove = () => { if (!el.isConnected) return; const had = el.contains(document.activeElement); el.remove(); if (had) K.restoreFocus([], null); };
+    if (o.action && o.onAction) el.querySelector("[data-toast-act]").onclick = () => { remove(); o.onAction(); };
+    if (err) el.querySelector("[data-toast-x]").onclick = remove;
+    box.appendChild(el);
+    if (!err) { const later = () => { if (!el.isConnected) return; if (el.contains(document.activeElement) || el.matches(":hover")) { setTimeout(later, 2000); return; } remove(); }; setTimeout(later, o.ms || (o.action ? 6000 : 4500)); }
+    return el;
+  };
   // Dialogen en panelen (motif APG « dialog modal ») : Tab reste dedans, Échap ne ferme que le plus haut,
   // et le focus revient à l'élément qui l'a ouvert.
   const modals = [];
   const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-  // Clé pour retrouver le déclencheur après un re-rendu (id, sinon premier attribut data-*).
-  const keyOf = el => {
-    if (!el || !el.getAttribute || el === document.body) return null;
-    if (el.id) return "#" + CSS.escape(el.id);
-    for (const a of Array.from(el.attributes || [])) if (a.name.indexOf("data-") === 0 && a.value) return "[" + a.name + '="' + CSS.escape(a.value) + '"]';
-    return null;
+  // Clés pour retrouver un élément après un re-rendu, de la plus précise à la plus large (CLA-10) :
+  // id ; tous ses attributs data-* (data-act + data-id = même action sur la MÊME commande) ; puis le bouton
+  // principal de la même commande (son action a changé : Klaarzetten → Vertrekt) ; un lien par son href ;
+  // un bouton sans attribut propre (−/+ d'un stepper) par son hôte. Jamais « le premier data-act venu ».
+  const DATA_SKIP = /^data-label$/;
+  const q1 = (name, v) => "[" + name + '="' + CSS.escape(v) + '"]';
+  const keysOf = el => {
+    if (!el || el.nodeType !== 1 || el === document.body || el === document.documentElement) return [];
+    if (el.id) return ["#" + CSS.escape(el.id)];
+    const data = Array.from(el.attributes || []).filter(a => a.name.indexOf("data-") === 0 && !DATA_SKIP.test(a.name));
+    const own = data.map(a => a.value ? q1(a.name, a.value) : "[" + a.name + "]").join(""), tag = el.tagName.toLowerCase();
+    const href = el.getAttribute("href"), c0 = Array.from(el.classList || []).find(c => !/^(on|open|ok|is-.*)$/.test(c)), cls = c0 ? "." + CSS.escape(c0) : "";
+    if (data.some(a => a.value)) {
+      const out = [tag + own], id = el.getAttribute("data-id");
+      if (id && data.length > 1) out.push(".btn-p" + q1("data-id", id), q1("data-id", id));
+      return out;
+    }
+    const host = el.parentElement && el.parentElement.closest("[data-stepper],[data-id],[data-i],[data-q],[data-oid]");
+    const hk = host ? keysOf(host)[0] : null;
+    if (hk) return [hk + " " + tag + own];
+    if (href && href !== "#") return [tag + cls + q1("href", href)];
+    return [];
   };
-  // Le focus revient au déclencheur ; s'il a disparu (liste redessinée après l'enregistrement), à son remplaçant.
-  function refocus(back, key) {
-    const tryIt = () => { const a = document.activeElement; if (a && a !== document.body && a.isConnected) return true; const t = back && back.isConnected ? back : (key && document.querySelector(key)); if (t && t.focus) { try { t.focus({ preventScroll: true }); } catch (e) { /* ignore */ } return true; } return false; };
+  const usable = x => x && !x.disabled && x.isConnected && (x.offsetParent !== null || (x.getClientRects && x.getClientRects().length > 0));
+  const findKeys = keys => { for (const k of keys || []) { try { const t = Array.from(document.querySelectorAll(k)).find(usable); if (t) return t; } catch (e) { /* sélecteur invalide */ } } return null; };
+  const lost = () => { const a = document.activeElement; return !a || a === document.body || !a.isConnected; };
+  // G-03 : après un changement de vue, le focus va au titre (h1, tabindex=-1) : le lecteur d'écran annonce
+  // la nouvelle page et Tab repart de là. Jamais pendant une saisie, jamais sous une fenêtre ouverte.
+  // opts.scroll : ramener le titre à l'écran s'il est hors de la vue ou sous la barre du haut (changement d'onglet) ;
+  // sinon aucun défilement (le portail client restaure lui-même la position de chaque vue).
+  K.focusTitle = (root, sel, opts) => {
+    const a = document.activeElement;
+    if (a && a !== document.body && a.isConnected && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return false;
+    if (modals.length || document.querySelector(".famo-doc-preview:not(.hidden)")) return false;
+    const scope = root || document.querySelector("main") || document;
+    const h = Array.from(scope.querySelectorAll(sel || "h1")).find(usable);
+    if (!h) return false;
+    if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+    const r = h.getBoundingClientRect(), hidden = r.top < 64 || r.bottom > (global.innerHeight || 800);
+    try { h.focus({ preventScroll: true }); } catch (e) { return false; }
+    if (opts && opts.scroll && hidden && h.scrollIntoView) h.scrollIntoView({ block: "start" }); // tient compte de scroll-padding-top
+    return document.activeElement === h;
+  };
+  // Focus perdu (élément redessiné) : on retrouve l'élément par ses clés, sinon le titre de la page.
+  K.restoreFocus = (keys, root) => { if (!lost()) return; const t = findKeys(keys); if (t) { try { t.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } if (lost()) K.focusTitle(root); };
+  K.focusKeys = keysOf;
+  // Redessine une zone sans perdre le focus : fn() peut être asynchrone.
+  K.keep = (root, fn) => {
+    const a = document.activeElement, inside = !!(a && a !== document.body && root && root.contains(a)), keys = inside ? keysOf(a) : null;
+    const r = fn();
+    if (inside) { const fix = () => K.restoreFocus(keys, root); if (r && typeof r.then === "function") r.then(fix, fix); else fix(); }
+    return r;
+  };
+  // Le focus revient au déclencheur ; s'il a disparu (liste redessinée après l'enregistrement), à son remplaçant,
+  // sinon (la ligne a quitté la liste) au titre de la page.
+  function refocus(back, keys) {
+    const tryIt = last => { if (!lost()) return; const t = back && back.isConnected && !back.disabled ? back : findKeys(keys); if (t && t.focus) { try { t.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } if (last && lost()) K.focusTitle(); };
     if (back && back.isConnected && back.focus) { try { back.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
-    [60, 400, 1200].forEach(ms => setTimeout(tryIt, ms));
+    [60, 400, 1200].forEach((ms, i) => setTimeout(() => tryIt(i === 2), ms));
   }
+  // Dernier élément focalisé (hors body) : un bouton désactivé pendant le chargement (K.busy) perd le focus,
+  // la fenêtre qui s'ouvre ensuite doit quand même rendre le focus à ce bouton.
+  let lastFocused = null;
+  if (doc && doc.addEventListener) doc.addEventListener("focusin", e => { if (e.target && e.target !== doc.body && e.target.nodeType === 1) lastFocused = e.target; });
   function modal(el, onEsc) {
-    const back = document.activeElement, backKey = keyOf(back), entry = { el };
+    const a = document.activeElement, back = a && a !== document.body ? a : lastFocused, backKey = keysOf(back), entry = { el };
     modals.push(entry);
     const key = e => {
       if (modals[modals.length - 1] !== entry) return;
@@ -421,13 +545,17 @@
       refocus(back, backKey);
     };
   }
+  // Fenêtre modale « maison » (aperçu des documents…) : même piège Tab, même Échap que K.panel.
+  // K.modal(el, onEsc) → fonction release() à appeler à la fermeture (rend le focus au déclencheur).
+  K.modal = modal;
+  K.isTopModal = el => !!modals.length && modals[modals.length - 1].el === el;
   // Clavier physique (souris/trackpad) : focus au premier champ ; tactile : pas de clavier qui surgit.
   const finePointer = () => !!(global.matchMedia && global.matchMedia("(pointer: fine)").matches);
   K.confirm = (opts) => new Promise(resolve => {
     const o = typeof opts === "string" ? { text: opts } : (opts || {});
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", o.danger ? "alertdialog" : "dialog"); d.setAttribute("aria-modal", "true");
     d.setAttribute("aria-labelledby", "kDialogTitle"); d.setAttribute("aria-describedby", "kDialogText");
-    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kDialogTitle">' + K.esc(o.title || K.t("Bevestigen")) + '</b><span class="muted" id="kDialogText">' + K.esc(o.text || "") + '</span><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || K.t("Annuleren")) + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
+    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kDialogTitle">' + K.esc(o.title || K.t("Bevestigen")) + '</b><span class="muted" id="kDialogText">' + K.esc(o.text || "") + '</span>' + (o.html || "") + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || K.t("Annuleren")) + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
     let release = null;
     const done = v => { d.remove(); if (release) release(); resolve(v); };
     d.querySelector("[data-no]").onclick = () => done(false); d.querySelector("[data-yes]").onclick = () => done(true); d.onclick = e => { if (e.target === d) done(false); };
@@ -464,8 +592,21 @@
     s.addEventListener("input", markDirty); s.addEventListener("change", markDirty);
     s.addEventListener("click", e => { if (dirty && e.target.closest && e.target.closest("[data-cancel]")) { e.preventDefault(); e.stopImmediatePropagation(); tryClose(); } }, true);
     s.querySelector("[data-close]").onclick = tryClose; s.onclick = e => { if (e.target === s) tryClose(); };
+    // FOR-02 / G-17 : Entrée dans un champ d'une ligne = le bouton principal du panneau (comme un formulaire).
+    // Pas dans un champ multiligne, une liste, une quantité (−/+) ; un champ qui gère Entrée lui-même l'emporte.
+    s.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || e.defaultPrevented || e.isComposing || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = e.target;
+      if (!t || !t.matches || !t.matches(".panel-b input") || t.matches("[type=checkbox],[type=radio],[type=file],[type=button],[type=submit],[type=reset],[list],[data-no-submit]") || t.closest(".stepper")) return;
+      const btn = s.querySelector(".panel-f .btn-p:not(:disabled), .panel-f .btn-danger:not(:disabled)");
+      if (btn) { e.preventDefault(); btn.click(); }
+    });
+    // G-18 : un texte d'état dans le pied du panneau (« 2 van 3 gecontroleerd ») est une région live.
+    K.$$(".panel-f > span, .panel-f > div:not(:has(button))", s).forEach(x => { if (!x.hasAttribute("role")) { x.setAttribute("role", "status"); x.setAttribute("aria-live", "polite"); } });
     release = modal(s, tryClose); document.body.style.overflow = "hidden"; document.body.appendChild(s);
-    const first = finePointer() && s.querySelector(".panel-b input:not([type=hidden]),.panel-b select,.panel-b textarea");
+    // G-04 : premier élément focalisable VISIBLE du panneau (un champ caché, ex. #vSearch, ne compte pas) ;
+    // au tactile, le panneau lui-même (pas de clavier virtuel qui surgit).
+    const first = finePointer() && Array.from(s.querySelectorAll(".panel-b " + FOCUSABLE.split(",").join(",.panel-b "))).find(usable);
     try { (first || s.querySelector(".panel")).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
     return { el: s, close, tryClose, markClean: () => { dirty = false; dirtyPanels.delete(s); }, body: s.querySelector(".panel-b"), footer: s.querySelector(".panel-f") };
   };
@@ -528,14 +669,16 @@
   // tellen) ; enkel verwijderen in Voorraad en Beheer blijven voor de beheerder (server : adminOk).
   // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
   // Les derniers chiffres restent en session : la page suivante les affiche avant d'avoir rechargé.
-  const BADGE_TXT = { "bestellingen.html": "nieuw te bevestigen", "entrepot.html": "vandaag klaar te zetten", "leveringen.html": "vandaag te leveren", "documenten.html": "onbetaalde facturen", "stock.html": "onder de drempel", "beheer.html": "nieuwe aanvragen", "aanvragen": "nieuwe aanvragen", "bestellingen": "te betalen" };
+  // [enkelvoud, meervoud] : « 1 onbetaalde factuur », « 2 onbetaalde facturen ».
+  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
+  K.plural = (n, one, many) => n + " " + (Number(n) === 1 ? one : (many || one));
   K.setBadges = map => {
     const all = Object.assign(K.session.get("famoBadges", {}) || {}, map || {});
     if (map && Object.keys(map).length) K.session.set("famoBadges", all);
     K.$$("[data-badge]").forEach(el => {
-      const n = Number(all[el.dataset.badge]) || 0;
+      const n = Number(all[el.dataset.badge]) || 0, txt = BADGE_TXT[el.dataset.badge] || [""];
       el.hidden = !n; el.textContent = n > 99 ? "99+" : String(n);
-      el.setAttribute("aria-label", n + " " + (K.t(BADGE_TXT[el.dataset.badge] || "")));
+      el.setAttribute("aria-label", K.plural(n, K.t(txt[0]), K.t(txt[1] || txt[0])));
     });
   };
   const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];
@@ -553,18 +696,24 @@
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
-    const side = '<aside class="side" data-famo-nav><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       link(["stock.html", "Voorraad", "stock"]) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
-      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></aside>';
+      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
     const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
+    // G-20 : au téléphone la navigation défile à l'horizontale — un fondu montre qu'il reste des onglets,
+    // et l'onglet de la page est ramené dans la vue.
+    const sideEl = app.querySelector(".side");
+    const edge = () => { const max = sideEl.scrollWidth - sideEl.clientWidth; sideEl.classList.toggle("more-r", max - sideEl.scrollLeft > 4); sideEl.classList.toggle("more-l", sideEl.scrollLeft > 4); };
+    const onNav = sideEl.querySelector(".nav.on"); if (onNav && sideEl.scrollWidth > sideEl.clientWidth) sideEl.scrollLeft = Math.max(0, onNav.offsetLeft - (sideEl.clientWidth - onNav.offsetWidth) / 2);
+    sideEl.addEventListener("scroll", edge, { passive: true }); if (global.addEventListener) global.addEventListener("resize", edge); edge();
     K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
     globalSearch(app);
     return document.getElementById("page");
@@ -615,6 +764,7 @@
     const ok = await K.staff.check();
     if (!ok) { K.saveReturn(); location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"); return false; }
     if (o.admin && !K.staff.isAdmin()) { K.saveReturn(); location.replace("/beheer-login.html?denied=1"); return false; }
+    if (K.staff.offline) { K.toast("Geen netwerk · laatst geladen gegevens; bevestigingen gaan in de wachtrij", { kind: "err" }); global.addEventListener("online", () => { K.staff.offline = false; }, { once: true }); }
     document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"), 1200); }, { once: true });
     return true;
   };

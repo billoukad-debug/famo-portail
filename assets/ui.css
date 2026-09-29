@@ -1,8 +1,12 @@
+/* Plus Jakarta Sans (SIL OFL 1.1, assets/fonts/OFL.txt), hébergée sur le site : plus aucune adresse IP
+   de visiteur envoyée à Google (RGPD, audit C-11 ; LG München I, 3 O 17493/20). Police variable 200–800. */
+@font-face{font-family:"Plus Jakarta Sans";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/plus-jakarta-sans-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Plus Jakarta Sans";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/plus-jakarta-sans-latin-ext.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 /* FAMO · Crème — één stijl voor de drie portalen. Warm canvas, één blauw voor elke actie, statussen overal gelijk.
    Radius 4 · 6 · 8 · 12 (geen pillen op wat je aanraakt). Plus Jakarta Sans. Klassen en variabelen blijven dezelfde als v2. */
 :root{
   --p:#4876A2;--p-soft:#E4EDF5;--p-deep:#3F6690;
-  --ink:#232323;--ink-2:#6A6A6A;--ink-3:#6F6D65;--line:#E3E0D6;--line-soft:#EDEBE4;--line-strong:#C7C3B7;--line-input:#939087;--canvas:#FAF9F5;--soft:#F1EFE8;--card:#FFFFFF;
+  --ink:#232323;--ink-2:#6A6A6A;--ink-3:#66645D;--line:#E3E0D6;--line-soft:#EDEBE4;--line-strong:#C7C3B7;--line-input:#939087;--canvas:#FAF9F5;--soft:#F1EFE8;--card:#FFFFFF;
   --st-new:#B7841A;--st-new-bg:#F5EEDC;--st-new-ink:#7A5410;
   --st-ready:#4876A2;--st-ready-bg:#E4EDF5;--st-ready-ink:#36597D;
   --st-road:#2E4F70;--st-road-bg:#E1E7EE;--st-road-ink:#2E4F70;
@@ -69,7 +73,7 @@ svg.ico,.ico svg,svg[data-ico]{width:18px;height:18px;stroke:currentColor;fill:n
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}.field>label{font-size:13px;font-weight:500;color:var(--ink)}
 .input,select.input,textarea.input{min-height:var(--tap);border:1px solid var(--line-input);border-radius:var(--r-sm);padding:0 12px;background:var(--card);font:inherit;color:var(--ink);width:100%;outline:0;min-width:0}
 textarea.input{padding:10px 12px;min-height:76px;resize:vertical}
-.input:focus{border-color:var(--p);box-shadow:0 0 0 3px var(--p-soft)}
+.input:focus,.input:focus-within{border-color:var(--p);box-shadow:0 0 0 3px var(--p-soft)} /* focus-within : bouton calendrier d'un champ date */
 .input[aria-invalid=true]{border-color:var(--danger)}
 .field .err{font-size:12.5px;color:var(--danger)}
 .check{width:32px;height:32px;border:1.5px solid var(--line-strong);border-radius:var(--r-sm);display:grid;place-items:center;flex:none;background:var(--card);cursor:pointer;padding:0}
@@ -80,6 +84,7 @@ textarea.input{padding:10px 12px;min-height:76px;resize:vertical}
 .stepper button{width:44px;height:100%;border:0;background:transparent;color:var(--ink);font-size:20px;cursor:pointer;display:grid;place-items:center}.stepper button:hover{background:var(--soft)}
 .stepper input{width:44px;border:0;text-align:center;font:inherit;font-weight:600;background:transparent;outline:0;-moz-appearance:textfield;color:var(--ink);font-variant-numeric:tabular-nums}.stepper input::-webkit-inner-spin-button{-webkit-appearance:none}
 .stepper.on{border-color:var(--p);box-shadow:inset 0 0 0 1px var(--p)}
+.stepper input{height:100%;min-width:0}.stepper:has(input:focus){border-color:var(--p);box-shadow:0 0 0 2px var(--p)} /* G-11 : le champ quantité a un anneau (le conteneur le porte) */
 .pp{display:flex;align-items:baseline;gap:6px;white-space:nowrap;flex-wrap:wrap}.pp b{font-size:16px;font-weight:600;letter-spacing:-.2px}.pp s{color:var(--ink-3);font-size:12.5px}.pp small{color:var(--klei);font-size:11.5px;font-weight:600}
 .kv{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px 16px}.kv small{display:block;font-size:12px;color:var(--ink-2);font-weight:500}.kv div{font-size:14px;min-width:0;overflow-wrap:anywhere}
 .kpi{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);font-size:13px;color:var(--ink-2);white-space:nowrap}.kpi b{color:var(--ink);font-weight:600}
@@ -99,7 +104,7 @@ textarea.input{padding:10px 12px;min-height:76px;resize:vertical}
 .avatar{width:32px;height:32px;border-radius:50%;background:var(--p-soft);color:var(--p);display:grid;place-items:center;font-weight:600;font-size:12px;flex:none}
 .main{flex:1;display:flex;flex-direction:column;min-width:0}
 .topbar{min-height:60px;background:var(--canvas);border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;padding:8px 24px;position:sticky;top:0;z-index:20}
-.search{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--ink-3);font-size:14px;min-width:0;flex:1;max-width:420px}
+.search{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid var(--line-input);border-radius:var(--r);background:var(--card);color:var(--ink-3);font-size:14px;min-width:0;flex:1;max-width:420px}
 .search input{border:0;outline:0;font:inherit;flex:1;min-width:0;color:var(--ink);background:transparent;min-height:36px}
 .search:focus-within{border-color:var(--p);box-shadow:0 0 0 3px var(--p-soft)}
 .page-h{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;padding:24px 28px 0}
@@ -110,7 +115,7 @@ textarea.input{padding:10px 12px;min-height:76px;resize:vertical}
 .views .on{color:var(--p);border-bottom-color:var(--p);font-weight:600}
 .tools{display:flex;align-items:center;gap:8px;padding:12px 28px;flex-wrap:wrap}
 .tool{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border-radius:var(--r-sm);font-size:13.5px;color:var(--ink-2);font-weight:500;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap}.tool:hover{background:var(--soft);color:var(--ink)}.tool.on{background:var(--p-soft);color:var(--p)}
-select.input.tool{border-color:var(--line);background:var(--card)}
+select.input.tool,input.input.tool{border-color:var(--line-input);background:var(--card)} /* G-16 : contour des filtres ≥ 3:1 (dates van / tot comprises) */
 .content{padding:0 28px 100px;display:flex;flex-direction:column;gap:16px;min-width:0}
 /* ---------- table / groups ---------- */
 .grp{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
@@ -145,11 +150,12 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 .notice>div{min-width:0}
 .notice.err{border-color:var(--danger-line);background:var(--danger-bg)}.notice.warn{border-color:var(--warn-line);background:var(--st-new-bg)}.notice.ok{border-color:var(--ok-line);background:var(--st-done-bg)}
 .notice i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;font-weight:700;font-size:13px;color:#fff;font-style:normal}
-.notice.err i{background:var(--danger)}.notice.warn i{background:var(--st-new)}.notice.ok i{background:var(--st-done)}
+.notice.err i{background:var(--danger)}.notice.warn i{background:var(--st-new-ink)}.notice.ok i{background:var(--st-done)}
 /* ---------- toast / sheet ---------- */
 .toasts{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:400;width:min(520px,calc(100% - 32px))}
 .toast{background:var(--ink);color:#fff;border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:10px;font-size:14px;box-shadow:var(--shadow)}
-.toast.err{background:var(--danger)}.toast button{margin-left:auto;background:transparent;border:0;color:#E4EDF5;cursor:pointer;font:inherit;font-weight:600;min-height:32px}
+.toast.err{background:var(--danger)}.toast button{margin-left:auto;background:transparent;border:0;color:#E4EDF5;cursor:pointer;font:inherit;font-weight:600;min-height:44px;min-width:44px;padding:0 8px;border-radius:var(--r-sm)}.toast button+button{margin-left:0}.toast button:focus-visible{outline:2px solid #fff;outline-offset:0}
+.toast .toast-x{font-size:20px;line-height:1;color:#fff}
 .scrim{position:fixed;inset:0;background:rgba(20,20,19,.45);z-index:300;display:flex;justify-content:flex-end}
 .panel{width:min(560px,100%);height:100%;background:var(--card);box-shadow:-8px 0 24px rgba(20,20,19,.10);display:flex;flex-direction:column}
 .panel-h{padding:18px 24px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -275,7 +281,7 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 .stop{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-soft);min-height:60px;flex-wrap:wrap}.stop:last-child{border-bottom:0}
 .stop>div{min-width:0}
 .no{width:28px;height:28px;border-radius:var(--r-sm);background:var(--soft);color:var(--ink);display:grid;place-items:center;font-size:12.5px;font-weight:600;flex:none;font-variant-numeric:tabular-nums}
-.opt{display:flex;gap:8px;flex-wrap:wrap}.opt button{min-height:44px;padding:0 14px;border:1px solid var(--line-strong);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;white-space:nowrap;background:var(--card);cursor:pointer;flex:1}.opt button:hover{background:var(--soft)}.opt button.on{border-color:var(--p);background:var(--p-soft);color:var(--p);font-weight:600}
+.opt{display:flex;gap:8px;flex-wrap:wrap}.opt button{min-height:44px;padding:0 14px;border:1px solid var(--line-strong);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;white-space:nowrap;background:var(--card);cursor:pointer;flex:1}.opt button:hover{background:var(--soft)}.opt button.on{border-color:var(--p);background:var(--p-soft);color:var(--p-deep);font-weight:600}
 .opt .input{flex:1}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .kp{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;min-width:0}.kp small{font-size:12.5px;color:var(--ink-2);font-weight:500}.kp b{display:block;font-size:26px;font-weight:600;margin-top:4px;letter-spacing:-.4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.kp em{font-style:normal;font-size:12.5px;color:var(--ink-2)}
@@ -285,7 +291,7 @@ select.input.tool{border-color:var(--line);background:var(--card)}
 @media (max-width:1180px){.tabs{padding-left:20px;padding-right:20px}}@media (max-width:720px){.tabs{padding-left:16px;padding-right:16px}}
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line-soft);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
 .day{background:var(--card);padding:10px;display:flex;flex-direction:column;gap:6px;min-height:150px;min-width:0}.day.today{background:var(--p-soft)}.day.wk{background:var(--day-wk)}
-.dn{font-size:12.5px;font-weight:600;color:var(--ink-2)}.today .dn{color:var(--p)}
+.dn{font-size:12.5px;font-weight:600;color:var(--ink-2)}.today .dn{color:var(--p-deep)}
 .ev{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 8px;font-size:12px;display:flex;flex-direction:column;text-decoration:none;color:inherit;border-left:3px solid var(--line);min-width:0}.ev:hover{text-decoration:none;color:inherit;border-color:var(--line-strong)}.ev b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ev span{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:720px){.cal{grid-template-columns:1fr}.day{min-height:0}}
 /* Colonnes secondaires : masquées explicitement (classe), jamais par position. */
@@ -405,3 +411,62 @@ a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration
 .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
 /* Liste à gauche d'une fiche (Klanten) : reste visible et défile seule */
 @media (min-width:900px){.sticky-list{position:sticky;top:76px}.sticky-list #clist{max-height:calc(100vh - 230px);overflow-y:auto}}
+/* G-03 : titre focalisé par le script après un changement de vue (tabindex=-1) : pas d'anneau, ce n'est pas une commande */
+h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:0}
+/* ---------- audit UX / WCAG 2.2 (evidence G) ---------- */
+/* G-01 · 2.4.11 : au téléphone, la barre panier et les onglets du bas ne cachent jamais l'élément focalisé ;
+   en haut, l'en-tête collant du catalogue (titre, recherche, catégories) non plus. */
+@media (max-width:1023px){html:has(body.portal-klant){scroll-padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}html:has(.kv-catalogus){scroll-padding-top:196px}}
+@media (min-width:1024px){html:has(.kv-catalogus){scroll-padding-top:120px}}
+/* G-07 · 1.4.3 : texte discret sur une ligne choisie (fond bleu pâle) → ink-2 (4,57:1 au lieu de 4,38) */
+.prod.on .quiet,.prod.on .pm,.prod.on .pp s{color:var(--ink-2)}
+/* G-07 : pages de connexion de l'équipe — texte blanc plein sur le bleu (4,79:1), sans opacité */
+.lg-left small{color:#fff}
+/* G-08 : libellé d'un groupe qui n'est pas un champ (Leveradres) */
+.field>.flabel{font-size:13px;font-weight:500;color:var(--ink)}
+/* G-12 · cibles tactiles ≥ 44 px (hauteur ET largeur) : icônes, champs compacts, prix Beheer */
+@media (pointer:coarse){.ibtn{width:44px;height:44px}.input,.pr-c .input,.tbl .input{min-height:44px!important}.kc-l .ibtn{width:44px;height:44px}.linkbtn{min-width:44px}.tag .ibtn{width:44px!important;height:44px!important}}
+/* G-15 : carte du Bord avec une action — le lien et le bouton sont frères (plus de <button> dans un <a>) */
+.ocard-group{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);min-width:0}
+.ocard-group:hover{box-shadow:var(--lift)}.ocard-group>.ocard{border:0;border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:none;padding-bottom:4px}.ocard-group>.ocard:hover{box-shadow:none}
+.ocard-acts{display:flex;gap:12px;padding:0 14px 14px;flex-wrap:wrap}
+/* G-10 : Bestellingen sur téléphone — une commande = un bloc (klant, statut, bedrag, artikelen, actie) */
+@media (max-width:720px){
+  .tbl-orders{min-width:0;table-layout:auto}.tbl-orders,.tbl-orders tbody,.tbl-orders thead{display:block}
+  .tbl-orders thead tr{display:flex;align-items:center;gap:4px 10px;flex-wrap:wrap;padding:4px 12px;border-bottom:1px solid var(--line)}
+  .tbl-orders thead th{display:block;width:auto!important;height:auto;padding:0;border:0}
+  .tbl-orders thead th:nth-child(4),.tbl-orders thead th:nth-child(6),.tbl-orders thead th:nth-child(8){display:none}
+  .tbl-orders tr.row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;grid-template-areas:"c k t" "c d s" "c a a" "c x x";column-gap:10px;row-gap:4px;padding:10px 12px;border-bottom:1px solid var(--line-soft)}
+  .tbl-orders tr.row:last-child{border-bottom:0}
+  .tbl-orders tr.row>td{display:block;height:auto;min-height:0;padding:0;border:0;max-width:none;width:auto!important;overflow:visible;white-space:normal}
+  .tbl-orders tr.row>td:nth-child(1){grid-area:c}.tbl-orders tr.row>td:nth-child(2){grid-area:d}.tbl-orders tr.row>td:nth-child(3){grid-area:k;min-width:0;overflow-wrap:anywhere}
+  .tbl-orders tr.row>td:nth-child(4){grid-area:a;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tbl-orders tr.row>td:nth-child(5){grid-area:s;justify-self:end}
+  .tbl-orders tr.row>td:nth-child(6){display:none}.tbl-orders tr.row>td:nth-child(7){grid-area:t;justify-self:end}
+  .tbl-orders tr.row>td.actions{grid-area:x;text-align:left;display:flex;margin-top:4px}.tbl-orders tr.row>td.actions .btn{flex:1}
+  .tbl-orders tr.row:hover td{background:transparent}
+}
+/* G-20 : rail de l'équipe (1024 px) — les libellés tiennent sans être coupés au milieu d'un mot */
+@media (max-width:1180px){.side .nav{padding:6px 0;font-size:10px;letter-spacing:-.01em}.side .nav span{overflow-wrap:normal;word-break:keep-all;hyphens:manual}}
+/* G-20 : bandeau de navigation du téléphone — un fondu indique qu'il reste des onglets à droite / à gauche */
+@media (max-width:720px){
+  .side.more-r{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent)}
+  .side.more-l{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent)}
+  .side.more-l.more-r{-webkit-mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent)}
+}
+/* G-21 : chauffeur (gants) — 12 px entre les actions ; au téléphone, l'action principale en bas, pleine largeur */
+.stop-acts{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+@media (max-width:560px){.stop-acts{flex:1 1 100%;justify-content:flex-start}.stop-acts>.btn-p{flex:1 1 100%;order:10;min-height:52px;font-size:15px}}
+/* G-24 : suivi de commande en liste */
+ol.tl{list-style:none;margin:0;padding:4px 0}ol.tl>li{display:flex;gap:12px;align-items:flex-start;padding:6px 0;font-size:13.5px}
+ol.steps{list-style:none;margin:0}
+/* G-07 : lien d'action dans un bandeau coloré (Bekijken, Opnieuw proberen) : bleu profond (≥ 4,9:1 sur fond sable ou rose) */
+.notice .linkbtn,.notice a{color:var(--p-deep)}
+/* G-12 / G-22 : au tactile, recherche, tri, ▲▼ de la route et interrupteur font 44 px dans les deux sens */
+@media (pointer:coarse){
+  .search{min-height:44px}.search input{min-height:42px}
+  .th-sort{min-width:44px}.tbl th.num .th-sort{min-width:44px}
+  .stop .mv .ibtn{width:44px!important;height:44px!important}
+  .toggle{width:52px;height:44px;background:transparent!important}.toggle::before{content:"";position:absolute;left:0;right:0;top:9px;height:26px;border-radius:13px;background:var(--neutral-300)}.toggle.on::before{background:var(--p)}.toggle::after{top:12px;left:3px;z-index:1}.toggle.on::after{left:29px}
+}
+.board.board-3{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:720px){.board.board-3{grid-template-columns:1fr}}
+.step{position:relative} /* le texte pour lecteur d'écran (.sr-only) reste dans la bande qui défile */

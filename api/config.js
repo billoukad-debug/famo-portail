@@ -1,25 +1,38 @@
-require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const ds = require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
+const __terms = require("../lib/terms");
 const { at, atAll } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const __lev = require("../lib/levering");
+const __bill = require("../lib/billing");
+const log = require("../lib/log");
 
-// Pagine sur toute la table : au-dela de 100 lignes, un simple pageSize=100
-// mentait sur le compte (plafonne silencieusement).
-async function count(table, formula){
-  const f = formula ? `?filterByFormula=${encodeURIComponent(formula)}` : "";
-  const j = await atAll(`${encodeURIComponent(table)}${f}`);
-  return (j.records || []).length;
+// Compte léger (E-05 : avant, chaque compte téléchargeait la table entière, 164 appels à
+// 15 000 commandes, en parallèle au-delà de la limite Airtable de 5 requêtes/s).
+//   - moteur SQL : COUNT(*) (ou lecture pré-filtrée en SQL si formule), une requête ;
+//   - Airtable : pagine toujours sur toute la table (un pageSize=100 mentait sur le compte)
+//     mais ne rapatrie qu'un seul petit champ par enregistrement (fields[]).
+// Un compte illisible vaut 0 et se trouve dans le journal, jamais une erreur de page.
+const LIGHT_FIELD = { "Catalogue": "Produit", "Clients": "Nom", "Prix négociés": "Prix négocié", "Stock": "Produit", "Commandes": "Référence", "Aanvragen": "Status" };
+async function count(table, formula, L){
+  try {
+    if (ds.state.engine) return await ds.state.engine.count(table, formula);
+    const f = formula ? `&filterByFormula=${encodeURIComponent(formula)}` : "";
+    const j = await atAll(`${encodeURIComponent(table)}?fields%5B%5D=${encodeURIComponent(LIGHT_FIELD[table] || "Nom")}${f}`);
+    if (j.error) { L.warn("compte illisible", { table, err: j.error }); return 0; }
+    return (j.records || []).length;
+  } catch (e) { L.warn("compte illisible", { table, err: e }); return 0; }
 }
 
 // Identite societe (table Configuratie, une seule ligne) + etat de mise en service.
 // Lecture seule : la saisie se fait dans Airtable, sans redeploiement.
 module.exports = async (req, res) => {
+  const L = log.from(req, "config");
   if (!__auth.hasCode()) return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt." });
   try {
     const q = req.query || {};
     const wantPublic = String(q.public || "") === "1";
-    const staffOk = __auth.staffOk(req);
-    const adminOk = __auth.adminOk(req);
+    const staffOk = !!(await __auth.staffSession(req)); // session non révoquée (A-01)
+    const adminOk = staffOk && __auth.adminOk(req);
 
     const conf = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
     const c = ((conf.records || [])[0] || {}).fields || {};
@@ -37,8 +50,14 @@ module.exports = async (req, res) => {
       leveringsvoorwaarden: (c["Leveringsvoorwaarden"] || "").trim(),
       // Boite interne qui recoit les nouvelles commandes. PRIVEE : volontairement
       // absente de contactOnly ci-dessous, qui part au public et au staff non-admin.
-      bestellingenEmail: (c["Bestellingen e-mail"] || "").trim()
+      bestellingenEmail: (c["Bestellingen e-mail"] || "").trim(),
+      // Mode de facturation et mentions légales (Code des sociétés, art. 2:20) : lib/billing.js.
+      facturatie: __bill.modeOf(c),
+      lotsVerplicht: !!c["Lots verplicht"],
+      legal: __bill.legalOf(c),
+      voorwaardenVersie: __terms.current(c).versie
     };
+    config.legalMissing = __bill.legalMissing(config.legal);
     const rules = __lev.rulesFrom(c);
     config.betaaltermijnDagen = rules.betaaltermijn;
     config.voorraadAfboeken = rules.voorraadAfboeken;
@@ -50,11 +69,23 @@ module.exports = async (req, res) => {
       btw: config.btw,
       telefoon: config.telefoon,
       email: config.email,
-      levering: config.levering
+      levering: config.levering,
+      legal: config.legal,
+      // Conditions générales (C-12) : version publiée ; le texte via ?voorwaarden=1.
+      voorwaardenVersie: __terms.current(c).versie
     };
 
     // Public contact block for the client portal (no IBAN/BIC).
+    // E-06 : identique pour tous les visiteurs (page d'accueil, mot de passe oublié) ->
+    // cache CDN 5 min, servi périmé 10 min de plus pendant le rafraîchissement. Uniquement
+    // cette réponse : les variantes personnel/beheer (IBAN, boîte interne) ne sont jamais
+    // mises en cache (aucun Cache-Control public ailleurs).
+    if (String(q.voorwaarden || "") === "1") {
+      res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+      return res.status(200).json({ voorwaarden: __terms.current(c), bedrijfsnaam: contactOnly.bedrijfsnaam, legal: config.legal });
+    }
     if (wantPublic && !staffOk) {
+      res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
       return res.status(200).json({ config: contactOnly });
     }
 
@@ -78,14 +109,13 @@ module.exports = async (req, res) => {
 
     if (q.status === "1") {
       if (!adminOk) return res.status(401).json({ error: "Enkel voor beheerders" });
-      const [catalogue, clients, prijzen, stock, orders, aanvragen] = await Promise.all([
-        count("Catalogue", "{Actif}=1"),
-        count("Clients"),
-        count("Prix négociés"),
-        count("Stock"),
-        count("Commandes"),
-        count("Aanvragen", "{Status}='Nieuw'")
-      ]);
+      // L'une après l'autre : en parallèle, Airtable dépassait 5 requêtes/s (429, 30 s de blocage).
+      const catalogue = await count("Catalogue", "{Actif}=1", L);
+      const clients = await count("Clients", "", L);
+      const prijzen = await count("Prix négociés", "", L);
+      const stock = await count("Stock", "", L);
+      const orders = await count("Commandes", "", L);
+      const aanvragen = await count("Aanvragen", "{Status}='Nieuw'", L);
       return res.status(200).json({ config, status: {
         identiteit: !!(config.bedrijfsnaam && config.btw && config.iban && config.bic),
         ibanOntbreekt: !config.iban || !config.bic,
@@ -98,6 +128,6 @@ module.exports = async (req, res) => {
     }
     res.status(200).json({ config });
   } catch (e) {
-    { console.error("[config]", e && e.message || e); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
+    { L.error("serverfout", { err: e }); res.status(500).json({ error: "Serverfout. Probeer opnieuw." }); }
   }
 };

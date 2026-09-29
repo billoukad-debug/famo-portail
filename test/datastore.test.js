@@ -227,9 +227,18 @@ test("migration : copie Airtable -> base, refus sans force une fois basculé, v�
   try {
     const refused = await callApi("dbadmin", { method: "POST", headers: { cookie }, body: { action: "copy" } });
     assert.equal(refused.statusCode, 409, "déjà basculé : pas d'écrasement sans force");
-    const copy = await callApi("dbadmin", { method: "POST", headers: { cookie }, body: { action: "copy", force: true } });
+    const noConfirm = await callApi("dbadmin", { method: "POST", headers: { cookie }, body: { action: "copy", force: true } });
+    assert.equal(noConfirm.statusCode, 409, "force seul ne suffit plus : OVERWRITE tapé");
+    assert.equal(noConfirm.body.needConfirm, "OVERWRITE");
+    // La base contient la commande passée plus haut (plus récente que toute l'« Airtable ») : refus.
+    const newer = await callApi("dbadmin", { method: "POST", headers: { cookie }, body: { action: "copy", force: true, confirm: "OVERWRITE" } });
+    assert.equal(newer.statusCode, 409, JSON.stringify(newer.body));
+    assert.ok(newer.body.newer >= 1);
+    await ds.state.store.replaceAll("Commandes", []);
+    const copy = await callApi("dbadmin", { method: "POST", headers: { cookie }, body: { action: "copy", force: true, confirm: "OVERWRITE" } });
     assert.equal(copy.statusCode, 200, JSON.stringify(copy.body));
     assert.equal(copy.body.ok, true);
+    assert.ok(copy.body.before && copy.body.before.id, "sauvegarde automatique avant d'écraser");
     const cmd = copy.body.report.find((r) => r.table === "Commandes");
     assert.deepEqual([cmd.airtable, cmd.postgres], [150, 150]);
     const kept = await ds.state.store.get("Commandes", orders[7].id);

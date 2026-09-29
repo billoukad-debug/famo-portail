@@ -1,0 +1,8 @@
+# Données locales du serveur de dev (créées au premier lancement par scripts/seed.js)
+.dev-data/
+# Secrets locaux : jamais dans le dépôt
+.env
+.env.*
+node_modules/
+.vercel/
+.claude/

@@ -18,6 +18,7 @@ function clean(s, max){
 }
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   try {
     const ip = String((req.headers["x-forwarded-for"] || "unknown")).split(",")[0].trim();
@@ -28,6 +29,12 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") body = JSON.parse(body || "{}");
     if (!body) body = {};
+    // Pot de miel : champ invisible du formulaire (assets/pages/aanvraag.js). Rempli = robot :
+    // même réponse qu'un succès (rien à apprendre), mais rien n'est écrit ni envoyé.
+    if (String(body.bijkomend || body.website || "").trim()) {
+      console.warn("[signup] pot de miel rempli, ignoré");
+      return res.status(200).json({ ok: true, mail: null });
+    }
 
     const bedrijfsnaam = clean(body.bedrijfsnaam, 120);
     const contactpersoon = clean(body.contactpersoon, 120);
@@ -43,6 +50,17 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: "Ongeldig e-mailadres" });
     }
 
+    // Conditions générales (C-12) : si une version est publiée, la case doit être cochée pour
+    // CETTE version (le formulaire renvoie la version affichée) ; elle est gardée comme preuve.
+    let versie = "";
+    try {
+      const conf = await require("../lib/airtable").at(encodeURIComponent("Configuratie") + "?maxRecords=1");
+      versie = require("../lib/terms").current((((conf && conf.records) || [])[0] || {}).fields).versie;
+    } catch (e) { versie = ""; }
+    if (versie && String(body.voorwaarden || "") !== versie) {
+      return res.status(400).json({ error: "Aanvaard de algemene voorwaarden om verder te gaan.", needTerms: true, versie });
+    }
+
     const fields = {
       "Bedrijfsnaam": bedrijfsnaam,
       "Contactpersoon": contactpersoon,
@@ -53,6 +71,7 @@ module.exports = async (req, res) => {
       "Taal": String(body.taal || "").toUpperCase() === "FR" ? "FR" : "NL",
       "Status": "Nieuw"
     };
+    if (versie) fields["Voorwaarden versie"] = versie;
 
     const r = await fetch(`https://api.airtable.com/v0/${BASE}/Aanvragen`, {
       method: "POST",
@@ -60,7 +79,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({ records: [{ fields }] })
     });
     const j = await r.json();
-    if (j.error) return res.status(500).json({ error: "Aanvraag opslaan mislukt. Bel ons." });
+    if (j.error) { console.error("[signup] opslaan", j.error.type || j.error); return res.status(500).json({ error: "Aanvraag opslaan mislukt. Bel ons." }); }
     // L'équipe est prévenue par e-mail ; sans clé mail rien ne part, la demande est quand même enregistrée.
     let mail = null;
     if (__ordermail.enabled()) {

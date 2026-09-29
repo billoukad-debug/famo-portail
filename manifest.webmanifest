@@ -1,0 +1,15 @@
+{
+  "name": "FAMO Seafood · Team",
+  "short_name": "FAMO Team",
+  "description": "Klaarzetten, leveren en ontvangst bevestigen — ook met zwak netwerk.",
+  "lang": "nl-BE",
+  "start_url": "/bestellingen.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F4EF",
+  "theme_color": "#4876A2",
+  "icons": [
+    { "src": "/assets/icons/famo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/assets/icons/famo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

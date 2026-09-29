@@ -30,7 +30,7 @@ async function buildOrderLines(clientId, items){
   for (const item of items) {
     const productId = String(item && item.productId || "");
     const quantity = numberOf(item && item.quantity);
-    if (!productId || quantity <= 0 || quantity > 100000 || !products.has(productId)) throw new Error("Ongeldig artikel of aantal");
+    if (!productId || quantity <= 0 || quantity > 1000 || !products.has(productId)) throw new Error("Ongeldig artikel of aantal");
     if (!/kg/i.test(String(products.get(productId).fields["Unité"] || "")) && !Number.isInteger(quantity)) {
       throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
     }
@@ -44,13 +44,14 @@ async function buildOrderLines(clientId, items){
   for (const [productId, item] of merged) {
     const fields = products.get(productId).fields;
     const price = __prices.unitPrice(products.get(productId), prices);
-    total += price * item.quantity;
+    total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * item.quantity); // = le prix écrit dans la ligne (B-09)
     lines.push(`${fields["Produit"] || "Artikel"} × ${item.quantity}${fields["Unité"] ? " " + fields["Unité"] : ""} [€${price.toFixed(2)}]${item.comment ? " (" + item.comment + ")" : ""}`);
   }
   return { lignes: lines.join("\n"), total: Math.round(total * 100) / 100 };
 }
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
   if (!staffCodeReady(res)) return;
   try {
     // ---------- POST : créer une commande au nom d'un client ----------
@@ -59,7 +60,7 @@ module.exports = async (req, res) => {
       if (typeof body === "string") body = JSON.parse(body || "{}");
       if (!body) body = {};
       // Le personnel prend aussi les commandes par téléphone : session staff suffit.
-      if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+      if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
       const { clientId, notes, bron } = body;
       const dateLivraison = body.dateLivraison ? String(body.dateLivraison).slice(0, 10) : "";
       if (!clientId || !REC.test(String(clientId))) return res.status(400).json({ error: "Klant en artikelen vereist" });
@@ -77,6 +78,7 @@ module.exports = async (req, res) => {
         "Référence": ref,
         "Date": __lev.brusselsToday(), // jour de Bruxelles, pas UTC (00:00–02:00 = même jour)
         "Lignes (produits / quantités)": order.lignes,
+        "Lignes besteld": order.lignes,
         "Statut": "Reçue",
         "Statut paiement": "En attente",
         "Total": order.total,
@@ -99,6 +101,7 @@ module.exports = async (req, res) => {
           const url = __mail.portalUrl(req);
           return __mail.notifyNewOrder({
             ref,
+            recordId: j.records[0].id,
             date: fields["Date"],
             dateLivraison,
             notes: notes || "",
@@ -113,10 +116,11 @@ module.exports = async (req, res) => {
         })().catch(() => null);
       }
 
+      await require("../lib/revision").bump();
       return res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });
     }
 
-    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     // ---------- GET ----------
     const q = req.query || {};

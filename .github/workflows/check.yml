@@ -1,15 +1,24 @@
 name: Controle du code
 
+# Toutes les branches (pas seulement main) et toutes les pull requests.
 on:
   push:
-    branches: [main, v2]
+    branches: ["**"]
   pull_request:
-    branches: [main, v2]
+
+permissions:
+  contents: read
+
+# Un nouveau push sur la même branche annule le contrôle précédent encore en cours.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   controle:
-    name: Syntaxe et lint API
+    name: Tests et lint (check.js + ESLint)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Recuperer le depot
         uses: actions/checkout@v4
@@ -17,7 +26,53 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verifier les API et scripts HTML
+      - name: Regles metier, syntaxe, tests unitaires (scripts/check.js)
         run: node scripts/check.js
-      - name: Verifier les variables API
-        run: npx --yes eslint@9 .
+      - name: Lint de tout le depot (ESLint, version figee)
+        run: npx --yes eslint@9.39.5 .
+
+  navigateur:
+    name: Navigateur (ux-audit, audit clavier)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_VERSION: "1.56.1"
+      BASE: http://localhost:4200
+      # Vide : scripts/ux-audit.js prend alors le chromium installé par Playwright.
+      CHROMIUM: ""
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installer Playwright hors du depot (version figee)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          cd "$RUNNER_TEMP/pw"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund --no-save "playwright@${PLAYWRIGHT_VERSION}"
+          npx -y "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+      - name: Demarrer le portail de dev (donnees de demo, Airtable et Resend simules)
+        run: |
+          FAMO_RESEED=1 nohup node scripts/dev.js > "$RUNNER_TEMP/dev.log" 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null "$BASE/"; then echo "Portail pret"; exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/dev.log"
+          exit 1
+      - name: Audit UX (27 ecrans, 1280 et 390 px)
+        run: node scripts/ux-audit.js
+      - name: Audit clavier (si present)
+        run: |
+          if [ -f scripts/kbd-audit.js ]; then
+            node scripts/kbd-audit.js
+          else
+            echo "scripts/kbd-audit.js absent : etape ignoree"
+          fi
+      - name: Journal du serveur de dev
+        if: always()
+        run: cat "$RUNNER_TEMP/dev.log" || true

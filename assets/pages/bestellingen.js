@@ -16,7 +16,7 @@
   function header() {
     const c = S.counts();
     return '<div class="page-h"><div><h1 class="h1">Bestellingen</h1><p class="sub">' + K.esc(K.dateLong(K.today())) + '</p></div><span class="spacer"></span>' + K.c.kpi(c.today, "vandaag") + K.c.kpi(c.prep, "te bereiden") + (c.late ? K.c.kpi(c.late, "te laat", true, "#/tabel?status=late") : "") + (K.staff.isAdmin() ? '<a class="btn btn-p btn-sm" href="/invoer.html">' + K.icon("plus") + 'Nieuwe bestelling</a>' : "") + '</div>' +
-      '<div class="views">' + [["tabel", "Tabel", "table"], ["bord", "Bord", "board"], ["kalender", "Kalender", "cal"]].map(([k, l, i]) => '<a href="#/' + k + '"' + (view === k ? ' class="on"' : "") + '>' + K.icon(i) + l + '</a>').join("") + '</div>' +
+      '<nav class="views" aria-label="Weergave">' + [["tabel", "Tabel", "table"], ["bord", "Bord", "board"], ["kalender", "Kalender", "cal"]].map(([k, l, i]) => '<a href="#/' + k + '"' + (view === k ? ' class="on"' : "") + '>' + K.icon(i) + l + '</a>').join("") + '</nav>' +
       '<div class="tools"><label class="search" style="max-width:280px">' + K.icon("search") + '<input id="q" aria-label="Zoeken" placeholder="Zoek klant, referentie, artikel…" value="' + K.esc(filter.q) + '"></label>' +
       '<select class="input tool" id="fStatus" aria-label="Status" style="width:auto;padding:0 8px"><option value="open"' + (filter.status === "open" ? " selected" : "") + '>Open bestellingen</option><option value="all"' + (filter.status === "all" ? " selected" : "") + '>Alle</option><option value="Reçue"' + (filter.status === "Reçue" ? " selected" : "") + '>Ontvangen</option><option value="Prête"' + (filter.status === "Prête" ? " selected" : "") + '>Klaar</option><option value="Sortie en livraison"' + (filter.status === "Sortie en livraison" ? " selected" : "") + '>Onderweg</option><option value="Facturée"' + (filter.status === "Facturée" ? " selected" : "") + '>Geleverd</option><option value="unpaid"' + (filter.status === "unpaid" ? " selected" : "") + '>Openstaande betaling</option><option value="late"' + (filter.status === "late" ? " selected" : "") + '>Te laat</option><option value="Annulée"' + (filter.status === "Annulée" ? " selected" : "") + '>Geannuleerd</option></select>' +
       (filter.clientId ? '<span class="tag" style="display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px 0 10px">Klant: <b>' + K.esc(clientName(filter.clientId)) + '</b><button type="button" class="ibtn" id="clearKlant" aria-label="Klantfilter wissen" style="width:32px;height:32px">' + K.icon("x") + '</button></span>' :
@@ -67,7 +67,9 @@
     const st = 'style="background:rgba(255,255,255,.12);color:#fff"';
     return '<div class="bulk"><b>' + sel.size + '</b> geselecteerd<button type="button" class="btn btn-sm" style="background:#fff;color:var(--ink)" data-bulk="picking">Verzamellijst</button><button type="button" class="btn btn-sm" ' + st + ' data-bulk="delivery">Leveringsbonnen</button>' + (unpaid ? '<button type="button" class="btn btn-sm" ' + st + ' data-bulk="paid">Markeer betaald (' + unpaid + ')</button>' : "") + '<button type="button" class="btn btn-sm" ' + st + ' data-bulk="csv">Exporteren (CSV)</button><button type="button" class="ibtn" style="color:#fff" data-bulk="clear" aria-label="Selectie wissen">' + K.icon("x") + '</button></div>';
   }
-  function render() {
+  // G-03 / CLA-10 : chaque re-rendu garde le focus (filtre, case, tri, action) ; K.keep le retrouve par ses clés.
+  function render() { return K.keep(page, draw); }
+  function draw() {
     saveFilter();
     const list = filtered();
     page.innerHTML = header() + '<div class="content" style="padding-top:4px">' + (view === "bord" ? bord(list) : view === "kalender" ? kalender(list) : tabel(list)) + '</div>' + bulkBar();

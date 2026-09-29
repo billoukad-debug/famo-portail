@@ -18,9 +18,9 @@ Le mobile n'est pas un cas secondaire : le personnel travaille dessus.
 
 ## Langue
 
-**Toute l'interface est en néerlandais.** Le code interne (Airtable, variables) est en français ou en anglais — ne jamais laisser fuir ces termes à l'écran.
+**L'interface du personnel et de Beheer est en néerlandais** ; le portail client est en NL et FR (`K.t()`, `K.FR`). Le code interne (Airtable, variables) est en français ou en anglais — ne jamais laisser fuir ces termes à l'écran.
 
-Règle absolue : l'unité Airtable `caisse` s'affiche **kassa**, jamais « caisse » ni « doos ». La traduction passe par `famoNL` dans `assets/ui.js` (`famoNL.unit`, `famoNL.status`, `famoNL.pay`). Un contrôle automatique bloque le déploiement si un libellé français apparaît.
+Règle absolue : l'unité Airtable `caisse` s'affiche **kassa**, jamais « caisse » ni « doos ». La traduction passe par `famoNL` dans `assets/ui.js` (`famoNL.unit`, `famoNL.status`, `famoNL.pay`). `scripts/check.js` échoue (et la CI passe au rouge) si `caisse` est écrit tel quel dans une page (`>caisse<` ou `"caisse" +`) ; ce contrôle est étroit et ne détecte pas les autres libellés français. La CI ne bloque pas à elle seule le déploiement Vercel.
 
 ---
 
@@ -36,7 +36,7 @@ Grammaire Airbnb DESIGN.md, radius Anthropic/Claude, une seule nuance d'action :
 --card:    #FFFFFF   /* cartes posées sur le canvas */
 --ink:     #232323   /* texte uniquement — jamais un bouton noir */
 --ink-2:   #6A6A6A   /* corps secondaire */
---ink-3:   #737169   /* méta, libellés discrets */
+--ink-3:   #66645D   /* méta, libellés discrets */
 --line:    #E3E0D6   --line-soft: #EDEBE4   --line-strong: #C7C3B7
 --p:       #4876A2   /* TOUTE action : bouton principal, lien, onglet actif, sélection */
 --p-deep:  #3F6690   /* survol / pressé */
@@ -56,11 +56,11 @@ Rayons **4 / 6 / 8 / 12** (`--r-xs`, `--r-sm`, `--r`, `--r-lg`) : 8px contrôles
 
 ## Nom
 
-« **FAMO Seafood** » partout : écran, documents, e-mails. Le nom imprimé sur les documents et dans les e-mails vient de Beheer → Bedrijfsgegevens (`Bedrijfsnaam`). Si la société légale doit figurer sur la facture, on l'écrit dans ce même champ, par exemple « FAMO Seafood (Famo Trading BV) ». On ne l'écrit jamais en dur dans le code.
+« **FAMO Seafood** » partout : écran, documents, e-mails. Le nom imprimé sur les documents et dans les e-mails vient de Beheer → Bedrijfsgegevens (`Bedrijfsnaam`). Nom juridique : **Famo Trading BV** (BCE 0788.705.713) ; nom commercial : **FAMO Seafood**. Si la société légale doit figurer sur un document, on l'écrit dans ce même champ, par exemple « FAMO Seafood (Famo Trading BV) ». La facture légale n'est pas produite par le portail (comptable, Billtobox). On ne l'écrit jamais en dur dans le code.
 
 ## Appareils
 
-- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Les cartes produit réservent une vignette (photo à venir).
+- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Les lignes produit affichent la photo (`Foto`, envoyée depuis Beheer) au dépliage, une vignette neutre sinon.
 - **Personnel** : tablette au magasin (820), téléphone en tournée (390), ordinateur au bureau (1280). Barre latérale 240px → rail 88px (≤ 1180px) → bandeau horizontal (≤ 720px). Cibles ≥ 44px, y compris les cases à cocher (zone 44px, case visible 22px).
 - **Bestellingen** : un appui sur une commande la déplie, un second ouvre sa page.
 
@@ -104,14 +104,14 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 # Contraintes techniques — ne pas casser
 
 1. **HTML + CSS + JS pur.** Pas de framework, pas de build, pas de `package.json`. Une seule feuille : `assets/ui.css`.
-2. **Aucune dépendance externe** hors Google Fonts (seule origine tierce autorisée par la CSP de `vercel.json`). Ni librairie d'icônes, ni CDN de script.
+2. **Aucune dépendance chargée depuis l'extérieur** hors Google Fonts (seule origine tierce autorisée par la CSP de `vercel.json`). Ni librairie d'icônes, ni CDN de script. Exception locale : `vendor/html2pdf.bundle.min.js` (≈ 900 Ko, copie dans le dépôt, PDF des documents).
 3. **Garder les noms de classes et de variables** : le balisage est produit par le JavaScript. Changer l'apparence = changer les valeurs dans `ui.css`.
 4. **`K.esc()` obligatoire** sur tout texte écrit dans `innerHTML`.
 5. **`alert()` / `confirm()` / `prompt()` natifs interdits** : `K.toast`, `K.confirm`, `K.prompt`, `K.panel`.
 6. **Cibles tactiles ≥ 44 px** partout où le personnel appuie (`--tap`).
-7. **Portail client bilingue** : tout texte visible passe par `K.t()` et a sa traduction dans `K.FR` (`assets/ui.js`) ; un test échoue sinon. Personnel, Beheer, documents et e-mails restent en néerlandais.
+7. **Portail client bilingue** : tout texte visible passe par `K.t()` et a sa traduction dans `K.FR` (`assets/ui.js`) ; un test échoue sinon. Personnel, Beheer et e-mails restent en néerlandais ; les documents suivent la langue du client (NL/FR).
 8. **Documents** (`documents.js`) et **e-mails** (`lib/ordermail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Crème (encre `#232323`, filet `#E3E0D6`, fond `#FAF9F5`, bleu `#4876A2`). Pas de ligne de signature sur les documents.
-9. `node scripts/check.js` et `npx eslint@9 api/` doivent rester verts (la CI joue les deux).
+9. `node scripts/check.js` et `npx -y eslint@9.39.5 .` (tout le dépôt) doivent rester verts ; la CI joue les deux, plus `scripts/ux-audit.js` dans un navigateur.
 
 ---
 
@@ -121,12 +121,12 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 2. **Documents A4** : couleurs alignées sur Crème, mais la mise en page n'a pas été redessinée. C'est l'objet qui arrive physiquement chez le client.
 3. **E-mails** : couleurs alignées, gabarit à retravailler (en-tête, pied, mode sombre de Gmail et d'Outlook).
 4. **Logo** : le monogramme « F-houle » bleu sert de favicon, de tuile et d'en-tête de document. Il reste à valider comme logo, avec un mot-symbole « FAMO Seafood ».
-5. **Styles en ligne** encore présents dans `index.html` et `klant.html` : à déplacer dans `ui.css`.
+5. **Styles en ligne** : plus aucun dans les pages HTML, mais ≈ 460 `style="` dans le JavaScript des pages (≈ 140 dans `beheer.js`, ≈ 70 dans `klant.js`, ≈ 40 dans `order.js`) : à déplacer dans `ui.css`.
 6. **Design system sur claude.ai** (« FAMO Portail Design System ») : il porte encore « Famo Trading » et les valeurs d'avant Crème. À resynchroniser sur ce dépôt.
 
 # Ce qu'il ne faut pas faire
 
-- Inventer des produits pour remplir une maquette : le catalogue réel compte **4 produits actifs**.
+- Inventer des produits pour remplir une maquette : le catalogue est petit (quelques produits actifs ; données fictives jusqu'au 27/09/2026, à vérifier dans Beheer → Producten).
 - Ajouter des écrans qui n'existent pas côté serveur.
 - Introduire du français visible chez le personnel ou dans Beheer.
 - Des dégradés, des cartes à bordure gauche colorée, des emojis, des pilules de 44 px comme boutons.

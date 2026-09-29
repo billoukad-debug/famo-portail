@@ -1,6 +1,7 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const { at, atAll, REC } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
+const log = require("../lib/log");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -36,13 +37,15 @@ function escapeFormula(value){
 }
 
 module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
+  const L = log.from(req, "stock");
   if (!staffCodeReady(res)) return;
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const q = req.query || {};
     // Le magasin reçoit les livraisons fournisseur et compte : lecture et corrections
     // pour tout le personnel ; supprimer une ligne reste réservé au beheerder.
-    if (!__auth.staffOk(req)) return res.status(401).json({ error: "Ongeldige personeelscode" });
+    if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Ongeldige personeelscode" });
 
     if (req.method === "GET" && String(q.history || "") === "1") {
       const product = String(q.product || "").trim();
@@ -53,7 +56,7 @@ module.exports = async (req, res) => {
       if (product) clauses.push(`{Produit}='${escapeFormula(product)}'`);
       path += `&filterByFormula=${encodeURIComponent("AND(" + clauses.join(",") + ")")}`;
       const moves = await at(path);
-      if (moves.error) { console.error("[stock]", moves.error.message || moves.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
+      if (moves.error) { L.error("historiek onleesbaar", { product, err: moves.error }); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
       return res.status(200).json({
         movements: (moves.records || []).map(record => ({
           id: record.id,
@@ -70,7 +73,7 @@ module.exports = async (req, res) => {
 
     if (req.method === "GET") {
       const stock = await atAll("Stock?sort%5B0%5D%5Bfield%5D=Produit&sort%5B0%5D%5Bdirection%5D=asc");
-      if (stock.error) { console.error("[stock]", stock.error.message || stock.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
+      if (stock.error) { L.error("voorraad onleesbaar", { err: stock.error }); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
       // Une ligne de stock sans produit au catalogue (renommé, supprimé à la main) est
       // « orpheline » : jamais déduite, jamais commandée. L'écran la signale et permet de la retirer.
       const cat = await atAll("Catalogue");
@@ -100,7 +103,7 @@ module.exports = async (req, res) => {
       const cur = await at(`Stock/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Artikel niet gevonden" });
       const del = await at(`Stock/${body.id}`, { method: "DELETE" });
-      if (del.error) { console.error("[stock]", del.error.message || del.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
+      if (del.error) { L.error("voorraadregel niet verwijderd", { recId: body.id, err: del.error }); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
       return res.status(200).json({ ok: true, deleted: body.id });
     }
     const quantity = amount(body.quantity);
@@ -135,11 +138,12 @@ module.exports = async (req, res) => {
       method: "PATCH",
       body: JSON.stringify({ fields })
     });
-    if (saved.error) { console.error("[stock]", saved.error.message || saved.error); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
+    if (saved.error) { L.error("voorraad niet opgeslagen", { recId: body.id, err: saved.error }); return res.status(500).json({ error: "Opslaan of lezen mislukt. Probeer opnieuw." }); }
 
     let journalWarning = null;
     if (rounded !== before) {
       journalWarning = await logCorrection(current, rounded, note, movementType);
+      if (journalWarning) L.warn("beweging niet in het journaal", { recId: body.id, product: current.fields["Produit"] || "", err: journalWarning });
     }
     return res.status(200).json({
       ok: true,
@@ -148,6 +152,7 @@ module.exports = async (req, res) => {
       journalWarning
     });
   } catch (error) {
+    L.error("serverfout", { err: error });
     return res.status(500).json({ error: String(error) });
   }
 };

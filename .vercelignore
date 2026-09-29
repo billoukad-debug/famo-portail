@@ -1,0 +1,12 @@
+# Fichiers de développement : jamais servis par le site public.
+# (lib/ reste déployé : les fonctions api/ en ont besoin ; vercel.json le bloque en HTTP.)
+.dev-data
+.env
+.env.*
+scripts
+test
+docs
+.github
+*.md
+eslint.config.js
+.claude

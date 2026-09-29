@@ -6,8 +6,14 @@ const TOKEN = process.env.AIRTABLE_TOKEN;
 const __auth = require("../lib/staffauth");
 const __mail = require("../lib/mail");
 const __prices = require("../lib/prices");
+const __terms = require("../lib/terms");
+const __kl = require("../lib/klantlogin");
 const __ordermail = require("../lib/ordermail");
+const __authmail = require("../lib/authmail");
 const __lev = require("../lib/levering");
+const __bill = require("../lib/billing");
+const __guard = require("../lib/guardrails");
+const __journal = require("../lib/journal");
 const BASE = "appcdduLth9iGX8I0";
 const REC = /^[A-Za-z0-9]{1,40}$/;
 
@@ -18,6 +24,9 @@ function parseBody(req) {
   }
   return body || {};
 }
+
+// Type réel d'une image d'après ses octets magiques : lib/photo.js (partagé avec api/bewijs.js).
+const { imageType } = require("../lib/photo");
 
 function clean(s, max) {
   return String(s || "").trim().slice(0, max || 200);
@@ -41,12 +50,20 @@ function genPassword() {
   return out;
 }
 
+// Nom d'utilisateur déjà pris sur les DEUX tables de connexion (Clients, Klantgebruikers, H-08) ?
+// → id de l'enregistrement qui l'a, ou "". Table Klantgebruikers absente (Airtable) : ignorée.
+async function usernameOwner(user) {
+  const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(String(user || "").toLowerCase())}'`);
+  const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
+  if ((hit.records || []).length) return hit.records[0].id;
+  const u = await at(`${encodeURIComponent(__kl.USERS)}?filterByFormula=${f}&maxRecords=1`).catch(() => null);
+  return u && !u.error && (u.records || []).length ? u.records[0].id : "";
+}
+
 async function uniqueUsername(base) {
   let candidate = base;
   for (let i = 0; i < 20; i++) {
-    const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(candidate)}'`);
-    const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
-    if (!(hit.records || []).length) return candidate;
+    if (!(await usernameOwner(candidate))) return candidate;
     candidate = base.slice(0, 14) + "." + (i + 2);
   }
   return base + "." + crypto.randomInt(100, 999);
@@ -95,7 +112,10 @@ async function statusPayload() {
     geslotenDagen: String(c["Gesloten dagen"] || "").trim(),
     minimumBestelling: Number(c["Minimum bestelling"]) > 0 ? Number(c["Minimum bestelling"]) : 0,
     betaaltermijnDagen: Number(c["Betaaltermijn dagen"]) > 0 ? Number(c["Betaaltermijn dagen"]) : 14,
-    voorraadAfboeken: !!c["Voorraad afboeken"]
+    voorraadAfboeken: !!c["Voorraad afboeken"],
+    voorwaarden: __terms.current(c),
+    herinneringen: !!c["Herinneringen aan"],
+    lotsVerplicht: !!c["Lots verplicht"]
   };
   config.levering = __lev.publicRules(__lev.rulesFrom(c));
 
@@ -135,6 +155,7 @@ async function statusPayload() {
     id: r.id,
     nom: r.fields["Nom"] || "",
     adresse: r.fields["Lieu de livraison"] || "",
+    facturatieadres: r.fields["Facturatieadres"] || "",
     tel: r.fields["Téléphone"] || "",
     btw: r.fields["BTW-nummer"] || "",
     klantnr: r.fields["Klantnummer"] || "",
@@ -142,6 +163,8 @@ async function statusPayload() {
     user: r.fields["Gebruikersnaam"] || "",
     hasPassword: !!r.fields["Wachtwoord"],
     gearchiveerd: !!r.fields["Gearchiveerd"],
+    voorwaardenVersie: r.fields["Voorwaarden versie"] || "",
+    voorwaardenOp: r.fields["Voorwaarden aanvaard op"] || "",
     taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL"
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
@@ -149,7 +172,9 @@ async function statusPayload() {
     id: r.id,
     clientId: (r.fields["Client"] || [])[0] || "",
     productId: (r.fields["Produit"] || [])[0] || "",
-    prix: __prices.negotiatedValue(r.fields["Prix négocié"])
+    prix: __prices.negotiatedValue(r.fields["Prix négocié"]),
+    van: __prices.periodOf(r.fields).van,
+    tot: __prices.periodOf(r.fields).tot
   }));
 
   const stockList = (stock.records || []).map(r => ({
@@ -204,14 +229,15 @@ async function statusPayload() {
   };
 }
 
-module.exports = async (req, res) => {
+const handler = async (req, res) => {
   if (!__auth.hasCode()) {
     return res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt." });
   }
 
   try {
     if (req.method === "GET") {
-      if (!__auth.adminOk(req)) {
+      // adminOk (signature, sans lecture) puis adminSession : session non révoquée (base ≤ 60 s).
+      if (!__auth.adminOk(req) || !(await __auth.adminSession(req))) {
         return res.status(401).json({ error: "Enkel voor beheerders" });
       }
       // Pastille « Beheer » de la navigation : seulement le nombre de demandes non traitées (un appel, un champ).
@@ -229,7 +255,8 @@ module.exports = async (req, res) => {
     }
 
     const body = parseBody(req);
-    if (!__auth.adminOk(req)) {
+    const me = __auth.adminOk(req) ? await __auth.adminSession(req) : null;
+    if (!me) {
       return res.status(401).json({ error: "Enkel voor beheerders" });
     }
 
@@ -248,8 +275,19 @@ module.exports = async (req, res) => {
         "BIC": clean(body.bic, 20).replace(/\s+/g, "").toUpperCase(),
         "Betalingsvoorwaarden": clean(body.betalingsvoorwaarden, 200),
         "Leveringsvoorwaarden": clean(body.leveringsvoorwaarden, 500),
-        "Bestellingen e-mail": clean(body.bestellingenEmail, 120).toLowerCase()
+        "Bestellingen e-mail": clean(body.bestellingenEmail, 120).toLowerCase(),
+        // Mentions légales (WVV art. 2:20) et mode de facturation (lib/billing.js).
+        "Juridische naam": clean(body.juridischeNaam, 120),
+        "Rechtsvorm": clean(body.rechtsvorm, 40),
+        "RPR": clean(body.rpr, 120),
+        // Traçabilité : un lot par article obligatoire avant « Klaar » (api/updateorder.js).
+        "Lots verplicht": body.lotsVerplicht === true,
+        // Relances de paiement automatiques (H-01) : mode Portaal seulement (lib/reminders.js).
+        "Herinneringen aan": body.herinneringen === true
       };
+      const mode = clean(body.facturatie, 20);
+      if (mode && !__bill.MODES.includes(mode)) return res.status(400).json({ error: "Ongeldige facturatie: Boekhouder of Portaal" });
+      fields["Facturatie"] = mode || "Boekhouder";
       if (fields["Bestellingen e-mail"] && !__mail.isEmail(fields["Bestellingen e-mail"])) {
         return res.status(400).json({ error: "Ongeldig e-mailadres voor bestelmeldingen" });
       }
@@ -297,6 +335,22 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // ---- Conditions générales (C-12) ----
+    // Texte NL/FR ; « publish » = nouvelle version à faire accepter par chaque client avant sa
+    // commande suivante (api/order.js). Sans publish, seul le texte change (coquille corrigée).
+    if (action === "saveVoorwaarden") {
+      const nl = __terms.clean(body.nl), fr = __terms.clean(body.fr);
+      if (String(body.nl || "").length > __terms.MAX || String(body.fr || "").length > __terms.MAX) return res.status(400).json({ error: "Tekst te lang (max " + __terms.MAX + " tekens)" });
+      if (body.publish === true && !nl && !fr) return res.status(400).json({ error: "Geen tekst om te publiceren" });
+      const existing = await getConfigRecord();
+      if (!existing || existing.error || !existing.id) return res.status(500).json({ error: "Configuratie onleesbaar. Sla eerst de bedrijfsgegevens op." });
+      const fields = { "Voorwaarden NL": nl, "Voorwaarden FR": fr };
+      if (body.publish === true) fields["Voorwaarden versie"] = __terms.newVersion();
+      const saved = await at(`${encodeURIComponent("Configuratie")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
+      if (saved.error) { console.error("[onboarding] voorwaarden", saved.error.type, saved.error.message); return res.status(500).json({ error: "Opslaan mislukt. Probeer opnieuw." }); }
+      return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
     // ---- Catalogue product ----
     if (action === "saveProduct") {
       const nom = clean(body.nom, 120);
@@ -305,6 +359,8 @@ module.exports = async (req, res) => {
       const cat = clean(body.cat, 80) || "Algemeen";
       if (!nom) return res.status(400).json({ error: "Productnaam is verplicht" });
       if (!Number.isFinite(base) || base < 0) return res.status(400).json({ error: "Ongeldige basisprijs" });
+      // Garde-fous (audit L-04) : un prix de base à 0 ou à 1 500 000 € est une faute de frappe.
+      if (base === 0 || base > __guard.MAX_BASE_PRICE) return res.status(400).json({ error: "Basisprijs moet tussen € 0,01 en € " + __guard.MAX_BASE_PRICE + " liggen" });
       if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig product-id" });
       const fields = {
         "Produit": nom,
@@ -399,17 +455,20 @@ module.exports = async (req, res) => {
       if (!/^image\/(jpeg|png|webp)$/.test(type)) return res.status(400).json({ error: "Enkel JPEG, PNG of WebP" });
       const data = String(body.base64 || "").replace(/^data:[^;]+;base64,/, "");
       if (!data || data.length > 4200000) return res.status(400).json({ error: "Foto te groot (max 3 MB)" });
+      // Le type déclaré ne prouve rien : les premiers octets doivent être ceux d'une vraie
+      // image du même type (pas de HTML/SVG/script servi ensuite sous image/png).
+      if (imageType(data) !== type.slice(6)) return res.status(400).json({ error: "Dit bestand is geen geldige JPEG-, PNG- of WebP-foto" });
       const filename = clean(body.filename, 80).replace(/[^\w.\-]+/g, "-") || "foto.jpg";
       // Une seule photo par produit : l'upload Airtable AJOUTE au champ, et le catalogue
       // montre la première. Sans ce vidage, changer de photo ne changeait rien à l'écran.
       const cleared = await at(`Catalogue/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Foto": [] } }) });
-      if (cleared.error) return res.status(cleared.error.type === "NOT_FOUND" ? 404 : 500).json({ error: cleared.error.type === "NOT_FOUND" ? "Product niet gevonden" : (cleared.error.message || "Foto uploaden mislukt") });
+      if (cleared.error) { if (cleared.error.type !== "NOT_FOUND") console.error("[onboarding] uploadFoto", body.id, cleared.error.type, cleared.error.message); return res.status(cleared.error.type === "NOT_FOUND" ? 404 : 500).json({ error: cleared.error.type === "NOT_FOUND" ? "Product niet gevonden" : "Foto uploaden mislukt" }); }
       const r = await fetch(`https://content.airtable.com/v0/${BASE}/${body.id}/${encodeURIComponent("Foto")}/uploadAttachment`, {
         method: "POST", headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({ contentType: type, filename, file: data })
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok || j.error) return res.status(500).json({ error: (j.error && j.error.message) || "Foto uploaden mislukt" });
+      if (!r.ok || j.error) { console.error("[onboarding] uploadFoto", body.id, r.status, j.error && (j.error.type || j.error)); return res.status(500).json({ error: "Foto uploaden mislukt" }); }
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -466,10 +525,8 @@ module.exports = async (req, res) => {
       const generate = body.generate !== false;
       if (!user) user = await uniqueUsername(slugUser(nom));
       else {
-        const f = encodeURIComponent(`LOWER({Gebruikersnaam})='${escapeFormula(user)}'`);
-        const hit = await at(`Clients?filterByFormula=${f}&maxRecords=1`);
-        const other = (hit.records || [])[0];
-        if (other && other.id !== body.id) {
+        const other = await usernameOwner(user);
+        if (other && other !== body.id) {
           return res.status(409).json({ error: "Deze gebruikersnaam bestaat al" });
         }
       }
@@ -479,6 +536,8 @@ module.exports = async (req, res) => {
       const fields = {
         "Nom": nom,
         "Lieu de livraison": clean(body.adresse, 250),
+        // Adresse du siège (facture, UBL) si différente du lieu de livraison (audit C-16).
+        "Facturatieadres": clean(body.facturatieadres, 250),
         "Téléphone": clean(body.tel, 40),
         "BTW-nummer": clean(body.btw, 40),
         "Klantnummer": clean(body.klantnr, 40),
@@ -490,6 +549,9 @@ module.exports = async (req, res) => {
       if (fields["Email"] && !__mail.isEmail(fields["Email"])) {
         return res.status(400).json({ error: "Ongeldig e-mailadres voor deze klant" });
       }
+      // N° TVA belge : contrôle modulo 97 (il devient l'adresse Peppol du client dans l'UBL).
+      const tva = fields["BTW-nummer"].toUpperCase().replace(/[\s.]/g, "");
+      if (tva && /^(BE)?\d{9,10}$/.test(tva)) { const d = tva.replace(/\D/g, "").padStart(10, "0"); if (97 - (Number(d.slice(0, 8)) % 97) !== Number(d.slice(8))) return res.status(400).json({ error: "Ongeldig Belgisch BTW-nummer voor deze klant (controlecijfers)" }); }
 
       let saved;
       if (body.id) {
@@ -501,14 +563,17 @@ module.exports = async (req, res) => {
       }
       if (saved.error) return res.status(500).json({ error: saved.error.message || "Klant opslaan mislukt" });
       const id = body.id || (saved.records && saved.records[0] && saved.records[0].id);
-      // E-mail de bienvenue avec les identifiants, si le client a une adresse et qu'un
-      // (nouveau) mot de passe vient d'être créé. Jamais bloquant.
+      // E-mail de bienvenue si le client a une adresse et qu'un (nouveau) mot de passe vient
+      // d'être créé : gebruikersnaam + lien d'activation (72 h) où il choisit son propre mot
+      // de passe — jamais le mot de passe en clair. Celui que Beheer affiche reste valable
+      // (à dicter par téléphone) jusqu'à ce choix. Jamais bloquant.
       let mail = null;
       const newCreds = !body.id || generate || !!clean(body.password, 80);
-      if (newCreds && fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
+      if (newCreds && id && fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
         mail = await (async () => {
           const cfg = await __ordermail.loadMailConfig(at);
-          return __ordermail.notifyWelcome({ klant: { nom, email: fields["Email"] }, credentials: { user, password }, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id, fields }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyActivation({ klant: { nom, email: fields["Email"], taal: fields["Taal"] }, user, link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
         })().catch(() => null);
       }
       return res.status(200).json({
@@ -517,6 +582,69 @@ module.exports = async (req, res) => {
         mail,
         ...(await statusPayload())
       });
+    }
+
+    // ---- Utilisateurs supplémentaires d'un client (H-08) : chef, gérant, second établissement…
+    // Chacun son identifiant et son mot de passe ; commandes, prix et documents du client.
+    if (action === "listKlantgebruikers") {
+      const cid = clean(body.clientId, 40);
+      if (!REC.test(cid)) return res.status(400).json({ error: "Ongeldig klant-id" });
+      const all = await atAll(encodeURIComponent(__kl.USERS));
+      if (all.error && !/NOT_FOUND/.test(String(all.error.type || ""))) return res.status(500).json({ error: "Gebruikers onleesbaar" });
+      const users = ((all && all.records) || []).filter(r => (r.fields["Client"] || []).includes(cid)).map(r => ({ id: r.id, naam: r.fields["Naam"] || "", user: r.fields["Gebruikersnaam"] || "", email: r.fields["Email"] || "", actief: !!r.fields["Actief"], hasPassword: !!r.fields["Wachtwoord"] })).sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
+      return res.status(200).json({ ok: true, users });
+    }
+    if (action === "saveKlantgebruiker" || action === "resetKlantgebruiker") {
+      const id = clean(body.id, 40);
+      if (id && !REC.test(id)) return res.status(400).json({ error: "Ongeldig gebruikers-id" });
+      const cur = id ? await at(`${encodeURIComponent(__kl.USERS)}/${id}`) : null;
+      if (id && (!cur || cur.error)) return res.status(404).json({ error: "Gebruiker niet gevonden" });
+      const cid = id ? ((cur.fields["Client"] || [])[0] || "") : clean(body.clientId, 40);
+      if (!REC.test(cid)) return res.status(400).json({ error: "Ongeldig klant-id" });
+      const client = await at(`Clients/${cid}`);
+      if (!client || client.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const fields = {};
+      let password = "";
+      if (action === "saveKlantgebruiker") {
+        const naam = clean(body.naam, 80), email = clean(body.email, 120).toLowerCase();
+        let user = clean(body.user, 40).toLowerCase().replace(/['"\s]+/g, "");
+        if (!naam) return res.status(400).json({ error: "Naam is verplicht" });
+        if (email && !__mail.isEmail(email)) return res.status(400).json({ error: "Ongeldig e-mailadres" });
+        if (!user) user = await uniqueUsername(slugUser(naam));
+        else if (!/^[a-z0-9._-]{3,40}$/.test(user)) return res.status(400).json({ error: "Gebruikersnaam: 3 tot 40 tekens (letters, cijfers, . _ -)" });
+        const owner = await usernameOwner(user);
+        if (owner && owner !== id) return res.status(409).json({ error: "Deze gebruikersnaam bestaat al" });
+        Object.assign(fields, { "Client": [cid], "Naam": naam, "Gebruikersnaam": user, "Email": email, "Actief": body.actief !== false });
+      }
+      if (!id || action === "resetKlantgebruiker") {
+        password = genPassword();
+        // Nouveau mot de passe : les sessions ouvertes de cet utilisateur tombent (génération +1).
+        Object.assign(fields, { "Wachtwoord": __ca.hashPassword(password), "Echecs": 0, "Geblokkeerd tot": null, "Sessiegeneratie": (Number(cur && cur.fields["Sessiegeneratie"]) || 0) + 1 });
+      } else if (fields["Actief"] === false && !!cur.fields["Actief"]) {
+        fields["Sessiegeneratie"] = (Number(cur.fields["Sessiegeneratie"]) || 0) + 1; // désactivé : déconnecté partout
+      }
+      const saved = id
+        ? await at(`${encodeURIComponent(__kl.USERS)}/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) })
+        : await at(encodeURIComponent(__kl.USERS), { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
+      if (!saved || saved.error) { console.error("[onboarding] klantgebruiker", saved && saved.error && saved.error.type); return res.status(500).json({ error: "Gebruiker opslaan mislukt" }); }
+      const rec = saved.records ? saved.records[0] : saved;
+      const all = Object.assign({}, (cur && cur.fields) || {}, fields);
+      let mail = null;
+      if (password && all["Email"] && __ordermail.enabled() && body.sendMail !== false) {
+        mail = await (async () => {
+          const cfg = await __ordermail.loadMailConfig(at);
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id: rec.id, fields: all }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyActivation({ klant: { nom: all["Naam"] || client.fields["Nom"], email: all["Email"], taal: client.fields["Taal"] }, user: all["Gebruikersnaam"], link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+        })().catch(() => null);
+      }
+      return res.status(200).json({ ok: true, id: rec.id, credentials: password ? { id: rec.id, nom: all["Naam"], user: all["Gebruikersnaam"], password } : null, mail });
+    }
+    if (action === "deleteKlantgebruiker") {
+      const id = clean(body.id, 40);
+      if (!REC.test(id)) return res.status(400).json({ error: "Ongeldig gebruikers-id" });
+      const del = await at(`${encodeURIComponent(__kl.USERS)}/${id}`, { method: "DELETE" });
+      if (del && del.error) return res.status(del.error.type === "NOT_FOUND" ? 404 : 500).json({ error: "Gebruiker verwijderen mislukt" });
+      return res.status(200).json({ ok: true });
     }
 
     // Archiver / réactiver un client : plus de connexion ni de présence dans les listes,
@@ -530,6 +658,37 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // ---- RGPD : droit d'accès (export) et droit à l'effacement (anonymisation) — audit C-11 ----
+    if (action === "exportClient" || action === "anonymizeClient") {
+      if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Klant-id ontbreekt" });
+      const cur = await at(`Clients/${body.id}`);
+      if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const cmd = await atAll("Commandes");
+      if (cmd.error) return res.status(500).json({ error: "Bestellingen onleesbaar" });
+      const mine = (cmd.records || []).filter(r => (r.fields["Client"] || []).includes(body.id));
+      if (action === "exportClient") {
+        const neg = await atAll(encodeURIComponent("Prix négociés"));
+        const client = Object.assign({}, cur.fields); delete client["Wachtwoord"]; delete client["Commandes"]; delete client["Prix négociés"];
+        return res.status(200).json({ ok: true, export: { exportedAt: new Date().toISOString(), client,
+          prijzen: (neg.records || []).filter(r => (r.fields["Client"] || []).includes(body.id)).map(r => Object.assign({ product: r.fields["Produit"], prijs: r.fields["Prix négocié"] }, __prices.periodOf(r.fields))),
+          bestellingen: mine.map(r => { const f = Object.assign({}, r.fields); delete f["Client"]; delete f["Idempotentie"]; return f; }),
+          gebruikers: ((await atAll(encodeURIComponent(__kl.USERS)).catch(() => ({ records: [] }))).records || []).filter(r => (r.fields["Client"] || []).includes(body.id)).map(r => ({ naam: r.fields["Naam"] || "", gebruikersnaam: r.fields["Gebruikersnaam"] || "", email: r.fields["Email"] || "", actief: !!r.fields["Actief"] })) } });
+      }
+      // Anonymiser : seulement un client archivé. On garde ce que les factures doivent montrer pendant
+      // 10 ans (nom de la société, n° TVA, adresses) ; on efface les données de personnes.
+      if (!cur.fields["Gearchiveerd"]) return res.status(409).json({ error: "Archiveer de klant eerst" });
+      if (body.confirm !== "ANONIEM") return res.status(400).json({ error: "Typ ANONIEM om te bevestigen" });
+      const anon = "anon-" + String(body.id).slice(-6).toLowerCase();
+      const w = await at(`Clients/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Email": null, "Téléphone": "", "Gebruikersnaam": anon, "Wachtwoord": "", "Favorieten": "", "Infos générales": "", "Articles habituels": "" } }) });
+      if (w.error) return res.status(500).json({ error: "Anonimiseren mislukt" });
+      // Utilisateurs supplémentaires (H-08) : noms et e-mails de personnes → supprimés.
+      const users = ((await atAll(encodeURIComponent(__kl.USERS)).catch(() => ({ records: [] }))).records || []).filter(r => (r.fields["Client"] || []).includes(body.id));
+      for (const u of users) await at(`${encodeURIComponent(__kl.USERS)}/${u.id}`, { method: "DELETE" }).catch(() => null);
+      const withNames = mine.filter(r => r.fields["Réceptionné par"] || r.fields["Besteld door"]);
+      if (withNames.length) await atBatch("Commandes", "PATCH", withNames.map(r => ({ id: r.id, fields: Object.assign({}, r.fields["Réceptionné par"] ? { "Réceptionné par": "[geanonimiseerd]" } : {}, r.fields["Besteld door"] ? { "Besteld door": "[geanonimiseerd]" } : {}) })), false);
+      return res.status(200).json({ ok: true, geanonimiseerd: { klant: anon, bestellingen: withNames.length, gebruikers: users.length }, ...(await statusPayload()) });
+    }
+
     // ---- Medewerkers (comptes individuels, PIN haché) ----
     if (action === "saveMedewerker") {
       const naam = clean(body.naam, 60);
@@ -537,20 +696,33 @@ module.exports = async (req, res) => {
       const pin = String(body.pin || "");
       if (!naam) return res.status(400).json({ error: "Naam is verplicht" });
       if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
-      if (!body.id && pin.length < 4) return res.status(400).json({ error: "PIN: minstens 4 tekens" });
-      if (pin && (pin.length < 4 || pin.length > 40)) return res.status(400).json({ error: "PIN: 4 tot 40 tekens" });
+      // Nouveau PIN : 6 à 12 chiffres (un million de combinaisons au moins). Les PIN plus
+      // courts déjà enregistrés continuent d'ouvrir (api/session.js) jusqu'à leur changement.
+      if (!body.id && !pin) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
+      if (pin && !/^\d{6,12}$/.test(pin)) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
       const fields = { "Naam": naam, "Rol": rol, "Actief": body.actief !== false };
-      if (pin) fields["PIN hash"] = __auth.hashCode(pin);
+      if (pin) {
+        // Deux personnes au même PIN : la connexion ouvrirait au nom de la première trouvée
+        // (journal faussé). On compare aux empreintes des autres comptes, actifs ou non.
+        const all = await atAll("Medewerkers");
+        if (all.error) { console.error("[onboarding] Medewerkers onleesbaar", all.error.type); return res.status(500).json({ error: "Medewerkers onleesbaar. Probeer opnieuw." }); }
+        if ((all.records || []).some(r => r.id !== body.id && r.fields["PIN hash"] && __auth.verifyHash(r.fields["PIN hash"], pin))) return res.status(409).json({ error: "Deze PIN is al in gebruik. Kies een andere." });
+        fields["PIN hash"] = __auth.hashCode(pin);
+      }
       const saved = body.id
         ? await at(`Medewerkers/${body.id}`, { method: "PATCH", body: JSON.stringify({ typecast: true, fields }) })
         : await at("Medewerkers", { method: "POST", body: JSON.stringify({ typecast: true, records: [{ fields }] }) });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Medewerker opslaan mislukt" });
+      if (saved.error) { console.error("[onboarding] saveMedewerker", saved.error.type, saved.error.message); return res.status(500).json({ error: "Medewerker opslaan mislukt" }); }
+      // Désactivé, rôle retiré ou PIN changé : ses sessions tombent (tout de suite sur cette
+      // instance, ≤ 60 s ailleurs — lib/staffauth.js).
+      if (body.id && saved.fields) __auth.noteMedewerker(body.id, saved.fields);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
     if (action === "deleteMedewerker") {
       if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
       const del = await at(`Medewerkers/${body.id}`, { method: "DELETE" });
-      if (del.error) return res.status(500).json({ error: del.error.message || "Verwijderen mislukt" });
+      if (del.error) { console.error("[onboarding] deleteMedewerker", del.error.type, del.error.message); return res.status(500).json({ error: "Verwijderen mislukt" }); }
+      __auth.noteMedewerker(body.id, null);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -560,16 +732,20 @@ module.exports = async (req, res) => {
       if (password.length < 8) return res.status(400).json({ error: "Wachtwoord minstens 8 tekens" });
       const cur = await at(`Clients/${body.id}`);
       if (cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const hashed = __ca.hashPassword(password);
       const saved = await at(`Clients/${body.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ fields: { "Wachtwoord": __ca.hashPassword(password) } })
+        body: JSON.stringify({ fields: { "Wachtwoord": hashed } })
       });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Wachtwoord wijzigen mislukt" });
+      if (saved.error) { console.error("[onboarding] resetPassword", body.id, saved.error.type, saved.error.message); return res.status(500).json({ error: "Wachtwoord wijzigen mislukt" }); }
+      // E-mail : lien (72 h, usage unique) pour choisir son mot de passe, jamais le mot de
+      // passe lui-même ; celui de Beheer reste valable d'ici là.
       let mail = null;
       if (cur.fields["Email"] && __ordermail.enabled() && body.sendMail !== false) {
         mail = await (async () => {
           const cfg = await __ordermail.loadMailConfig(at);
-          return __ordermail.notifyReset({ klant: __ordermail.clientFrom(cur), credentials: { user: cur.fields["Gebruikersnaam"] || "", password }, password, portalUrl: __ordermail.portalUrl(req), company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
+          const link = __authmail.passwordLink(__ordermail.portalUrl(req), __ca.issueResetToken({ id: body.id, fields: { "Wachtwoord": hashed } }, __ca.ACTIVATION_TTL_MS));
+          return __authmail.notifyResetLink({ klant: Object.assign(__ordermail.clientFrom(cur), { taal: cur.fields["Taal"] }), user: cur.fields["Gebruikersnaam"] || "", link, hours: __ca.ACTIVATION_TTL_MS / 3600000, company: cfg, opsEmail: cfg.opsEmail, at: Date.now() });
         })().catch(() => null);
       }
       return res.status(200).json({
@@ -600,6 +776,34 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
+    // ---- Sécurité (Systeemstatus) : état et hachage des mots de passe clients en clair ----
+    // securityStatus : { klareWachtwoorden, hasSessionSecret } (lecture seule).
+    // hashAllPasswords : hache les Wachtwoord encore en clair (migration sans attendre la
+    // connexion de chaque client). scrypt coûte ≈ 0,45 s par mot de passe : au plus
+    // HASH_BATCH par appel (durée maximale d'une fonction) ; Beheer relance tant que
+    // klareWachtwoorden > 0. Chaque fiche est relue juste avant l'écriture : un client qui
+    // change son mot de passe pendant ce temps n'est pas écrasé.
+    if (action === "securityStatus" || action === "hashAllPasswords") {
+      const HASH_BATCH = 12, BUDGET_MS = 6000;
+      const all = await atAll("Clients?fields%5B%5D=Wachtwoord");
+      if (all.error) { console.error("[onboarding] " + action, all.error.type, all.error.message); return res.status(500).json({ error: "Klanten onleesbaar. Probeer opnieuw." }); }
+      const plain = (all.records || []).filter(r => r.fields["Wachtwoord"] && !__ca.isHashed(r.fields["Wachtwoord"]));
+      let hashed = 0, failed = 0;
+      if (action === "hashAllPasswords") {
+        const started = Date.now();
+        for (const r of plain.slice(0, HASH_BATCH)) {
+          if (Date.now() - started > BUDGET_MS) break;
+          const hash = __ca.hashPassword(r.fields["Wachtwoord"]);
+          const cur = await at(`Clients/${r.id}`);
+          if (!cur || cur.error || cur.fields["Wachtwoord"] !== r.fields["Wachtwoord"]) continue; // changé entre-temps
+          const up = await at(`Clients/${r.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Wachtwoord": hash } }) });
+          if (up && !up.error) hashed++;
+          else { failed++; console.error("[onboarding] hashAllPasswords", r.id, up && up.error && up.error.type); }
+        }
+      }
+      return res.status(200).json({ ok: failed === 0, hashed, failed, klareWachtwoorden: plain.length - hashed, hasSessionSecret: __auth.hasSessionSecret() });
+    }
+
     // ---- Codes d'accès (Instellingen) ----
     // Le code n'est jamais stocké en clair : seule son empreinte scrypt part en base.
     if (action === "saveCode") {
@@ -621,7 +825,7 @@ module.exports = async (req, res) => {
       }
 
       const existing = await getConfigRecord();
-      if (existing && existing.error) return res.status(500).json(existing);
+      if (existing && existing.error) { console.error("[onboarding] saveCode Configuratie", existing.error.type, existing.error.message); return res.status(500).json({ error: "Configuratie onleesbaar. Probeer opnieuw." }); }
       if (!existing || !existing.id) {
         return res.status(400).json({ error: "Vul eerst de bedrijfsgegevens in" });
       }
@@ -631,7 +835,16 @@ module.exports = async (req, res) => {
         method: "PATCH",
         body: JSON.stringify({ fields })
       });
-      if (saved.error) return res.status(500).json({ error: saved.error.message || "Code opslaan mislukt" });
+      if (saved.error) { console.error("[onboarding] saveCode", saved.error.type, saved.error.message); return res.status(500).json({ error: "Code opslaan mislukt" }); }
+      // Nouveau code : toutes les sessions ouvertes tombent (génération +1, écriture séparée
+      // pour ne pas faire échouer le changement de code sur une base sans ce champ). Le
+      // beheerder qui vient de changer le code reçoit un cookie à la nouvelle génération.
+      const next = (Number(existing.fields && existing.fields["Sessiegeneratie"]) || 0) + 1;
+      const bumped = await at(`${encodeURIComponent("Configuratie")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Sessiegeneratie": next } }) }).catch(() => null);
+      if (bumped && !bumped.error) {
+        __auth.noteGeneration(next);
+        __auth.setCookie(res, __auth.sign(me.exp, me.role, me.name, Object.assign({}, me.gen, { g: next })), Math.max(0, Math.floor((me.exp - Date.now()) / 1000)));
+      } else console.error("[onboarding] Sessiegeneratie niet verhoogd", bumped && bumped.error && bumped.error.type);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
     }
 
@@ -639,6 +852,7 @@ module.exports = async (req, res) => {
     if (action === "closeAanvraag") {
       const id = clean(body.id, 40);
       if (!id) return res.status(400).json({ error: "Aanvraag-id ontbreekt" });
+      if (!REC.test(id)) return res.status(400).json({ error: "Ongeldig aanvraag-id" }); // jamais « ../Autre-table/rec… »
       const saved = await at(`Aanvragen/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ fields: { "Status": "Verwerkt" } })
@@ -656,19 +870,32 @@ module.exports = async (req, res) => {
       const prix = __prices.negotiatedValue(body.prix);
       if (!clientId || !productId) return res.status(400).json({ error: "Klant en product zijn verplicht" });
       if (!prixVide && prix === null) return res.status(400).json({ error: "Ongeldige prijs" });
+      // Période facultative (audit H-07) : prix d'action ou de la semaine, à côté du prix permanent.
+      const van = body.van ? __prices.iso(body.van) : "", tot = body.tot ? __prices.iso(body.tot) : "";
+      if ((body.van && !van) || (body.tot && !tot)) return res.status(400).json({ error: "Datum: JJJJ-MM-DD" });
+      if (van && tot && tot < van) return res.status(400).json({ error: "„Geldig tot” ligt vóór „Geldig van”" });
+      if ((van || tot) && prixVide) return res.status(400).json({ error: "Een tijdelijke prijs heeft een bedrag nodig" });
+      // Prix négocié suspect (0, < ½ ou > 2 × le prix de base) : confirmation explicite (audit L-04).
+      if (!prixVide && body.confirm !== true && REC.test(productId)) {
+        const p = await at(`Catalogue/${productId}`);
+        const why = __guard.suspiciousPrice(prix, p && p.fields && p.fields["Prix de base"]);
+        if (why) return __guard.needConfirm(res, "Controleer deze prijs: " + why + ". Toch opslaan?");
+      }
 
       const all = await atAll(encodeURIComponent("Prix négociés"));
       if (all.error) return res.status(500).json(all);
       const existing = (all.records || []).find(r => {
         const c = r.fields["Client"] || [];
         const p = r.fields["Produit"] || [];
-        return c.includes(clientId) && p.includes(productId);
+        const per = __prices.periodOf(r.fields);
+        return c.includes(clientId) && p.includes(productId) && per.van === van && per.tot === tot;
       });
       const fields = {
         "Client": [clientId],
         "Produit": [productId],
         "Prix négocié": prix === null ? null : Math.round(prix * 100) / 100
       };
+      if (van || tot) { fields["Geldig van"] = van || null; fields["Geldig tot"] = tot || null; }
       let saved;
       if (existing) {
         saved = await at(`${encodeURIComponent("Prix négociés")}/${existing.id}`, {
@@ -688,6 +915,7 @@ module.exports = async (req, res) => {
     if (action === "deletePrice") {
       const id = clean(body.id, 40);
       if (!id) return res.status(400).json({ error: "Prijs-id ontbreekt" });
+      if (!REC.test(id)) return res.status(400).json({ error: "Ongeldig prijs-id" }); // « ../Clients/rec… » supprimait un client
       const del = await at(`${encodeURIComponent("Prix négociés")}/${id}`, { method: "DELETE" });
       if (del && del.error) return res.status(500).json({ error: del.error.message || "Prijs verwijderen mislukt" });
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
@@ -702,6 +930,13 @@ module.exports = async (req, res) => {
       const rows = Array.isArray(body.prices) ? body.prices.slice(0, 200) : [];
       if (!clientId) return res.status(400).json({ error: "Klant is verplicht" });
       if (!rows.length) return res.status(400).json({ error: "Geen prijzen om op te slaan" });
+      // Prix suspects de la grille (0, < ½ ou > 2 × le prix de base) : liste à confirmer (audit L-04).
+      if (body.confirm !== true && rows.some(r => r && r.prix !== null && r.prix !== undefined && String(r.prix).trim() !== "")) {
+        const cat = await atAll("Catalogue");
+        const base = new Map((cat.records || []).map(r => [r.id, r.fields["Prix de base"]]));
+        const odd = rows.map(r => { const p = __prices.negotiatedValue(r && r.prix); const why = p === null ? "" : __guard.suspiciousPrice(p, base.get(clean(r.productId, 40))); const nm = ((cat.records || []).find(c => c.id === clean(r.productId, 40)) || { fields: {} }).fields["Produit"]; return why ? (nm || "product") + ": " + why : ""; }).filter(Boolean);
+        if (odd.length) return __guard.needConfirm(res, "Controleer deze prijzen: " + odd.slice(0, 5).join(" · ") + (odd.length > 5 ? " …" : "") + ". Toch opslaan?");
+      }
 
       const all = await atAll(encodeURIComponent("Prix négociés"));
       if (all.error) return res.status(500).json(all);
@@ -716,7 +951,7 @@ module.exports = async (req, res) => {
         const existing = (all.records || []).find(r => {
           const c = r.fields["Client"] || [];
           const p = r.fields["Produit"] || [];
-          return c.includes(clientId) && p.includes(productId);
+          return c.includes(clientId) && p.includes(productId) && !__prices.isPeriod(__prices.periodOf(r.fields)); // grille = prix permanents
         });
         const fields = {
           "Client": [clientId],
@@ -770,6 +1005,35 @@ module.exports = async (req, res) => {
 
     return res.status(400).json({ error: "Onbekende actie" });
   } catch (e) {
-    return res.status(500).json({ error: String(e.message || e) });
+    // Jamais le message brut (détails de la base) vers le navigateur : il reste dans les logs.
+    console.error("[onboarding]", (req.body && req.body.action) || req.method, e && e.stack || e);
+    return res.status(500).json({ error: "Serverfout in Beheer. Probeer opnieuw." });
   }
+};
+
+// Journal d'audit (lib/journal.js, moteur SQL) : chaque action Beheer réussie, avec l'état de
+// l'enregistrement avant → après (prix de base, IBAN, taux de TVA, archivage, suppressions…).
+// Codes, PIN et mots de passe : jamais la valeur, seulement « gewijzigd ».
+const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", saveClient: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
+  resetPassword: "Clients", revokeAccess: "Clients", saveMedewerker: "Medewerkers", deleteMedewerker: "Medewerkers", closeAanvraag: "Aanvragen", deletePrice: "Prix négociés",
+  saveKlantgebruiker: "Klantgebruikers", resetKlantgebruiker: "Klantgebruikers", deleteKlantgebruiker: "Klantgebruikers" };
+module.exports = async (req, res) => {
+  if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
+  const st = __journal.store();
+  if (req.method !== "POST" || !st) return handler(req, res);
+  let body = {};
+  try { body = parseBody(req) || {}; } catch (e) { return handler(req, res); }
+  const action = clean(body.action, 40);
+  if (!action || action === "previewCredentials") return handler(req, res);
+  let table = TARGET[action] || "", id = table && REC.test(String(body.id || "")) ? String(body.id) : "";
+  if (action === "saveConfig" || action === "saveVoorwaarden") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
+  const before = id ? await __journal.get(table, id) : null;
+  await handler(req, res);
+  if (res.statusCode !== 200) return;
+  const after = id ? await __journal.get(table, id) : null;
+  const skip = /^(action|foto|data|image|file)/i;
+  const wijz = id ? __journal.diff(before, after) : Object.entries(body).filter(([k]) => !skip.test(k)).map(([k, v]) => ({ veld: k, voor: "", na: /wachtwoord|password|hash|code|token|pin|secret/i.test(k) ? "•••" : (typeof v === "string" ? v : JSON.stringify(v)).slice(0, 300) }));
+  const f = after || before || {};
+  await __journal.log({ wie: __auth.actorOf(req), rol: __auth.roleOf(req), actie: action, object: table || "Beheer", record: id,
+    referentie: f["Produit"] || f["Nom"] || f["Bedrijfsnaam"] || f["Naam"] || body.nom || body.clientId || "", wijzigingen: wijz, reden: body.reden || "" });
 };

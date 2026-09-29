@@ -15,7 +15,13 @@ const SCHEMA = {
   Clients: {
     // Gearchiveerd : plus de connexion ni de présence dans les listes (api/catalogue authClient, api/staff).
     // Favorieten : JSON {favorieten:[ids], standaard:{id:qty}} synchronisé entre appareils (api/klantorder).
-    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select" },
+    fields: { "Nom": "text", "Email": "email", "Téléphone": "text", "Lieu de livraison": "text", "Facturatieadres": "text", "Articles habituels": "text", "Infos générales": "text", "Commandes": "links", "Prix négociés": "links", "Gebruikersnaam": "text", "Wachtwoord": "text", "BTW-nummer": "text", "Klantnummer": "text", "Gearchiveerd": "checkbox", "Favorieten": "text", "Taal": "select",
+      // Verrou persistant anti-force brute (api/catalogue authClient) : échecs consécutifs, blocage.
+      "Echecs": "number", "Geblokkeerd tot": "datetime",
+      // Sessiegeneratie : +1 à la déconnexion, révoque les jetons du client (lib/clientauth.js).
+      "Sessiegeneratie": "number",
+      // Conditions générales acceptées (lib/terms.js, C-12).
+      "Voorwaarden versie": "text", "Voorwaarden aanvaard op": "datetime" },
     selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
   },
   Catalogue: {
@@ -33,7 +39,20 @@ const SCHEMA = {
       // Exception à la réception (absent, refusé, partiel, abîmé) + ordre de tournée.
       "Uitzondering levering": "select", "Uitzondering nota": "text", "Volgorde levering": "number",
       // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
-      "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text"
+      "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text",
+      // Taux de TVA figés par ligne au passage en « Facturée » (JSON { produit: taux }, lib/billing.js).
+      "BTW per lijn": "text",
+      // Clé d'idempotence envoyée par le portail client (api/order.js) : pas de doublon sur un renvoi.
+      "Idempotentie": "text",
+      // Lignes telles que COMMANDÉES (figées à la création) : la ligne réelle peut ensuite être
+      // corrigée au poids livré ; les documents montrent l'écart « besteld / geleverd » (audit H-04).
+      "Lignes besteld": "text",
+      // Relances de paiement envoyées (lib/reminders.js, H-01).
+      "Herinnering 1 op": "datetime", "Herinnering 2 op": "datetime",
+      // Utilisateur (supplémentaire) qui a passé la commande (lib/klantlogin.js, H-08).
+      "Besteld door": "text",
+      // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
+      "Lots": "text"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
@@ -44,16 +63,35 @@ const SCHEMA = {
   },
   Stock: { fields: { "Produit": "text", "Quantité disponible": "number", "Seuil bas": "number", "Produit lié": "links" }, primary: "Produit" },
   "Mouvements de stock": { fields: { "Mouvement": "text", "Date et heure": "datetime", "Type": "select", "Produit": "text", "Quantité": "number", "Stock avant": "number", "Stock après": "number", "Référence commande": "text", "Note": "text" }, selects: { "Type": ["Sortie livraison", "Correction inventaire", "Entrée stock", "Retour client", "Annulation sortie"] }, primary: "Mouvement" },
-  "Prix négociés": { fields: { "Libellé": "text", "Client": "links", "Produit": "links", "Prix négocié": "number" }, primary: "Libellé" },
+  "Prix négociés": { fields: { "Libellé": "text", "Client": "links", "Produit": "links", "Prix négocié": "number", "Geldig van": "date", "Geldig tot": "date" }, primary: "Libellé" },
   Configuratie: {
     // Règles de livraison et de facturation lues par lib/levering.js : Besteldeadline "22:00",
     // Leverdagen "ma,di,wo,do,vr,za", Gesloten dagen (une date ISO par ligne), Minimum bestelling,
     // Betaaltermijn dagen, Voorraad afboeken (déduction du stock au départ).
-    fields: { "Bedrijfsnaam": "text", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox" },
-    primary: "Bedrijfsnaam"
+    // Facturatie : « Boekhouder » (défaut : facture légale chez le comptable, documents pro forma) ou
+    // « Portaal ». Juridische naam / Rechtsvorm / RPR : mentions du Code des sociétés (art. 2:20).
+    fields: { "Bedrijfsnaam": "text", "Juridische naam": "text", "Rechtsvorm": "text", "RPR": "text", "Facturatie": "select", "Lots verplicht": "checkbox", "Herinneringen aan": "checkbox", "Adres": "text", "Postcode en plaats": "text", "BTW-nummer": "text", "Telefoon": "text", "E-mail": "email", "IBAN": "text", "BIC": "text", "BTW-tarief": "number", "Betalingsvoorwaarden": "text", "Leveringsvoorwaarden": "text", "Bestellingen e-mail": "email", "Beheerderscode hash": "text", "Personeelscode hash": "text", "Besteldeadline": "text", "Leverdagen": "text", "Gesloten dagen": "text", "Minimum bestelling": "number", "Betaaltermijn dagen": "number", "Voorraad afboeken": "checkbox",
+      // Sessiegeneratie : +1 = toutes les sessions staff révoquées (lib/staffauth.js, api/session.js).
+      "Sessiegeneratie": "number",
+      // Verrou global des connexions par PIN (api/session.js) : un PIN n'identifie pas son compte.
+      "PIN echecs": "number", "PIN geblokkeerd tot": "datetime",
+      // Conditions générales (C-12) : texte NL/FR et version publiée.
+      "Voorwaarden NL": "text", "Voorwaarden FR": "text", "Voorwaarden versie": "text" },
+    selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
+  },
+  // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
+  // (fournisseur, réception) et, par les commandes, un pas en aval (qui a reçu le lot).
+  Lots: {
+    fields: { "Lotnummer": "text", "Produit": "text", "Leverancier": "text", "Ontvangen op": "date", "Wetenschappelijke naam": "text", "Vangstgebied": "text", "Vistuig": "text", "Productiemethode": "text", "Ontdooid": "checkbox", "THT": "date", "Hoeveelheid": "number", "Aankoopprijs": "number", "Actief": "checkbox", "Nota": "text" },
+    primary: "Lotnummer"
+  },
+  // Utilisateurs supplémentaires d'un client (H-08) : identifiant et mot de passe propres.
+  Klantgebruikers: {
+    fields: { "Client": "links", "Naam": "text", "Gebruikersnaam": "text", "Wachtwoord": "text", "Email": "email", "Actief": "checkbox", "Sessiegeneratie": "number", "Echecs": "number", "Geblokkeerd tot": "datetime" },
+    primary: "Naam"
   },
   Aanvragen: {
-    fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select" },
+    fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select", "Voorwaarden versie": "text" },
     selects: { "Status": ["Nieuw", "Verwerkt"], "Taal": ["NL", "FR"] }, primary: "Bedrijfsnaam"
   },
   // Comptes individuels du personnel (api/session : connexion par PIN, api/onboarding : gestion).
@@ -66,7 +104,8 @@ const SCHEMA = {
 // Medewerker de démonstration, présent dès que la table est vide : « Ilse », personeel,
 // PIN 1234. scripts/seed.js ne connaît pas cette table ; la nabootsing la remplit
 // elle-même (reset() et chargement d'un fichier .dev-data antérieur).
-// Le hachage reproduit lib/staffauth.hashCode (scrypt$<sel hex>$<empreinte hex>, N=16384)
+// Le hachage reproduit l'ANCIEN format de lib/staffauth.hashCode (scrypt$<sel hex>$<empreinte hex>,
+// N=16384), toujours lu et ré-haché à la première connexion,
 // SANS charger ce module : dev.js ne pose STAFF_CODE/ADMIN_CODE qu'après avoir construit
 // la base, et staffauth lit ces variables une seule fois au chargement.
 const DEMO_MEDEWERKER = { naam: "Ilse", rol: "personeel", pin: "1234" };

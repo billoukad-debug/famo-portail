@@ -5,13 +5,35 @@
   // Cache 60 s partagé entre les pages (sessionStorage, cet onglet seulement) : passer de
   // Bestellingen à Magazijn ne relit plus toute la liste. Toute modification (S.update) force la relecture.
   const CACHE_KEY = "famoOrdersCache", TTL = 60 * 1000;
+  // Liste par pages (≤ 1000 par réponse, limite Vercel de 4,5 Mo) ; « rev » = révision des commandes
+  // (lib/revision.js) : inchangée → le serveur répond { unchanged } sans relire la liste (E-02, E-03).
+  const fetchOrders = async rev => {
+    const q = "/api/allorders?" + (S.all ? "all=1&" : "") + "limit=1000";
+    let d = await K.api(q + (rev != null ? "&rev=" + encodeURIComponent(rev) : ""));
+    if (d.unchanged) return d;
+    const out = Object.assign({}, d, { orders: d.orders || [] });
+    while (d.next) { d = await K.api(q + "&cursor=" + encodeURIComponent(d.next)); out.orders = out.orders.concat(d.orders || []); }
+    return out;
+  };
   S.load = async function (force, all) {
     if (all && !S.all) { S.all = true; force = true; }
     if (!force && S.orders.length && Date.now() - S.loadedAt < TTL) return S;
+    if (force && S.orders.length && S.rev != null && !S.dirty) {
+      const d = await fetchOrders(S.rev);
+      if (d.unchanged) { S.loadedAt = Date.now(); S.badges(); return S; }
+      return S.apply(d, null);
+    }
+    S.dirty = false;
     const hit = !force && K.session.get(CACHE_KEY, null);
     const fresh = hit && Date.now() - hit.at < TTL && !!hit.all === !!S.all ? hit : null;
-    const [o, c] = fresh ? [fresh.o, { config: fresh.config }] : await Promise.all([K.api("/api/allorders" + (S.all ? "?all=1" : "")), S.config ? Promise.resolve({ config: S.config }) : K.api("/api/config").catch(() => ({ config: null }))]);
-    if (!fresh) K.session.set(CACHE_KEY, { at: Date.now(), all: S.all, o, config: c.config || S.config });
+    const [o, c] = fresh ? [fresh.o, { config: fresh.config }] : await Promise.all([fetchOrders(null), S.config ? Promise.resolve({ config: S.config }) : K.api("/api/config").catch(() => ({ config: null }))]);
+    return S.apply(o, c, fresh);
+  };
+  S.apply = function (o, c, fresh) {
+    c = c || { config: S.config };
+    // Cache de session : seulement s'il tient (sessionStorage ≈ 5 Mo).
+    if (!fresh) { try { K.session.set(CACHE_KEY, { at: Date.now(), all: S.all, o, config: c.config || S.config }); } catch (e) { K.session.del(CACHE_KEY); } }
+    S.rev = o.rev == null ? null : o.rev;
     S.orders = (o.orders || []).map(x => Object.assign(x, { late: K.isLate(x), day: x.dateLiv || x.date || "" }));
     S.btw = o.btwPerProduct && typeof o.btwPerProduct === "object" ? o.btwPerProduct : {};
     S.window = Number(o.window) || 0;
@@ -27,7 +49,7 @@
     const t = K.today(), c = S.counts();
     K.setBadges({
       "bestellingen.html": c.prep,
-      "entrepot.html": S.orders.filter(o => o.statut === "Reçue" && o.day === t).length,
+      "entrepot.html": S.orders.filter(o => o.statut === "Reçue" && o.day && o.day <= K.addDays(t, 1)).length, // Magazijn s'ouvre sur « morgen » (G-13)
       "leveringen.html": S.orders.filter(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t).length,
       "documenten.html": c.unpaid
     });
@@ -63,8 +85,8 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) { fresh = 0; document.title = base; tick(); } });
   };
   S.counts = () => { const t = K.today(); return { today: S.orders.filter(o => o.day === t && !K.isClosed(o)).length, prep: S.orders.filter(o => o.statut === "Reçue").length, ready: S.orders.filter(o => o.statut === "Prête").length, road: S.orders.filter(o => o.statut === "Sortie en livraison").length, late: S.orders.filter(o => o.late).length, unpaid: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").length, unpaidSum: S.orders.filter(o => o.statut === "Facturée" && o.paiement !== "Payé").reduce((s, o) => s + Number(o.total || 0), 0) }; };
-  S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); K.session.del(CACHE_KEY); await S.load(true); return d; };
-  S.invalidate = () => K.session.del(CACHE_KEY);
+  S.update = async function (id, payload) { const d = await K.api("/api/updateorder", { json: Object.assign({ id }, payload) }); K.session.del(CACHE_KEY); S.dirty = true; await S.load(true); return d; };
+  S.invalidate = () => { K.session.del(CACHE_KEY); S.dirty = true; };
   S.lineTxt = o => K.linesSummary(o.lignes);
   // Mailresultaat van de server (nooit blokkerend) in één woord voor de toast.
   S.mailTxt = m => m && m.ok ? " · klant gemaild" : (m && m.skipped === "no-recipient" ? " · geen e-mailadres bij klant" : "");
@@ -72,15 +94,18 @@
   /* ---------- btw : tarief per product (Catalogus) of standaardtarief (Configuratie) ---------- */
   S.rate = name => { const k = String(name || "").trim().toLowerCase(); const r = Number(S.btw[k]); if (Number.isFinite(r) && r > 0) return r; const d = Number(S.config && S.config.btwTarief); return Number.isFinite(d) && d > 0 ? d : 6; };
   // { "productnaam": tarief } voor de lijnen van deze bestelling (wat documents.js leest als order.btwPerLine).
-  S.btwPerLine = o => { const m = {}; K.parseLines(o.lignes).forEach(l => { m[l.name.trim().toLowerCase()] = S.rate(l.name); }); return m; };
-  // Bedragen excl. / btw / incl., per tarief afgerond op de cent (zelfde regel als de factuur).
+  S.btwPerLine = o => { if (o.btwFrozen && typeof o.btwFrozen === "object") return o.btwFrozen; const m = {}; K.parseLines(o.lignes).forEach(l => { m[l.name.trim().toLowerCase()] = S.rate(l.name); }); return m; };
+  // Bedragen excl. / btw / incl. : dezelfde regel als documenten, e-mails en export (assets/vat.js) ;
+  // btw-tarieven die bij de facturatie vastgezet zijn, gaan voor.
   S.totals = o => {
-    const lines = K.parseLines(o.lignes).filter(l => l.price != null), acc = new Map();
-    if (lines.length) lines.forEach(l => { const r = S.rate(l.name); acc.set(r, (acc.get(r) || 0) + l.price * l.qty); }); else acc.set(S.rate(""), Number(o.total) || 0);
-    let excl = 0, btw = 0; acc.forEach((base, r) => { base = Math.round(base * 100) / 100; excl += base; btw += Math.round(base * r) / 100; });
-    excl = Math.round(excl * 100) / 100; btw = Math.round(btw * 100) / 100;
-    return { excl, btw, incl: Math.round((excl + btw) * 100) / 100 };
+    const lines = K.parseLines(o.lignes).filter(l => l.price != null);
+    if (!lines.length || !window.FamoVat) { const r = S.rate(""); const excl = Math.round((Number(o.total) || 0) * 100) / 100; const btw = Math.round(excl * r) / 100; return { excl, btw, incl: Math.round((excl + btw) * 100) / 100 }; }
+    const map = S.btwPerLine(o);
+    const t = window.FamoVat.totals(lines, n => window.FamoVat.rateFrom(map, n, S.rate("")));
+    return { excl: t.htva, btw: t.tva, incl: t.total };
   };
+  // Facturatie : « portaal » = het portaal maakt de factuur ; anders pro forma (boekhouder factureert).
+  S.portaal = () => !!(S.config && S.config.facturatie === "portaal");
   S.docOrder = o => Object.assign({}, o, { btwPerLine: S.btwPerLine(o) });
 
   /* ---------- documenten ---------- */
@@ -91,7 +116,7 @@
     if (S.config) FamoDocuments.setCompany(S.config);
     try {
       const html = FamoDocuments.build(S.docOrder(o), type);
-      famoDocPreview.open({ html, filename: FamoDocuments.filename(o, type), title: type === "invoice" ? "Factuur " + (o.factuurnummer || "") : type === "credit" ? "Creditnota " + (o.creditnota && o.creditnota.nummer || "") : "Leveringsbon " + o.ref, meta: o.client + " · " + K.eur(type === "credit" && o.creditnota ? o.creditnota.montant : o.total) + " excl. btw" });
+      famoDocPreview.open({ html, filename: FamoDocuments.filename(o, type), title: type === "invoice" ? (S.portaal() ? "Factuur " : "Pro forma ") + FamoDocuments.number(o, "invoice") : type === "credit" ? (S.portaal() ? "Creditnota " : "Retourbon ") + FamoDocuments.number(o, "credit") : "Leveringsbon " + o.ref, meta: o.client + " · " + K.eur(type === "credit" && o.creditnota ? o.creditnota.montant : o.total) + " excl. btw" });
     } catch (e) { K.toast(e.message || "Document kon niet worden gemaakt.", { kind: "err" }); }
   };
   // Bundel : alle leveringsbonnen / facturen van een selectie in één document (één PDF).
@@ -129,6 +154,9 @@
   S.payTxt = o => o.paiement === "Payé" ? "Betaald" + (o.payeLe ? " op " + S.when(o.payeLe) : "") + (o.modePaiement ? " · " + o.modePaiement : "") : "Openstaand";
   // Journaal (Correcties + uitzondering + creditnota) als tijdlijn-items (.tl).
   S.journalHtml = o => String(o.correcties || "").split("\n").map(s => s.trim()).filter(Boolean).map(c => '<div><i style="background:var(--st-new)"></i><div>' + (/^.*?·\s*(Creditnota|Betaald|Terug op openstaand|Uitzondering)/.test(c) ? "Journaal" : "Correctie") + '<small>' + K.esc(c) + '</small></div></div>').join("");
+  // Poids réel (audit H-04) : lignes commandées vs livrées, uniquement là où elles diffèrent.
+  S.weightDiff = o => { if (!o.besteld) return []; const now = K.parseLines(o.lignes), key = n => String(n || "").trim().toLowerCase(); const out = []; K.parseLines(o.besteld).forEach(b => { const d = now.find(l => key(l.name) === key(b.name)); const q = d ? d.qty : 0; if (Math.abs((Number(b.qty) || 0) - (Number(q) || 0)) > 1e-9) out.push({ name: b.name, unit: b.unit, besteld: b.qty, geleverd: q }); }); return out; };
+  S.weightDiffHtml = o => { const d = S.weightDiff(o); return d.length ? '<div class="notice"><div><b>Besteld ≠ geleverd</b>' + d.map(x => '<div class="quiet" style="font-size:12px">' + K.esc(x.name + ": besteld " + K.qty(x.besteld) + " " + K.unit(x.unit) + " → geleverd " + K.qty(x.geleverd) + " " + K.unit(x.unit)) + '</div>').join("") + '</div></div>' : ""; };
   S.creditnotaHtml = o => { const cn = o.creditnota; if (!cn) return ""; return '<div class="notice" style="background:var(--canvas)"><div><b>Creditnota ' + K.esc(cn.nummer) + '</b> · ' + K.esc(K.eur(cn.montant)) + ' excl. btw' + (cn.le ? ' · ' + K.esc(S.when(cn.le)) : "") + (cn.motif ? '<div class="quiet" style="font-size:12px">„' + K.esc(cn.motif) + '”</div>' : "") + '<div class="quiet" style="font-size:12px">' + K.esc(K.linesSummary(cn.lignes)) + '</div><div style="margin-top:6px"><button type="button" class="btn btn-o btn-sm" data-act="credit" data-id="' + o.id + '">' + K.icon("print") + 'Creditnota</button></div></div></div>'; };
   S.creditnotaBtn = o => K.staff.isAdmin() && o.statut === "Facturée" && !o.creditnota ? '<button type="button" class="btn btn-o btn-sm" data-act="creditnota" data-id="' + o.id + '">Creditnota maken</button>' : "";
 
@@ -138,13 +166,32 @@
     const p = K.panel({ title: "Ontvangst bevestigen", sub: o.client + " · " + o.ref, body:
       '<div class="notice" style="background:var(--canvas)"><div><b>' + K.esc(S.lineTxt(o)) + '</b><div class="quiet" style="font-size:12px;margin-top:2px">' + K.esc((o.klant && o.klant.adresse || "").replace(/\n/g, ", ")) + (o.notes ? ' · „' + K.esc(o.notes) + '”' : "") + '</div><div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b class="mono">Te innen (incl. btw): ' + K.esc(K.eur(t.incl)) + '</b><span class="quiet" style="font-size:12px">' + K.esc(K.eur(t.excl)) + ' excl. + ' + K.esc(K.eur(t.btw)) + ' btw</span>' + S.telLink(o.klant && o.klant.tel) + '</div></div></div>' +
       K.c.field("Ontvangen door", K.c.input("recipient", { placeholder: "bv. Sofie (keuken)…", attrs: ' autocomplete="off"' }), { id: "fRec", req: true }) +
-      K.c.field("Betaling", '<div class="opt"><button type="button" data-pay="En attente" class="on">Later / overschrijving</button><button type="button" data-pay="Payé">Contant betaald · ' + K.eur(t.incl) + '</button></div>', { id: "fPay" }) +
+      // Encaissement : beheerder seul (le personnel ne gère pas les paiements ; serveur : 403).
+      (K.staff.isAdmin() ? K.c.field("Betaling", '<div class="opt"><button type="button" data-pay="En attente" class="on">Later / overschrijving</button><button type="button" data-pay="Payé">Contant betaald · ' + K.eur(t.incl) + '</button></div>', { id: "fPay" }) : "") +
       K.c.field("Uitzondering (optioneel)", '<select class="input" id="uitz"><option value="">Geen · levering in orde</option>' + S.UITZ.map(u => '<option>' + u + '</option>').join("") + '</select>', { id: "fUitz", hint: "Afwezig, geweigerd, gedeeltelijk of beschadigd: wordt bij de bestelling bewaard en in het journaal genoteerd." }) +
       '<div id="fUitzNota" style="display:none">' + K.c.field("Nota bij de uitzondering", K.c.input("uitzNota", { placeholder: "bv. 2 kg zalm geweigerd, doos beschadigd…", attrs: ' maxlength="200" autocomplete="off"' }), {}) + '</div>' +
-      K.c.field("Bewijs (optioneel)", K.c.input("proof", { type: "url", placeholder: "https://… link naar foto of handtekening" }), { id: "fProof", hint: "Enkel een https-link wordt bewaard. Foto's uploaden komt in een volgende versie." }) +
+      // Preuve sur place (H-09) : signature au doigt et photo, facultatives ; envoyées APRÈS la confirmation.
+      K.c.field("Handtekening van de ontvanger (optioneel)", '<canvas id="sig" role="img" aria-label="Handtekening: teken met de vinger" style="display:block;width:100%;height:160px;border:1px solid var(--line-input);border-radius:10px;background:#fff"></canvas><div style="display:flex;justify-content:flex-end;margin-top:6px"><button type="button" class="btn btn-ghost btn-sm" id="sigClear">Wissen</button></div>', { id: "fSig", hint: "De naam hierboven blijft verplicht; de handtekening is een extra bewijs." }) +
+      K.c.field("Foto (optioneel)", '<input class="input" type="file" id="proofFoto" accept="image/*" capture="environment">', { id: "fFoto", hint: "Bv. de levering aan de deur. Wordt verkleind voor verzending." }) +
+      K.c.field("Of een link (optioneel)", K.c.input("proof", { type: "url", placeholder: "https://… link naar foto of handtekening" }), { id: "fProof", hint: "Enkel een https-link wordt bewaard." }) +
       '<div class="notice" style="font-size:12.5px"><div><b>Wat gebeurt er:</b> status → Geleverd, het factuurnummer wordt toegekend, de factuur is meteen beschikbaar en de klant krijgt ze per e-mail.</div></div><div id="dErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="dOk">Bevestigen</button>' });
     let pay = "En attente";
+    const sig = window.FamoProof ? window.FamoProof.pad(p.el.querySelector("#sig")) : null;
+    p.el.querySelector("#sigClear").onclick = () => { if (sig) sig.clear(); };
+    // Envoi de la preuve après la confirmation : un échec ici ne défait jamais la livraison.
+    const collectProofs = async () => {
+      const jobs = [];
+      if (sig && !sig.isEmpty()) jobs.push({ soort: "handtekening", contentType: "image/png", base64: sig.toPng() });
+      const file = p.el.querySelector("#proofFoto").files[0];
+      if (file && window.FamoProof) jobs.push(Object.assign({ soort: "foto" }, await window.FamoProof.shrink(file)));
+      return jobs;
+    };
+    const sendProofs = async () => {
+      let jobs; try { jobs = await collectProofs(); } catch (e) { return e.message; }
+      for (const j of jobs) { try { await K.api("/api/bewijs", { json: Object.assign({ id: o.id }, j) }); } catch (e) { return e.message; } }
+      return "";
+    };
     K.on(p.el, "click", "[data-pay]", (e, t2) => { pay = t2.dataset.pay; K.$$("[data-pay]", p.el).forEach(b => b.classList.toggle("on", b === t2)); });
     p.el.querySelector("#uitz").onchange = e => { p.el.querySelector("#fUitzNota").style.display = e.target.value ? "" : "none"; };
     p.el.querySelector("[data-cancel]").onclick = p.close;
@@ -155,8 +202,20 @@
       const btn = p.el.querySelector("#dOk"); K.busy(btn, true, "Bevestigen…");
       try {
         const d = await S.update(o.id, Object.assign({ statut: "Facturée", deliveryConfirmed: true, recipient: rec, proofUrl: proof || undefined, paiement: pay === "Payé" ? "Payé" : undefined, modePaiement: pay === "Payé" ? "Contant" : undefined }, uitz ? { uitzondering: uitz, uitzonderingNota: nota } : {}));
-        p.close(); K.toast("Geleverd · factuur " + (d.factuurnummer || "") + " aangemaakt" + S.mailTxt(d.mail)); if (onDone) onDone(d);
+        K.busy(btn, true, "Bewijs bewaren…");
+        const proofErr = await sendProofs();
+        p.close(); K.toast((d && d.geleverd === false ? "Uitzondering bewaard" : "Geleverd · factuur " + (d.factuurnummer || "") + " aangemaakt" + S.mailTxt(d.mail)));
+        if (proofErr) K.toast("Levering bevestigd, maar het bewijs werd niet bewaard: " + proofErr, { kind: "err" });
+        if (onDone) onDone(d);
       } catch (err) {
+        // Geen netwerk (camionnette, chambre froide) : la confirmation part dans la file hors ligne (H-12).
+        if (err.network && S.queue) {
+          const body = Object.assign({ id: o.id, statut: "Facturée", deliveryConfirmed: true, recipient: rec, proofUrl: proof || undefined }, uitz ? { uitzondering: uitz, uitzonderingNota: nota } : {});
+          let proofs = [];
+          try { proofs = await collectProofs(); } catch (e2) { proofs = []; }
+          const q = S.queue.add({ orderId: o.id, ref: o.ref, body, proofs });
+          if (q.ok) { p.close(); K.toast("Geen netwerk · in wachtrij, wordt verstuurd zodra er netwerk is" + (q.proofsDropped ? " (zonder foto: te groot om te bewaren)" : "")); S.queueBadge(); if (onDone) onDone(); return; }
+        }
         // Al bevestigd (dubbele tik, tweede toestel) : niets te herstellen, gewoon verversen.
         if (err.status === 409 && /al bevestigd/i.test(err.message)) { p.close(); K.toast(err.message); try { await S.load(true); } catch (e2) { /* toast volstaat */ } if (onDone) onDone(); return; }
         p.el.querySelector("#dErr").innerHTML = K.c.error(err.message); K.busy(btn, false);
@@ -170,8 +229,13 @@
     const lines = orig.map(l => Object.assign({}, l));
     const state = lines.map(() => false);
     let catalogue = null;
+    // Traçabilité : lot par article (api/lots). Un seul lot actif pour ce produit → présélectionné.
+    let lotsBy = null;
+    const lotKey = n => String(n || "").trim().toLowerCase();
+    const chosen = {}; Object.entries(o.lots || {}).forEach(([k, v]) => { if (v && v[0]) chosen[lotKey(k)] = v[0].id; });
+    const lotSelect = (l, i) => { const list = (lotsBy && lotsBy[lotKey(l.name)]) || []; if (!list.length) return ""; if (!chosen[lotKey(l.name)] && list.length === 1) chosen[lotKey(l.name)] = list[0].id; return '<select class="input" data-lot="' + i + '" aria-label="Lot voor ' + K.esc(l.name) + '" style="margin-top:6px;min-height:36px;font-size:12.5px"><option value="">— lot kiezen —</option>' + list.map(x => '<option value="' + K.esc(x.id) + '"' + (chosen[lotKey(l.name)] === x.id ? " selected" : "") + '>' + K.esc(x.lotnummer + (x.leverancier ? " · " + x.leverancier : "") + (x.tht ? " · THT " + K.date(x.tht) : "")) + '</option>').join("") + '</select>'; };
     const isKg = u => /kg/i.test(u);
-    const lineHtml = (l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(state[i], 'data-v="' + i + '"', { label: "Gecontroleerd: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet" style="font-size:12px">„' + K.esc(l.comment) + '”</div>' : "") + (l.added ? '<div class="quiet" style="font-size:12px">toegevoegd · prijs volgens afspraak klant</div>' : "") + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '"><button type="button" data-inc aria-label="Meer">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>';
+    const lineHtml = (l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(state[i], 'data-v="' + i + '"', { label: "Gecontroleerd: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet" style="font-size:12px">„' + K.esc(l.comment) + '”</div>' : "") + (l.added ? '<div class="quiet" style="font-size:12px">toegevoegd · prijs volgens afspraak klant</div>' : "") + lotSelect(l, i) + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '" aria-label="' + K.esc("Aantal: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>';
     const p = K.panel({ title: "Artikelen valideren", sub: o.client + " · " + o.ref + " · levering " + K.relDay(o.day), body:
       '<div class="card" id="vl"></div>' +
       '<div id="vAdd" style="display:none">' + K.c.field("Product toevoegen", '<div style="display:flex;gap:6px"><input class="input" id="vSearch" list="vList" placeholder="Zoek in de catalogus…" autocomplete="off" style="flex:1"><datalist id="vList"></datalist><button type="button" class="btn btn-o" id="vAddOk">Toevoegen</button></div>', { id: "fVAdd", hint: "De prijs wordt op de server bepaald (afgesproken prijs van de klant, anders basisprijs)." }) + '</div>' +
@@ -185,6 +249,8 @@
       refresh();
     };
     draw();
+    K.api("/api/lots").then(d => { lotsBy = {}; (d.lots || []).forEach(x => { (lotsBy[lotKey(x.produit)] = lotsBy[lotKey(x.produit)] || []).push(x); }); draw(); }).catch(() => {});
+    K.on(p.el, "change", "[data-lot]", (e, t) => { chosen[lotKey(lines[+t.dataset.lot].name)] = t.value; });
     K.on(p.el, "click", "[data-v]", (e, t) => { const i = +t.dataset.v; state[i] = !state[i]; K.setOn(t, state[i]); refresh(); });
     p.el.querySelector("#vAddBtn").onclick = async () => {
       const box = p.el.querySelector("#vAdd"); box.style.display = ""; p.el.querySelector("#vAddBtn").style.display = "none";
@@ -212,7 +278,8 @@
       const btn = p.el.querySelector("#vOk"); K.busy(btn, true, "Klaarzetten…");
       const changed = kept.length !== orig.length || kept.some(l => { const x = orig.find(y => y.name === l.name); return !x || x.qty !== l.qty; });
       try {
-        await S.update(o.id, Object.assign({ statut: "Prête", preparationValidee: true }, changed ? { lignes: kept.map(K.formatLine).join("\n") } : {}));
+        const lots = {}; kept.forEach(l => { const id = chosen[lotKey(l.name)]; if (id) lots[l.name] = id; });
+        await S.update(o.id, Object.assign({ statut: "Prête", preparationValidee: true }, changed ? { lignes: kept.map(K.formatLine).join("\n") } : {}, Object.keys(lots).length ? { lots } : {}));
         p.close(); K.toast(o.client + " staat klaar"); if (onDone) onDone();
       } catch (err) { p.el.querySelector("#vErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
     };
@@ -260,7 +327,7 @@
     const lines = K.parseLines(o.lignes), pick = lines.map(l => ({ on: false, qty: l.qty }));
     const isKg = u => /kg/i.test(u);
     const p = K.panel({ title: "Creditnota maken", sub: o.client + " · factuur " + (o.factuurnummer || o.ref), body:
-      '<div class="field"><label>Te crediteren artikelen</label><div class="card" id="cnL">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-cn="' + i + '"', { label: "Crediteren: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b><div class="quiet" style="font-size:12px">geleverd ' + K.esc(K.qty(l.qty) + " " + K.unit(l.unit)) + (l.price != null ? " · " + K.esc(K.eur(l.price)) : "") + '</div></div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="Minder">−</button><input type="number" inputmode="decimal" min="0" max="' + l.qty + '" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '"><button type="button" data-inc aria-label="Meer">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div></div>' +
+      '<div class="field"><label>Te crediteren artikelen</label><div class="card" id="cnL">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-cn="' + i + '"', { label: "Crediteren: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b><div class="quiet" style="font-size:12px">geleverd ' + K.esc(K.qty(l.qty) + " " + K.unit(l.unit)) + (l.price != null ? " · " + K.esc(K.eur(l.price)) : "") + '</div></div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" max="' + l.qty + '" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '" aria-label="' + K.esc("Te crediteren: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div></div>' +
       K.c.field("Reden", K.c.input("cnMotif", { placeholder: "bv. 2 kg zalm geweigerd bij levering…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fCnMotif", req: true, hint: "Komt op de creditnota en in het journaal." }) +
       '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer;border:1px solid var(--line);border-radius:8px">' + K.c.check(false, 'id="cnRetour"', { label: "Retour in voorraad" }) + '<div><b>Retour in voorraad</b><div class="quiet" style="font-size:12px">De gecrediteerde aantallen gaan terug in de voorraad (beweging „Klantretour”).</div></div></label>' +
       '<div class="notice" style="font-size:12.5px;margin-top:10px"><div><b>Bedrag:</b> <span id="cnSum" class="mono">' + K.esc(K.eur(0)) + '</span> excl. btw · nummer CN-… wordt op de server toegekend. Eén creditnota per factuur.</div></div><div id="cnErr"></div>',
@@ -369,5 +436,35 @@
     });
   };
   S.orderCard = o => '<a class="ocard" draggable="false" data-oid="' + K.esc(o.id) + '" href="/order.html?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + (o.statut === "Annulée" ? "inv" : K.stKey(o.statut)) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Openstaand</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
+  // Hors ligne (H-12) : file des confirmations de livraison, rejouée au retour du réseau.
+  S.queue = global.FamoQueue ? global.FamoQueue.create(global.localStorage, "famoOfflineQueue") : null;
+  S.queueBadge = () => {
+    const n = S.queue ? S.queue.size() : 0;
+    let el = document.getElementById("famoQueue");
+    if (!n) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement("div"); el.id = "famoQueue"; el.setAttribute("role", "status"); el.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:60;background:#7A5410;color:#fff;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2)"; document.body.appendChild(el); }
+    el.textContent = n + (n === 1 ? " levering wacht op netwerk" : " leveringen wachten op netwerk");
+  };
+  S.flushQueue = async () => {
+    if (!S.queue || !S.queue.size() || !navigator.onLine) { S.queueBadge(); return; }
+    const out = await S.queue.replay(async it => {
+      try { await K.api("/api/updateorder", { json: it.body }); }
+      catch (e) {
+        if (e.network || e.status >= 500) return "retry";
+        if (!(e.status === 409 && /al bevestigd/i.test(e.message))) { K.toast((it.ref || "") + ": " + e.message, { kind: "err" }); return "drop"; }
+      }
+      for (const j of it.proofs || []) { try { await K.api("/api/bewijs", { json: Object.assign({ id: it.orderId }, j) }); } catch (e) { if (e.network) return "retry"; } }
+      return "ok";
+    });
+    S.queueBadge();
+    if (out.sent) { K.toast(out.sent + (out.sent === 1 ? " levering" : " leveringen") + " uit de wachtrij verstuurd"); S.invalidate(); try { await S.load(true); } catch (e) { /* volgende verversing */ } }
+  };
+  if (S.queue) {
+    global.addEventListener("online", () => { S.flushQueue(); });
+    document.addEventListener("DOMContentLoaded", () => { S.queueBadge(); S.flushQueue(); });
+  }
+  if ("serviceWorker" in navigator && /^https:|^http:\/\/localhost/.test(location.origin)) {
+    global.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => { /* hors ligne sans cache : rien de bloquant */ }); });
+  }
   global.S = S;
 })(window);

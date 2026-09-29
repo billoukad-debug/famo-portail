@@ -8,11 +8,14 @@ function load() {
   const win = { console, Intl, Date };
   win.window = win;
   vm.createContext(win);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "assets", "vat.js"), "utf8"), win);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "staff-company.js"), "utf8"), win);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "documents.js"), "utf8"), win);
   return win.FamoDocuments;
 }
-const CFG = { bedrijfsnaam: "Famo Trading BV", adres: "Jezusstraat 34", plaats: "2000 Antwerpen", btw: "BE0788705713", iban: "BE71096123456769", bic: "GKCCBEBB", btwTarief: 6 };
+// Mode « portaal » : le portail émet la facture (tests historiques de la facture). Le mode par défaut
+// « boekhouder » (pro forma) est testé à la fin du fichier.
+const CFG = { bedrijfsnaam: "Famo Trading BV", adres: "Jezusstraat 34", plaats: "2000 Antwerpen", btw: "BE0788705713", iban: "BE71096123456769", bic: "GKCCBEBB", btwTarief: 6, facturatie: "portaal" };
 const meta = (html, label) => (new RegExp('<div class="metalabel">' + label + '</div><div class="metavalue[^"]*">([^<]+)</div>').exec(html) || [])[1];
 const row = (html, label) => (new RegExp('<div class="trow[^"]*"><span>' + label + '(?:<small>[^<]*</small>)?</span><span>([^<]+)</span></div>').exec(html) || [])[1];
 const ORDER = { ref: "CMD-2026-0500", client: "Resto Test", factuurnummer: "FA-2026-0500", lignes: "Kabeljauw × 5 kg [€20.00]", total: 100, factureeLe: "2026-03-10T09:30:00.000Z", klant: { klantnr: "K-0042", btw: "BE0123456789" } };
@@ -54,7 +57,8 @@ test("btw enkel tarief : 6 % op het totaal zoals voorheen (geen btwPerLine)", ()
   assert.equal(row(f, "btw 6%"), "€ 6,00");
   assert.equal(row(f, "Totaal incl\\. btw"), "€ 106,00");
   assert.equal((f.match(/<span>btw /g) || []).length, 1);
-  const r = D.build({ ...ORDER, total: 12.35 }, "invoice");
+  // Anciennes commandes sans prix de ligne : TVA sur le total stocké (avec prix : somme des lignes, EN 16931).
+  const r = D.build({ ...ORDER, lignes: "Kabeljauw × 5 kg", total: 12.35 }, "invoice");
   assert.equal(row(r, "btw 6%"), "€ 0,74");
   assert.equal(row(r, "Totaal incl\\. btw"), "€ 13,09");
 });
@@ -97,4 +101,74 @@ test("structuredRef ongewijzigd", () => {
   const D = load();
   assert.equal(D.structuredRef("FA-2026-0001"), "+++202/6000/00192+++");
   assert.equal(D.structuredRef("CMD-1"), "");
+});
+
+// ---- Mode « boekhouder » (défaut) : la facture légale vient du comptable (Billtobox / Peppol) ----
+const PRO = { ...CFG, facturatie: "", legal: { naam: "Famo Trading", rechtsvorm: "BV", ondernemingsnummer: "0788.705.713", rpr: "RPR Antwerpen, afdeling Antwerpen", handelsnaam: "FAMO Seafood" } };
+
+test("boekhouder : PRO FORMA, geen factuurnummer/IBAN/OGM, vermelding « geen factuur »", () => {
+  const D = load();
+  D.setCompany(PRO);
+  const html = D.build(ORDER, "invoice");
+  assert.match(html, /<h1>PRO FORMA<\/h1>/);
+  assert.doesNotMatch(html, /FACTUUR|FA-2026-0500|BE71|\+\+\+|Vervaldatum/);
+  assert.match(html, /geen factuur/);
+  assert.equal(D.number(ORDER, "invoice"), "PF-2026-0500");
+  assert.match(D.filename(ORDER, "invoice"), /ProForma/);
+});
+
+test("boekhouder : retourbon in plaats van creditnota, FR vertaald", () => {
+  const D = load();
+  D.setCompany(PRO);
+  const o = { ...ORDER, klant: { ...ORDER.klant, taal: "FR" }, creditnota: { nummer: "CN-2026-0001", lignes: "Kabeljauw × 1 kg [€20.00]", montant: 20, le: "2026-03-12T10:00:00.000Z", motif: "Retour" } };
+  const html = D.build(o, "credit");
+  assert.match(html, /BON DE RETOUR/);
+  assert.match(html, /n'est pas une note de crédit/);
+  assert.equal(D.number(o, "credit"), "RB-2026-0001");
+});
+
+test("vermeldingen WVV art. 2:20 onderaan elk document", () => {
+  const D = load();
+  D.setCompany(PRO);
+  for (const type of ["invoice", "delivery"]) {
+    const html = D.build(ORDER, type);
+    assert.match(html, /Famo Trading BV · Ondernemingsnummer 0788\.705\.713 · RPR Antwerpen, afdeling Antwerpen · handelsnaam FAMO Seafood/, type);
+  }
+});
+
+test("portaal : IBAN ontbreekt → geen voorbeeld-IBAN, factuur geblokkeerd", () => {
+  const D = load();
+  D.setCompany({ ...CFG, iban: "", bic: "" });
+  assert.equal(D.canInvoice(), false);
+  assert.throws(() => D.build(ORDER, "invoice"), /IBAN ontbreekt/);
+});
+
+test("afronding EN 16931 : 1,375 kg × 18,49 → lijn 25,42 ; btw per tarief", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const html = D.build({ ...ORDER, lignes: "Tong × 1.375 kg [€18.49]\nMosselen × 3 kg [€4.99]", total: 40.39 }, "invoice");
+  assert.equal(row(html, "Totaal excl. btw"), "€ 40,39");
+  assert.equal(row(html, "btw 6%"), "€ 2,42");
+  assert.equal(row(html, "Totaal incl. btw"), "€ 42,81");
+});
+
+test("poids réel (H-04) : « besteld X » seulement là où la livraison diffère de la commande", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const o = { ...ORDER, lignes: "Kabeljauw × 5.4 kg [€20.00]\nZalm × 2 kg [€30.00]", besteld: "Kabeljauw × 5 kg [€20.00]\nZalm × 2 kg [€30.00]", total: 168 };
+  const bon = D.build(o, "delivery");
+  assert.match(bon, /<small class="ordered">besteld 5 kg<\/small>/);
+  assert.equal((bon.match(/class="ordered"/g) || []).length, 1, "Zalm inchangé : pas de mention");
+  assert.ok(!/class="ordered"/.test(D.build({ ...o, besteld: "" }, "delivery")), "anciennes commandes sans champ : rien");
+  const fr = D.build({ ...o, klant: { ...o.klant, taal: "FR" } }, "delivery");
+  assert.match(fr, /commandé 5/);
+});
+
+test("CGV (C-12) : mention au pied du document quand une version est publiée, NL et FR", () => {
+  const D = load();
+  D.setCompany({ ...CFG, voorwaardenVersie: "2026-09-28 10:05" });
+  assert.match(D.build(ORDER, "delivery"), /Onze algemene verkoopsvoorwaarden zijn van toepassing \(versie 2026-09-28 10:05\) : \/voorwaarden\.html/);
+  assert.match(D.build({ ...ORDER, klant: { ...ORDER.klant, taal: "FR" } }, "invoice"), /Nos conditions générales de vente s'appliquent \(version 2026-09-28 10:05\)/);
+  D.setCompany(CFG);
+  assert.ok(!/verkoopsvoorwaarden zijn van toepassing/.test(D.build(ORDER, "delivery")), "rien sans version publiée");
 });
