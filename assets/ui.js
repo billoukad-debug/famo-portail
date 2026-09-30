@@ -33,6 +33,8 @@
   // erin : de API blijft eentalig, de vertaling gebeurt bij het tonen (K.errText).
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
+    "Tellers in het menu": "Pastilles du menu", "Nieuw": "Nouveau", "Uit": "Aucune", "nieuw sinds uw laatste bezoek": "nouveau depuis votre dernière visite",
+    "Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.": "Nouveau : disparaît dès que vous ouvrez la page. Tout : reste tant qu'il y a quelque chose à faire. Aucune : pas de pastille.",
     "Vandaag": "Aujourd'hui", "Morgen": "Demain", "Gisteren": "Hier", "Algemeen": "Général", "Ontvangen": "Reçue", "Openstaand": "À payer",
     "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Bezig…": "En cours…", "Wijzigingen niet bewaard": "Modifications non enregistrées", "U heeft iets gewijzigd in dit venster. Sluiten zonder te bewaren?": "Vous avez modifié quelque chose dans cette fenêtre. Fermer sans enregistrer ?", "Sluiten zonder bewaren": "Fermer sans enregistrer", "Verder bewerken": "Continuer", "Sneltoetsen": "Raccourcis clavier", "Zoeken": "Rechercher", "Sneltoetsen tonen": "Afficher les raccourcis", "Venster sluiten": "Fermer la fenêtre", "Bewaren vanuit een tekstvak": "Enregistrer depuis un champ texte", "Volgende / vorige knop": "Bouton suivant / précédent", "Zoekveld": "Champ de recherche", "Naar de inhoud": "Aller au contenu", "Annuleren": "Annuler",
     "Laden…": "Chargement…", "Openen": "Ouvrir", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
@@ -672,15 +674,50 @@
   // [enkelvoud, meervoud] : « 1 onbetaalde factuur », « 2 onbetaalde facturen ».
   const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
   K.plural = (n, one, many) => n + " " + (Number(n) === 1 ? one : (many || one));
+  // Pastilles lues (spec 001) : chaque valeur est un nombre ou une liste d'identifiants.
+  // Mode par appareil : « nieuw » (défaut) = pas encore vus ici ; « alles » = tout ce qui reste ; « uit » = rien.
+  // Vu = la personne est sur la page de la pastille (lien actif), onglet visible.
+  const BADGE_MODES = ["nieuw", "alles", "uit"];
+  K.badgeMode = () => { const m = K.store.get("famoBadgeMode", "nieuw"); return BADGE_MODES.includes(m) ? m : "nieuw"; };
+  // Fonction pure : { n affiché, seen mémoire à garder }.
+  K.badgeView = (value, mode, seen, here) => {
+    const m = BADGE_MODES.includes(mode) ? mode : "nieuw";
+    if (Array.isArray(value)) {
+      const ids = value.map(String);
+      const old = new Set(seen && Array.isArray(seen.ids) ? seen.ids.map(String) : []);
+      const next = { ids: here ? ids : ids.filter(id => old.has(id)) };
+      return { n: m === "uit" ? 0 : m === "alles" ? ids.length : (here ? 0 : ids.filter(id => !old.has(id)).length), seen: next };
+    }
+    const n = Math.max(0, Number(value) || 0), prev = seen && typeof seen.n === "number" && Number.isFinite(seen.n) ? seen.n : 0;
+    const base = here ? n : Math.min(prev, n);
+    return { n: m === "uit" ? 0 : m === "alles" ? n : Math.max(0, n - base), seen: { n: base } };
+  };
   K.setBadges = map => {
     const all = Object.assign(K.session.get("famoBadges", {}) || {}, map || {});
     if (map && Object.keys(map).length) K.session.set("famoBadges", all);
+    const mode = K.badgeMode(), seenAll = K.store.get("famoBadgeSeen", {}) || {};
+    const visible = !(typeof document !== "undefined" && document.visibilityState === "hidden");
+    let changed = false;
     K.$$("[data-badge]").forEach(el => {
-      const n = Number(all[el.dataset.badge]) || 0, txt = BADGE_TXT[el.dataset.badge] || [""];
+      const key = el.dataset.badge, a = el.closest && el.closest("a");
+      const here = visible && !!a && (a.getAttribute("aria-current") === "page" || a.classList.contains("on"));
+      const v = K.badgeView(all[key], mode, seenAll[key], here);
+      if (all[key] != null && JSON.stringify(v.seen) !== JSON.stringify(seenAll[key])) { seenAll[key] = v.seen; changed = true; }
+      const n = v.n, txt = BADGE_TXT[key] || [""];
       el.hidden = !n; el.textContent = n > 99 ? "99+" : String(n);
-      el.setAttribute("aria-label", K.plural(n, K.t(txt[0]), K.t(txt[1] || txt[0])));
+      el.setAttribute("aria-label", K.plural(n, K.t(txt[0]), K.t(txt[1] || txt[0])) + (mode === "nieuw" ? " · " + K.t("nieuw sinds uw laatste bezoek") : ""));
     });
+    if (changed) K.store.set("famoBadgeSeen", seenAll);
   };
+  // Keuze per toestel : drie knoppen (zelfde vorm als de taalkeuze), meteen toegepast.
+  K.badgeSwitch = () => '<div class="lang" role="group" aria-label="' + K.t("Tellers in het menu") + '">' + [["nieuw", "Nieuw"], ["alles", "Alles"], ["uit", "Uit"]].map(([m, l]) => '<button type="button" data-badgemode="' + m + '" aria-pressed="' + (K.badgeMode() === m) + '"' + (K.badgeMode() === m ? ' class="on"' : "") + '>' + K.t(l) + '</button>').join("") + '</div>';
+  K.badgeHelp = () => K.t("Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.");
+  if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => {
+    const b = e.target && e.target.closest && e.target.closest("[data-badgemode]"); if (!b) return;
+    K.store.set("famoBadgeMode", b.dataset.badgemode);
+    K.$$("[data-badgemode]").forEach(x => { const on = x.dataset.badgemode === b.dataset.badgemode; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
+    K.setBadges({});
+  });
   const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];
   const NAV_STAFF_MORE = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"]];
   K.shell = function (opts) {
@@ -704,10 +741,11 @@
       '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
-    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
+    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
+    app.querySelector("[data-badgesettings]").onclick = () => K.panel({ title: "Tellers in het menu", sub: "Voor dit toestel", width: "420px", body: '<div class="badgeset"><p class="muted">' + K.badgeHelp() + '</p>' + K.badgeSwitch() + '</div>' });
     // G-20 : au téléphone la navigation défile à l'horizontale — un fondu montre qu'il reste des onglets,
     // et l'onglet de la page est ramené dans la vue.
     const sideEl = app.querySelector(".side");

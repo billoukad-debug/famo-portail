@@ -180,6 +180,8 @@ select.input.tool,input.input.tool{border-color:var(--line-input);background:var
 .mcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px;min-width:0}
 .mtop{background:var(--canvas);border-bottom:1px solid var(--line-soft);padding:16px 16px 0;display:flex;flex-direction:column;gap:12px;position:sticky;top:0;z-index:20}
 .mrow{display:flex;align-items:center;gap:10px;min-width:0}
+.mcard .row{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--line-soft)}.mcard .row:first-child{border-top:0;padding-top:0}.mcard .row:last-child{padding-bottom:0}.mcard .row>div:first-child{min-width:0;flex:1 1 180px}.mcard .row small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}
+.badgeset{display:flex;flex-direction:column;gap:14px}.badgeset .lang{align-self:flex-start}.badgeset .lang button{min-height:44px;padding:0 16px}
 .cats{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}.cats::-webkit-scrollbar{display:none}
 .cats button{min-height:44px;padding:0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;font-size:14px;font-weight:500;color:var(--ink-2);display:flex;align-items:center;white-space:nowrap;cursor:pointer;flex:none}
 .cats button:hover{color:var(--ink)}.cats button.on{color:var(--p);border-bottom-color:var(--p);font-weight:600;background:transparent}

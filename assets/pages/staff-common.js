@@ -46,12 +46,13 @@
   // à confirmer (Ontvangen), à préparer aujourd'hui, à livrer aujourd'hui, factures ouvertes.
   // Voorraad et Beheer demandent un petit appel : au plus toutes les 15 min, et seulement onglet visible.
   S.badges = () => {
-    const t = K.today(), c = S.counts();
+    // Listes d'identifiants (pas des nombres) : en mode « Nieuw » seuls les éléments pas encore vus comptent (spec 001).
+    const t = K.today(), ids = f => S.orders.filter(f).map(o => o.id);
     K.setBadges({
-      "bestellingen.html": c.prep,
-      "entrepot.html": S.orders.filter(o => o.statut === "Reçue" && o.day && o.day <= K.addDays(t, 1)).length, // Magazijn s'ouvre sur « morgen » (G-13)
-      "leveringen.html": S.orders.filter(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t).length,
-      "documenten.html": c.unpaid
+      "bestellingen.html": ids(o => o.statut === "Reçue"),
+      "entrepot.html": ids(o => o.statut === "Reçue" && o.day && o.day <= K.addDays(t, 1)), // Magazijn s'ouvre sur « morgen » (G-13)
+      "leveringen.html": ids(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t),
+      "documenten.html": ids(o => o.statut === "Facturée" && o.paiement !== "Payé")
     });
     const every = 15 * 60 * 1000, seen = K.session.get("famoBadgesAt", {}) || {}, now = Date.now();
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -60,7 +61,7 @@
     if (due("stock") && document.querySelector('[data-badge="stock.html"]')) { mark("stock"); K.api("/api/stock").then(d => S.stockBadge(d.items)).catch(() => {}); }
     if (due("beheer") && K.staff.isAdmin() && document.querySelector('[data-badge="beheer.html"]')) { mark("beheer"); K.api("/api/onboarding?counts=1").then(d => K.setBadges({ "beheer.html": Number(d.aanvragen) || 0 })).catch(() => {}); }
   };
-  S.stockBadge = items => K.setBadges({ "stock.html": (items || []).filter(i => i.quantity <= i.lowThreshold).length }); // = « n onder drempel » de Voorraad
+  S.stockBadge = items => K.setBadges({ "stock.html": (items || []).filter(i => i.quantity <= i.lowThreshold).map(i => i.id || i.product) }); // = « n onder drempel » de Voorraad
   S.byId = id => S.orders.find(o => o.id === id);
   // Automatisch vernieuwen (elke 60 s) : enkel als het tabblad zichtbaar is en niemand bezig is
   // (paneel open, slepen, typen). Nieuwe bestellingen → melding + teller in de tabtitel.
