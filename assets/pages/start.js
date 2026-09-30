@@ -8,7 +8,6 @@
     '<a class="skip" href="#main">' + K.t("Naar de inhoud") + '</a><header class="start-hd"><a class="brand" href="/"><span class="logo logo-lg" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + K.t("Verse vis en zeevruchten, Antwerpen") + '</small></span></a>' +
     '<nav class="mini">' + K.langSwitch() + '<a class="tlink" href="/aanvraag.html">' + K.t("Toegang aanvragen") + '</a></nav></header>' +
     '<main class="start-body" id="main" tabindex="-1"><section class="hero"><h1 id="heroT"></h1>' +
-    '<div class="tide" id="tide"><small id="tideA"></small><b id="tideB"></b><small id="tideC"></small></div>' +
     '<p id="hero"></p></section>' +
     '<form class="card login" id="loginForm" novalidate><div><h2 class="h2 login-t">' + K.t("Klantportaal") + '</h2><p class="sub">' + K.t("Aanmelden met uw gebruikersnaam") + '</p></div>' +
     (expired ? K.c.warn(K.t("Sessie verlopen, meld u opnieuw aan.")) : loggedOut ? K.c.ok(K.t("U bent afgemeld.")) : "") +
@@ -19,24 +18,17 @@
     '<div class="login-links"><a class="tlink" href="/wachtwoord.html">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag.html">' + K.t("Nog geen klant? Toegang aanvragen") + '</a></div></form></main>' +
     '<footer class="start-ft"><span class="quiet" id="foot">FAMO Seafood</span><nav class="mini" aria-label="' + K.t("Meer links") + '"><a class="tlink" href="/privacy.html">' + K.t("Privacy") + '</a><a class="tlink" href="/voorwaarden.html">' + K.t("Voorwaarden") + '</a><span class="ft-sep"></span><span>' + K.t("Werkt u bij Famo?") + '</span><a class="btn btn-o btn-sm" href="/personeel.html">' + K.t("Personeel") + '</a><a class="btn btn-o btn-sm" href="/beheer-login.html">' + K.t("Beheer") + '</a></nav></footer></div>';
 
-  // Le bandeau « marée » : combien de temps il reste pour commander, et pour quel jour. Recalculé chaque minute.
   const KEYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
-  const dayLong = iso => { const d = K.parseDate(iso); try { return new Intl.DateTimeFormat(K.lang === "fr" ? "fr-BE" : "nl-BE", { weekday: "long", day: "numeric", month: "long" }).format(d); } catch (e) { return iso; } };
   function daysLabel() {
     const days = (lev.leverdagen || DEF.leverdagen).filter(k => KEYS.includes(k)).sort((a, b) => (KEYS.indexOf(a) || 7) - (KEYS.indexOf(b) || 7));
     const idx = days.map(k => KEYS.indexOf(k) || 7), contiguous = idx.every((v, i) => i === 0 || v === idx[i - 1] + 1);
     return days.length > 1 && contiguous ? K.t(days[0]) + "–" + K.t(days[days.length - 1]) : days.map(K.t).join(", ");
   }
   function draw() {
-    const w = K.orderWindow(lev), h = Math.floor(w.left / 60), m = w.left % 60;
-    document.getElementById("heroT").innerHTML = K.esc(K.tt("Vóór {t} besteld,", { t: w.deadline })) + '<br>' + K.esc(K.t("morgen in uw keuken."));
-    document.getElementById("tide").classList.toggle("closed", !w.open);
-    document.getElementById("tideA").textContent = w.open ? K.t("Nog") : K.t("Volgende levering");
-    document.getElementById("tideB").textContent = w.open ? (h ? K.tt("{h} u {m} min", { h, m }) : K.tt("{m} min", { m })) : dayLong(w.first);
-    document.getElementById("tideC").textContent = w.open ? K.tt("om te bestellen voor levering op {d}.", { d: dayLong(w.first) }) : K.tt("De bestellingen voor morgen zijn dicht sinds {t}.", { t: w.deadline });
+    document.getElementById("heroT").innerHTML = K.esc(K.tt("Vóór {t} besteld,", { t: lev.deadline || DEF.deadline })) + '<br>' + K.esc(K.t("morgen in uw keuken."));
     document.getElementById("hero").textContent = K.tt("Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.", { d: daysLabel() });
   }
-  draw(); setInterval(draw, 30 * 1000);
+  draw();
   K.api("/api/config?public=1").then(d => {
     const c = d.config || {};
     document.getElementById("foot").textContent = [c.bedrijfsnaam, c.adres, c.plaats, c.btw].filter(Boolean).join(", ");

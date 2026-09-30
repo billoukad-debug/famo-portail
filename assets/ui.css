@@ -4,7 +4,7 @@
 @font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 @font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin-ext.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 /* FAMO · Vismijn (spec 002, 30/09/2026) — le monde du produit : la criée, la glace, l'inox, la mer du Nord.
-   IJs (fond froid) · Diepzee (encre, timonerie de l'équipe) · Noordzee (toute action) · Boei (orange bouée : la marque, rien d'autre).
+   IJs (fond froid) · Diepzee (encre, timonerie de l'équipe) · Noordzee (toute action). Marque : un F sobre (assets/brand/).
    Rayons hiérarchisés : 6 ce qu'on touche · 10 ce qui contient · 14 ce qui flotte. Ombres seulement sur ce qui flotte.
    Les noms de variables restent ceux de v2 : changer une valeur re-habille tout le portail sans toucher au JS. */
 :root{
@@ -18,7 +18,7 @@
   --danger:#B3321F;--danger-bg:#F8E4DF;--danger-line:#EDC3B8;--warn-line:#E8D6A8;--ok-line:#C4DCC6;--gold:#B2431A;--klei:#B2431A;
   --neutral-300:#C3CFD1;--th-bg:#F5F8F8;--row-hover:#F3F7F7;--row-ok:#EAF3EB;--day-wk:#F3F6F6;--sk-a:#E6EDED;--sk-b:#F4F7F7;
   --p-klant:#0B5A6C;--p-personeel:#0B5A6C;--p-beheer:#0B5A6C;
-  --deep:#0E2229;--deep-2:#16323B;--deep-ink:#C9D8DB;--deep-ink-2:#90A7AD;--boei:#E2531B;
+  --deep:#0E2229;--deep-2:#16323B;--deep-ink:#C9D8DB;--deep-ink-2:#90A7AD;
   --r-xs:4px;--r-sm:6px;--r:6px;--r-lg:10px;--r-xl:14px;--tap:44px;--side:232px;--rail:88px;
   --shadow:0 1px 2px rgba(14,34,41,.06),0 12px 32px rgba(14,34,41,.16);
   --lift:0 1px 2px rgba(14,34,41,.05),0 4px 12px rgba(14,34,41,.08);
@@ -524,12 +524,6 @@ a.kp-link:hover{background:var(--row-hover)}
 .start-body{flex:1;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:clamp(24px,6vw,96px);padding:24px clamp(16px,8vw,120px) 48px;align-items:center}
 .hero h1{font-size:clamp(30px,4.4vw,52px);line-height:1.05;letter-spacing:-.03em;font-weight:700;max-width:17ch}
 .hero p{font-size:15.5px;color:var(--ink-2);margin:20px 0 0;max-width:46ch;line-height:1.55}
-/* Le bandeau « marée » : le temps qui reste pour commander. Le seul élément sombre de la page. */
-.tide{margin-top:28px;display:inline-grid;gap:2px;background:var(--deep);color:#fff;border-radius:var(--r-lg);padding:16px 22px 18px;max-width:100%}
-.tide small{font-size:13.5px;color:var(--deep-ink)}
-.tide b{font-size:clamp(26px,3vw,34px);font-weight:700;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
-.tide:not(.closed) b::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--boei);margin:0 12px 4px 0;vertical-align:middle}
-.tide.closed b{font-size:clamp(22px,2.4vw,28px)}
 .login{padding:28px;display:flex;flex-direction:column;gap:14px;max-width:420px;width:100%;justify-self:end;border-radius:var(--r-xl);box-shadow:var(--lift);border-color:var(--line)}
 .login-t{font-size:21px}
 .pwwrap{position:relative}.pwwrap .input{padding-right:84px}.pwwrap .btn{position:absolute;right:2px;top:2px;bottom:2px;min-height:0}
@@ -538,7 +532,7 @@ a.kp-link:hover{background:var(--row-hover)}
 .start-ft{display:flex;align-items:center;justify-content:space-between;padding:12px clamp(16px,5vw,48px) 16px;border-top:1px solid var(--line);gap:8px 16px;flex-wrap:wrap;font-size:13px}
 .mini{display:flex;align-items:center;gap:8px 12px;font-size:13.5px;color:var(--ink-2);flex-wrap:wrap}
 .ft-sep{width:1px;height:20px;background:var(--line);margin:0 4px}
-@media (max-width:860px){.start-body{grid-template-columns:1fr;gap:28px;padding-top:8px}.login{justify-self:stretch;max-width:none}.hero h1{max-width:none}.tide{display:grid}.ft-sep{display:none}}
+@media (max-width:860px){.start-body{grid-template-columns:1fr;gap:28px;padding-top:8px}.login{justify-self:stretch;max-width:none}.hero h1{max-width:none}.ft-sep{display:none}}
 .start-ft .tlink{min-width:44px;justify-content:center;padding:0 4px}
 /* C-08 : plusieurs creditnota's par facture (fiche, paneel, documenten) — classes au lieu de styles en ligne */
 .cn-list{display:flex;flex-direction:column;gap:8px}
