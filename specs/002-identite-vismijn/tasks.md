@@ -22,4 +22,4 @@
 - [x] T011 DESIGN.md / README
 - [x] T012 check.js, ESLint, ux-audit, kbd-audit
 - [x] T013 Impeccable après : 0 constat sur `ui.css`
-- [ ] T014 Couleurs des documents A4 et des e-mails (`documents.js`, `lib/ordermail.js`, `lib/authmail.js`) — après fusion des specs 003/004 qui modifient ces fichiers
+- [x] T014 Couleurs des documents A4 et des e-mails (`documents.js`, `lib/ordermail.js`, `lib/authmail.js`) — après fusion des specs 003/004 qui modifient ces fichiers

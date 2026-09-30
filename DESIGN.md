@@ -123,7 +123,7 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 5. **`alert()` / `confirm()` / `prompt()` natifs interdits** : `K.toast`, `K.confirm`, `K.prompt`, `K.panel`.
 6. **Cibles tactiles ≥ 44 px** partout où le personnel appuie (`--tap`).
 7. **Portail client bilingue** : tout texte visible passe par `K.t()` et a sa traduction dans `K.FR` (`assets/ui.js`) ; un test échoue sinon. Personnel, Beheer et e-mails restent en néerlandais ; les documents suivent la langue du client (NL/FR).
-8. **Documents** (`documents.js`) et **e-mails** (`lib/ordermail.js`) ont leur CSS en ligne ; ils reprennent encore les valeurs des jetons Crème (encre `#232323`, filet `#E3E0D6`, fond `#FAF9F5`, bleu `#4876A2`) ; la marque des documents est déjà Vismijn, les couleurs suivent (tâche T014 de la spec 002). Pas de ligne de signature sur les documents.
+8. **Documents** (`documents.js`) et **e-mails** (`lib/ordermail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Vismijn (encre `#0E2229`, filet `#D3DDDF`, fond `#EFF3F3`, action `#0B5A6C`) ; police système (Arial dans les e-mails, Helvetica dans les PDF) : les polices web y sont peu fiables. Pas de ligne de signature sur les documents.
 9. `node scripts/check.js` et `npx -y eslint@9.39.5 .` (tout le dépôt) doivent rester verts ; la CI joue les deux, plus `scripts/ux-audit.js` dans un navigateur.
 
 ---

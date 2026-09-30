@@ -346,3 +346,26 @@ test("RGPD : régime et contrôle VIES dans l'export du client, conservés à l'
   const f = await client("recNL");
   assert.equal(f["Régime TVA"], "Intracommunautaire"); assert.ok(f["VIES resultaat"], "justificatif de l'exonération conservé");
 });
+
+// Specs 003 × 004 : plusieurs notes de crédit sur une facture intracommunautaire. Chaque note reste
+// à 0 % (taux figés de la facture) et son UBL (&cn=) porte la catégorie K et la mention d'exonération.
+test("régime figé × plusieurs creditnota's : 2e note à 0 %, UBL K via &cn=", async () => {
+  await seed([FACT("recORD0020", "recNL", "Intracommunautaire")]);
+  await store().replaceAll("Compteurs", []);
+  const cn = (lignes, sleutel) => call("updateorder.js", { id: "recORD0020", creditnota: { lignes, motif: "Niet vers", sleutel } }, { headers: hdr("admin") });
+  let r = await cn("Tong × 0.5 kg", "x1");
+  assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+  r = await cn("Tong × 0.5 kg", "x2");
+  assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+  const notes = require(path.join(ROOT, "lib", "creditnota.js")).list((await store().get("Commandes", "recORD0020")).fields);
+  assert.equal(notes.length, 2, "deux notes");
+  const second = notes[1];
+  const c = await call("export.js", null, { method: "GET", headers: hdr("admin"), query: { format: "ubl", id: "recORD0020", type: "credit", cn: second.nummer } });
+  assert.equal(c.statusCode, 200, JSON.stringify(c.payload));
+  assert.match(c.body, /<cac:TaxCategory><cbc:ID>K<\/cbc:ID><cbc:Percent>0<\/cbc:Percent><cbc:TaxExemptionReasonCode>VATEX-EU-IC/);
+  assert.ok(!/<cbc:ID>S<\/cbc:ID>/.test(c.body), "aucune ligne au taux normal");
+  assert.deepStrictEqual(all(c.body, "cbc:TaxAmount").filter((x) => x !== "0.00"), [], "TVA nulle partout");
+  assert.equal(tag(c.body, "cbc:PayableAmount"), String(second.montant.toFixed(2)));
+  assert.ok(c.body.includes(second.nummer), "le numéro de la 2e note est dans le XML");
+  wellFormed(c.body);
+});

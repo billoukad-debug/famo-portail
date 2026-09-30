@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/brave-lovelace-s4xk7h`
 **Created**: 2026-09-30
-**Status**: Implemented (docs/e-mails : T014 après fusion des specs 003/004)
+**Status**: Implemented
 **Input**: « Le problème c'est qu'on a encore cet aperçu vibe-codé. Étudie comment les gens enlèvent cet effet. » — carte verte sur l'UI, « la crème de la crème ».
 
 ## Constat (sources)
