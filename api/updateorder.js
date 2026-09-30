@@ -9,6 +9,8 @@ const __atomic = require("../lib/atomic");
 const __guard = require("../lib/guardrails");
 const __journal = require("../lib/journal");
 const __trace = require("../lib/trace");
+const __cn = require("../lib/creditnota");
+const __corr = require("../lib/correctie");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -24,14 +26,7 @@ const norm = s => String(s || "").toLowerCase().trim();
 const money = v => Math.round((Number(v) || 0) * 100) / 100;
 
 // "Zalmfilet × 3 doos [€12.50] (in filets)"  ->  { nom, qty, unit, price, comment }
-function parseLines(txt){
-  return String(txt || "").split("\n").map(l => l.trim()).filter(Boolean).map(l => {
-    const m = l.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)(.*)$/);
-    if (!m) return null;
-    const tail = m[4] || "", price = tail.match(/\[€\s*([\d.,]+)\]/), comment = tail.match(/\((.*?)\)/);
-    return { nom: m[1].trim(), qty: parseFloat(m[2].replace(",", ".")) || 0, unit: m[3].trim(), price: price ? Number(price[1].replace(",", ".")) : null, comment: comment ? comment[1] : "" };
-  }).filter(Boolean);
-}
+const { parseLines } = require("../lib/lines"); // une seule définition (I-11)
 function formatLine(l){
   const q = String(Math.round(l.qty * 1000) / 1000);
   return `${l.nom} × ${q}${l.unit ? " " + l.unit : ""}${l.price != null ? " [€" + Number(l.price).toFixed(2) + "]" : ""}${l.comment ? " (" + String(l.comment).replace(/[()\[\]\r\n]/g, "") + ")" : ""}`;
@@ -171,11 +166,14 @@ async function undoStock(report, sign){
   } catch (e) { console.error("[updateorder] undoStock", e && e.message || e); return "Voorraad niet teruggezet: " + (e.message || e); }
 }
 
-// Mode de facturation, taux par défaut et taux du catalogue (lib/billing.js).
-async function billingContext(){
-  const [conf, cat] = await Promise.all([at(`${encodeURIComponent("Configuratie")}?maxRecords=1`), atAll("Catalogue")]);
+// Mode de facturation, taux par défaut, taux du catalogue et régime de TVA du client (lib/billing.js).
+// Client illisible (autre que « introuvable ») : erreur plutôt qu'une facture au mauvais régime
+// (audit C-10) ; l'appelant la lève AVANT de réserver le numéro de facture.
+async function billingContext(clientId){
+  const [conf, cat, cli] = await Promise.all([at(`${encodeURIComponent("Configuratie")}?maxRecords=1`), atAll("Catalogue"), clientId ? at("Clients/" + encodeURIComponent(clientId)) : Promise.resolve(null)]);
   const c = ((conf && conf.records) || [])[0]; const cf = (c && c.fields) || {};
-  return { mode: __bill.modeOf(cf), fallback: __bill.defaultRate(cf), rates: __bill.ratesFromCatalogue((cat && cat.records) || []) };
+  if (cli && cli.error && !(cli.error.type === "NOT_FOUND" || /not found/i.test(String(cli.error.message || "")))) throw Object.assign(new Error("Klant onleesbaar"), { status: 503 });
+  return { mode: __bill.modeOf(cf), fallback: __bill.defaultRate(cf), rates: __bill.ratesFromCatalogue((cat && cat.records) || []), regime: __bill.regimeOf(null, cli && !cli.error ? cli.fields : null) };
 }
 
 // Double tap sur la même instance : une seule requête à la fois par commande.
@@ -208,16 +206,43 @@ async function nextNumber(field, prefix){
   return `${prefix}-${year}-${String(await maxNumber(field, prefix, year) + 1).padStart(4, "0")}`;
 }
 async function maxNumber(field, prefix, year){
-  const j = await atAll(`Commandes?fields%5B%5D=${encodeURIComponent(field)}`);
+  // Notes de crédit : la première dans « Creditnota nummer », les suivantes dans la liste JSON (C-08).
+  const cn = field === __cn.LEGACY.nummer;
+  const j = await atAll(`Commandes?fields%5B%5D=${encodeURIComponent(field)}` + (cn ? `&fields%5B%5D=${encodeURIComponent(__cn.FIELD)}` : ""));
   if (j.error) throw new Error(j.error.message || "Nummering onleesbaar");
   let max = 0;
+  const re = new RegExp("^" + prefix + "-" + year + "-(\\d+)$");
   (j.records || []).forEach(r => {
-    const v = r.fields[field];
-    if (!v) return;
-    const m = String(v).match(new RegExp("^" + prefix + "-" + year + "-(\\d+)$"));
-    if (m) max = Math.max(max, parseInt(m[1], 10));
+    const values = cn ? __cn.list(r.fields).map(n => n.nummer) : [r.fields[field]];
+    values.forEach(v => {
+      if (!v) return;
+      const m = String(v).match(re);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
   });
   return max;
+}
+
+// Doublon de numéro CN (Airtable seulement : sur le moteur SQL, le compteur de lib/billing.js est
+// atomique) : cherché aux deux endroits, première note ET liste JSON. Le plus petit identifiant
+// garde le numéro, l'autre en reprend un (numéro, liste et journal réécrits ensemble, audit B-18).
+async function ensureUniqueCN(id, number, written){
+  let current = number;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const e = escapeFormula(current);
+    const f = encodeURIComponent(`OR({${__cn.LEGACY.nummer}}='${e}',FIND('"${e}"',{${__cn.FIELD}}))`);
+    const same = await at(`Commandes?filterByFormula=${f}&fields%5B%5D=${encodeURIComponent(__cn.LEGACY.nummer)}`);
+    if (same.error) return current; // lecture impossible : le numéro écrit reste, rien de pire
+    const ids = Array.from(new Set((same.records || []).map(r => r.id))).sort();
+    if (ids.length <= 1 || ids[0] === id) return current;
+    const next = await nextNumber(__cn.LEGACY.nummer, "CN");
+    const patch = Object.assign(__cn.renumberPatch(written, current, next), { "Correcties": String(written["Correcties"] || "").split(current).join(next) });
+    const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: patch }) });
+    if (j.error) throw new Error(j.error.message || "Nummering bijwerken mislukt");
+    Object.assign(written, patch);
+    current = next;
+  }
+  throw new Error("Nummering bezet: probeer opnieuw");
 }
 
 function correctionLine(label, actor, reden){
@@ -348,53 +373,111 @@ async function applyCorrection(req, res, id, f, body, statuses){
   return res.status(200).json({ ok: true, statut: target, correctie: fields["Correcties"].split("\n").pop(), stock: stockReport, mail });
 }
 
-// Creditnota sur une commande facturée : lignes créditées (sous-ensemble des lignes de la
-// commande, quantités ≤ livrées), numéro CN-AAAA-NNNN attribué une seule fois, montant
-// recalculé aux prix figés, retour en stock optionnel (mouvement « Retour client »).
+// Creditnota sur une commande facturée (plusieurs possibles, audit C-08) : lignes créditées
+// (sous-ensemble des lignes de la facture), quantités et montants CUMULÉS de toutes les notes
+// plafonnés à la facture (par article et par taux de TVA, lib/creditnota.js), numéro CN-AAAA-NNNN
+// propre à chaque note, montant recalculé aux prix figés, retour en stock optionnel (mouvement
+// « Retour client ») pour les seules lignes de CETTE note. Clé « sleutel » (navigateur) : un double
+// clic ou un renvoi réseau rend la note déjà créée, sans nouveau numéro ni deuxième retour.
 async function makeCreditnota(req, res, id, f, body){
   if (!__auth.adminOk(req)) return res.status(403).json({ error: "Enkel een beheerder maakt een creditnota" });
   if (f["Statut"] !== "Facturée" || !f["Factuurnummer"]) return res.status(409).json({ error: "Enkel op een gefactureerde bestelling" });
-  if (f["Creditnota nummer"]) return res.status(409).json({ error: "Er bestaat al een creditnota (" + f["Creditnota nummer"] + ") op deze factuur" });
+  const sleutel = /^[\w-]{1,64}$/.test(String(body.sleutel || "")) ? String(body.sleutel) : "";
+  const known = __cn.byKey(f, sleutel);
+  if (known) return res.status(200).json({ ok: true, al: true, creditnota: known, creditnotas: __cn.list(f), stock: null });
   const motif = String(body.motif || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
   if (motif.length < 3) return res.status(400).json({ error: "Geef een reden op (minstens 3 tekens)" });
-  const delivered = parseLines(f["Lignes (produits / quantités)"]);
   const wanted = parseLines(String(body.lignes || ""));
-  if (!wanted.length) return res.status(400).json({ error: "Kies minstens één artikel om te crediteren" });
-  let montant = 0;
-  const out = [];
-  // Quantités CUMULÉES par article : deux lignes « 2 kg » sur 2 kg livrés ne passent plus (audit B-13).
-  const livre = new Map(), demande = new Map();
-  delivered.forEach(l => livre.set(norm(l.nom), (livre.get(norm(l.nom)) || 0) + l.qty));
-  for (const w of wanted) {
-    const d = delivered.find(l => norm(l.nom) === norm(w.nom));
-    if (!d) return res.status(400).json({ error: `Artikel staat niet op de factuur: ${w.nom}` });
-    const max = livre.get(norm(w.nom)) || 0;
-    demande.set(norm(w.nom), (demande.get(norm(w.nom)) || 0) + (w.qty > 0 ? w.qty : 0));
-    if (!(w.qty > 0) || demande.get(norm(w.nom)) > max + 1e-9) return res.status(400).json({ error: `Aantal voor ${w.nom} moet tussen 0 en ${max} liggen (alle lijnen samen)` });
-    const price = d.price != null ? money(d.price) : 0;
-    montant += __bill.vat.r2(price * w.qty); // même règle que les documents (ligne arrondie au cent)
-    out.push(formatLine({ nom: d.nom, qty: w.qty, unit: d.unit, price, comment: "" }));
-  }
-  montant = money(montant);
-  const nummer = await nextNumber("Creditnota nummer", "CN");
-  const fields = {
-    "Creditnota nummer": nummer, "Creditnota lignes": out.join("\n"), "Creditnota montant": montant,
-    "Creditnota le": new Date().toISOString(), "Creditnota motif": motif,
-    "Correcties": journal(f, correctionLine("Creditnota " + nummer + " (€ " + montant.toFixed(2).replace(".", ",") + ")", __auth.actorOf(req), motif))
-  };
+  // Taux figés à la facturation ; sans eux (anciennes factures), un seul groupe : le plafond porte alors sur le total.
+  const rates = __bill.frozenRates(f) || {}, fallback = __bill.vat.DEFAULT_RATE;
+  const chk = __cn.check(f, wanted, rates, fallback);
+  if (chk.error) return res.status(400).json({ error: chk.error });
+  const lignes = chk.lines.map(formatLine).join("\n"), montant = money(chk.montant);
+  const nummer = await nextNumber(__cn.LEGACY.nummer, "CN");
+  const note = { nummer, lignes, montant, le: new Date().toISOString(), motif, retour: body.retourStock === true, sleutel };
+  const jline = correctionLine("Creditnota " + nummer + " (€ " + montant.toFixed(2).replace(".", ",") + ")", __auth.actorOf(req), motif);
+  const patchOf = cur => Object.assign(__cn.patchFor(cur, note), { "Correcties": journal(cur, jline) });
   let stockReport = null;
-  if (body.retourStock === true) {
-    stockReport = await moveStock(out.join("\n"), +1);
+  if (note.retour) {
+    stockReport = await moveStock(lignes, +1);
     if (stockReport.error) return res.status(500).json({ error: stockReport.error });
     const w = await createStockMovements(stockReport, f["Référence"] || id, "Retour client"); if (w) stockReport.journalWarning = w;
   }
-  const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
-  if (j.error) { const w = await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Creditnota opslaan mislukt", stockWarning: w || undefined }); }
-  const finalNummer = await ensureUnique(id, "Creditnota nummer", "CN", nummer);
-  // Numéro repris (collision) : le journal doit citer le numéro réellement attribué (audit B-18).
-  if (finalNummer !== nummer) await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Correcties": fields["Correcties"].split(nummer).join(finalNummer) } }) });
-  if (finalNummer !== nummer) return res.status(200).json({ ok: true, creditnota: { nummer: finalNummer, lignes: out.join("\n"), montant, le: fields["Creditnota le"], motif }, stock: stockReport });
-  return res.status(200).json({ ok: true, creditnota: { nummer, lignes: out.join("\n"), montant, le: fields["Creditnota le"], motif }, stock: stockReport });
+  // Moteur SQL : écriture conditionnelle, plafond revérifié sur l'état relu (deux appareils, deux instances :
+  // aucune note perdue, jamais plus que facturé). Airtable : simple PATCH (verrou mémoire seul).
+  let written;
+  const m = await __atomic.mutate("Commandes", id, cur => {
+    const again = __cn.byKey(cur, sleutel);
+    if (again) return { al: again, cur };
+    const c = __cn.check(cur, wanted, rates, fallback);
+    return c.error ? { error: c.error } : { fields: patchOf(cur) };
+  });
+  if (m === null) {
+    const fields = patchOf(f);
+    const j = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
+    if (j.error) { const w = await undoStock(stockReport, +1); return res.status(500).json({ error: j.error.message || "Creditnota opslaan mislukt", stockWarning: w || undefined }); }
+    written = Object.assign({}, f, fields);
+  } else if (m.ok) {
+    written = m.fields;
+  } else {
+    const w = await undoStock(stockReport, +1);
+    if (m.al) return res.status(200).json({ ok: true, al: true, creditnota: m.al, creditnotas: __cn.list(m.cur), stock: null, stockWarning: w || undefined });
+    return res.status(409).json({ error: m.error || "Creditnota opslaan mislukt", stockWarning: w || undefined });
+  }
+  // Numéro repris (collision, Airtable) : liste, première note et journal citent le numéro réellement attribué (audit B-18).
+  const finalNummer = __atomic.store() ? nummer : await ensureUniqueCN(id, nummer, written);
+  return res.status(200).json({ ok: true, creditnota: Object.assign({}, __cn.list(written).find(n => n.nummer === finalNummer) || note, { nummer: finalNummer }), creditnotas: __cn.list(written), stock: stockReport });
+}
+
+// « Correctie mailen » (audit L-08) : le personnel renvoie au client ce qui a changé depuis sa
+// confirmation (ou depuis le dernier e-mail de correction) : lignes avant → après, nouveau total,
+// notes de crédit émises depuis. Jamais bloquant : sans RESEND_API_KEY ou sans adresse, rien ne
+// part et la réponse le dit (mail.skipped). Un seul envoi par état : l'état envoyé est réservé
+// AVANT l'envoi (écriture conditionnelle sur le moteur SQL), libéré si l'envoi échoue.
+async function reserveCorrectie(id, prev, next){
+  const r = await __atomic.mutate("Commandes", id, cur => ((cur[__corr.FIELD] || "") === prev ? { fields: { [__corr.FIELD]: next } } : { taken: true }));
+  if (r !== null) return !!(r && r.ok);
+  const cur = await at(`Commandes/${id}`); // Airtable : relecture juste avant
+  if (!cur || cur.error || ((cur.fields || {})[__corr.FIELD] || "") !== prev) return false;
+  const up = await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: { [__corr.FIELD]: next } }) });
+  return !!(up && !up.error);
+}
+async function sendCorrectieMail(req, res, id, f){
+  if (f["Statut"] === CANCELLED) return res.status(409).json({ error: "Geannuleerde bestelling: geen correctiemail." });
+  const ch = __corr.changes(f);
+  if (!ch.changed) return res.status(409).json({ error: "Niets gewijzigd sinds de laatste mail aan de klant.", al: true });
+  if (!__mail.enabled()) return res.status(200).json({ ok: true, mail: { ok: false, skipped: "disabled" } });
+  const clientId = (f["Client"] || [])[0];
+  const cli = clientId ? await at("Clients/" + encodeURIComponent(clientId)) : null;
+  if (!cli || cli.error) return res.status(500).json({ error: "Klant onleesbaar" });
+  const klant = __mail.clientFrom(cli);
+  if (!klant.email) return res.status(200).json({ ok: true, mail: { ok: false, skipped: "no-recipient" } });
+  const prev = String(f[__corr.FIELD] || "");
+  const snap = __corr.snapshot(f, new Date().toISOString());
+  if (!(await reserveCorrectie(id, prev, JSON.stringify(snap)))) return res.status(409).json({ error: "Deze correctie werd net al gemaild.", al: true });
+  const cfg = await __mail.loadMailConfig(at);
+  const bill = await billingContext();
+  const lines = parseLines(f["Lignes (produits / quantités)"]);
+  const rates = __bill.linesRates(lines, f, bill.rates, bill.fallback);
+  const priced = lines.some(l => l.price != null);
+  const t = priced ? __bill.orderTotals(lines, rates, bill.fallback) : { htva: money(f["Total"]), total: __bill.vat.r2(money(f["Total"]) * (1 + bill.fallback / 100)) };
+  const inclOf = n => { const l = parseLines(n.lignes); return l.some(x => x.price != null) ? Math.abs(__bill.orderTotals(l, rates, bill.fallback).total) : __bill.vat.r2((Number(n.montant) || 0) * (1 + bill.fallback / 100)); };
+  const portal = __mail.portalUrl(req);
+  const mail = await __mail.notifyCorrection({
+    ref: f["Référence"] || "", recordId: id, klant, company: cfg, opsEmail: cfg.opsEmail, portalUrl: portal,
+    orderUrl: portal ? portal + "/order.html?id=" + encodeURIComponent(id) : "", facturatie: bill.mode,
+    wijzigingen: ch.wijzigingen, totalExcl: t.htva, totalIncl: t.total,
+    creditnotas: ch.nieuweCreditnotas.map(n => ({ nummer: n.nummer, montantIncl: inclOf(n), motif: n.motif })),
+    netIncl: ch.notes.length ? __bill.vat.r2(t.total - ch.notes.reduce((s, n) => s + inclOf(n), 0)) : null, sleutel: snap.sleutel
+  });
+  if (!mail || !mail.ok) {
+    await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: { [__corr.FIELD]: prev || null } }) }); // libéré : on peut réessayer
+    return res.status(502).json({ error: "Correctiemail niet verstuurd" + (mail && mail.status ? " (fout " + mail.status + ")" : "") + ". Probeer later opnieuw.", mail });
+  }
+  const wat = ch.wijzigingen.map(w => w.name).concat(ch.nieuweCreditnotas.map(n => n.nummer));
+  const line = correctionLine("Correctiemail verstuurd aan klant (" + wat.join(", ") + ")", __auth.actorOf(req), "");
+  await at(`Commandes/${id}`, { method: "PATCH", body: JSON.stringify({ fields: { "Correcties": journal(f, line) } }) });
+  return res.status(200).json({ ok: true, mail, correctie: line });
 }
 
 const handler = async (req, res) => {
@@ -428,6 +511,7 @@ async function handle(req, res, body, id){
 
     if (correction !== undefined) return applyCorrection(req, res, id, f, body, statuses);
     if (body.creditnota && typeof body.creditnota === "object") return makeCreditnota(req, res, id, f, body.creditnota);
+    if (body.correctieMail === true) return sendCorrectieMail(req, res, id, f);
     if (f["Statut"] === CANCELLED) {
       return res.status(409).json({ error: "Deze bestelling is geannuleerd. Herstel ze eerst (Corrigeren → Herstellen)." });
     }
@@ -533,7 +617,7 @@ async function handle(req, res, body, id){
     let stockReport = null, factuurnummer = null, mail = null;
     // Contexte de facturation (Configuratie + taux du catalogue) : lu au plus une fois par requête.
     let billCtx = null;
-    const getBill = async () => billCtx || (billCtx = await billingContext());
+    const getBill = async () => billCtx || (billCtx = await billingContext((f["Client"] || [])[0]));
 
     // Stock déduit au moment où la marchandise part réellement, SI Configuratie le
     // demande (« Voorraad afboeken »). Le navigateur ne décide plus (ancien skipStock).
@@ -607,12 +691,16 @@ async function handle(req, res, body, id){
     }
 
     // Numéro de facture attribué une seule fois
+    // Taux ET régime de TVA du client (C-10) figés sur la facture ; lus AVANT la réservation du
+    // numéro : une lecture impossible ne laisse aucun trou dans la numérotation.
     if (statut === "Facturée" && !f["Factuurnummer"]) {
+      let bill;
+      try { bill = await getBill(); } catch (e) { return res.status(503).json({ error: "Btw-regime van de klant niet leesbaar: probeer opnieuw (er is nog geen factuurnummer gebruikt)." }); }
       factuurnummer = await nextNumber("Factuurnummer", "FA");
       fields["Factuurnummer"] = factuurnummer;
       fields["Facturée le"] = new Date().toISOString();
-      const bill = await getBill();
-      fields["BTW per lijn"] = JSON.stringify(__bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), null, bill.rates, bill.fallback));
+      fields["BTW per lijn"] = JSON.stringify(__bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), null, bill.rates, bill.fallback, bill.regime));
+      if (bill.regime !== "Normal") fields["Régime TVA"] = bill.regime; // Normal = champ absent
     }
 
     if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets om bij te werken" });
@@ -632,8 +720,9 @@ async function handle(req, res, body, id){
       const nr = factuurnummer || f["Factuurnummer"] || "";
       const m = String(nr).match(/^FA-(\d{4})-(\d{1,6})$/i);
       const mededeling = m ? __bill.structuredRef(nr) : "";
-      const bill = await getBill();
-      const t = __bill.orderTotals(parseLines(f["Lignes (produits / quantités)"]), fields["BTW per lijn"] ? JSON.parse(fields["BTW per lijn"]) : __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, bill.rates, bill.fallback), bill.fallback);
+      // Facture déjà émise (réception rejouée) : taux figés ; client illisible ici = pas d'erreur après l'écriture.
+      const bill = await getBill().catch(() => billingContext(null));
+      const t = __bill.orderTotals(parseLines(f["Lignes (produits / quantités)"]), fields["BTW per lijn"] ? JSON.parse(fields["BTW per lijn"]) : __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, bill.rates, bill.fallback, bill.regime), bill.fallback);
       mail = await notifyStatus(req, f, "geleverd", { facturatie: bill.mode, factuurnummer: nr, ontvangenDoor: fields["Réceptionné par"], vervaldatum: __mail.vervaldatum(__lev.brusselsToday(), rules.betaaltermijn), mededeling, totalExcl: t.htva, totalBtw: t.tva, totalIncl: t.total });
     }
     res.status(200).json({ ok: true, stock: stockReport, factuurnummer, mail });
@@ -651,7 +740,7 @@ module.exports = async (req, res) => {
   if (res.statusCode === 200) await require("../lib/revision").bump();
   if (!before || res.statusCode !== 200) return;
   const after = await __journal.get("Commandes", id);
-  const actie = body.correction ? "Correctie: " + body.correction : body.creditnota ? "Creditnota" : body.paiement ? "Betaalstatus: " + body.paiement
+  const actie = body.correction ? "Correctie: " + body.correction : body.creditnota ? "Creditnota" : body.correctieMail === true ? "Correctiemail" : body.paiement ? "Betaalstatus: " + body.paiement
     : body.statut ? "Status → " + body.statut : typeof body.lignes === "string" ? "Lijnen gewijzigd" : body.volgorde !== undefined ? "Volgorde levering" : "Bestelling bijgewerkt";
   await __journal.log({ wie: __auth.actorOf(req), rol: __auth.roleOf(req), actie, object: "Commandes", record: id, referentie: (after || before)["Référence"] || "",
     wijzigingen: __journal.diff(before, after), reden: body.reden || (body.creditnota && body.creditnota.motif) || body.uitzonderingNota || "" });

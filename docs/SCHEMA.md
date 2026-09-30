@@ -42,6 +42,9 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Favorieten` | texte (JSON) | klantorder | catalogue | `{favorieten:[ids produit], standaard:{id: qté}}`. |
 | `Taal` | liste `NL` / `FR` | onboarding, (via aanvraag) | allorders, catalogue, klantdoc | Langue du portail et des documents ; NL par défaut. |
 | `Voorwaarden versie`, `Voorwaarden aanvaard op` | texte, date-heure | klantorder (acceptTerms) | order, catalogue, onboarding (compteur Beheer) | Version des conditions générales acceptée et quand ; aussi dans le Journaal (« Voorwaarden aanvaard »). |
+| `Facturatieadres` | texte multiligne | onboarding (saveClient) | onboarding, export UBL | Siège (facture, UBL) si différent du lieu de livraison ; vide = lieu de livraison. |
+| `Régime TVA` | liste `Normal` / `Intracommunautaire` / `Export` / `Cocontractant` | onboarding (saveClient) | updateorder (facturation), allorders, klantdoc, orders, export UBL, onboarding | C-10. **Absent = `Normal`** (taux par produit). Les trois autres : 0 % sur toute la facture + mention légale (`assets/vat.js`) ; catégorie UBL K / G / AE. Intracommunautaire exige un n° TVA d'un autre État membre, Cocontractant un n° belge valide (400 sinon). Pas une donnée personnelle. |
+| `VIES gecontroleerd op`, `VIES resultaat` | date-heure, texte (JSON `{valid, name, address, vatNumber}`) | onboarding (checkVies) | onboarding (fiche Beheer) | C-16 : dernier contrôle VIES du n° TVA **enregistré** (lib/vies.js). Effacés par saveClient si le n° change. Peut contenir le nom d'une entreprise individuelle : inclus dans l'export RGPD, conservé à l'anonymisation (justificatif de l'exonération, comme nom, n° TVA et adresses). |
 | `Articles habituels`, `Infos générales` | texte | — | — | Hérités d'Airtable, non utilisés par le code (données de démo seulement). |
 | `Commandes`, `Prix négociés` | lien inverse | Airtable | — | Liens inverses Airtable, non utilisés par le code. |
 
@@ -84,8 +87,11 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Volgorde levering` | nombre 1..999 | updateorder | allorders | Ordre de tournée. |
 | `Annulée le`, `Motif annulation` | date-heure, texte | updateorder, klantorder | allorders, orders | |
 | `Correcties` | texte multiligne | updateorder, klantorder | allorders | Journal : `date · action · acteur — raison` (Beheer → Journaal). |
-| `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders | `CN-AAAA-NNNN` interne ; une seule par commande. |
-| `BTW per lijn` | texte (JSON) | updateorder (passage en Facturée) | allorders, klantdoc, export UBL | Taux de TVA figés par ligne : un changement de catalogue ne réécrit pas une facture émise. |
+| `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders, klantdoc, export, margin, reminders (via `lib/creditnota.js`) | `CN-AAAA-NNNN` interne : la **première** note de crédit de la commande, écrite une fois et jamais réécrite (sauf renumérotation d'un doublon sur Airtable). Les commandes d'avant C-08 n'ont que ces champs. |
+| `Creditnotas` | texte (JSON) | updateorder (makeCreditnota) | via `lib/creditnota.js` : allorders, orders, klantdoc, export, margin, reminders, correctie | Plusieurs notes de crédit par facture (C-08) : liste **complète** `[{nummer, lignes, montant, le, motif, retour, sleutel?}]` dans l'ordre d'émission (la première = champs `Creditnota …`). Absente = seule la note historique (ou aucune). Plafond : toutes notes ensemble ≤ facturé, par article et par taux de TVA. `sleutel` = clé d'idempotence du navigateur (double clic sans deuxième note ni deuxième retour en stock). |
+| `Correctiemail` | texte (JSON) | updateorder (correctieMail) | allorders, lib/correctie.js | Dernier e-mail de correction envoyé au client (L-08) : `{le, lignes, cn:[numéros], sleutel}` = état envoyé. Réservé avant l'envoi, libéré si l'envoi échoue ; même état = pas de deuxième e-mail. Sans données personnelles (l'adresse n'y est pas). |
+| `BTW per lijn` | texte (JSON) | updateorder (passage en Facturée) | allorders, klantdoc, export UBL | Taux de TVA figés par ligne : un changement de catalogue ne réécrit pas une facture émise. À 0 pour un régime autre que Normal. |
+| `Régime TVA` | liste (comme `Clients.Régime TVA`) | updateorder (passage en Facturée) | allorders, klantdoc, orders, export UBL (`lib/billing.regimeOf`) | C-10 : régime du client **figé** sur la facture (absent = Normal, y compris les factures d'avant) ; un changement du client ne touche ni la facture ni sa note de crédit. |
 | `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
 | `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
 | `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
@@ -133,6 +139,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Betalingsvoorwaarden`, `Leveringsvoorwaarden` | texte | onboarding | config, klantdoc | |
 | `Bestellingen e-mail` | texte | onboarding | config (beheerder seul), ordermail | Boîte interne « Interne postbus ». |
 | `Beheerderscode hash`, `Personeelscode hash` | texte | onboarding (saveCode) | session | Empreinte scrypt ; remplace `ADMIN_CODE` / `STAFF_CODE` ; vide = code de l'environnement. Jamais renvoyée. |
+| `Enkel persoonlijke PIN` | case | onboarding (saveEnkelPin, Beheer → Toegang) | session, onboarding (garde « dernière beheerder ») | Audit L-06. Cochée : codes partagés (`STAFF_CODE`, codes enregistrés) refusés à la connexion, seuls les PIN `Medewerkers` ouvrent ; `ADMIN_CODE` reste un accès de secours (page Beheer, rôle beheerder, nom « Noodtoegang », journalisé) tant qu'aucun `Beheerderscode hash` ne le remplace. Activation refusée (409) sans `Medewerkers` beheerder active avec PIN ; l'activation augmente `Sessiegeneratie`. Absente = décochée. |
 | `Besteldeadline` (HH:MM), `Leverdagen` (`ma,di,…`), `Gesloten dagen` (dates ISO, une par ligne), `Minimum bestelling` (€), `Betaaltermijn dagen`, `Voorraad afboeken` (case) | texte / nombre / case | onboarding | levering | Règles de commande, de livraison et de stock. |
 | `Voorwaarden NL`, `Voorwaarden FR`, `Voorwaarden versie` | texte, texte, texte (`AAAA-MM-JJ HH:MM:SS`) | onboarding (saveVoorwaarden ; « Publiceren » change la version) | config (?voorwaarden=1 public, version dans le bloc contact), catalogue, order, signup, klantorder, documents | Conditions générales (C-12, lib/terms.js). Version vide = rien à accepter ; version publiée = chaque client l'accepte avant sa commande suivante (order : 409 `needTerms`). |
 | `Herinneringen aan`, `Lots verplicht` | case, case | onboarding (saveConfig, Beheer → Bedrijf) | reminders-cron ; updateorder | Relances de paiement automatiques (Portaal seulement) ; lot obligatoire avant « Klaar ». |
@@ -193,7 +200,9 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `En attente` / `Payé` | FR | Openstaand / Betaald | Statut de paiement. |
 | `caisse` / `carton` / `pièce` / `kg` | FR | kassa / doos / stuk / kg | Unité (`K.unit`, `famoNL.unit`). |
 | `Factuurnummer` | NL | Factuur | Numéro interne `FA-…` du document du portail. |
-| `Creditnota nummer` / `montant` / `motif` / `lignes` / `le` | NL + FR | Creditnota : nummer / bedrag / reden / lijnen / datum | Série hybride : préfixe NL, suffixe FR. `montant` = bedrag (€ HTVA), `motif` = reden, `lignes` = lijnen, `le` = datum. |
+| `Creditnota nummer` / `montant` / `motif` / `lignes` / `le` | NL + FR | Creditnota : nummer / bedrag / reden / lijnen / datum | Série hybride : préfixe NL, suffixe FR. `montant` = bedrag (€ HTVA), `motif` = reden, `lignes` = lijnen, `le` = datum. Première note seulement. |
+| `Creditnotas` | NL | Creditnota's | Toutes les notes de crédit de la commande (JSON), clés `nummer` / `lignes` / `montant` / `le` / `motif` / `retour` (retour en stock). |
+| `Correctiemail` | NL | Correctie mailen | Dernier e-mail de correction envoyé au client. |
 | `Correcties` | NL | Journaal | Journal des corrections d'une commande. |
 | `Uitzondering levering` / `nota` | NL | Uitzondering | Exception à la réception. |
 | `Volgorde` (Catalogue) / `Volgorde levering` (Commandes) | NL | Volgorde | Ordre d'affichage / ordre de tournée. |
@@ -204,5 +213,6 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `Mouvements de stock` : `Sortie livraison` / `Annulation sortie` / `Retour client` / `Correction inventaire` / `Entrée stock` | FR | Vertrek levering / Vertrek ongedaan / Klantretour / Voorraadcorrectie / Voorraadontvangst (`famoNL.move`) | Type de mouvement. |
 | `Leverdagen` : `ma,di,wo,do,vr,za,zo` | NL | ma … zo | Jours livrés. |
 | `Taal` : `NL` / `FR` | — | NL / FR | Langue du client. |
+| `Régime TVA` : `Normal` / `Intracommunautaire` / `Export` / `Cocontractant` | FR | Normaal / Intracommunautair / Uitvoer / Medecontractant (`FamoVat.regime(v).short`) | Régime de TVA du client, figé sur la facture. |
 
 Identifiants du code (JSON des API) : mélange FR/NL/EN (`dateLivraison`, `voorraadAfboeken`, `movementType`) ; suivre le nom déjà utilisé par l'endpoint plutôt que d'en inventer un.

@@ -58,5 +58,37 @@
   // Total HT d'une commande (ce que le serveur stocke dans « Total ») : somme des lignes arrondies.
   function net(lines) { return r2((lines || []).reduce((s, l) => s + (l && l.price != null ? r2(num(l.qty) * num(l.price)) : 0), 0)); }
 
-  return { r2, num, totals, net, rateFrom, validRate, DEFAULT_RATE };
+  // Régime de TVA du client (audit C-10). Valeur stockée en français (Clients / Commandes
+  // « Régime TVA ») ; absente ou inconnue = « Normal » (taux par produit, aucune mention).
+  // Les trois autres : 0 % sur toute la facture, catégorie UBL (EN 16931, UNCL5305), motif
+  // d'exonération (liste CEF VATEX) et mention légale du document dans la langue du client.
+  // Mentions À VALIDER PAR LE COMPTABLE (specs/003-regime-tva-vies/spec.md, « Assumptions ») :
+  // livraison intracommunautaire de BIENS = exonération (art. 138 directive, 39bis CTVA), pas
+  // l'autoliquidation des services (art. 196).
+  const REGIMES = {
+    Normal: { zero: false, ubl: "", reasonCode: "", label: "Normaal – Belgische btw", short: "Normaal", nl: "", fr: "" },
+    Intracommunautaire: {
+      zero: true, ubl: "K", reasonCode: "VATEX-EU-IC", label: "Intracommunautaire levering (EU-klant, 0 %)", short: "Intracommunautair",
+      nl: "Vrijgesteld van btw – intracommunautaire levering (art. 39bis, eerste lid, 1° WBTW – art. 138 Richtlijn 2006/112/EG).",
+      fr: "Exonération de TVA – livraison intracommunautaire (art. 39bis, alinéa 1er, 1° CTVA – art. 138 directive 2006/112/CE)."
+    },
+    Export: {
+      zero: true, ubl: "G", reasonCode: "VATEX-EU-G", label: "Uitvoer buiten de EU (0 %)", short: "Uitvoer",
+      nl: "Vrijgesteld van btw – uitvoer buiten de Europese Unie (art. 39, § 1 WBTW – art. 146 Richtlijn 2006/112/EG).",
+      fr: "Exonération de TVA – exportation hors de l'Union européenne (art. 39, § 1er CTVA – art. 146 directive 2006/112/CE)."
+    },
+    Cocontractant: {
+      zero: true, ubl: "AE", reasonCode: "VATEX-EU-AE", label: "Verlegging van heffing – medecontractant (0 %)", short: "Medecontractant",
+      nl: "Verlegging van heffing – btw te voldoen door de medecontractant (art. 51, § 2 WBTW – art. 20 KB nr. 1).",
+      fr: "Autoliquidation – TVA due par le cocontractant (art. 51, § 2 CTVA – art. 20 AR n° 1)."
+    }
+  };
+  const REGIME_KEYS = Object.keys(REGIMES);
+  function regime(v) {
+    const s = String(v == null ? "" : v).trim().toLowerCase();
+    const key = REGIME_KEYS.find((k) => k.toLowerCase() === s) || "Normal";
+    return Object.assign({ key }, REGIMES[key]);
+  }
+
+  return { r2, num, totals, net, rateFrom, validRate, DEFAULT_RATE, regime, REGIME_KEYS };
 });

@@ -7,6 +7,7 @@ const log = require("../lib/log");
 // visibles telles quelles : ce sont les notes du client lui-même).
 const { authClient, authUnavailable } = require("./catalogue");
 const __bill = require("../lib/billing");
+const __cn = require("../lib/creditnota");
 const { parseLines } = require("./updateorder");
 
 // Ouvert + 365 jours d'historique (voir api/allorders.js).
@@ -47,7 +48,7 @@ module.exports = async (req, res) => {
     const [conf, catl] = await Promise.all([atAll(encodeURIComponent("Configuratie") + "?maxRecords=1"), atAll("Catalogue")]);
     const cf = ((conf.records || [])[0] || {}).fields || {};
     const fallback = __bill.defaultRate(cf), rates = __bill.ratesFromCatalogue(catl.records || []);
-    const tvac = f => { const l = parseLines(f["Lignes (produits / quantités)"]); return l.some(x => x.price != null) ? __bill.orderTotals(l, __bill.linesRates(l, f, rates, fallback), fallback).total : __bill.vat.r2((Number(f["Total"]) || 0) * (1 + fallback / 100)); };
+    const tvac = f => { const l = parseLines(f["Lignes (produits / quantités)"]); return l.some(x => x.price != null) ? __bill.orderTotals(l, __bill.linesRates(l, f, rates, fallback, __bill.regimeOf(f, client.fields)), fallback).total : __bill.vat.r2((Number(f["Total"]) || 0) * (1 + fallback / 100)); };
     const orders = (cmd.records || [])
       .filter(r => (r.fields["Client"] || []).includes(clientId))
       .map(r => ({
@@ -68,7 +69,9 @@ module.exports = async (req, res) => {
         annuleeLe: r.fields["Annulée le"] || "",
         motifAnnulation: r.fields["Motif annulation"] || "",
         uitzondering: r.fields["Uitzondering levering"] || "",
-        creditnota: r.fields["Creditnota nummer"] ? { nummer: r.fields["Creditnota nummer"], montant: Number(r.fields["Creditnota montant"] || 0), le: r.fields["Creditnota le"] || "" } : null
+        creditnota: r.fields["Creditnota nummer"] ? { nummer: r.fields["Creditnota nummer"], montant: Number(r.fields["Creditnota montant"] || 0), le: r.fields["Creditnota le"] || "" } : null,
+        // Toutes les notes de crédit (C-08) ; le détail (lignes, motif) vient de /api/klantdoc.
+        creditnotas: __cn.list(r.fields).map(n => ({ nummer: n.nummer, montant: n.montant, le: n.le }))
       }));
     res.status(200).json({ orders });
   } catch (e) {

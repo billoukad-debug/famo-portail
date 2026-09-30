@@ -46,12 +46,13 @@
   // à confirmer (Ontvangen), à préparer aujourd'hui, à livrer aujourd'hui, factures ouvertes.
   // Voorraad et Beheer demandent un petit appel : au plus toutes les 15 min, et seulement onglet visible.
   S.badges = () => {
-    const t = K.today(), c = S.counts();
+    // Listes d'identifiants (pas des nombres) : en mode « Nieuw » seuls les éléments pas encore vus comptent (spec 001).
+    const t = K.today(), ids = f => S.orders.filter(f).map(o => o.id);
     K.setBadges({
-      "bestellingen.html": c.prep,
-      "entrepot.html": S.orders.filter(o => o.statut === "Reçue" && o.day && o.day <= K.addDays(t, 1)).length, // Magazijn s'ouvre sur « morgen » (G-13)
-      "leveringen.html": S.orders.filter(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t).length,
-      "documenten.html": c.unpaid
+      "bestellingen.html": ids(o => o.statut === "Reçue"),
+      "entrepot.html": ids(o => o.statut === "Reçue" && o.day && o.day <= K.addDays(t, 1)), // Magazijn s'ouvre sur « morgen » (G-13)
+      "leveringen.html": ids(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t),
+      "documenten.html": ids(o => o.statut === "Facturée" && o.paiement !== "Payé")
     });
     const every = 15 * 60 * 1000, seen = K.session.get("famoBadgesAt", {}) || {}, now = Date.now();
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -60,7 +61,7 @@
     if (due("stock") && document.querySelector('[data-badge="stock.html"]')) { mark("stock"); K.api("/api/stock").then(d => S.stockBadge(d.items)).catch(() => {}); }
     if (due("beheer") && K.staff.isAdmin() && document.querySelector('[data-badge="beheer.html"]')) { mark("beheer"); K.api("/api/onboarding?counts=1").then(d => K.setBadges({ "beheer.html": Number(d.aanvragen) || 0 })).catch(() => {}); }
   };
-  S.stockBadge = items => K.setBadges({ "stock.html": (items || []).filter(i => i.quantity <= i.lowThreshold).length }); // = « n onder drempel » de Voorraad
+  S.stockBadge = items => K.setBadges({ "stock.html": (items || []).filter(i => i.quantity <= i.lowThreshold).map(i => i.id || i.product) }); // = « n onder drempel » de Voorraad
   S.byId = id => S.orders.find(o => o.id === id);
   // Automatisch vernieuwen (elke 60 s) : enkel als het tabblad zichtbaar is en niemand bezig is
   // (paneel open, slepen, typen). Nieuwe bestellingen → melding + teller in de tabtitel.
@@ -94,12 +95,14 @@
   /* ---------- btw : tarief per product (Catalogus) of standaardtarief (Configuratie) ---------- */
   S.rate = name => { const k = String(name || "").trim().toLowerCase(); const r = Number(S.btw[k]); if (Number.isFinite(r) && r > 0) return r; const d = Number(S.config && S.config.btwTarief); return Number.isFinite(d) && d > 0 ? d : 6; };
   // { "productnaam": tarief } voor de lijnen van deze bestelling (wat documents.js leest als order.btwPerLine).
-  S.btwPerLine = o => { if (o.btwFrozen && typeof o.btwFrozen === "object") return o.btwFrozen; const m = {}; K.parseLines(o.lignes).forEach(l => { m[l.name.trim().toLowerCase()] = S.rate(l.name); }); return m; };
+  // Régime de TVA du client (C-10, o.btwRegime venu du serveur) : à 0 % (intracommunautaire, export,
+  // cocontractant), chaque ligne est à 0 tant que la facture n'a pas figé ses taux.
+  S.btwPerLine = o => { if (o.btwFrozen && typeof o.btwFrozen === "object") return o.btwFrozen; const zero = !!(window.FamoVat && window.FamoVat.regime && window.FamoVat.regime(o.btwRegime).zero); const m = {}; K.parseLines(o.lignes).forEach(l => { m[l.name.trim().toLowerCase()] = zero ? 0 : S.rate(l.name); }); return m; };
   // Bedragen excl. / btw / incl. : dezelfde regel als documenten, e-mails en export (assets/vat.js) ;
   // btw-tarieven die bij de facturatie vastgezet zijn, gaan voor.
   S.totals = o => {
     const lines = K.parseLines(o.lignes).filter(l => l.price != null);
-    if (!lines.length || !window.FamoVat) { const r = S.rate(""); const excl = Math.round((Number(o.total) || 0) * 100) / 100; const btw = Math.round(excl * r) / 100; return { excl, btw, incl: Math.round((excl + btw) * 100) / 100 }; }
+    if (!lines.length || !window.FamoVat) { const r = window.FamoVat && window.FamoVat.regime && window.FamoVat.regime(o.btwRegime).zero ? 0 : S.rate(""); const excl = Math.round((Number(o.total) || 0) * 100) / 100; const btw = Math.round(excl * r) / 100; return { excl, btw, incl: Math.round((excl + btw) * 100) / 100 }; }
     const map = S.btwPerLine(o);
     const t = window.FamoVat.totals(lines, n => window.FamoVat.rateFrom(map, n, S.rate("")));
     return { excl: t.htva, btw: t.tva, incl: t.total };
@@ -123,7 +126,8 @@
   S.openDocs = function (orders, type) {
     if (!withDocs(() => S.openDocs(orders, type))) return;
     if (S.config) FamoDocuments.setCompany(S.config);
-    const list = (orders || []).filter(o => o.statut !== K.CANCELLED && (type !== "invoice" || o.factuurnummer) && (type !== "credit" || o.creditnota));
+    // Creditnota's : één document per creditnota (C-08), niet per bestelling.
+    const list = type === "credit" ? (orders || []).reduce((a, o) => a.concat(S.cns(o).map(n => S.withCn(o, n.nummer))), []) : (orders || []).filter(o => o.statut !== K.CANCELLED && (type !== "invoice" || o.factuurnummer));
     if (!list.length) { K.toast("Geen documenten in deze selectie."); return; }
     if (list.length === 1) { S.openDoc(list[0], type); return; }
     try {
@@ -135,7 +139,7 @@
     const agg = new Map();
     orders.forEach(o => K.parseLines(o.lignes).forEach(l => { const k = l.name.toLowerCase() + "|" + l.unit; const a = agg.get(k) || { name: l.name, unit: l.unit, qty: 0, orders: new Set() }; a.qty += l.qty; a.orders.add(o.client); agg.set(k, a); }));
     const rows = Array.from(agg.values()).sort((a, b) => a.name.localeCompare(b.name, "nl"));
-    return '<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Verzamellijst</title><style>body{font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#111;padding:32px}h1{font-size:20px;margin:0 0 4px}p{margin:0 0 16px;color:#666}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666;border-bottom:1px solid #ccc;padding:6px 4px}td{padding:9px 4px;border-bottom:1px solid #eee;vertical-align:top}.n{text-align:right;font-weight:600;font-size:15px;white-space:nowrap}.box{width:16px;height:16px;border:2px solid #333;display:inline-block;border-radius:3px}</style></head><body><h1>Verzamellijst · ' + K.esc(dayLabel) + '</h1><p>' + orders.length + ' bestelling' + (orders.length === 1 ? "" : "en") + ' · ' + rows.length + ' product' + (rows.length === 1 ? "" : "en") + ' · afgedrukt ' + K.esc(K.dateLong(K.today())) + '</p><table><thead><tr><th></th><th>Product</th><th>Voor</th><th style="text-align:right">Nodig</th></tr></thead><tbody>' + rows.map(r => '<tr><td><span class="box"></span></td><td>' + K.esc(r.name) + '</td><td>' + K.esc(Array.from(r.orders).join(", ")) + '</td><td class="n">' + K.esc(K.qty(r.qty) + " " + K.unit(r.unit)) + '</td></tr>').join("") + '</tbody></table><h1 style="margin-top:28px;font-size:16px">Per bestelling</h1><table><thead><tr><th>Klant</th><th>Artikelen</th><th>Ref.</th></tr></thead><tbody>' + orders.map(o => '<tr><td><b>' + K.esc(o.client) + '</b><br><span style="color:#666">' + K.esc((o.klant && o.klant.adresse || "").replace(/\n/g, ", ")) + '</span></td><td>' + K.parseLines(o.lignes).map(l => K.esc(K.qty(l.qty) + " " + K.unit(l.unit) + " " + l.name + (l.comment ? " — " + l.comment : ""))).join("<br>") + (o.notes ? '<br><i style="color:#7A5410">' + K.esc(o.notes) + '</i>' : "") + '</td><td>' + K.esc(o.ref) + '</td></tr>').join("") + '</tbody></table></body></html>';
+    return '<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Verzamellijst</title><style>@font-face{font-family:"Atkinson Hyperlegible Next";font-weight:200 800;src:url(/assets/fonts/atkinson-hyperlegible-next-latin.woff2) format("woff2")}body{font-family:"Atkinson Hyperlegible Next",system-ui,sans-serif;font-size:13px;color:#111;padding:32px}h1{font-size:20px;margin:0 0 4px}p{margin:0 0 16px;color:#666}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666;border-bottom:1px solid #ccc;padding:6px 4px}td{padding:9px 4px;border-bottom:1px solid #eee;vertical-align:top}.n{text-align:right;font-weight:600;font-size:15px;white-space:nowrap}.box{width:16px;height:16px;border:2px solid #333;display:inline-block;border-radius:3px}</style></head><body><h1>Verzamellijst · ' + K.esc(dayLabel) + '</h1><p>' + orders.length + ' bestelling' + (orders.length === 1 ? "" : "en") + ' · ' + rows.length + ' product' + (rows.length === 1 ? "" : "en") + ' · afgedrukt ' + K.esc(K.dateLong(K.today())) + '</p><table><thead><tr><th></th><th>Product</th><th>Voor</th><th style="text-align:right">Nodig</th></tr></thead><tbody>' + rows.map(r => '<tr><td><span class="box"></span></td><td>' + K.esc(r.name) + '</td><td>' + K.esc(Array.from(r.orders).join(", ")) + '</td><td class="n">' + K.esc(K.qty(r.qty) + " " + K.unit(r.unit)) + '</td></tr>').join("") + '</tbody></table><h1 style="margin-top:28px;font-size:16px">Per bestelling</h1><table><thead><tr><th>Klant</th><th>Artikelen</th><th>Ref.</th></tr></thead><tbody>' + orders.map(o => '<tr><td><b>' + K.esc(o.client) + '</b><br><span style="color:#666">' + K.esc((o.klant && o.klant.adresse || "").replace(/\n/g, ", ")) + '</span></td><td>' + K.parseLines(o.lignes).map(l => K.esc(K.qty(l.qty) + " " + K.unit(l.unit) + " " + l.name + (l.comment ? " — " + l.comment : ""))).join("<br>") + (o.notes ? '<br><i style="color:#7A5410">' + K.esc(o.notes) + '</i>' : "") + '</td><td>' + K.esc(o.ref) + '</td></tr>').join("") + '</tbody></table></body></html>';
   };
   S.openPicking = function (orders, dayLabel) { if (!withDocs(() => S.openPicking(orders, dayLabel))) return; famoDocPreview.open({ html: S.pickingHtml(orders, dayLabel), filename: famoDocPreview.filenameFor("picking", { date: dayLabel }), title: "Verzamellijst", meta: dayLabel }); };
   // CSV : puntkomma, BOM voor Excel, cellen tussen aanhalingstekens. Een cel die met = + - @ tab of CR
@@ -156,15 +160,49 @@
   S.journalHtml = o => String(o.correcties || "").split("\n").map(s => s.trim()).filter(Boolean).map(c => '<div><i style="background:var(--st-new)"></i><div>' + (/^.*?·\s*(Creditnota|Betaald|Terug op openstaand|Uitzondering)/.test(c) ? "Journaal" : "Correctie") + '<small>' + K.esc(c) + '</small></div></div>').join("");
   // Poids réel (audit H-04) : lignes commandées vs livrées, uniquement là où elles diffèrent.
   S.weightDiff = o => { if (!o.besteld) return []; const now = K.parseLines(o.lignes), key = n => String(n || "").trim().toLowerCase(); const out = []; K.parseLines(o.besteld).forEach(b => { const d = now.find(l => key(l.name) === key(b.name)); const q = d ? d.qty : 0; if (Math.abs((Number(b.qty) || 0) - (Number(q) || 0)) > 1e-9) out.push({ name: b.name, unit: b.unit, besteld: b.qty, geleverd: q }); }); return out; };
-  S.weightDiffHtml = o => { const d = S.weightDiff(o); return d.length ? '<div class="notice"><div><b>Besteld ≠ geleverd</b>' + d.map(x => '<div class="quiet" style="font-size:12px">' + K.esc(x.name + ": besteld " + K.qty(x.besteld) + " " + K.unit(x.unit) + " → geleverd " + K.qty(x.geleverd) + " " + K.unit(x.unit)) + '</div>').join("") + '</div></div>' : ""; };
-  S.creditnotaHtml = o => { const cn = o.creditnota; if (!cn) return ""; return '<div class="notice" style="background:var(--canvas)"><div><b>Creditnota ' + K.esc(cn.nummer) + '</b> · ' + K.esc(K.eur(cn.montant)) + ' excl. btw' + (cn.le ? ' · ' + K.esc(S.when(cn.le)) : "") + (cn.motif ? '<div class="quiet" style="font-size:12px">„' + K.esc(cn.motif) + '”</div>' : "") + '<div class="quiet" style="font-size:12px">' + K.esc(K.linesSummary(cn.lignes)) + '</div><div style="margin-top:6px"><button type="button" class="btn btn-o btn-sm" data-act="credit" data-id="' + o.id + '">' + K.icon("print") + 'Creditnota</button></div></div></div>'; };
-  S.creditnotaBtn = o => K.staff.isAdmin() && o.statut === "Facturée" && !o.creditnota ? '<button type="button" class="btn btn-o btn-sm" data-act="creditnota" data-id="' + o.id + '">Creditnota maken</button>' : "";
+  S.weightDiffHtml = o => { const d = S.weightDiff(o); return d.length ? '<div class="notice"><div><b>Besteld ≠ geleverd</b>' + d.map(x => '<div class="quiet fs-12">' + K.esc(x.name + ": besteld " + K.qty(x.besteld) + " " + K.unit(x.unit) + " → geleverd " + K.qty(x.geleverd) + " " + K.unit(x.unit)) + '</div>').join("") + '</div></div>' : ""; };
+  // Creditnota's (C-08) : alle creditnota's van een bestelling, ook uit een oud antwoord met één creditnota.
+  S.cns = o => (o && o.creditnotas && o.creditnotas.length) ? o.creditnotas : (o && o.creditnota ? [o.creditnota] : []);
+  // Bestelling met één gekozen creditnota (documents.js drukt order.creditnota af).
+  S.withCn = (o, nummer) => { const l = S.cns(o), n = l.find(x => x.nummer === nummer) || l[0]; return n ? Object.assign({}, o, { creditnota: n }) : o; };
+  // Per factuurlijn : wat nog te crediteren valt (geleverd − alle creditnota's samen), zoals de server rekent.
+  S.cnRest = o => { const key = n => String(n || "").trim().toLowerCase(), done = new Map(); S.cns(o).forEach(n => K.parseLines(n.lignes).forEach(l => done.set(key(l.name), (done.get(key(l.name)) || 0) + l.qty))); return K.parseLines(o.lignes).map(l => { const d = done.get(key(l.name)) || 0, rest = Math.max(0, Math.round((l.qty - d) * 1000) / 1000); done.set(key(l.name), Math.max(0, d - l.qty)); return Object.assign({}, l, { rest }); }); };
+  S.creditnotaHtml = o => { const list = S.cns(o); if (!list.length) return ""; return '<div class="cn-list">' + list.map(cn => '<div class="notice cn-item"><div><b>Creditnota ' + K.esc(cn.nummer) + '</b> · ' + K.esc(K.eur(cn.montant)) + ' excl. btw' + (cn.le ? ' · ' + K.esc(S.when(cn.le)) : "") + (cn.retour ? ' · terug in voorraad' : "") + (cn.motif ? '<div class="quiet cn-sub">„' + K.esc(cn.motif) + '”</div>' : "") + '<div class="quiet cn-sub">' + K.esc(K.linesSummary(cn.lignes)) + '</div><div class="cn-acts"><button type="button" class="btn btn-o btn-sm" data-act="credit" data-id="' + o.id + '" data-cn="' + K.esc(cn.nummer) + '">' + K.icon("print") + 'Creditnota ' + K.esc(cn.nummer) + '</button></div></div></div>').join("") + '</div>'; };
+  S.creditnotaBtn = o => K.staff.isAdmin() && o.statut === "Facturée" && S.cnRest(o).some(l => l.rest > 0) ? '<button type="button" class="btn btn-o btn-sm" data-act="creditnota" data-id="' + o.id + '">' + (S.cns(o).length ? "Nog een creditnota" : "Creditnota maken") + '</button>' : "";
+  // « Correctie mailen » (L-08) : zelfde regel als de server (lib/correctie.js) — lijnen of prijzen anders dan
+  // wat de klant laatst per e-mail kreeg (bevestiging of vorige correctiemail), of een nieuwe creditnota.
+  S.correctieNodig = o => {
+    if (!o || o.statut === K.CANCELLED) return false;
+    const cm = o.correctiemail, sent = cm ? cm.cn || [] : [];
+    const byName = t => { const m = new Map(); K.parseLines(t).forEach(l => { const k = String(l.name || "").trim().toLowerCase(), c = m.get(k); if (c) c.qty += l.qty; else m.set(k, { qty: l.qty, price: l.price }); }); return m; };
+    const cents = p => p == null ? null : Math.round(p * 100);
+    const a = byName(cm ? cm.lignes : (o.besteld || o.lignes)), b = byName(o.lignes);
+    if (a.size !== b.size) return true;
+    for (const [k, v] of b) { const w = a.get(k); if (!w || Math.abs(w.qty - v.qty) > 1e-9 || cents(w.price) !== cents(v.price)) return true; }
+    return S.cns(o).some(n => !sent.includes(n.nummer));
+  };
+  S.correctieBtn = o => S.correctieNodig(o) ? '<button type="button" class="btn btn-o btn-sm" data-act="correctiemail" data-id="' + o.id + '" title="De klant een e-mail sturen met wat er veranderde">Correctie mailen</button>' : "";
+  S.correctieMail = async function (o, onDone, btn) {
+    const email = o.klant && o.klant.email;
+    if (!(await K.confirm({ title: "Correctie mailen?", text: o.client + (email ? " (" + email + ")" : "") + " krijgt een e-mail met wat er veranderde (voor → na), het nieuwe totaal en de nieuwe creditnota's.", yes: "Correctie mailen" }))) return;
+    K.busy(btn, true, "Mailen…");
+    try {
+      const d = await S.update(o.id, { correctieMail: true });
+      const m = d.mail || {};
+      if (m.ok) K.toast("Correctiemail verstuurd naar " + (email || o.client));
+      else if (m.skipped === "no-recipient") K.toast("Geen e-mailadres bij deze klant: niets verstuurd.", { kind: "err" });
+      else if (m.skipped === "disabled") K.toast("E-mail staat uit op deze server: niets verstuurd.", { kind: "err" });
+      else K.toast("Correctiemail niet verstuurd.", { kind: "err" });
+      if (onDone) onDone(d);
+    } catch (err) { K.toast(err.message, { kind: "err" }); if (err.status === 409 && onDone) onDone(); }
+    finally { K.busy(btn, false); }
+  };
 
   /* ---------- levering bevestigen (sheet) ---------- */
   S.confirmDelivery = function (o, onDone) {
     const t = S.totals(o);
     const p = K.panel({ title: "Ontvangst bevestigen", sub: o.client + " · " + o.ref, body:
-      '<div class="notice" style="background:var(--canvas)"><div><b>' + K.esc(S.lineTxt(o)) + '</b><div class="quiet" style="font-size:12px;margin-top:2px">' + K.esc((o.klant && o.klant.adresse || "").replace(/\n/g, ", ")) + (o.notes ? ' · „' + K.esc(o.notes) + '”' : "") + '</div><div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b class="mono">Te innen (incl. btw): ' + K.esc(K.eur(t.incl)) + '</b><span class="quiet" style="font-size:12px">' + K.esc(K.eur(t.excl)) + ' excl. + ' + K.esc(K.eur(t.btw)) + ' btw</span>' + S.telLink(o.klant && o.klant.tel) + '</div></div></div>' +
+      '<div class="notice" style="background:var(--canvas)"><div><b>' + K.esc(S.lineTxt(o)) + '</b><div class="quiet" style="font-size:12px;margin-top:2px">' + K.esc((o.klant && o.klant.adresse || "").replace(/\n/g, ", ")) + (o.notes ? ' · „' + K.esc(o.notes) + '”' : "") + '</div><div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b class="mono">Te innen (incl. btw): ' + K.esc(K.eur(t.incl)) + '</b><span class="quiet fs-12">' + K.esc(K.eur(t.excl)) + ' excl. + ' + K.esc(K.eur(t.btw)) + ' btw</span>' + S.telLink(o.klant && o.klant.tel) + '</div></div></div>' +
       K.c.field("Ontvangen door", K.c.input("recipient", { placeholder: "bv. Sofie (keuken)…", attrs: ' autocomplete="off"' }), { id: "fRec", req: true }) +
       // Encaissement : beheerder seul (le personnel ne gère pas les paiements ; serveur : 403).
       (K.staff.isAdmin() ? K.c.field("Betaling", '<div class="opt"><button type="button" data-pay="En attente" class="on">Later / overschrijving</button><button type="button" data-pay="Payé">Contant betaald · ' + K.eur(t.incl) + '</button></div>', { id: "fPay" }) : "") +
@@ -174,7 +212,7 @@
       K.c.field("Handtekening van de ontvanger (optioneel)", '<canvas id="sig" role="img" aria-label="Handtekening: teken met de vinger" style="display:block;width:100%;height:160px;border:1px solid var(--line-input);border-radius:10px;background:#fff"></canvas><div style="display:flex;justify-content:flex-end;margin-top:6px"><button type="button" class="btn btn-ghost btn-sm" id="sigClear">Wissen</button></div>', { id: "fSig", hint: "De naam hierboven blijft verplicht; de handtekening is een extra bewijs." }) +
       K.c.field("Foto (optioneel)", '<input class="input" type="file" id="proofFoto" accept="image/*" capture="environment">', { id: "fFoto", hint: "Bv. de levering aan de deur. Wordt verkleind voor verzending." }) +
       K.c.field("Of een link (optioneel)", K.c.input("proof", { type: "url", placeholder: "https://… link naar foto of handtekening" }), { id: "fProof", hint: "Enkel een https-link wordt bewaard." }) +
-      '<div class="notice" style="font-size:12.5px"><div><b>Wat gebeurt er:</b> status → Geleverd, het factuurnummer wordt toegekend, de factuur is meteen beschikbaar en de klant krijgt ze per e-mail.</div></div><div id="dErr"></div>',
+      '<div class="notice fs-125"><div><b>Wat gebeurt er:</b> status → Geleverd, het factuurnummer wordt toegekend, de factuur is meteen beschikbaar en de klant krijgt ze per e-mail.</div></div><div id="dErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="dOk">Bevestigen</button>' });
     let pay = "En attente";
     const sig = window.FamoProof ? window.FamoProof.pad(p.el.querySelector("#sig")) : null;
@@ -235,12 +273,12 @@
     const chosen = {}; Object.entries(o.lots || {}).forEach(([k, v]) => { if (v && v[0]) chosen[lotKey(k)] = v[0].id; });
     const lotSelect = (l, i) => { const list = (lotsBy && lotsBy[lotKey(l.name)]) || []; if (!list.length) return ""; if (!chosen[lotKey(l.name)] && list.length === 1) chosen[lotKey(l.name)] = list[0].id; return '<select class="input" data-lot="' + i + '" aria-label="Lot voor ' + K.esc(l.name) + '" style="margin-top:6px;min-height:36px;font-size:12.5px"><option value="">— lot kiezen —</option>' + list.map(x => '<option value="' + K.esc(x.id) + '"' + (chosen[lotKey(l.name)] === x.id ? " selected" : "") + '>' + K.esc(x.lotnummer + (x.leverancier ? " · " + x.leverancier : "") + (x.tht ? " · THT " + K.date(x.tht) : "")) + '</option>').join("") + '</select>'; };
     const isKg = u => /kg/i.test(u);
-    const lineHtml = (l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(state[i], 'data-v="' + i + '"', { label: "Gecontroleerd: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet" style="font-size:12px">„' + K.esc(l.comment) + '”</div>' : "") + (l.added ? '<div class="quiet" style="font-size:12px">toegevoegd · prijs volgens afspraak klant</div>' : "") + lotSelect(l, i) + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '" aria-label="' + K.esc("Aantal: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>';
+    const lineHtml = (l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(state[i], 'data-v="' + i + '"', { label: "Gecontroleerd: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b>' + (l.comment ? '<div class="quiet fs-12">„' + K.esc(l.comment) + '”</div>' : "") + (l.added ? '<div class="quiet fs-12">toegevoegd · prijs volgens afspraak klant</div>' : "") + lotSelect(l, i) + '</div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '" aria-label="' + K.esc("Aantal: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>';
     const p = K.panel({ title: "Artikelen valideren", sub: o.client + " · " + o.ref + " · levering " + K.relDay(o.day), body:
       '<div class="card" id="vl"></div>' +
       '<div id="vAdd" style="display:none">' + K.c.field("Product toevoegen", '<div style="display:flex;gap:6px"><input class="input" id="vSearch" list="vList" placeholder="Zoek in de catalogus…" autocomplete="off" style="flex:1"><datalist id="vList"></datalist><button type="button" class="btn btn-o" id="vAddOk">Toevoegen</button></div>', { id: "fVAdd", hint: "De prijs wordt op de server bepaald (afgesproken prijs van de klant, anders basisprijs)." }) + '</div>' +
       '<button type="button" class="addrow" id="vAddBtn" style="width:100%">' + K.icon("plus") + 'Product toevoegen</button>' +
-      (o.notes ? K.c.warn("<b>Nota klant:</b> " + K.esc(o.notes)) : "") + '<div class="quiet" style="font-size:12.5px">Pas een aantal aan als u minder kunt leveren; het totaal wordt op de server herberekend.</div><div id="vErr"></div>',
+      (o.notes ? K.c.warn("<b>Nota klant:</b> " + K.esc(o.notes)) : "") + '<div class="quiet fs-125">Pas een aantal aan als u minder kunt leveren; het totaal wordt op de server herberekend.</div><div id="vErr"></div>',
       footer: '<span class="muted" id="vCount" style="margin-right:auto;font-size:12.5px">0 van ' + lines.length + ' gecontroleerd</span><button type="button" class="btn btn-o" data-cancel>Later</button><button type="button" class="btn btn-p" id="vOk" disabled>Klaarzetten</button>' });
     const refresh = () => { const n = state.filter(Boolean).length; p.el.querySelector("#vCount").textContent = n + " van " + lines.length + " gecontroleerd"; p.el.querySelector("#vOk").disabled = n !== lines.length; };
     const draw = () => {
@@ -299,7 +337,7 @@
   // Betaalwijze kiezen (één keer, ook voor een groepsactie). null = geannuleerd.
   S.askMode = (title, text) => new Promise(resolve => {
     let mode = S.MODES[0], result = null;
-    const p = K.panel({ title: title || "Markeren als betaald", sub: text || "", body: K.c.field("Betaalwijze", '<div class="opt">' + S.MODES.map((m, i) => '<button type="button" data-mode="' + m + '"' + (i === 0 ? ' class="on"' : "") + '>' + m + '</button>').join("") + '</div>', { id: "fMode" }) + '<div class="quiet" style="font-size:12.5px">Enkel een gefactureerde bestelling kan op betaald gezet worden. Datum en wijze komen op de factuur en in het journaal.</div>',
+    const p = K.panel({ title: title || "Markeren als betaald", sub: text || "", body: K.c.field("Betaalwijze", '<div class="opt">' + S.MODES.map((m, i) => '<button type="button" data-mode="' + m + '"' + (i === 0 ? ' class="on"' : "") + '>' + m + '</button>').join("") + '</div>', { id: "fMode" }) + '<div class="quiet fs-125">Enkel een gefactureerde bestelling kan op betaald gezet worden. Datum en wijze komen op de factuur en in het journaal.</div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="mOk">Betaald</button>', onClose: () => resolve(result) });
     K.on(p.el, "click", "[data-mode]", (e, t) => { mode = t.dataset.mode; K.$$("[data-mode]", p.el).forEach(b => b.classList.toggle("on", b === t)); });
     p.el.querySelector("[data-cancel]").onclick = p.close;
@@ -322,20 +360,24 @@
     } catch (err) { K.toast(err.message, { kind: "err" }); }
   };
   /* ---------- creditnota (paneel, enkel beheerder, enkel op een gefactureerde bestelling) ---------- */
+  // Meerdere creditnota's per factuur (C-08) : per lijn hoogstens wat nog niet gecrediteerd is ; de server
+  // controleert opnieuw (alle creditnota's samen, per artikel en per btw-tarief).
   S.creditnotaPanel = function (o, onDone) {
-    if (o.creditnota) { K.toast("Er bestaat al een creditnota (" + o.creditnota.nummer + ") op deze factuur."); return; }
-    const lines = K.parseLines(o.lignes), pick = lines.map(l => ({ on: false, qty: l.qty }));
+    const lines = S.cnRest(o), prev = S.cns(o), pick = lines.map(l => ({ on: false, qty: l.rest }));
+    if (!lines.some(l => l.rest > 0)) { K.toast("Alles op deze factuur is al gecrediteerd."); return; }
     const isKg = u => /kg/i.test(u);
-    const p = K.panel({ title: "Creditnota maken", sub: o.client + " · factuur " + (o.factuurnummer || o.ref), body:
-      '<div class="field"><label>Te crediteren artikelen</label><div class="card" id="cnL">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-cn="' + i + '"', { label: "Crediteren: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b><div class="quiet" style="font-size:12px">geleverd ' + K.esc(K.qty(l.qty) + " " + K.unit(l.unit)) + (l.price != null ? " · " + K.esc(K.eur(l.price)) : "") + '</div></div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" max="' + l.qty + '" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '" aria-label="' + K.esc("Te crediteren: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div></div>' +
+    const sleutel = "cn-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10); // één klik = één creditnota
+    const p = K.panel({ title: prev.length ? "Nog een creditnota" : "Creditnota maken", sub: o.client + " · factuur " + (o.factuurnummer || o.ref), body:
+      (prev.length ? '<div class="field"><label>Al gecrediteerd</label><div class="cn-list">' + prev.map(cn => '<div class="quiet cn-sub"><b>' + K.esc(cn.nummer) + '</b> · ' + K.esc(K.eur(cn.montant)) + ' · ' + K.esc(K.linesSummary(cn.lignes)) + '</div>').join("") + '</div></div>' : "") +
+      '<div class="field"><label>Te crediteren artikelen</label><div class="card" id="cnL">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-cn="' + i + '"' + (l.rest > 0 ? "" : " disabled"), { label: "Crediteren: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b><div class="quiet cn-sub">geleverd ' + K.esc(K.qty(l.qty) + " " + K.unit(l.unit)) + (l.rest < l.qty ? " · nog te crediteren " + K.esc(K.qty(l.rest)) : "") + (l.price != null ? " · " + K.esc(K.eur(l.price)) : "") + '</div></div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" max="' + l.rest + '" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.rest + '" aria-label="' + K.esc("Te crediteren: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div></div>' +
       K.c.field("Reden", K.c.input("cnMotif", { placeholder: "bv. 2 kg zalm geweigerd bij levering…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fCnMotif", req: true, hint: "Komt op de creditnota en in het journaal." }) +
-      '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer;border:1px solid var(--line);border-radius:8px">' + K.c.check(false, 'id="cnRetour"', { label: "Retour in voorraad" }) + '<div><b>Retour in voorraad</b><div class="quiet" style="font-size:12px">De gecrediteerde aantallen gaan terug in de voorraad (beweging „Klantretour”).</div></div></label>' +
-      '<div class="notice" style="font-size:12.5px;margin-top:10px"><div><b>Bedrag:</b> <span id="cnSum" class="mono">' + K.esc(K.eur(0)) + '</span> excl. btw · nummer CN-… wordt op de server toegekend. Eén creditnota per factuur.</div></div><div id="cnErr"></div>',
+      '<label class="line cn-opt">' + K.c.check(false, 'id="cnRetour"', { label: "Retour in voorraad" }) + '<div><b>Retour in voorraad</b><div class="quiet cn-sub">Enkel de aantallen van deze creditnota gaan terug in de voorraad (beweging „Klantretour”).</div></div></label>' +
+      '<div class="notice cn-sum"><div><b>Bedrag:</b> <span id="cnSum" class="mono">' + K.esc(K.eur(0)) + '</span> excl. btw · nummer CN-… wordt op de server toegekend.' + (prev.length ? " Alle creditnota's samen nooit meer dan de factuur." : "") + '</div></div><div id="cnErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="cnOk" disabled>Creditnota maken</button>' });
     let retour = false;
     const sum = () => { const s = pick.reduce((a, x, i) => a + (x.on && lines[i].price != null ? lines[i].price * x.qty : 0), 0); p.el.querySelector("#cnSum").textContent = K.eur(s); p.el.querySelector("#cnOk").disabled = !pick.some(x => x.on && x.qty > 0); };
-    K.on(p.el, "click", "[data-cn]", (e, t) => { const i = +t.dataset.cn; pick[i].on = !pick[i].on; K.setOn(t, pick[i].on); sum(); });
-    K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.min(lines[i].qty, Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v))); pick[i].qty = v; inp.value = v; sum(); }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0)); });
+    K.on(p.el, "click", "[data-cn]", (e, t) => { const i = +t.dataset.cn; if (!(lines[i].rest > 0)) return; pick[i].on = !pick[i].on; K.setOn(t, pick[i].on); sum(); });
+    K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.min(lines[i].rest, Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v))); pick[i].qty = v; inp.value = v; sum(); }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0)); });
     p.el.querySelector("#cnRetour").onclick = e => { retour = !retour; K.setOn(e.currentTarget, retour); };
     p.el.querySelector("[data-cancel]").onclick = p.close;
     p.el.querySelector("#cnOk").onclick = async () => {
@@ -345,8 +387,12 @@
       if (!(await K.confirm({ title: "Creditnota maken?", text: o.client + " · " + chosen.map(l => K.qty(l.qty) + "× " + l.name).join(", ") + (retour ? " · terug in voorraad" : ""), yes: "Creditnota maken" }))) return;
       const btn = p.el.querySelector("#cnOk"); K.busy(btn, true, "Bezig…");
       try {
-        const d = await S.update(o.id, { creditnota: { lignes: chosen.map(K.formatLine).join("\n"), motif, retourStock: retour } });
-        p.close(); K.toast("Creditnota " + (d.creditnota && d.creditnota.nummer || "") + " · " + K.eur(d.creditnota && d.creditnota.montant || 0) + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad teruggezet" : "")); if (onDone) onDone(d);
+        const d = await S.update(o.id, { creditnota: { lignes: chosen.map(K.formatLine).join("\n"), motif, retourStock: retour, sleutel } });
+        p.close();
+        // Na de creditnota : de klant verwittigen gaat in één tik (L-08), nooit automatisch.
+        const fresh = S.byId(o.id);
+        K.toast("Creditnota " + (d.creditnota && d.creditnota.nummer || "") + " · " + K.eur(d.creditnota && d.creditnota.montant || 0) + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad teruggezet" : ""), fresh && S.correctieNodig(fresh) ? { action: "Correctie mailen", ms: 9000, onAction: () => S.correctieMail(fresh, onDone) } : undefined);
+        if (onDone) onDone(d);
       } catch (err) { p.el.querySelector("#cnErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
     };
   };
@@ -366,7 +412,7 @@
   S.correctPanel = function (o, onDone) {
     const opts = S.corrections(o);
     const p = K.panel({ title: "Corrigeren", sub: o.client + " · " + o.ref + " · nu: " + K.status(o.statut), body:
-      (opts.length ? '<div class="field"><label>Wat wilt u doen?</label><div class="card" id="cOpts">' + opts.map((c, i) => '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer" data-copt="' + i + '">' + K.c.check(false, 'data-cchk="' + i + '"', { label: c.title }) + '<div><b' + (c.danger ? ' style="color:var(--danger)"' : "") + '>' + K.esc(c.title) + '</b><div class="quiet" style="font-size:12px">' + K.esc(c.text) + '</div></div></label>').join("") + '</div></div>' : K.c.warn(o.statut === "Facturée" ? "Geleverd en gefactureerd. Terugdraaien kan enkel een beheerder; een fout in de aantallen wordt met een creditnota rechtgezet." : "Geen correctie mogelijk in deze stap.")) +
+      (opts.length ? '<div class="field"><label>Wat wilt u doen?</label><div class="card" id="cOpts">' + opts.map((c, i) => '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer" data-copt="' + i + '">' + K.c.check(false, 'data-cchk="' + i + '"', { label: c.title }) + '<div><b' + (c.danger ? ' style="color:var(--danger)"' : "") + '>' + K.esc(c.title) + '</b><div class="quiet fs-12">' + K.esc(c.text) + '</div></div></label>').join("") + '</div></div>' : K.c.warn(o.statut === "Facturée" ? "Geleverd en gefactureerd. Terugdraaien kan enkel een beheerder; een fout in de aantallen wordt met een creditnota rechtgezet." : "Geen correctie mogelijk in deze stap.")) +
       (o.statut === "Facturée" && o.paiement === "Payé" ? K.c.warn("Deze factuur staat op <b>betaald</b>. Zet ze eerst terug op openstaand (fiche → „Terug op openstaand”).") : "") +
       (o.statut === "Facturée" && o.creditnota ? K.c.warn("Er bestaat al een creditnota (<b>" + K.esc(o.creditnota.nummer) + "</b>) op deze factuur: de ontvangst kan niet meer ongedaan gemaakt worden.") : "") +
       K.c.field("Reden", K.c.input("cReden", { placeholder: "bv. klant belde af, verkeerde dag, per ongeluk vertrokken…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fReden", req: true, hint: "Wordt bij de bestelling bewaard (Correcties)." }) +
@@ -426,8 +472,9 @@
       else if (act === "deliver") S.confirmDelivery(o, refresh);
       else if (act === "invoice") S.openDoc(o, "invoice");
       else if (act === "delivery") S.openDoc(o, "delivery");
-      else if (act === "credit") S.openDoc(o, "credit");
+      else if (act === "credit") S.openDoc(S.withCn(o, t.dataset.cn), "credit");
       else if (act === "creditnota") S.creditnotaPanel(o, refresh);
+      else if (act === "correctiemail") S.correctieMail(o, refresh, t);
       else if (act === "paid") S.togglePaid(o, refresh);
       else if (act === "picking") S.openPicking([o], o.client);
       else if (act === "correct") S.correctPanel(o, refresh);

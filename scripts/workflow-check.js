@@ -38,9 +38,9 @@ function clearModule(rel) {
   delete require.cache[abs];
 }
 
-// Facturation (api/updateorder.js billingContext) : Configuratie puis Catalogue, lus une fois quand
-// un numéro de facture est attribué (taux figés, lib/billing.js).
-const BILL = () => [{ records: [{ fields: {} }] }, { records: [] }];
+// Facturation (api/updateorder.js billingContext) : Configuratie, Catalogue puis le client (régime de
+// TVA, C-10), lus une fois AVANT l'attribution du numéro de facture (taux et régime figés, lib/billing.js).
+const BILL = () => [{ records: [{ fields: {} }] }, { records: [] }, { fields: {} }];
 
 async function call(handler, body, replies, opts) {
   opts = opts || {};
@@ -927,7 +927,7 @@ async function main() {
     // P7 — Beheer v2 : les valeurs sont envoyées sans coercition numérique ;
     // l'API applique ensuite negotiatedValue (vide → null, 0 conservé).
     const beheerSrc = fs.readFileSync(path.join(ROOT, "assets", "pages", "beheer.js"), "utf8");
-    const onboardingSrc = fs.readFileSync(path.join(ROOT, "api", "onboarding.js"), "utf8");
+    const onboardingSrc = fs.readFileSync(path.join(ROOT, "lib", "beheer", "prijzen.js"), "utf8"); // actions Beheer découpées (I-10)
     assert.match(beheerSrc, /action:\s*"saveClientPrices"[\s\S]*?prix:\s*K\.numIn\(prix\)/, "P7 valeurs de prix envoyées par Beheer v2 (K.numIn : vide reste vide, texte illisible transmis tel quel)");
     assert.match(onboardingSrc, /action\s*===\s*"saveClientPrices"[\s\S]*?negotiatedValue\(raw\)/, "P7 conversion vide → null et 0 conservé côté API");
   }
@@ -1219,7 +1219,7 @@ async function main() {
     assert.match(readF("assets/pages/stock.js"), /inCatalogue === false/, "AN10 orphelins in Voorraad");
     assert.match(readF("assets/pages/stock.js"), /action: "deleteProduct", id: i\.productId/, "AN10 Voorraad verwijdert het product zelf");
     assert.match(readF("api/stock.js"), /actif: prod \? !!prod\.fields\["Actif"\]/, "AN10 Voorraad kent de actief-status");
-    assert.ok(!/Catalogue\?filterByFormula=\$\{encodeURIComponent\("\{Actif\}=1"\)\}`\),\n    atAll\("Clients"\)/.test(readF("api/onboarding.js")), "AN10 Beheer laadt ook inactieve producten");
+    assert.ok(!/Catalogue\?filterByFormula=\$\{encodeURIComponent\("\{Actif\}=1"\)\}`\),\n    atAll\("Clients"\)/.test(readF("lib/beheer/common.js")), "AN10 Beheer laadt ook inactieve producten");
   }
   console.log("✓ AN. Corrections (terug, annuleren, herstellen, bewerken), klant annuleert, product verwijderen, FR/NL klantportaal");
 
@@ -1345,7 +1345,7 @@ async function main() {
     assert.equal(r.res.statusCode, 409, "AQ2 al bevestigd"); assert.match(r.res.payload.error, /al bevestigd/); assert.equal(methodCallsX(r, "PATCH").length, 0);
     // 3. Uitzondering bij levering : op de bestelling én in het journaal ; onbekende → 400.
     const SORTIE = { fields: { Statut: "Sortie en livraison", "Référence": "CMD-41", "Préparation validée": true, "Lignes (produits / quantités)": "Mosselen × 2 caisse [€28.00]", Client: ["cliAQ"] } };
-    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Gedeeltelijk", uitzonderingNota: "1 doos\nte weinig" }, [SORTIE, { records: [{ fields: { Factuurnummer: "FA-" + yearX + "-0007" } }] }, ...BILL(), { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
+    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Gedeeltelijk", uitzonderingNota: "1 doos\nte weinig" }, [SORTIE, ...BILL(), { records: [{ fields: { Factuurnummer: "FA-" + yearX + "-0007" } }] }, { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ3 uitzondering"); assert.equal(r.res.payload.factuurnummer, "FA-" + yearX + "-0008", "AQ3 factuurnummer volgt");
     b = cmdPatch(r);
     assert.equal(b.fields["Uitzondering levering"], "Gedeeltelijk"); assert.equal(b.fields["Uitzondering nota"], "1 doos te weinig", "AQ3 nota op één regel");
@@ -1353,7 +1353,7 @@ async function main() {
     assert.match(b.fields.Correcties, /Uitzondering bij levering: Gedeeltelijk · personeel — 1 doos te weinig$/, "AQ3 journal");
     r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Verdwenen" }, [SORTIE], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 400, "AQ3 onbekende uitzondering"); assert.match(r.res.payload.error, /Ongeldige uitzondering/);
-    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji" }, [SORTIE, { records: [] }, ...BILL(), { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
+    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji" }, [SORTIE, ...BILL(), { records: [] }, { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
     b = cmdPatch(r); assert.equal(b.fields["Uitzondering levering"], undefined, "AQ3 zonder uitzondering niets geschreven"); assert.equal(b.fields.Correcties, undefined);
     // 4. Volgorde levering : enig veld, ook na vertrek ; 1..999 of leeg ; nooit op een geannuleerde.
     r = await call(uo, { id: "o4", volgorde: 3 }, [{ fields: { Statut: "Prête" } }, { fields: {} }], { headers: cookieHdr });
@@ -1380,8 +1380,17 @@ async function main() {
     assert.equal(b.fields["Creditnota lignes"], "Mosselen × 1 caisse [€28.00]\nZalm × 0.5 kg [€20.00]", "AQ5 prijzen figés van de factuur");
     assert.match(b.fields.Correcties, /Creditnota CN-\d{4}-0003 \(€ 38,00\) · beheerder — beschadigd$/, "AQ5 journal");
     assert.equal(r.calls.filter(c => /Stock|Mouvements/.test(c.url)).length, 0, "AQ5 zonder retourStock blijft de voorraad onaangeroerd");
-    r = await call(uo, cn("Mosselen × 1"), [FACT({ "Creditnota nummer": "CN-2026-0001" })], { headers: adminCookieHdr });
-    assert.equal(r.res.statusCode, 409, "AQ5 één creditnota per factuur"); assert.match(r.res.payload.error, /CN-2026-0001/);
+    // C-08 : plusieurs creditnota's par factuur ; la première reste dans les champs historiques, la liste
+    // « Creditnotas » les contient toutes ; le plafond porte sur toutes les notes ensemble.
+    const OUDE = { "Creditnota nummer": "CN-" + yearX + "-0001", "Creditnota lignes": "Mosselen × 1 caisse [€28.00]", "Creditnota montant": 28, "Creditnota le": "2026-09-01T10:00:00.000Z", "Creditnota motif": "oud" };
+    r = await call(uo, cn("Mosselen × 1"), [FACT(OUDE), { records: [{ fields: OUDE }] }, { fields: {} }, { records: [{ id: "o5" }] }], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 200, "AQ5 tweede creditnota op dezelfde factuur"); assert.equal(r.res.payload.creditnota.nummer, "CN-" + yearX + "-0002", "AQ5 nummering volgt");
+    b = cmdPatch(r);
+    assert.equal(b.fields["Creditnota nummer"], undefined, "AQ5 eerste creditnota blijft onaangeroerd");
+    assert.deepEqual(JSON.parse(b.fields.Creditnotas).map(n => n.nummer), ["CN-" + yearX + "-0001", "CN-" + yearX + "-0002"], "AQ5 lijst met beide");
+    assert.ok(decodeURIComponent(r.calls[1].url).includes("fields[]=Creditnotas"), "AQ5 numérotation lit aussi la liste");
+    r = await call(uo, cn("Mosselen × 2"), [FACT(OUDE)], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 400, "AQ5 samen nooit meer dan gefactureerd"); assert.match(r.res.payload.error, /tussen 0 en 1/); assert.equal(methodCallsX(r, "PATCH").length, 0);
     r = await call(uo, cn("Mosselen × 1", { retourStock: true }), [FACT(), { records: [] }, { records: [{ id: "stk", fields: { Produit: "Mosselen", "Quantité disponible": 4 } }] }, { records: [] }, { records: [] }, { fields: {} }, { records: [{ id: "o5" }] }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ5 retour in voorraad");
     assert.equal(JSON.parse(r.calls.find(c => /\/Stock$/.test(c.url) && (c.options.method || "").toUpperCase() === "PATCH").options.body).records[0].fields["Quantité disponible"], 5, "AQ5 voorraad +1");
@@ -1630,11 +1639,13 @@ async function main() {
     assert.equal(pb.typecast, true, "AT5 typecast (Rol-optie)"); assert.equal(mf.Naam, "Tom"); assert.equal(mf.Rol, "beheerder"); assert.equal(mf.Actief, true);
     assert.match(mf["PIN hash"], /^scrypt\$131072\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "432109"), "AT5 de hash opent met de PIN");
     assert.ok(!post.options.body.includes("432109"), "AT5 de PIN gaat nooit in klare tekst naar Airtable");
-    r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", rol: "superuser", actief: false }, [{ fields: {} }, ...STATUS()], { headers: adminCookieHdr });
+    // Désactiver / rétrograder / supprimer : Configuratie lue d'abord (option « Enkel persoonlijke PIN »,
+    // garde « dernière beheerder », test/pinonly.test.js) ; ici l'option est absente.
+    r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", rol: "superuser", actief: false }, [{ records: [] }, { fields: {} }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT5 bijwerken zonder PIN"); assert.deepEqual(patchOfX(r, /Medewerkers\/m1$/).fields, { Naam: "Tom", Rol: "personeel", Actief: false }, "AT5 hash onaangeroerd, onbekende rol → personeel");
     r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", pin: "12" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuwe PIN te kort");
-    r = await call(ob, { action: "deleteMedewerker", id: "m1" }, [{ deleted: true, id: "m1" }, ...STATUS()], { headers: adminCookieHdr });
-    assert.equal(r.res.statusCode, 200, "AT5 verwijderd"); assert.match(r.calls[0].url, /Medewerkers\/m1$/); assert.equal((r.calls[0].options.method || "").toUpperCase(), "DELETE");
+    r = await call(ob, { action: "deleteMedewerker", id: "m1" }, [{ records: [] }, { deleted: true, id: "m1" }, ...STATUS()], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 200, "AT5 verwijderd"); assert.match(r.calls[0].url, /Configuratie/); assert.match(r.calls[1].url, /Medewerkers\/m1$/); assert.equal((r.calls[1].options.method || "").toUpperCase(), "DELETE");
     r = await call(ob, { action: "deleteMedewerker", id: "m 1" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 id-vorm"); assert.equal(r.calls.length, 0);
     r = await call(ob, { action: "saveMedewerker", naam: "X", pin: "1234" }, [], { headers: cookieHdr }); assert.equal(r.res.statusCode, 401, "AT5 personeel beheert geen accounts");
     // Klant : gebruikersnaam zonder aanhalingstekens/spaties (formule-injectie), wachtwoord ≥ 8.
@@ -1748,8 +1759,8 @@ async function main() {
     const PRETE_OUT = { fields: { Statut: "Sortie en livraison", "Livraison confirmée": false, "Lignes (produits / quantités)": "Mosselen × 1 caisse [€28.00]", Client: ["c1"] } };
     let r = await call(uo, { id: "recZZ", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
       PRETE_OUT,
+      ...BILL(),                                                               // taux et régime figés (avant le numéro)
       { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0007" } }] }, // nextNumber → 0008
-      ...BILL(),                                                               // taux figés
       { fields: {} },                                                         // PATCH commande
       { records: [{ id: "recAA" }, { id: "recZZ" }] },                        // 0008 existe deux fois
       { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0008" } }] }, // nextNumber → 0009
@@ -1760,7 +1771,7 @@ async function main() {
     assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0009", "AX1 doublon détecté → numéro suivant");
     assert.equal(JSON.parse(r.calls.filter(isPatch).pop().options.body).fields.Factuurnummer, "FA-" + yearAX + "-0009", "AX1 le nouveau numéro est écrit");
     r = await call(uo, { id: "recAA", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
-      PRETE_OUT, { records: [] }, ...BILL(), { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
+      PRETE_OUT, ...BILL(), { records: [] }, { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
     ], { headers: cookieHdr });
     assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0001", "AX1 le plus petit identifiant garde son numéro");
     assert.equal(r.calls.filter(isPatch).length, 1, "AX1 aucune renumérotation pour celui qui garde");

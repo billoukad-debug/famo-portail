@@ -103,6 +103,7 @@ Symptôme : les clients ou la boîte interne ne reçoivent plus rien. Un échec 
 |---|---|---|
 | `ADMIN_CODE` / `STAFF_CODE` | Beheer → Toegang (code enregistré, haché) **ou** variable Vercel + Redeploy | Le nouveau code remplace l'ancien pour ce rôle. Les sessions ouvertes restent valables jusqu'à 8 h (voir `SESSION_SECRET`). |
 | PIN personnel | Beheer → Toegang → Medewerkers (désactiver / changer) | Immédiat pour les nouvelles connexions. |
+| Codes partagés (fin) | Beheer → Toegang → « Enkel persoonlijke pincodes » → Aanzetten | Teamcodes refusées, tout le monde déconnecté ; seuls les PIN ouvrent, `ADMIN_CODE` devient un accès de secours journalisé (§ 6). Refusé sans beheerder PIN active. |
 | `SESSION_SECRET` | Vercel → Settings → Environment Variables → nouvelle valeur (`openssl rand -base64 48`) → Redeploy | **Déconnecte tout le monde** (personnel et clients) : à utiliser pour couper une session volée. |
 | `DATABASE_URL` | Neon → Roles → réinitialiser le mot de passe du rôle → copier la nouvelle adresse dans Vercel → Redeploy | Si `SESSION_SECRET` est absente, déconnecte aussi tout le monde. |
 | `RESEND_API_KEY` | Resend → API Keys → créer la nouvelle, la poser dans Vercel, Redeploy, **puis** révoquer l'ancienne | Pas d'interruption si l'ordre est respecté. |
@@ -116,5 +117,11 @@ Après une rotation : vérifier la connexion Beheer, une commande test, un e-mai
 
 - **Un client ne peut plus se connecter** : Beheer → Klanten → fiche : archivé ? accès bloqué ? → Nieuw wachtwoord. Trop d'essais : attendre 30 s.
 - **Code Beheer perdu** : un autre beheerder (PIN) le change dans Toegang ; sinon vider `Beheerderscode hash` dans la table `Configuratie` (Neon, SQL : champ JSON de `famo_records` où `tbl = 'Configuratie'`) : le code de la variable `ADMIN_CODE` redevient valable.
+- **« Enkel persoonlijke pincodes » active et plus aucun PIN beheerder utilisable** (PIN oublié, départ, verrou des PIN) — accès de secours (audit L-06, `specs/005-pin-personnels-seuls/plan.md`) :
+  1. Sur `/beheer-login.html` (page Beheer, pas celle du personnel), taper la valeur de la variable Vercel `ADMIN_CODE`. Elle ouvre Beheer au nom « Noodtoegang », **seulement si aucun code beheerder n'est enregistré** (`Beheerderscode hash` vide) : un code enregistré remplace `ADMIN_CODE`, y compris pour le secours. `STAFF_CODE` et les codes enregistrés restent refusés.
+  2. Chaque usage laisse une ligne d'erreur `"msg":"noodtoegang: ADMIN_CODE gebruikt…"` dans les logs Vercel (fonction `session`) et une ligne « noodtoegang » dans Beheer → Journaal. Une ligne qui n'est pas de vous = `ADMIN_CODE` a fuité : le changer (tableau ci-dessus) et prévenir le propriétaire.
+  3. Dans Toegang → Medewerkers : créer ou réactiver un beheerder avec un PIN, puis se reconnecter avec ce PIN.
+  4. Si un code beheerder est enregistré : vider `Beheerderscode hash` (voir ligne précédente) **ou** retirer `Enkel persoonlijke PIN` du JSON de `Configuratie` dans Neon ; les codes partagés refonctionnent alors (option inactive).
+  - Verrou des PIN (20 échecs → 15 min) avec l'option active : il n'y a plus de teamcode de repli, le personnel attend 15 min (ou le beheerder utilise le secours). Risque accepté pour ne pas rouvrir une porte partagée.
 - **Numéro FA/CN en double** : `ensureUnique` renumérote automatiquement ; si un doublon subsiste, corriger à la main et le noter dans `Correcties`. Les numéros du portail sont internes ; prévenir le comptable si un document a déjà été transmis.
 - **Stock faux** : Voorraad → corriger avec un motif (journalisé dans `Mouvements de stock`).

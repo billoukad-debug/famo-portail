@@ -21,8 +21,10 @@ const SCHEMA = {
       // Sessiegeneratie : +1 à la déconnexion, révoque les jetons du client (lib/clientauth.js).
       "Sessiegeneratie": "number",
       // Conditions générales acceptées (lib/terms.js, C-12).
-      "Voorwaarden versie": "text", "Voorwaarden aanvaard op": "datetime" },
-    selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
+      "Voorwaarden versie": "text", "Voorwaarden aanvaard op": "datetime",
+      // Régime de TVA (C-10, assets/vat.js ; absent = Normal) et dernier contrôle VIES (C-16, lib/vies.js).
+      "Régime TVA": "select", "VIES gecontroleerd op": "datetime", "VIES resultaat": "text" },
+    selects: { "Taal": ["NL", "FR"], "Régime TVA": ["Normal", "Intracommunautaire", "Export", "Cocontractant"] }, primary: "Nom"
   },
   Catalogue: {
     // BTW-tarief : taux par produit (6 / 21) ; vide = taux de Configuratie.
@@ -40,6 +42,10 @@ const SCHEMA = {
       "Uitzondering levering": "select", "Uitzondering nota": "text", "Volgorde levering": "number",
       // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
       "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text",
+      // Plusieurs notes par facture (C-08) : liste JSON de TOUTES les notes ; les champs ci-dessus gardent la première.
+      "Creditnotas": "text",
+      // Dernier e-mail de correction au client (L-08) : JSON { le, lignes, cn, sleutel } de l'état envoyé.
+      "Correctiemail": "text",
       // Taux de TVA figés par ligne au passage en « Facturée » (JSON { produit: taux }, lib/billing.js).
       "BTW per lijn": "text",
       // Clé d'idempotence envoyée par le portail client (api/order.js) : pas de doublon sur un renvoi.
@@ -52,12 +58,15 @@ const SCHEMA = {
       // Utilisateur (supplémentaire) qui a passé la commande (lib/klantlogin.js, H-08).
       "Besteld door": "text",
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
-      "Lots": "text"
+      "Lots": "text",
+      // Régime de TVA du client figé au passage en « Facturée » (C-10) ; absent = Normal.
+      "Régime TVA": "select"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
       "Mode de paiement": ["Contant", "Overschrijving", "Bancontact", "Andere"],
-      "Uitzondering levering": ["Afwezig", "Geweigerd", "Gedeeltelijk", "Beschadigd"]
+      "Uitzondering levering": ["Afwezig", "Geweigerd", "Gedeeltelijk", "Beschadigd"],
+      "Régime TVA": ["Normal", "Intracommunautaire", "Export", "Cocontractant"]
     },
     fieldIds: { fldjCdOntoPXPKLIb: "Preuve de livraison", fld4P0uySgGI6P6yE: "Photo préparation" }, primary: "Référence"
   },
@@ -75,6 +84,8 @@ const SCHEMA = {
       "Sessiegeneratie": "number",
       // Verrou global des connexions par PIN (api/session.js) : un PIN n'identifie pas son compte.
       "PIN echecs": "number", "PIN geblokkeerd tot": "datetime",
+      // Audit L-06 : codes partagés refusés, seuls les PIN personnels ouvrent (Beheer → Toegang).
+      "Enkel persoonlijke PIN": "checkbox",
       // Conditions générales (C-12) : texte NL/FR et version publiée.
       "Voorwaarden NL": "text", "Voorwaarden FR": "text", "Voorwaarden versie": "text" },
     selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"

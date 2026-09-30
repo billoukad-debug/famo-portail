@@ -308,7 +308,7 @@ test("A-08 : déconnexion serveur → les jetons du client sur tous ses appareil
 // E-mails activés, Resend simulé : on lit ce qui serait parti.
 function withMail() {
   const sent = [];
-  const mods = ["lib/mail.js", "lib/ordermail.js", "lib/authmail.js", "api/klantorder.js", "api/onboarding.js"];
+  const mods = ["lib/mail.js", "lib/ordermail.js", "lib/authmail.js", "api/klantorder.js", "api/onboarding.js", ...["common", "config", "producten", "klanten", "klantgebruikers", "toegang", "prijzen"].map((m) => "lib/beheer/" + m + ".js")]; // actions Beheer découpées (I-10) : rechargées avec lib/mail
   const clear = () => mods.forEach((m) => { delete require.cache[require.resolve(path.join(ROOT, m))]; });
   const prevFetch = global.fetch;
   process.env.RESEND_API_KEY = "re_test_security";

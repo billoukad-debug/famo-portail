@@ -5,4 +5,8 @@
 .env.*
 node_modules/
 .vercel/
-.claude/
+# Réglages locaux de Claude Code ; les skills spec-kit (speckit-*) sont partagés.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/speckit-*/

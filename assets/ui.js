@@ -33,18 +33,22 @@
   // erin : de API blijft eentalig, de vertaling gebeurt bij het tonen (K.errText).
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
+    "Verse vis en zeevruchten, Antwerpen": "Poissons et fruits de mer, Anvers", "Meer links": "Autres liens", "Vóór {t} besteld, geleverd op {d}": "Commandé avant {t}, livré le {d}", "Personeel": "Personnel", "Beheer": "Gestion",
+    "Vóór {t} besteld,": "Commandé avant {t},", "morgen in uw keuken.": "demain dans votre cuisine.", "Nog": "Encore", "Volgende levering": "Prochaine livraison",
+    "{h} u {m} min": "{h} h {m} min", "{m} min": "{m} min", "om te bestellen voor levering op {d}.": "pour commander et être livré le {d}.",
+    "De bestellingen voor morgen zijn dicht sinds {t}.": "Les commandes pour demain sont closes depuis {t}.",
+    "Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.": "Livraison {d} à Anvers et environs. Vous voyez vos prix négociés, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures.",
+    "Tellers in het menu": "Pastilles du menu", "Nieuw": "Nouveau", "Uit": "Aucune", "nieuw sinds uw laatste bezoek": "nouveau depuis votre dernière visite",
+    "Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.": "Nouveau : disparaît dès que vous ouvrez la page. Tout : reste tant qu'il y a quelque chose à faire. Aucune : pas de pastille.",
     "Vandaag": "Aujourd'hui", "Morgen": "Demain", "Gisteren": "Hier", "Algemeen": "Général", "Ontvangen": "Reçue", "Openstaand": "À payer",
     "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Bezig…": "En cours…", "Wijzigingen niet bewaard": "Modifications non enregistrées", "U heeft iets gewijzigd in dit venster. Sluiten zonder te bewaren?": "Vous avez modifié quelque chose dans cette fenêtre. Fermer sans enregistrer ?", "Sluiten zonder bewaren": "Fermer sans enregistrer", "Verder bewerken": "Continuer", "Sneltoetsen": "Raccourcis clavier", "Zoeken": "Rechercher", "Sneltoetsen tonen": "Afficher les raccourcis", "Venster sluiten": "Fermer la fenêtre", "Bewaren vanuit een tekstvak": "Enregistrer depuis un champ texte", "Volgende / vorige knop": "Bouton suivant / précédent", "Zoekveld": "Champ de recherche", "Naar de inhoud": "Aller au contenu", "Annuleren": "Annuler",
-    "Laden…": "Chargement…", "Openen": "Ouvrir", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
+    "Laden…": "Chargement…", "Openen": "Ouvrir", "Creditnota niet gevonden": "Note de crédit introuvable", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
     // start
-    "Verse vis en zeevruchten · Antwerpen": "Poissons et fruits de mer frais · Anvers", "Toegang aanvragen": "Demander un accès",
-    "Verse vis bestellen,<br>zo simpel als een berichtje.": "Commander du poisson frais,<br>aussi simple qu'un message.",
-    "Bestel vandaag vóór {t} en wij leveren morgen in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug in het portaal.": "Commandez aujourd'hui avant {t}, nous livrons demain à Anvers et dans les environs. Vous voyez vos prix convenus, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures dans le portail.",
-    "Klantportaal": "Portail client", "Aanmelden met uw gebruikersnaam": "Connectez-vous avec votre identifiant", "U bent afgemeld.": "Vous êtes déconnecté.",
+    "Toegang aanvragen": "Demander un accès",
+            "Klantportaal": "Portail client", "Aanmelden met uw gebruikersnaam": "Connectez-vous avec votre identifiant", "U bent afgemeld.": "Vous êtes déconnecté.",
     "Gebruikersnaam": "Identifiant", "Wachtwoord": "Mot de passe", "Tonen": "Afficher", "Verbergen": "Masquer", "Aanmelden": "Se connecter", "Aanmelden…": "Connexion…",
     "Wachtwoord vergeten?": "Mot de passe oublié ?", "Nog geen klant? Toegang aanvragen": "Pas encore client ? Demander un accès", "Werkt u bij Famo?": "Vous travaillez chez Famo ?",
-    "besteldeadline": "heure limite de commande", "ma–za": "lun–sam", "levering, niet op zondag": "livraison, pas le dimanche", "Gratis": "Gratuite", "levering": "livraison",
-    "Vul uw gebruikersnaam in.": "Indiquez votre identifiant.", "Vul uw wachtwoord in.": "Indiquez votre mot de passe.", "Gebruikersnaam of wachtwoord klopt niet.": "Identifiant ou mot de passe incorrect.",
+    "besteldeadline": "heure limite de commande", "ma–za": "lun–sam",     "Vul uw gebruikersnaam in.": "Indiquez votre identifiant.", "Vul uw wachtwoord in.": "Indiquez votre mot de passe.", "Gebruikersnaam of wachtwoord klopt niet.": "Identifiant ou mot de passe incorrect.",
     // catalogus
     "bestel vóór 22:00 voor morgen": "commandez avant 22 h pour demain", "Zoek een product…": "Rechercher un produit…", "Alles": "Tout", "Favoriet": "Favori", "Uit favorieten": "Retirer des favoris",
     "uw prijs": "votre prix", "artikel": "article", "artikelen": "articles", "excl. btw": "HTVA", "Bestellen": "Commander",
@@ -113,7 +117,7 @@
     "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons.": "L'envoi de la demande a échoué. Réessayez plus tard ou appelez-nous.",
     "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord.": "Si les données sont correctes, vous recevrez dans quelques minutes un e-mail avec un nouveau mot de passe.",
     // leveringsregels (uit Configuratie) — {t} = deadline, {n} = dagen, {d} = dagenlijst, {m}/{r} = bedragen
-    "Bestel vóór {t} voor levering morgen": "Commandez avant {t} pour une livraison demain", "bestel vóór {t} voor morgen": "commandez avant {t} pour demain", "Bestel vóór {t} voor levering morgen.": "Commandez avant {t} pour une livraison demain.",
+    "Bestel vóór {t} voor levering morgen": "Commandez avant {t} pour une livraison demain", "Bestel vóór {t} voor levering morgen.": "Commandez avant {t} pour une livraison demain.",
     "Levering op {d}. Vóór {t} besteld = morgen geleverd.": "Livraison le {d}. Commandé avant {t} = livré demain.", "Die dag is te vroeg: bestel vóór {t} voor levering morgen.": "Ce jour est trop tôt : commandez avant {t} pour une livraison demain.",
     "Kies een leverdag binnen de komende {n} dagen": "Choisissez un jour de livraison dans les {n} prochains jours", "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór {t} voor levering morgen.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant {t} pour une livraison demain.",
     "Minimumbestelling {m} excl. btw · nog {r} toe te voegen.": "Commande minimum {m} HTVA · encore {r} à ajouter.", "Minimumbestelling {m} excl. btw": "Commande minimum {m} HTVA",
@@ -171,6 +175,17 @@
   const bxl = d => { const o = {}; BXL.formatToParts(d).forEach(x => { o[x.type] = x.value; }); return o; };
   K.isoDay = d => { const x = d instanceof Date ? d : K.parseDate(d); if (!x) return ""; if (BXL && typeof d === "string" && ZONED.test(d)) { const o = bxl(x); return o.year + "-" + o.month + "-" + o.day; } const m = String(x.getMonth() + 1).padStart(2, "0"), day = String(x.getDate()).padStart(2, "0"); return x.getFullYear() + "-" + m + "-" + day; };
   K.today = () => K.isoDay(new Date());
+  // Fenêtre de commande (spec 002) : minutes avant l'heure limite et premier jour livrable.
+  // Même règle que lib/levering.js : avant la limite = demain, après = après-demain ; puis le premier jour de livraison non fermé.
+  const ORDER_DEF = { deadline: "22:00", leverdagen: ["ma", "di", "wo", "do", "vr", "za"], geslotenDagen: [] };
+  K.orderWindow = (rules, now) => {
+    const r = Object.assign({}, ORDER_DEF, rules || {}), n = now || new Date(), keys = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+    const [h, m] = String(r.deadline || "22:00").split(":").map(Number), cut = (h || 0) * 60 + (m || 0), cur = n.getHours() * 60 + n.getMinutes();
+    const open = cur < cut, closed = r.geslotenDagen || [], lever = r.leverdagen || ORDER_DEF.leverdagen;
+    let d = K.addDays(K.isoDay(n), open ? 1 : 2), i = 0;
+    while (!(lever.includes(keys[K.parseDate(d).getDay()]) && !closed.includes(d)) && i++ < 400) d = K.addDays(d, 1);
+    return { open, left: open ? cut - cur : 0, first: d, deadline: r.deadline };
+  };
   K.addDays = (iso, n) => { const d = K.parseDate(iso) || new Date(); d.setDate(d.getDate() + n); return K.isoDay(d); };
   K.date = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0"); };
   K.dateLong = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); };
@@ -254,7 +269,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "0abf2fb0c8";
+  K.DOCS_VER = "d163680226";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -672,15 +687,50 @@
   // [enkelvoud, meervoud] : « 1 onbetaalde factuur », « 2 onbetaalde facturen ».
   const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
   K.plural = (n, one, many) => n + " " + (Number(n) === 1 ? one : (many || one));
+  // Pastilles lues (spec 001) : chaque valeur est un nombre ou une liste d'identifiants.
+  // Mode par appareil : « nieuw » (défaut) = pas encore vus ici ; « alles » = tout ce qui reste ; « uit » = rien.
+  // Vu = la personne est sur la page de la pastille (lien actif), onglet visible.
+  const BADGE_MODES = ["nieuw", "alles", "uit"];
+  K.badgeMode = () => { const m = K.store.get("famoBadgeMode", "nieuw"); return BADGE_MODES.includes(m) ? m : "nieuw"; };
+  // Fonction pure : { n affiché, seen mémoire à garder }.
+  K.badgeView = (value, mode, seen, here) => {
+    const m = BADGE_MODES.includes(mode) ? mode : "nieuw";
+    if (Array.isArray(value)) {
+      const ids = value.map(String);
+      const old = new Set(seen && Array.isArray(seen.ids) ? seen.ids.map(String) : []);
+      const next = { ids: here ? ids : ids.filter(id => old.has(id)) };
+      return { n: m === "uit" ? 0 : m === "alles" ? ids.length : (here ? 0 : ids.filter(id => !old.has(id)).length), seen: next };
+    }
+    const n = Math.max(0, Number(value) || 0), prev = seen && typeof seen.n === "number" && Number.isFinite(seen.n) ? seen.n : 0;
+    const base = here ? n : Math.min(prev, n);
+    return { n: m === "uit" ? 0 : m === "alles" ? n : Math.max(0, n - base), seen: { n: base } };
+  };
   K.setBadges = map => {
     const all = Object.assign(K.session.get("famoBadges", {}) || {}, map || {});
     if (map && Object.keys(map).length) K.session.set("famoBadges", all);
+    const mode = K.badgeMode(), seenAll = K.store.get("famoBadgeSeen", {}) || {};
+    const visible = !(typeof document !== "undefined" && document.visibilityState === "hidden");
+    let changed = false;
     K.$$("[data-badge]").forEach(el => {
-      const n = Number(all[el.dataset.badge]) || 0, txt = BADGE_TXT[el.dataset.badge] || [""];
+      const key = el.dataset.badge, a = el.closest && el.closest("a");
+      const here = visible && !!a && (a.getAttribute("aria-current") === "page" || a.classList.contains("on"));
+      const v = K.badgeView(all[key], mode, seenAll[key], here);
+      if (all[key] != null && JSON.stringify(v.seen) !== JSON.stringify(seenAll[key])) { seenAll[key] = v.seen; changed = true; }
+      const n = v.n, txt = BADGE_TXT[key] || [""];
       el.hidden = !n; el.textContent = n > 99 ? "99+" : String(n);
-      el.setAttribute("aria-label", K.plural(n, K.t(txt[0]), K.t(txt[1] || txt[0])));
+      el.setAttribute("aria-label", K.plural(n, K.t(txt[0]), K.t(txt[1] || txt[0])) + (mode === "nieuw" ? " · " + K.t("nieuw sinds uw laatste bezoek") : ""));
     });
+    if (changed) K.store.set("famoBadgeSeen", seenAll);
   };
+  // Keuze per toestel : drie knoppen (zelfde vorm als de taalkeuze), meteen toegepast.
+  K.badgeSwitch = () => '<div class="lang" role="group" aria-label="' + K.t("Tellers in het menu") + '">' + [["nieuw", "Nieuw"], ["alles", "Alles"], ["uit", "Uit"]].map(([m, l]) => '<button type="button" data-badgemode="' + m + '" aria-pressed="' + (K.badgeMode() === m) + '"' + (K.badgeMode() === m ? ' class="on"' : "") + '>' + K.t(l) + '</button>').join("") + '</div>';
+  K.badgeHelp = () => K.t("Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.");
+  if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => {
+    const b = e.target && e.target.closest && e.target.closest("[data-badgemode]"); if (!b) return;
+    K.store.set("famoBadgeMode", b.dataset.badgemode);
+    K.$$("[data-badgemode]").forEach(x => { const on = x.dataset.badgemode === b.dataset.badgemode; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
+    K.setBadges({});
+  });
   const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];
   const NAV_STAFF_MORE = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"]];
   K.shell = function (opts) {
@@ -696,7 +746,7 @@
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
-    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       link(["stock.html", "Voorraad", "stock"]) +
@@ -704,10 +754,11 @@
       '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
-    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
+    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
+    app.querySelector("[data-badgesettings]").onclick = () => K.panel({ title: "Tellers in het menu", sub: "Voor dit toestel", width: "420px", body: '<div class="badgeset"><p class="muted">' + K.badgeHelp() + '</p>' + K.badgeSwitch() + '</div>' });
     // G-20 : au téléphone la navigation défile à l'horizontale — un fondu montre qu'il reste des onglets,
     // et l'onglet de la page est ramené dans la vue.
     const sideEl = app.querySelector(".side");

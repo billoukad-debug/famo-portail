@@ -12,7 +12,7 @@ Les documents FA-/CN- du portail sont des documents internes : la facture légal
 | **Personeel** | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html`, `/invoer.html`, `/stock.html` | `STAFF_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN personnel (cookie 8 h) |
 | **Beheer** | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status) + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
 
-Une seule peau « Crème » pour les trois portails, un seul bleu d'action (voir `DESIGN.md`). Les couleurs de statut sont identiques partout : ocre ontvangen, bleu klaar, bleu nuit onderweg, vert olive geleverd, gris gefactureerd, rouge te laat.
+Une seule peau « Vismijn » pour les trois portails (voir `DESIGN.md`) : fond froid, une couleur d'action (Noordzee), la barre de l'équipe en bleu-noir, la marque au poisson, la police Atkinson Hyperlegible Next. Les couleurs de statut sont identiques partout : ambre ontvangen, Noordzee klaar, bleu onderweg, vert geleverd, gris gefactureerd, rouge te laat.
 
 ## Structure
 

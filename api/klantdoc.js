@@ -1,6 +1,7 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const { at, atAll, escapeFormula } = require("../lib/airtable");
 const __bill = require("../lib/billing");
+const __cn = require("../lib/creditnota");
 const { parseLines } = require("./updateorder");
 // Documenten voor de klant (leveringsbon, factuur) : de gegevens die nodig zijn om
 // het document in de browser op te bouwen, enkel voor de eigen bestellingen.
@@ -29,7 +30,9 @@ module.exports = async (req, res) => {
     const mode = __bill.modeOf(c), legal = __bill.legalOf(c), fallback = __bill.defaultRate(c);
     // Mêmes taux que le document du personnel : figés à la facturation, sinon catalogue actuel
     // (avant : un seul taux pour toute la facture côté client, audit B-05).
-    const btwPerLine = __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, __bill.ratesFromCatalogue((cat && cat.records) || []), fallback);
+    // Régime de TVA (C-10) : figé sur la facture, sinon celui du client (0 % → toutes les lignes à 0).
+    const btwRegime = __bill.regimeOf(f, client.fields);
+    const btwPerLine = __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, __bill.ratesFromCatalogue((cat && cat.records) || []), fallback, btwRegime);
     res.status(200).json({
       order: {
         id: rec.id, ref: f["Référence"] || "", date: f["Date"] || "", dateLiv: f["Date livraison souhaitée"] || "",
@@ -39,8 +42,10 @@ module.exports = async (req, res) => {
         klant: { nom: client.fields["Nom"] || "", adresse: client.fields["Lieu de livraison"] || "", btw: client.fields["BTW-nummer"] || "", klantnr: client.fields["Klantnummer"] || "", taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL" },
         livreeLe: f["Livrée le"] || "", receptionnePar: f["Réceptionné par"] || "",
         getekend: (f["Preuve de livraison"] || []).some(a => /^handtekening-/.test(String(a && a.filename || ""))),
-        factureeLe: f["Facturée le"] || "", btwPerLine,
+        factureeLe: f["Facturée le"] || "", btwPerLine, btwRegime,
         besteld: f["Lignes besteld"] || "",
+        // Notes de crédit (C-08), chacune imprimable dans la langue du client ; seulement sur une facture.
+        creditnotas: invoiced ? __cn.list(f).map(n => ({ nummer: n.nummer, lignes: n.lignes, montant: n.montant, le: n.le, motif: n.motif })) : [],
         lots: (() => { try { return f["Lots"] ? JSON.parse(f["Lots"]) : null; } catch (e) { return null; } })()
       },
       config: {

@@ -37,3 +37,41 @@ test("parseNum : saisies belges et internationales (FOR-06)", () => {
   for (const bad of ["", "abc", "1,2,3x", null]) assert.ok(Number.isNaN(K.parseNum(bad)), JSON.stringify(bad));
   assert.equal(K.numIn("1 404,48"), "1404.48"); assert.equal(K.numIn(""), "");
 });
+test("badgeView : pastilles lues (spec 001)", () => {
+  const v = K.badgeView;
+  // Mode « Nieuw » : seuls les identifiants pas encore vus comptent ; ouvrir la page les marque vus.
+  let r = v(["a", "b", "c"], "nieuw", null, false); assert.equal(r.n, 3);
+  r = v(["a", "b", "c"], "nieuw", r.seen, true); assert.equal(r.n, 0); assert.deepEqual(r.seen.ids.sort(), ["a", "b", "c"]);
+  r = v(["a", "b", "c", "d"], "nieuw", r.seen, false); assert.equal(r.n, 1, "une nouvelle commande");
+  r = v(["c", "d"], "nieuw", r.seen, false); assert.equal(r.n, 1); assert.deepEqual(r.seen.ids.sort(), ["c"], "mémoire limitée aux éléments encore présents");
+  // Mode « Alles » : tout ce qui reste à traiter, page ouverte ou non.
+  assert.equal(v(["a", "b"], "alles", { ids: ["a", "b"] }, true).n, 2);
+  // Mode « Uit » : rien.
+  assert.equal(v(["a", "b"], "uit", null, false).n, 0); assert.equal(v(5, "uit", null, false).n, 0);
+  // Compteur sans liste : hausse depuis la dernière visite ; une baisse abaisse la référence.
+  r = v(4, "nieuw", null, false); assert.equal(r.n, 4);
+  r = v(4, "nieuw", r.seen, true); assert.equal(r.n, 0);
+  r = v(2, "nieuw", r.seen, false); assert.equal(r.n, 0); assert.equal(r.seen.n, 2);
+  r = v(3, "nieuw", r.seen, false); assert.equal(r.n, 1);
+  assert.equal(v(7, "alles", { n: 7 }, true).n, 7);
+  // Mémoire corrompue ou absente : pas d'erreur, tout est « nouveau ».
+  assert.equal(v(["a"], "nieuw", "garbage", false).n, 1); assert.equal(v(3, "nieuw", { ids: 5 }, false).n, 3);
+  // Mode inconnu = défaut « Nieuw » ; sans stockage (fenêtre privée), K.badgeMode() vaut « nieuw ».
+  assert.equal(v(["a"], "???", { ids: ["a"] }, false).n, 0);
+  assert.equal(K.badgeMode(), "nieuw");
+});
+test("orderWindow : heure limite et premier jour livrable (accueil + catalogue, spec 002)", () => {
+  const R = { deadline: "22:00", leverdagen: ["ma", "di", "wo", "do", "vr", "za"], geslotenDagen: [] };
+  // Mercredi 30/09/2026 20:30 : 90 min avant la limite, livraison jeudi 1/10.
+  let w = K.orderWindow(R, new Date(2026, 8, 30, 20, 30));
+  assert.equal(w.left, 90); assert.equal(w.first, "2026-10-01"); assert.equal(w.open, true);
+  // Après 22:00 : fermé, premier jour = vendredi 2/10.
+  w = K.orderWindow(R, new Date(2026, 8, 30, 22, 0));
+  assert.equal(w.open, false); assert.equal(w.left, 0); assert.equal(w.first, "2026-10-02");
+  // Samedi soir avant la limite : pas de livraison le dimanche → lundi.
+  assert.equal(K.orderWindow(R, new Date(2026, 9, 3, 18, 0)).first, "2026-10-05");
+  // Jour fermé (congé) sauté.
+  assert.equal(K.orderWindow(Object.assign({}, R, { geslotenDagen: ["2026-10-01"] }), new Date(2026, 8, 30, 9, 0)).first, "2026-10-02");
+  // Règles absentes : valeurs par défaut (22:00, lun–sam).
+  assert.equal(K.orderWindow(null, new Date(2026, 8, 30, 21, 0)).left, 60);
+});

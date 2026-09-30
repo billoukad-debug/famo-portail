@@ -12,6 +12,16 @@ Runtimes: CI runs Node 22; Vercel runs the functions on the Node version set in 
 project settings (24.x as of 2026-09-27). `node:sqlite` (tests / local SQL engine only)
 needs a recent Node 22.
 
+### Spec-driven workflow (github/spec-kit)
+- Every change starts as `specs/NNN-name/` (spec.md → plan.md with Constitution Check → tasks.md), then code.
+  Skills: `.claude/skills/speckit-*` (`/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-implement`).
+- Rules that every spec must respect: `.specify/memory/constitution.md` (no build, server decides, tests first
+  and local-only writes, NL/FR + WCAG 2.2 AA + 44 px, schema/RGPD).
+- Done so far: 001 badges, 002 visual identity « Vismijn » (see DESIGN.md), 003 VAT regime + VIES,
+  004 multiple credit notes + correction mail, 005 personal-PIN-only, 006 tech debt (Beheer split, parseLines).
+- Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
+  in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
+
 ### Test / lint / build
 - Test (business rules + syntax + unit tests): `node scripts/check.js`. This is the primary
   gate (mocks `fetch`, needs no external services). CI runs it on every push (all branches)
@@ -39,6 +49,10 @@ needs a recent Node 22.
   APIs return 500; without `ADMIN_CODE`, `adminOk` is always false, so Beheer is closed even for a beheerder PIN; see
   `lib/staffauth.js`). Codes stored from Beheer → Toegang (hashed in Configuratie) replace
   the env code for that role; personal PINs (table `Medewerkers`) are also accepted.
+  With Beheer → Toegang « Enkel persoonlijke pincodes » (Configuratie `Enkel persoonlijke PIN`,
+  audit L-06) shared codes are refused (401) and only PINs log in, except the env `ADMIN_CODE`
+  as logged break-glass (Beheer login page, admin role, name « Noodtoegang »; see
+  `docs/RUNBOOK.md` § 6 and `test/pinonly.test.js`).
   The session is an HttpOnly+Secure cookie signed with `SESSION_SECRET` (or, if unset, a
   secret derived from the codes and the DB credentials); browsers treat `http://localhost`
   as a secure context, so the cookie works over plain http locally.

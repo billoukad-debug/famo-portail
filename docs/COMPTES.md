@@ -24,6 +24,8 @@ Modèle à tenir à jour par Famo Trading BV. **Aucun secret dans ce fichier** :
 | Code beheerder (`ADMIN_CODE` ou code enregistré) | Vercel / Beheer → Toegang | _à remplir_ | _à remplir_ |
 | Code personnel (`STAFF_CODE` ou code enregistré) | Vercel / Beheer → Toegang | _à remplir_ | _à remplir_ |
 | PIN individuels | Beheer → Toegang → Medewerkers | une ligne par personne dans la table | — |
+
+Option « Enkel persoonlijke pincodes » (Beheer → Toegang, audit L-06) : une fois active, les deux codes partagés ci-dessus n'ouvrent plus rien ; seul `ADMIN_CODE` (variable Vercel, si aucun code beheerder n'est enregistré) reste un **accès de secours** journalisé (`docs/RUNBOOK.md` § 6). La colonne « Qui le connaît » de `ADMIN_CODE` doit alors se limiter à qui administre Vercel. État de l'option : _à remplir_ (aan / uit, date).
 | `SESSION_SECRET`, `DATABASE_URL`, `RESEND_API_KEY` | Vercel → Environment Variables | _à remplir_ | _à remplir_ |
 
 ## Règles
