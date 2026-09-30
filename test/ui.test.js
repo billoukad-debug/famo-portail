@@ -60,3 +60,18 @@ test("badgeView : pastilles lues (spec 001)", () => {
   assert.equal(v(["a"], "???", { ids: ["a"] }, false).n, 0);
   assert.equal(K.badgeMode(), "nieuw");
 });
+test("orderWindow : heure limite et premier jour livrable (accueil + catalogue, spec 002)", () => {
+  const R = { deadline: "22:00", leverdagen: ["ma", "di", "wo", "do", "vr", "za"], geslotenDagen: [] };
+  // Mercredi 30/09/2026 20:30 : 90 min avant la limite, livraison jeudi 1/10.
+  let w = K.orderWindow(R, new Date(2026, 8, 30, 20, 30));
+  assert.equal(w.left, 90); assert.equal(w.first, "2026-10-01"); assert.equal(w.open, true);
+  // Après 22:00 : fermé, premier jour = vendredi 2/10.
+  w = K.orderWindow(R, new Date(2026, 8, 30, 22, 0));
+  assert.equal(w.open, false); assert.equal(w.left, 0); assert.equal(w.first, "2026-10-02");
+  // Samedi soir avant la limite : pas de livraison le dimanche → lundi.
+  assert.equal(K.orderWindow(R, new Date(2026, 9, 3, 18, 0)).first, "2026-10-05");
+  // Jour fermé (congé) sauté.
+  assert.equal(K.orderWindow(Object.assign({}, R, { geslotenDagen: ["2026-10-01"] }), new Date(2026, 8, 30, 9, 0)).first, "2026-10-02");
+  // Règles absentes : valeurs par défaut (22:00, lun–sam).
+  assert.equal(K.orderWindow(null, new Date(2026, 8, 30, 21, 0)).left, 60);
+});

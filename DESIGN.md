@@ -24,35 +24,48 @@ Règle absolue : l'unité Airtable `caisse` s'affiche **kassa**, jamais « caiss
 
 ---
 
-# Le système : Crème (sept. 2026)
+# Le système : Vismijn (30/09/2026, spec 002)
 
-Grammaire Airbnb DESIGN.md, radius Anthropic/Claude, une seule nuance d'action : un **bleu chaud pastel**. Tout vit dans **`assets/ui.css`** (feuille unique) ; les pages ne font que consommer les classes et variables. Les noms de variables (`--p`, `--ink`, `--line`, `st-*`…) sont figés : changer une valeur re-habille tout le portail sans toucher au JS.
+Remplace « Crème » (sept. 2026), qui cumulait les défauts des interfaces générées : fond crème chaud, cartes identiques partout, bleu pastel générique, lettre « F » dans un carré, trio de chiffres sur l'accueil, en-têtes en majuscules, bande colorée sur le côté (sources : skill `frontend-design` d'Anthropic, détecteur Impeccable ; voir `specs/002-identite-vismijn/`).
+
+**Le monde du produit** : la criée (vismijn), la glace, l'inox, la mer du Nord à 5 h du matin, les caisses, la bouée. **Une seule audace** : la « timonerie » bleu-noir de l'équipe (barre latérale) et la marque (poisson + œil orange bouée). Tout le reste est calme.
+
+Tout vit dans **`assets/ui.css`** (feuille unique) ; les pages consomment les classes et variables. Les noms de variables (`--p`, `--ink`, `--line`, `st-*`…) sont figés : changer une valeur re-habille tout le portail sans toucher au JS.
 
 ## Jetons (`:root` de `assets/ui.css`)
 
 ```css
---canvas:  #FAF9F5   /* fond crème — jamais de blanc pur en fond */
---soft:    #F1EFE8   /* deuxième surface : totaux, lignes en creux */
---card:    #FFFFFF   /* cartes posées sur le canvas */
---ink:     #232323   /* texte uniquement — jamais un bouton noir */
---ink-2:   #6A6A6A   /* corps secondaire */
---ink-3:   #66645D   /* méta, libellés discrets */
---line:    #E3E0D6   --line-soft: #EDEBE4   --line-strong: #C7C3B7
---p:       #4876A2   /* TOUTE action : bouton principal, lien, onglet actif, sélection */
---p-deep:  #3F6690   /* survol / pressé */
---p-soft:  #E4EDF5   /* fond d'un état sélectionné */
---klei:    #AD5830   /* « uw prijs » et favori actif, rien d'autre */
+--canvas:  #EFF3F3   /* IJs : fond froid, jamais crème */
+--soft:    #E4EBEB   /* Kaai : deuxième surface, survol */
+--card:    #FFFFFF   /* ce qui contient */
+--ink:     #0E2229   /* Diepzee : texte */
+--ink-2:   #475A61   --ink-3: #56686E
+--line:    #D3DDDF   --line-soft: #E3EAEB   --line-strong: #AAB8BB   --line-input: #788A8F
+--p:       #0B5A6C   /* Noordzee : TOUTE action (bouton principal, lien, onglet actif, sélection) */
+--p-deep:  #084453   --p-soft: #DDEBEE
+--deep:    #0E2229   /* timonerie : barre latérale de l'équipe, bandeau « marée » de l'accueil, connexion équipe */
+--deep-ink:#C9D8DB   --deep-ink-2: #90A7AD
+--boei:    #E2531B   /* orange bouée : l'œil de la marque et le point du bandeau « marée », RIEN d'autre */
+--klei:    #B2431A   /* « uw prijs » et favori actif */
 ```
 
-Statuts (fond doux + point, rayon 6px, même famille que `.chip`) : Nieuw `#B7841A`/`#F5EEDC` · Klaar = bleu · Onderweg `#2E4F70`/`#E1E7EE` · Geleverd `#5F7A48`/`#E8EEE0` · Gefactureerd `#8A8883` · Fout `#B8432E`/`#F7E6E1`.
+Statuts : chaque couleur = un état défini (Ontvangen ambre, Klaar Noordzee, Onderweg bleu, Geleverd vert, Gefactureerd gris, retard/erreur rouge). Pastilles de la navigation : neutres (Noordzee ; blanches dans la timonerie) — le rouge est réservé à l'erreur et au retard. Tous les couples texte/fond passent AA (`node scripts/contrast-check.js`).
 
 ## Typographie
 
-**Plus Jakarta Sans** (Google Fonts, 400/500/600/700 — autorisée par la CSP de `vercel.json`), repli système. Titres 600 avec tracking négatif (−0.03em sur les grands titres). Chiffres en `tabular-nums`. Mono réservé aux références (`CMD-2026-0147`).
+**Atkinson Hyperlegible Next** (OFL, hébergée dans `assets/fonts/`), une seule famille. Dessinée par le Braille Institute pour que chaque caractère se distingue (1/l/I, 0/O, 5/S) : c'est la raison du choix, pas la mode — l'équipe lit des références et des poids dans le froid, avec des gants. Conséquence assumée : **le zéro est barré** (pas de variante sans barre dans la police). Titres 700, léger tracking négatif ; corps 14,5 px ; chiffres tabulaires dans les colonnes de nombres seulement. Casse normale partout : aucun libellé en capitales.
 
 ## Formes
 
-Rayons **4 / 6 / 8 / 12** (`--r-xs`, `--r-sm`, `--r`, `--r-lg`) : 8px contrôles, 12px cartes et panneaux. **Aucune pilule sur ce qui s'actionne.** Ombres douces à plusieurs couches (`--shadow`, `--lift`) seulement pour ce qui flotte (login, panier, dialogue).
+Rayons hiérarchisés : **6** ce qu'on touche (boutons, champs), **10** ce qui contient (cartes, groupes), **14** ce qui flotte (dialogues, recherche, aperçu de document). Ombres seulement sur ce qui flotte ; au survol une carte renforce son contour, elle ne « décolle » pas. Aucune bande colorée sur le côté d'un bloc. Chiffres clés de Beheer : un bandeau unique, pas quatre cartes.
+
+## Marque
+
+`assets/brand/famo-mark.svg` (fond clair) et `famo-mark-light.svg` (timonerie) : un poisson, une ouïe, un œil orange. Utilisée par `.logo` (CSS), le favicon, les icônes PWA (`assets/icons/`) et l'en-tête des documents (`documents.js`). Le nom « FAMO Seafood » est écrit à côté, jamais dans la marque.
+
+## Accueil client
+
+Le premier écran montre ce qui compte le soir pour un chef : **combien de temps il reste pour commander, et pour quel jour** (`K.orderWindow`, même règle que `lib/levering.js`), dans le seul bloc sombre de la page. Pas de trio de chiffres, pas de slogan.
 
 ## Nom
 
@@ -110,7 +123,7 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 5. **`alert()` / `confirm()` / `prompt()` natifs interdits** : `K.toast`, `K.confirm`, `K.prompt`, `K.panel`.
 6. **Cibles tactiles ≥ 44 px** partout où le personnel appuie (`--tap`).
 7. **Portail client bilingue** : tout texte visible passe par `K.t()` et a sa traduction dans `K.FR` (`assets/ui.js`) ; un test échoue sinon. Personnel, Beheer et e-mails restent en néerlandais ; les documents suivent la langue du client (NL/FR).
-8. **Documents** (`documents.js`) et **e-mails** (`lib/ordermail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Crème (encre `#232323`, filet `#E3E0D6`, fond `#FAF9F5`, bleu `#4876A2`). Pas de ligne de signature sur les documents.
+8. **Documents** (`documents.js`) et **e-mails** (`lib/ordermail.js`) ont leur CSS en ligne ; ils reprennent encore les valeurs des jetons Crème (encre `#232323`, filet `#E3E0D6`, fond `#FAF9F5`, bleu `#4876A2`) ; la marque des documents est déjà Vismijn, les couleurs suivent (tâche T014 de la spec 002). Pas de ligne de signature sur les documents.
 9. `node scripts/check.js` et `npx -y eslint@9.39.5 .` (tout le dépôt) doivent rester verts ; la CI joue les deux, plus `scripts/ux-audit.js` dans un navigateur.
 
 ---

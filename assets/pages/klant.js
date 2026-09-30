@@ -26,11 +26,11 @@
   const DAY_KEYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
   const rules = () => Object.assign({}, DEF_RULES, (cat && cat.company && cat.company.levering) || {});
   const deadline = () => rules().deadline;
-  const afterDeadline = () => { const [h, m] = deadline().split(":").map(Number); const n = new Date(); return n.getHours() * 60 + n.getMinutes() >= (h || 0) * 60 + (m || 0); };
   const dow = iso => { const d = K.parseDate(iso); return d ? d.getDay() : -1; };
   const deliverable = iso => { const r = rules(); return r.leverdagen.includes(DAY_KEYS[dow(iso)]) && !r.geslotenDagen.includes(iso); };
   // Eerste leverbare dag : morgen (na de deadline overmorgen), daarna de eerste leverdag die niet gesloten is.
-  const firstDay = () => { let d = K.addDays(K.today(), afterDeadline() ? 2 : 1), n = 0; while (!deliverable(d) && n++ < 400) d = K.addDays(d, 1); return d; };
+  const firstDay = () => K.orderWindow(rules()).first;
+  const shortDay = iso => { try { return new Intl.DateTimeFormat(K.lang === "fr" ? "fr-BE" : "nl-BE", { weekday: "long", day: "numeric", month: "long" }).format(K.parseDate(iso)); } catch (e) { return iso; } };
   const lastDay = () => K.addDays(K.today(), rules().maxDagen);
   // Zelfde volgorde en meldingen als checkDate in lib/levering.js ; de deadline komt er client-side bij.
   const dayErr = iso => {
@@ -76,7 +76,7 @@
   // Kop : op de telefoon enkel de tabbalk onderaan ; op de computer één kopbalk met merk, tabs en winkelmand.
   function shell(active, inner, top) {
     const co = (cat && cat.company) || {}, a = document.activeElement, onTitle = !!(a && a.tagName === "H1" && app.contains(a));
-    app.innerHTML = '<a class="skip" href="#kmain">' + K.t("Naar de inhoud") + '</a><div class="kwrap kv-' + (K.hashParams().path || active) + '"><header class="khead"><a class="kbrand" href="#/catalogus"><span class="logo">F</span><b>' + K.esc(co.bedrijfsnaam || "FAMO Seafood") + '</b></a>' + K.klantTabs(active) + '<a class="kcartlink" id="kcartlink" href="#/winkelmand">' + cartLinkHtml() + '</a></header><main class="kmain" id="kmain" tabindex="-1">' + (top || "") + inner + '</main></div>';
+    app.innerHTML = '<a class="skip" href="#kmain">' + K.t("Naar de inhoud") + '</a><div class="kwrap kv-' + (K.hashParams().path || active) + '"><header class="khead"><a class="kbrand" href="#/catalogus"><span class="logo" aria-hidden="true"></span><b>' + K.esc(co.bedrijfsnaam || "FAMO Seafood") + '</b></a>' + K.klantTabs(active) + '<a class="kcartlink" id="kcartlink" href="#/winkelmand">' + cartLinkHtml() + '</a></header><main class="kmain" id="kmain" tabindex="-1">' + (top || "") + inner + '</main></div>';
     if (onTitle) K.focusTitle(app); // vue redessinée (données arrivées) : le focus reste sur son titre
   }
   function cartLinkHtml() {
@@ -84,7 +84,7 @@
     return K.icon("cart") + '<span>' + K.t("Winkelmand") + '</span>' + (n ? '<b class="kbadge">' + n + '</b><span class="mono">' + K.eur(cartTotal()) + '</span>' : "");
   }
   function topbar(title, sub, right) {
-    return '<div class="mtop"><div class="mrow"><span class="logo">F</span><div style="min-width:0;flex:1"><h1 class="ktitle">' + K.esc(title) + '</h1><span class="quiet ksub">' + K.esc(sub || "") + '</span></div>' + (right || "") + '</div></div>';
+    return '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div style="min-width:0;flex:1"><h1 class="ktitle">' + K.esc(title) + '</h1><span class="quiet ksub">' + K.esc(sub || "") + '</span></div>' + (right || "") + '</div></div>';
   }
 
   async function loadCatalogue(force) {
@@ -171,7 +171,7 @@
     const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" ? "Favorieten" : K.cat(p.cat)); (groups[g] = groups[g] || []).push(p); });
     const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : byCat(a, b)));
     const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + count(c) + '</span></button>';
-    const top = '<div class="mtop"><div class="mrow"><span class="logo">F</span><div style="min-width:0;flex:1"><h1 class="ktitle">' + K.t("Catalogus") + '</h1><span class="quiet ksub">' + K.esc(cat.client.nom) + ' · ' + K.esc(K.tt("bestel vóór {t} voor morgen", { t: deadline() })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div>' +
+    const top = '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div style="min-width:0;flex:1"><h1 class="ktitle">' + K.t("Catalogus") + '</h1><span class="quiet ksub">' + K.esc(K.tt("Vóór {t} besteld, geleverd op {d}", { t: deadline(), d: shortDay(firstDay()) })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div>' +
       '<label class="search" style="max-width:none">' + K.icon("search") + '<input id="q" type="search" placeholder="' + K.t("Zoek een product…") + '" aria-label="' + K.t("Zoek een product…") + '" aria-keyshortcuts="/" value="' + K.esc(q) + '" autocomplete="off" spellcheck="false"></label>' +
       '<div class="cats" role="group" aria-label="' + K.t("Categorieën") + '">' + cats.map(catBtn).join("") + '</div></div>';
     const head = '<div class="prhead" aria-hidden="true"><span>' + K.t("Product") + '</span><span>' + K.t("Kaliber") + '</span><span>' + K.t("Eenheid") + '</span><span>' + K.t("Prijs excl. btw") + '</span><span></span><span>' + K.t("Aantal") + '</span></div>';

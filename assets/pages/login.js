@@ -4,7 +4,7 @@
   const admin = cfg.want === "admin";
   const app = document.getElementById("app");
   const denied = new URLSearchParams(location.search).get("denied") === "1";
-  app.innerHTML = '<div class="lg"><div class="lg-left"><a class="brand" href="/" style="padding:0;color:#fff"><span class="logo" style="background:#fff;color:var(--p)">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+  app.innerHTML = '<div class="lg"><div class="lg-left"><a class="brand" href="/" style="padding:0;color:#fff"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
     '<div><h1>' + (admin ? "Klanten, producten, prijzen en instellingen." : "Klaarzetten, ronde rijden, ontvangst bevestigen.") + '</h1><p style="margin:14px 0 0;font-size:15px">' + (admin ? "Enkel voor de zaakvoerder. Met de beheerderscode of uw persoonlijke PIN." : "Werkt op de tablet in het magazijn en op de telefoon in de wagen. Persoonlijke PIN of teamcode.") + '</p></div>' +
     '<div style="font-size:12px">FAMO Seafood · Antwerpen</div></div>' +
     '<div class="lg-right"><form class="lg-form" id="f" novalidate><a class="tlink" href="/" style="font-size:13px">' + K.icon("back") + ' Kies een ander portaal</a>' +

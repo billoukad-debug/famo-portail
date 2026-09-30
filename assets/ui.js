@@ -33,20 +33,22 @@
   // erin : de API blijft eentalig, de vertaling gebeurt bij het tonen (K.errText).
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
+    "Verse vis en zeevruchten, Antwerpen": "Poissons et fruits de mer, Anvers", "Meer links": "Autres liens", "Vóór {t} besteld, geleverd op {d}": "Commandé avant {t}, livré le {d}", "Personeel": "Personnel", "Beheer": "Gestion",
+    "Vóór {t} besteld,": "Commandé avant {t},", "morgen in uw keuken.": "demain dans votre cuisine.", "Nog": "Encore", "Volgende levering": "Prochaine livraison",
+    "{h} u {m} min": "{h} h {m} min", "{m} min": "{m} min", "om te bestellen voor levering op {d}.": "pour commander et être livré le {d}.",
+    "De bestellingen voor morgen zijn dicht sinds {t}.": "Les commandes pour demain sont closes depuis {t}.",
+    "Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.": "Livraison {d} à Anvers et environs. Vous voyez vos prix négociés, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures.",
     "Tellers in het menu": "Pastilles du menu", "Nieuw": "Nouveau", "Uit": "Aucune", "nieuw sinds uw laatste bezoek": "nouveau depuis votre dernière visite",
     "Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.": "Nouveau : disparaît dès que vous ouvrez la page. Tout : reste tant qu'il y a quelque chose à faire. Aucune : pas de pastille.",
     "Vandaag": "Aujourd'hui", "Morgen": "Demain", "Gisteren": "Hier", "Algemeen": "Général", "Ontvangen": "Reçue", "Openstaand": "À payer",
     "Er ging iets mis.": "Une erreur s'est produite.", "Opnieuw proberen": "Réessayer", "Onbekende fout": "Erreur inconnue", "Bevestigen": "Confirmer", "Bezig…": "En cours…", "Wijzigingen niet bewaard": "Modifications non enregistrées", "U heeft iets gewijzigd in dit venster. Sluiten zonder te bewaren?": "Vous avez modifié quelque chose dans cette fenêtre. Fermer sans enregistrer ?", "Sluiten zonder bewaren": "Fermer sans enregistrer", "Verder bewerken": "Continuer", "Sneltoetsen": "Raccourcis clavier", "Zoeken": "Rechercher", "Sneltoetsen tonen": "Afficher les raccourcis", "Venster sluiten": "Fermer la fenêtre", "Bewaren vanuit een tekstvak": "Enregistrer depuis un champ texte", "Volgende / vorige knop": "Bouton suivant / précédent", "Zoekveld": "Champ de recherche", "Naar de inhoud": "Aller au contenu", "Annuleren": "Annuler",
     "Laden…": "Chargement…", "Openen": "Ouvrir", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
     // start
-    "Verse vis en zeevruchten · Antwerpen": "Poissons et fruits de mer frais · Anvers", "Toegang aanvragen": "Demander un accès",
-    "Verse vis bestellen,<br>zo simpel als een berichtje.": "Commander du poisson frais,<br>aussi simple qu'un message.",
-    "Bestel vandaag vóór {t} en wij leveren morgen in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug in het portaal.": "Commandez aujourd'hui avant {t}, nous livrons demain à Anvers et dans les environs. Vous voyez vos prix convenus, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures dans le portail.",
-    "Klantportaal": "Portail client", "Aanmelden met uw gebruikersnaam": "Connectez-vous avec votre identifiant", "U bent afgemeld.": "Vous êtes déconnecté.",
+    "Toegang aanvragen": "Demander un accès",
+            "Klantportaal": "Portail client", "Aanmelden met uw gebruikersnaam": "Connectez-vous avec votre identifiant", "U bent afgemeld.": "Vous êtes déconnecté.",
     "Gebruikersnaam": "Identifiant", "Wachtwoord": "Mot de passe", "Tonen": "Afficher", "Verbergen": "Masquer", "Aanmelden": "Se connecter", "Aanmelden…": "Connexion…",
     "Wachtwoord vergeten?": "Mot de passe oublié ?", "Nog geen klant? Toegang aanvragen": "Pas encore client ? Demander un accès", "Werkt u bij Famo?": "Vous travaillez chez Famo ?",
-    "besteldeadline": "heure limite de commande", "ma–za": "lun–sam", "levering, niet op zondag": "livraison, pas le dimanche", "Gratis": "Gratuite", "levering": "livraison",
-    "Vul uw gebruikersnaam in.": "Indiquez votre identifiant.", "Vul uw wachtwoord in.": "Indiquez votre mot de passe.", "Gebruikersnaam of wachtwoord klopt niet.": "Identifiant ou mot de passe incorrect.",
+    "besteldeadline": "heure limite de commande", "ma–za": "lun–sam",     "Vul uw gebruikersnaam in.": "Indiquez votre identifiant.", "Vul uw wachtwoord in.": "Indiquez votre mot de passe.", "Gebruikersnaam of wachtwoord klopt niet.": "Identifiant ou mot de passe incorrect.",
     // catalogus
     "bestel vóór 22:00 voor morgen": "commandez avant 22 h pour demain", "Zoek een product…": "Rechercher un produit…", "Alles": "Tout", "Favoriet": "Favori", "Uit favorieten": "Retirer des favoris",
     "uw prijs": "votre prix", "artikel": "article", "artikelen": "articles", "excl. btw": "HTVA", "Bestellen": "Commander",
@@ -115,7 +117,7 @@
     "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons.": "L'envoi de la demande a échoué. Réessayez plus tard ou appelez-nous.",
     "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord.": "Si les données sont correctes, vous recevrez dans quelques minutes un e-mail avec un nouveau mot de passe.",
     // leveringsregels (uit Configuratie) — {t} = deadline, {n} = dagen, {d} = dagenlijst, {m}/{r} = bedragen
-    "Bestel vóór {t} voor levering morgen": "Commandez avant {t} pour une livraison demain", "bestel vóór {t} voor morgen": "commandez avant {t} pour demain", "Bestel vóór {t} voor levering morgen.": "Commandez avant {t} pour une livraison demain.",
+    "Bestel vóór {t} voor levering morgen": "Commandez avant {t} pour une livraison demain", "Bestel vóór {t} voor levering morgen.": "Commandez avant {t} pour une livraison demain.",
     "Levering op {d}. Vóór {t} besteld = morgen geleverd.": "Livraison le {d}. Commandé avant {t} = livré demain.", "Die dag is te vroeg: bestel vóór {t} voor levering morgen.": "Ce jour est trop tôt : commandez avant {t} pour une livraison demain.",
     "Kies een leverdag binnen de komende {n} dagen": "Choisissez un jour de livraison dans les {n} prochains jours", "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór {t} voor levering morgen.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant {t} pour une livraison demain.",
     "Minimumbestelling {m} excl. btw · nog {r} toe te voegen.": "Commande minimum {m} HTVA · encore {r} à ajouter.", "Minimumbestelling {m} excl. btw": "Commande minimum {m} HTVA",
@@ -173,6 +175,17 @@
   const bxl = d => { const o = {}; BXL.formatToParts(d).forEach(x => { o[x.type] = x.value; }); return o; };
   K.isoDay = d => { const x = d instanceof Date ? d : K.parseDate(d); if (!x) return ""; if (BXL && typeof d === "string" && ZONED.test(d)) { const o = bxl(x); return o.year + "-" + o.month + "-" + o.day; } const m = String(x.getMonth() + 1).padStart(2, "0"), day = String(x.getDate()).padStart(2, "0"); return x.getFullYear() + "-" + m + "-" + day; };
   K.today = () => K.isoDay(new Date());
+  // Fenêtre de commande (spec 002) : minutes avant l'heure limite et premier jour livrable.
+  // Même règle que lib/levering.js : avant la limite = demain, après = après-demain ; puis le premier jour de livraison non fermé.
+  const ORDER_DEF = { deadline: "22:00", leverdagen: ["ma", "di", "wo", "do", "vr", "za"], geslotenDagen: [] };
+  K.orderWindow = (rules, now) => {
+    const r = Object.assign({}, ORDER_DEF, rules || {}), n = now || new Date(), keys = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+    const [h, m] = String(r.deadline || "22:00").split(":").map(Number), cut = (h || 0) * 60 + (m || 0), cur = n.getHours() * 60 + n.getMinutes();
+    const open = cur < cut, closed = r.geslotenDagen || [], lever = r.leverdagen || ORDER_DEF.leverdagen;
+    let d = K.addDays(K.isoDay(n), open ? 1 : 2), i = 0;
+    while (!(lever.includes(keys[K.parseDate(d).getDay()]) && !closed.includes(d)) && i++ < 400) d = K.addDays(d, 1);
+    return { open, left: open ? cut - cur : 0, first: d, deadline: r.deadline };
+  };
   K.addDays = (iso, n) => { const d = K.parseDate(iso) || new Date(); d.setDate(d.getDate() + n); return K.isoDay(d); };
   K.date = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0"); };
   K.dateLong = v => { const d = K.parseDate(v); if (!d) return "—"; return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); };
@@ -256,7 +269,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "0abf2fb0c8";
+  K.DOCS_VER = "3f3bc5b445";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -733,7 +746,7 @@
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
-    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       link(["stock.html", "Voorraad", "stock"]) +

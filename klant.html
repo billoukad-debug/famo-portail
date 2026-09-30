@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FAMO Seafood · Klantportaal</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273.5%27 fill=%27%234876A2%27/%3E%3Cpath d=%27M5 13V3h6M5 8h4%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
-<link rel="preload" href="/assets/fonts/plus-jakarta-sans-latin.woff2?v=153fc85b70" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/ui.css?v=4c3a50231c">
+<link rel="icon" href="/assets/brand/famo-mark.svg?v=194f145653" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/atkinson-hyperlegible-next-latin.woff2?v=18b2a1a39a" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/ui.css?v=a75a4ed385">
 <script src="/assets/vat.js?v=cff2130251" defer></script>
-<script src="/assets/ui.js?v=81dbecaafd" defer></script>
+<script src="/assets/ui.js?v=3005fbcffe" defer></script>
 </head>
 <body class="portal-klant">
 <div id="app"></div>
@@ -44,11 +44,11 @@
   .kside button:hover{background:var(--soft);color:var(--ink)}.kside button.on{background:var(--p-soft);color:var(--p-deep);font-weight:600}
   .kside button:focus-visible{outline:2px solid var(--p);outline-offset:1px}
   .kv-catalogus .mlist{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:0 16px 8px}
-  .prhead{display:grid;position:sticky;top:64px;z-index:5;background:var(--card);border-bottom:1px solid var(--line);margin:0 -16px;padding:0 16px;height:40px;align-items:center;font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+  .prhead{display:grid;position:sticky;top:64px;z-index:5;background:var(--card);border-bottom:1px solid var(--line);margin:0 -16px;padding:0 16px;height:40px;align-items:center;font-size:12.5px;font-weight:600;color:var(--ink-2);}
   .prhead,.prod{grid-template-columns:minmax(0,1fr) 110px 110px 150px 44px 136px;column-gap:12px}
   .prhead>span:nth-child(4){text-align:right}
   .prod{grid-template-areas:"x k u pp fav st" "d d d d d d";padding:4px 0;contain-intrinsic-size:auto 56px}
-  .prod.on{background:transparent;box-shadow:inset 3px 0 0 var(--p)}
+  .prod.on{background:var(--p-soft)}
   .pm{display:none}.pr-x{align-items:center;padding:6px 0 6px 6px}
   .pr-k,.pr-u{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2);min-width:0}
   .pr-k{grid-area:k}.pr-u{grid-area:u}
@@ -90,6 +90,6 @@
   .orow-a{display:flex}
 }
 </style>
-<script src="/assets/pages/klant.js?v=21f5d97b54" defer></script>
+<script src="/assets/pages/klant.js?v=eb1b3ed6a3" defer></script>
 </body>
 </html>

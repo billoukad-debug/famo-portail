@@ -1,6 +1,6 @@
 (function () {
   const app = document.getElementById("app");
-  app.innerHTML = '<div style="max-width:560px;margin:0 auto;padding:24px 16px 60px"><a class="brand" href="/"><span class="logo">F</span><span><b>FAMO Seafood</b><small>' + K.t("Verse vis en zeevruchten · Antwerpen") + '</small></span></a>' +
+  app.innerHTML = '<div style="max-width:560px;margin:0 auto;padding:24px 16px 60px"><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + K.t("Verse vis en zeevruchten, Antwerpen") + '</small></span></a>' +
     '<div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap"><h1 class="h1" style="flex:1">' + K.t("Toegang aanvragen") + '</h1>' + K.langSwitch() + '</div><p class="sub" style="white-space:normal">' + K.t("Voor horeca en handel. Wij bellen u binnen 1 werkdag met uw prijzen en uw toegang.") + '</p>' +
     '<form id="f" class="card card-b" style="margin-top:16px;display:flex;flex-direction:column;gap:12px" novalidate>' +
     K.c.field(K.t("Bedrijfsnaam"), K.c.input("bedrijfsnaam", { attrs: ' autocomplete="organization" required' }), { id: "fBedrijf", req: true }) +
