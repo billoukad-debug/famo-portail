@@ -95,12 +95,14 @@
   /* ---------- btw : tarief per product (Catalogus) of standaardtarief (Configuratie) ---------- */
   S.rate = name => { const k = String(name || "").trim().toLowerCase(); const r = Number(S.btw[k]); if (Number.isFinite(r) && r > 0) return r; const d = Number(S.config && S.config.btwTarief); return Number.isFinite(d) && d > 0 ? d : 6; };
   // { "productnaam": tarief } voor de lijnen van deze bestelling (wat documents.js leest als order.btwPerLine).
-  S.btwPerLine = o => { if (o.btwFrozen && typeof o.btwFrozen === "object") return o.btwFrozen; const m = {}; K.parseLines(o.lignes).forEach(l => { m[l.name.trim().toLowerCase()] = S.rate(l.name); }); return m; };
+  // Régime de TVA du client (C-10, o.btwRegime venu du serveur) : à 0 % (intracommunautaire, export,
+  // cocontractant), chaque ligne est à 0 tant que la facture n'a pas figé ses taux.
+  S.btwPerLine = o => { if (o.btwFrozen && typeof o.btwFrozen === "object") return o.btwFrozen; const zero = !!(window.FamoVat && window.FamoVat.regime && window.FamoVat.regime(o.btwRegime).zero); const m = {}; K.parseLines(o.lignes).forEach(l => { m[l.name.trim().toLowerCase()] = zero ? 0 : S.rate(l.name); }); return m; };
   // Bedragen excl. / btw / incl. : dezelfde regel als documenten, e-mails en export (assets/vat.js) ;
   // btw-tarieven die bij de facturatie vastgezet zijn, gaan voor.
   S.totals = o => {
     const lines = K.parseLines(o.lignes).filter(l => l.price != null);
-    if (!lines.length || !window.FamoVat) { const r = S.rate(""); const excl = Math.round((Number(o.total) || 0) * 100) / 100; const btw = Math.round(excl * r) / 100; return { excl, btw, incl: Math.round((excl + btw) * 100) / 100 }; }
+    if (!lines.length || !window.FamoVat) { const r = window.FamoVat && window.FamoVat.regime && window.FamoVat.regime(o.btwRegime).zero ? 0 : S.rate(""); const excl = Math.round((Number(o.total) || 0) * 100) / 100; const btw = Math.round(excl * r) / 100; return { excl, btw, incl: Math.round((excl + btw) * 100) / 100 }; }
     const map = S.btwPerLine(o);
     const t = window.FamoVat.totals(lines, n => window.FamoVat.rateFrom(map, n, S.rate("")));
     return { excl: t.htva, btw: t.tva, incl: t.total };

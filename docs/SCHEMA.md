@@ -42,6 +42,9 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Favorieten` | texte (JSON) | klantorder | catalogue | `{favorieten:[ids produit], standaard:{id: qté}}`. |
 | `Taal` | liste `NL` / `FR` | onboarding, (via aanvraag) | allorders, catalogue, klantdoc | Langue du portail et des documents ; NL par défaut. |
 | `Voorwaarden versie`, `Voorwaarden aanvaard op` | texte, date-heure | klantorder (acceptTerms) | order, catalogue, onboarding (compteur Beheer) | Version des conditions générales acceptée et quand ; aussi dans le Journaal (« Voorwaarden aanvaard »). |
+| `Facturatieadres` | texte multiligne | onboarding (saveClient) | onboarding, export UBL | Siège (facture, UBL) si différent du lieu de livraison ; vide = lieu de livraison. |
+| `Régime TVA` | liste `Normal` / `Intracommunautaire` / `Export` / `Cocontractant` | onboarding (saveClient) | updateorder (facturation), allorders, klantdoc, orders, export UBL, onboarding | C-10. **Absent = `Normal`** (taux par produit). Les trois autres : 0 % sur toute la facture + mention légale (`assets/vat.js`) ; catégorie UBL K / G / AE. Intracommunautaire exige un n° TVA d'un autre État membre, Cocontractant un n° belge valide (400 sinon). Pas une donnée personnelle. |
+| `VIES gecontroleerd op`, `VIES resultaat` | date-heure, texte (JSON `{valid, name, address, vatNumber}`) | onboarding (checkVies) | onboarding (fiche Beheer) | C-16 : dernier contrôle VIES du n° TVA **enregistré** (lib/vies.js). Effacés par saveClient si le n° change. Peut contenir le nom d'une entreprise individuelle : inclus dans l'export RGPD, conservé à l'anonymisation (justificatif de l'exonération, comme nom, n° TVA et adresses). |
 | `Articles habituels`, `Infos générales` | texte | — | — | Hérités d'Airtable, non utilisés par le code (données de démo seulement). |
 | `Commandes`, `Prix négociés` | lien inverse | Airtable | — | Liens inverses Airtable, non utilisés par le code. |
 
@@ -85,7 +88,8 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Annulée le`, `Motif annulation` | date-heure, texte | updateorder, klantorder | allorders, orders | |
 | `Correcties` | texte multiligne | updateorder, klantorder | allorders | Journal : `date · action · acteur — raison` (Beheer → Journaal). |
 | `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders | `CN-AAAA-NNNN` interne ; une seule par commande. |
-| `BTW per lijn` | texte (JSON) | updateorder (passage en Facturée) | allorders, klantdoc, export UBL | Taux de TVA figés par ligne : un changement de catalogue ne réécrit pas une facture émise. |
+| `BTW per lijn` | texte (JSON) | updateorder (passage en Facturée) | allorders, klantdoc, export UBL | Taux de TVA figés par ligne : un changement de catalogue ne réécrit pas une facture émise. À 0 pour un régime autre que Normal. |
+| `Régime TVA` | liste (comme `Clients.Régime TVA`) | updateorder (passage en Facturée) | allorders, klantdoc, orders, export UBL (`lib/billing.regimeOf`) | C-10 : régime du client **figé** sur la facture (absent = Normal, y compris les factures d'avant) ; un changement du client ne touche ni la facture ni sa note de crédit. |
 | `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
 | `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
 | `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
@@ -205,5 +209,6 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `Mouvements de stock` : `Sortie livraison` / `Annulation sortie` / `Retour client` / `Correction inventaire` / `Entrée stock` | FR | Vertrek levering / Vertrek ongedaan / Klantretour / Voorraadcorrectie / Voorraadontvangst (`famoNL.move`) | Type de mouvement. |
 | `Leverdagen` : `ma,di,wo,do,vr,za,zo` | NL | ma … zo | Jours livrés. |
 | `Taal` : `NL` / `FR` | — | NL / FR | Langue du client. |
+| `Régime TVA` : `Normal` / `Intracommunautaire` / `Export` / `Cocontractant` | FR | Normaal / Intracommunautair / Uitvoer / Medecontractant (`FamoVat.regime(v).short`) | Régime de TVA du client, figé sur la facture. |
 
 Identifiants du code (JSON des API) : mélange FR/NL/EN (`dateLivraison`, `voorraadAfboeken`, `movementType`) ; suivre le nom déjà utilisé par l'endpoint plutôt que d'en inventer un.

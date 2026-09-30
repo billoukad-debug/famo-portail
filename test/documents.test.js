@@ -172,3 +172,31 @@ test("CGV (C-12) : mention au pied du document quand une version est publiée, N
   D.setCompany(CFG);
   assert.ok(!/verkoopsvoorwaarden zijn van toepassing/.test(D.build(ORDER, "delivery")), "rien sans version publiée");
 });
+
+// ---- Régime de TVA du client (C-10) : 0 % forcé + mention légale dans la langue du client ----
+test("régime intracommunautaire : 0 % sur chaque ligne malgré les taux, mention NL sous les totaux", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const o = { ...ORDER, lignes: "Kabeljauw × 5 kg [€20.00]\nScampi × 1 caisse [€50.00]", total: 150, btwPerLine: { kabeljauw: 6, scampi: 21 }, btwRegime: "Intracommunautaire" };
+  const f = D.build(o, "invoice");
+  assert.equal(row(f, "btw 0%"), "€ 0,00");
+  assert.equal((f.match(/<span>btw /g) || []).length, 1, "un seul groupe à 0 %");
+  assert.equal(row(f, "Totaal incl\\. btw"), "€ 150,00");
+  assert.match(f, /<div class="regime">Vrijgesteld van btw – intracommunautaire levering \(art\. 39bis/);
+  // Anciennes lignes sans prix : 0 % aussi.
+  assert.equal(row(D.build({ ...o, lignes: "Kabeljauw × 5 kg", total: 100 }, "invoice"), "btw 0%"), "€ 0,00");
+  assert.ok(!/class="regime"/.test(D.build(o, "delivery")), "pas de mention sur le bon de livraison (sans prix)");
+});
+
+test("régime export en FR, autoliquidation sur la note de crédit, Normal sans mention", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const fr = D.build({ ...ORDER, klant: { ...ORDER.klant, taal: "FR" }, btwRegime: "Export" }, "invoice");
+  assert.match(fr, /<div class="regime">Exonération de TVA – exportation hors de l'Union européenne \(art\. 39, § 1er CTVA/);
+  assert.equal(row(fr, "TVA 0%"), "€ 0,00");
+  const cn = D.build({ ...ORDER, btwRegime: "Cocontractant", creditnota: { nummer: "CN-2026-0002", lignes: "Kabeljauw × 1 kg [€20.00]", montant: 20, le: "2026-03-12T08:00:00.000Z", motif: "Retour" } }, "credit");
+  assert.match(cn, /<div class="regime">Verlegging van heffing – btw te voldoen door de medecontractant/);
+  assert.equal(row(cn, "Totaal incl\\. btw"), "€ -20,00");
+  const n = D.build({ ...ORDER, btwRegime: "Normal" }, "invoice");
+  assert.ok(!/class="regime"/.test(n)); assert.equal(row(n, "btw 6%"), "€ 6,00");
+});

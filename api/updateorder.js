@@ -171,11 +171,14 @@ async function undoStock(report, sign){
   } catch (e) { console.error("[updateorder] undoStock", e && e.message || e); return "Voorraad niet teruggezet: " + (e.message || e); }
 }
 
-// Mode de facturation, taux par défaut et taux du catalogue (lib/billing.js).
-async function billingContext(){
-  const [conf, cat] = await Promise.all([at(`${encodeURIComponent("Configuratie")}?maxRecords=1`), atAll("Catalogue")]);
+// Mode de facturation, taux par défaut, taux du catalogue et régime de TVA du client (lib/billing.js).
+// Client illisible (autre que « introuvable ») : erreur plutôt qu'une facture au mauvais régime
+// (audit C-10) ; l'appelant la lève AVANT de réserver le numéro de facture.
+async function billingContext(clientId){
+  const [conf, cat, cli] = await Promise.all([at(`${encodeURIComponent("Configuratie")}?maxRecords=1`), atAll("Catalogue"), clientId ? at("Clients/" + encodeURIComponent(clientId)) : Promise.resolve(null)]);
   const c = ((conf && conf.records) || [])[0]; const cf = (c && c.fields) || {};
-  return { mode: __bill.modeOf(cf), fallback: __bill.defaultRate(cf), rates: __bill.ratesFromCatalogue((cat && cat.records) || []) };
+  if (cli && cli.error && !(cli.error.type === "NOT_FOUND" || /not found/i.test(String(cli.error.message || "")))) throw Object.assign(new Error("Klant onleesbaar"), { status: 503 });
+  return { mode: __bill.modeOf(cf), fallback: __bill.defaultRate(cf), rates: __bill.ratesFromCatalogue((cat && cat.records) || []), regime: __bill.regimeOf(null, cli && !cli.error ? cli.fields : null) };
 }
 
 // Double tap sur la même instance : une seule requête à la fois par commande.
@@ -533,7 +536,7 @@ async function handle(req, res, body, id){
     let stockReport = null, factuurnummer = null, mail = null;
     // Contexte de facturation (Configuratie + taux du catalogue) : lu au plus une fois par requête.
     let billCtx = null;
-    const getBill = async () => billCtx || (billCtx = await billingContext());
+    const getBill = async () => billCtx || (billCtx = await billingContext((f["Client"] || [])[0]));
 
     // Stock déduit au moment où la marchandise part réellement, SI Configuratie le
     // demande (« Voorraad afboeken »). Le navigateur ne décide plus (ancien skipStock).
@@ -607,12 +610,16 @@ async function handle(req, res, body, id){
     }
 
     // Numéro de facture attribué une seule fois
+    // Taux ET régime de TVA du client (C-10) figés sur la facture ; lus AVANT la réservation du
+    // numéro : une lecture impossible ne laisse aucun trou dans la numérotation.
     if (statut === "Facturée" && !f["Factuurnummer"]) {
+      let bill;
+      try { bill = await getBill(); } catch (e) { return res.status(503).json({ error: "Btw-regime van de klant niet leesbaar: probeer opnieuw (er is nog geen factuurnummer gebruikt)." }); }
       factuurnummer = await nextNumber("Factuurnummer", "FA");
       fields["Factuurnummer"] = factuurnummer;
       fields["Facturée le"] = new Date().toISOString();
-      const bill = await getBill();
-      fields["BTW per lijn"] = JSON.stringify(__bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), null, bill.rates, bill.fallback));
+      fields["BTW per lijn"] = JSON.stringify(__bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), null, bill.rates, bill.fallback, bill.regime));
+      if (bill.regime !== "Normal") fields["Régime TVA"] = bill.regime; // Normal = champ absent
     }
 
     if (!Object.keys(fields).length) return res.status(400).json({ error: "Niets om bij te werken" });
@@ -632,8 +639,9 @@ async function handle(req, res, body, id){
       const nr = factuurnummer || f["Factuurnummer"] || "";
       const m = String(nr).match(/^FA-(\d{4})-(\d{1,6})$/i);
       const mededeling = m ? __bill.structuredRef(nr) : "";
-      const bill = await getBill();
-      const t = __bill.orderTotals(parseLines(f["Lignes (produits / quantités)"]), fields["BTW per lijn"] ? JSON.parse(fields["BTW per lijn"]) : __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, bill.rates, bill.fallback), bill.fallback);
+      // Facture déjà émise (réception rejouée) : taux figés ; client illisible ici = pas d'erreur après l'écriture.
+      const bill = await getBill().catch(() => billingContext(null));
+      const t = __bill.orderTotals(parseLines(f["Lignes (produits / quantités)"]), fields["BTW per lijn"] ? JSON.parse(fields["BTW per lijn"]) : __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, bill.rates, bill.fallback, bill.regime), bill.fallback);
       mail = await notifyStatus(req, f, "geleverd", { facturatie: bill.mode, factuurnummer: nr, ontvangenDoor: fields["Réceptionné par"], vervaldatum: __mail.vervaldatum(__lev.brusselsToday(), rules.betaaltermijn), mededeling, totalExcl: t.htva, totalBtw: t.tva, totalIncl: t.total });
     }
     res.status(200).json({ ok: true, stock: stockReport, factuurnummer, mail });

@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
     const [conf, catl] = await Promise.all([atAll(encodeURIComponent("Configuratie") + "?maxRecords=1"), atAll("Catalogue")]);
     const cf = ((conf.records || [])[0] || {}).fields || {};
     const fallback = __bill.defaultRate(cf), rates = __bill.ratesFromCatalogue(catl.records || []);
-    const tvac = f => { const l = parseLines(f["Lignes (produits / quantités)"]); return l.some(x => x.price != null) ? __bill.orderTotals(l, __bill.linesRates(l, f, rates, fallback), fallback).total : __bill.vat.r2((Number(f["Total"]) || 0) * (1 + fallback / 100)); };
+    const tvac = f => { const l = parseLines(f["Lignes (produits / quantités)"]); return l.some(x => x.price != null) ? __bill.orderTotals(l, __bill.linesRates(l, f, rates, fallback, __bill.regimeOf(f, client.fields)), fallback).total : __bill.vat.r2((Number(f["Total"]) || 0) * (1 + fallback / 100)); };
     const orders = (cmd.records || [])
       .filter(r => (r.fields["Client"] || []).includes(clientId))
       .map(r => ({
