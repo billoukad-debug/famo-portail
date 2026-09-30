@@ -40,6 +40,10 @@ const SCHEMA = {
       "Uitzondering levering": "select", "Uitzondering nota": "text", "Volgorde levering": "number",
       // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
       "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text",
+      // Plusieurs notes par facture (C-08) : liste JSON de TOUTES les notes ; les champs ci-dessus gardent la première.
+      "Creditnotas": "text",
+      // Dernier e-mail de correction au client (L-08) : JSON { le, lignes, cn, sleutel } de l'état envoyé.
+      "Correctiemail": "text",
       // Taux de TVA figés par ligne au passage en « Facturée » (JSON { produit: taux }, lib/billing.js).
       "BTW per lijn": "text",
       // Clé d'idempotence envoyée par le portail client (api/order.js) : pas de doublon sur un renvoi.

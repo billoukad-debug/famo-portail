@@ -39,12 +39,12 @@
       if (filter.client && o.client !== filter.client) return false;
       if (filter.van && (o.day || "") < filter.van) return false;
       if (filter.tot && (o.day || "") > filter.tot) return false;
-      if (q && !(o.ref + " " + o.client + " " + o.lignes + " " + (o.factuurnummer || "") + " " + (o.creditnota && o.creditnota.nummer || "")).toLowerCase().includes(q)) return false;
+      if (q && !(o.ref + " " + o.client + " " + o.lignes + " " + (o.factuurnummer || "") + " " + S.cns(o).map(cn => cn.nummer).join(" ")).toLowerCase().includes(q)) return false;
       return true;
     });
   }
   function rowHtml(o) {
-    return '<tr class="row" data-open="' + o.id + '"><td style="width:40px">' + K.c.check(sel.has(o.id), 'data-sel="' + o.id + '"', { label: "Selecteer " + o.client }) + '</td><td><b>' + K.esc(K.relDay(o.day)) + '</b><div class="quiet mono" style="font-size:11px">' + K.esc(o.ref) + '</div></td><td><b>' + K.esc(o.client) + '</b></td><td class="muted fill" title="' + K.esc(S.lineTxt(o)) + '">' + K.esc(S.lineTxt(o)) + '</td><td style="width:140px">' + (o.late ? '<span class="cell-st c-late">Te laat</span>' : K.stCell(o.statut)) + ' ' + S.uitzTag(o) + '</td><td class="hide-md" style="width:120px">' + K.payCell(o.paiement) + (o.creditnota ? '<div class="quiet mono" style="font-size:11px">' + K.esc(o.creditnota.nummer) + '</div>' : "") + '</td><td class="num mono">' + K.eur(o.total) + '</td><td class="actions" style="width:170px">' + S.nextAction(o) + '</td></tr>';
+    return '<tr class="row" data-open="' + o.id + '"><td style="width:40px">' + K.c.check(sel.has(o.id), 'data-sel="' + o.id + '"', { label: "Selecteer " + o.client }) + '</td><td><b>' + K.esc(K.relDay(o.day)) + '</b><div class="quiet mono" style="font-size:11px">' + K.esc(o.ref) + '</div></td><td><b>' + K.esc(o.client) + '</b></td><td class="muted fill" title="' + K.esc(S.lineTxt(o)) + '">' + K.esc(S.lineTxt(o)) + '</td><td style="width:140px">' + (o.late ? '<span class="cell-st c-late">Te laat</span>' : K.stCell(o.statut)) + ' ' + S.uitzTag(o) + '</td><td class="hide-md" style="width:120px">' + K.payCell(o.paiement) + (S.cns(o).length ? '<div class="quiet mono" style="font-size:11px">' + K.esc(S.cns(o).map(cn => cn.nummer).join(", ")) + '</div>' : "") + '</td><td class="num mono">' + K.eur(o.total) + '</td><td class="actions" style="width:170px">' + S.nextAction(o) + '</td></tr>';
   }
   function tabel(list) {
     const groups = [["Te laat", o => o.late, "var(--danger)"], ["Vandaag", o => o.day === K.today(), "var(--st-new)"], ["Morgen", o => o.day === K.addDays(K.today(), 1), "var(--st-ready)"], ["Later", o => o.day > K.addDays(K.today(), 1), "var(--st-road)"], ["Eerder", o => o.day < K.today(), "var(--st-inv)"]];
@@ -92,7 +92,7 @@
     if (t.dataset.bulk === "clear") { sel.clear(); render(); return; }
     if (t.dataset.bulk === "picking") S.openPicking(list, list.length + " bestellingen");
     if (t.dataset.bulk === "delivery") S.openDocs(list, "delivery");
-    if (t.dataset.bulk === "csv") S.csvDownload([["Referentie", "Levering", "Klant", "Status", "Betaling", "Totaal excl. btw", "Factuur", "Creditnota", "Artikelen"]].concat(list.map(o => [o.ref, o.day, o.client, K.status(o.statut), K.pay(o.paiement), K.num(o.total), o.factuurnummer || "", o.creditnota ? o.creditnota.nummer : "", S.lineTxt(o)])), "famo-bestellingen-" + K.today() + ".csv");
+    if (t.dataset.bulk === "csv") S.csvDownload([["Referentie", "Levering", "Klant", "Status", "Betaling", "Totaal excl. btw", "Factuur", "Creditnota", "Artikelen"]].concat(list.map(o => [o.ref, o.day, o.client, K.status(o.statut), K.pay(o.paiement), K.num(o.total), o.factuurnummer || "", S.cns(o).map(cn => cn.nummer).join(", "), S.lineTxt(o)])), "famo-bestellingen-" + K.today() + ".csv");
     if (t.dataset.bulk === "paid") {
       // Eén betaalwijze voor de hele selectie ; één aanroep per bestelling, na elkaar, de server beslist telkens.
       const todo = list.filter(o => o.statut === "Facturée" && o.paiement !== "Payé"); if (!todo.length) return;

@@ -7,6 +7,7 @@ const log = require("../lib/log");
 // visibles telles quelles : ce sont les notes du client lui-même).
 const { authClient, authUnavailable } = require("./catalogue");
 const __bill = require("../lib/billing");
+const __cn = require("../lib/creditnota");
 const { parseLines } = require("./updateorder");
 
 // Ouvert + 365 jours d'historique (voir api/allorders.js).
@@ -68,7 +69,9 @@ module.exports = async (req, res) => {
         annuleeLe: r.fields["Annulée le"] || "",
         motifAnnulation: r.fields["Motif annulation"] || "",
         uitzondering: r.fields["Uitzondering levering"] || "",
-        creditnota: r.fields["Creditnota nummer"] ? { nummer: r.fields["Creditnota nummer"], montant: Number(r.fields["Creditnota montant"] || 0), le: r.fields["Creditnota le"] || "" } : null
+        creditnota: r.fields["Creditnota nummer"] ? { nummer: r.fields["Creditnota nummer"], montant: Number(r.fields["Creditnota montant"] || 0), le: r.fields["Creditnota le"] || "" } : null,
+        // Toutes les notes de crédit (C-08) ; le détail (lignes, motif) vient de /api/klantdoc.
+        creditnotas: __cn.list(r.fields).map(n => ({ nummer: n.nummer, montant: n.montant, le: n.le }))
       }));
     res.status(200).json({ orders });
   } catch (e) {
