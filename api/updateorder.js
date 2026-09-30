@@ -26,14 +26,7 @@ const norm = s => String(s || "").toLowerCase().trim();
 const money = v => Math.round((Number(v) || 0) * 100) / 100;
 
 // "Zalmfilet × 3 doos [€12.50] (in filets)"  ->  { nom, qty, unit, price, comment }
-function parseLines(txt){
-  return String(txt || "").split("\n").map(l => l.trim()).filter(Boolean).map(l => {
-    const m = l.match(/^(.*?)\s*[×x]\s*([\d.,]+)\s*([^\[\(]*)(.*)$/);
-    if (!m) return null;
-    const tail = m[4] || "", price = tail.match(/\[€\s*([\d.,]+)\]/), comment = tail.match(/\((.*?)\)/);
-    return { nom: m[1].trim(), qty: parseFloat(m[2].replace(",", ".")) || 0, unit: m[3].trim(), price: price ? Number(price[1].replace(",", ".")) : null, comment: comment ? comment[1] : "" };
-  }).filter(Boolean);
-}
+const { parseLines } = require("../lib/lines"); // une seule définition (I-11)
 function formatLine(l){
   const q = String(Math.round(l.qty * 1000) / 1000);
   return `${l.nom} × ${q}${l.unit ? " " + l.unit : ""}${l.price != null ? " [€" + Number(l.price).toFixed(2) + "]" : ""}${l.comment ? " (" + String(l.comment).replace(/[()\[\]\r\n]/g, "") + ")" : ""}`;

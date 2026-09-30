@@ -927,7 +927,7 @@ async function main() {
     // P7 — Beheer v2 : les valeurs sont envoyées sans coercition numérique ;
     // l'API applique ensuite negotiatedValue (vide → null, 0 conservé).
     const beheerSrc = fs.readFileSync(path.join(ROOT, "assets", "pages", "beheer.js"), "utf8");
-    const onboardingSrc = fs.readFileSync(path.join(ROOT, "api", "onboarding.js"), "utf8");
+    const onboardingSrc = fs.readFileSync(path.join(ROOT, "lib", "beheer", "prijzen.js"), "utf8"); // actions Beheer découpées (I-10)
     assert.match(beheerSrc, /action:\s*"saveClientPrices"[\s\S]*?prix:\s*K\.numIn\(prix\)/, "P7 valeurs de prix envoyées par Beheer v2 (K.numIn : vide reste vide, texte illisible transmis tel quel)");
     assert.match(onboardingSrc, /action\s*===\s*"saveClientPrices"[\s\S]*?negotiatedValue\(raw\)/, "P7 conversion vide → null et 0 conservé côté API");
   }
@@ -1219,7 +1219,7 @@ async function main() {
     assert.match(readF("assets/pages/stock.js"), /inCatalogue === false/, "AN10 orphelins in Voorraad");
     assert.match(readF("assets/pages/stock.js"), /action: "deleteProduct", id: i\.productId/, "AN10 Voorraad verwijdert het product zelf");
     assert.match(readF("api/stock.js"), /actif: prod \? !!prod\.fields\["Actif"\]/, "AN10 Voorraad kent de actief-status");
-    assert.ok(!/Catalogue\?filterByFormula=\$\{encodeURIComponent\("\{Actif\}=1"\)\}`\),\n    atAll\("Clients"\)/.test(readF("api/onboarding.js")), "AN10 Beheer laadt ook inactieve producten");
+    assert.ok(!/Catalogue\?filterByFormula=\$\{encodeURIComponent\("\{Actif\}=1"\)\}`\),\n    atAll\("Clients"\)/.test(readF("lib/beheer/common.js")), "AN10 Beheer laadt ook inactieve producten");
   }
   console.log("✓ AN. Corrections (terug, annuleren, herstellen, bewerken), klant annuleert, product verwijderen, FR/NL klantportaal");
 
