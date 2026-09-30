@@ -1,6 +1,7 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const { at, atAll, escapeFormula } = require("../lib/airtable");
 const __bill = require("../lib/billing");
+const __cn = require("../lib/creditnota");
 const { parseLines } = require("./updateorder");
 // Documenten voor de klant (leveringsbon, factuur) : de gegevens die nodig zijn om
 // het document in de browser op te bouwen, enkel voor de eigen bestellingen.
@@ -43,6 +44,8 @@ module.exports = async (req, res) => {
         getekend: (f["Preuve de livraison"] || []).some(a => /^handtekening-/.test(String(a && a.filename || ""))),
         factureeLe: f["Facturée le"] || "", btwPerLine, btwRegime,
         besteld: f["Lignes besteld"] || "",
+        // Notes de crédit (C-08), chacune imprimable dans la langue du client ; seulement sur une facture.
+        creditnotas: invoiced ? __cn.list(f).map(n => ({ nummer: n.nummer, lignes: n.lignes, montant: n.montant, le: n.le, motif: n.motif })) : [],
         lots: (() => { try { return f["Lots"] ? JSON.parse(f["Lots"]) : null; } catch (e) { return null; } })()
       },
       config: {

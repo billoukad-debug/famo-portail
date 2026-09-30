@@ -3,11 +3,12 @@ const { at, atAll, REC } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const __bill = require("../lib/billing");
 const __ubl = require("../lib/ubl");
+const __cn = require("../lib/creditnota");
 const { parseLines } = require("./updateorder");
 
 // Export pour le comptable (Billtobox / Peppol) — beheerder uniquement.
-//   GET /api/export?format=ubl&id=<recId>[&type=credit]
-//     → facture (ou note de crédit) UBL 2.1 Peppol BIS Billing 3.0, en pièce jointe.
+//   GET /api/export?format=ubl&id=<recId>[&type=credit[&cn=<CN-AAAA-NNNN>]]
+//     → facture (ou note de crédit : la note cn, sinon la première) UBL 2.1 Peppol BIS Billing 3.0, en pièce jointe.
 //     → 422 { problems:[…] } si une donnée obligatoire manque (n° TVA du client, adresse…) :
 //       mieux vaut le dire ici que de voir Billtobox refuser le fichier.
 //   Le CSV (une ligne par facture et par taux) est construit dans le navigateur à partir des
@@ -21,11 +22,16 @@ module.exports = async (req, res) => {
     const id = String(q.id || "");
     if (!REC.test(id)) return res.status(400).json({ error: "Ongeldige bestelling" });
     const kind = String(q.type || "") === "credit" ? "credit" : "invoice";
-    const order = await at(`Commandes/${id}`);
-    if (!order || order.error) return res.status(404).json({ error: "Bestelling niet gevonden" });
-    const f = order.fields || {};
+    const orderRec = await at(`Commandes/${id}`);
+    if (!orderRec || orderRec.error) return res.status(404).json({ error: "Bestelling niet gevonden" });
+    const f = orderRec.fields || {};
     if (f["Statut"] !== "Facturée" || !f["Factuurnummer"]) return res.status(409).json({ error: "Enkel een gefactureerde bestelling" });
-    if (kind === "credit" && !f["Creditnota nummer"]) return res.status(409).json({ error: "Geen creditnota op deze factuur" });
+    // Plusieurs notes par facture (C-08) : &cn=<numéro> choisit la note ; sans numéro, la première (comme avant).
+    const notes = __cn.list(f);
+    if (kind === "credit" && !notes.length) return res.status(409).json({ error: "Geen creditnota op deze factuur" });
+    const note = kind === "credit" ? (q.cn ? notes.find(n => n.nummer === String(q.cn)) : notes[0]) : null;
+    if (kind === "credit" && !note) return res.status(404).json({ error: "Creditnota niet gevonden op deze factuur" });
+    const order = note ? Object.assign({}, orderRec, { fields: Object.assign({}, f, { "Creditnota nummer": note.nummer, "Creditnota lignes": note.lignes, "Creditnota montant": note.montant, "Creditnota le": note.le, "Creditnota motif": note.motif }) }) : orderRec;
     const clientId = (f["Client"] || [])[0];
     const [conf, cat, client] = await Promise.all([
       at(`${encodeURIComponent("Configuratie")}?maxRecords=1`), atAll("Catalogue"),

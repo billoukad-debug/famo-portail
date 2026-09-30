@@ -126,7 +126,8 @@
   S.openDocs = function (orders, type) {
     if (!withDocs(() => S.openDocs(orders, type))) return;
     if (S.config) FamoDocuments.setCompany(S.config);
-    const list = (orders || []).filter(o => o.statut !== K.CANCELLED && (type !== "invoice" || o.factuurnummer) && (type !== "credit" || o.creditnota));
+    // Creditnota's : één document per creditnota (C-08), niet per bestelling.
+    const list = type === "credit" ? (orders || []).reduce((a, o) => a.concat(S.cns(o).map(n => S.withCn(o, n.nummer))), []) : (orders || []).filter(o => o.statut !== K.CANCELLED && (type !== "invoice" || o.factuurnummer));
     if (!list.length) { K.toast("Geen documenten in deze selectie."); return; }
     if (list.length === 1) { S.openDoc(list[0], type); return; }
     try {
@@ -160,8 +161,42 @@
   // Poids réel (audit H-04) : lignes commandées vs livrées, uniquement là où elles diffèrent.
   S.weightDiff = o => { if (!o.besteld) return []; const now = K.parseLines(o.lignes), key = n => String(n || "").trim().toLowerCase(); const out = []; K.parseLines(o.besteld).forEach(b => { const d = now.find(l => key(l.name) === key(b.name)); const q = d ? d.qty : 0; if (Math.abs((Number(b.qty) || 0) - (Number(q) || 0)) > 1e-9) out.push({ name: b.name, unit: b.unit, besteld: b.qty, geleverd: q }); }); return out; };
   S.weightDiffHtml = o => { const d = S.weightDiff(o); return d.length ? '<div class="notice"><div><b>Besteld ≠ geleverd</b>' + d.map(x => '<div class="quiet" style="font-size:12px">' + K.esc(x.name + ": besteld " + K.qty(x.besteld) + " " + K.unit(x.unit) + " → geleverd " + K.qty(x.geleverd) + " " + K.unit(x.unit)) + '</div>').join("") + '</div></div>' : ""; };
-  S.creditnotaHtml = o => { const cn = o.creditnota; if (!cn) return ""; return '<div class="notice" style="background:var(--canvas)"><div><b>Creditnota ' + K.esc(cn.nummer) + '</b> · ' + K.esc(K.eur(cn.montant)) + ' excl. btw' + (cn.le ? ' · ' + K.esc(S.when(cn.le)) : "") + (cn.motif ? '<div class="quiet" style="font-size:12px">„' + K.esc(cn.motif) + '”</div>' : "") + '<div class="quiet" style="font-size:12px">' + K.esc(K.linesSummary(cn.lignes)) + '</div><div style="margin-top:6px"><button type="button" class="btn btn-o btn-sm" data-act="credit" data-id="' + o.id + '">' + K.icon("print") + 'Creditnota</button></div></div></div>'; };
-  S.creditnotaBtn = o => K.staff.isAdmin() && o.statut === "Facturée" && !o.creditnota ? '<button type="button" class="btn btn-o btn-sm" data-act="creditnota" data-id="' + o.id + '">Creditnota maken</button>' : "";
+  // Creditnota's (C-08) : alle creditnota's van een bestelling, ook uit een oud antwoord met één creditnota.
+  S.cns = o => (o && o.creditnotas && o.creditnotas.length) ? o.creditnotas : (o && o.creditnota ? [o.creditnota] : []);
+  // Bestelling met één gekozen creditnota (documents.js drukt order.creditnota af).
+  S.withCn = (o, nummer) => { const l = S.cns(o), n = l.find(x => x.nummer === nummer) || l[0]; return n ? Object.assign({}, o, { creditnota: n }) : o; };
+  // Per factuurlijn : wat nog te crediteren valt (geleverd − alle creditnota's samen), zoals de server rekent.
+  S.cnRest = o => { const key = n => String(n || "").trim().toLowerCase(), done = new Map(); S.cns(o).forEach(n => K.parseLines(n.lignes).forEach(l => done.set(key(l.name), (done.get(key(l.name)) || 0) + l.qty))); return K.parseLines(o.lignes).map(l => { const d = done.get(key(l.name)) || 0, rest = Math.max(0, Math.round((l.qty - d) * 1000) / 1000); done.set(key(l.name), Math.max(0, d - l.qty)); return Object.assign({}, l, { rest }); }); };
+  S.creditnotaHtml = o => { const list = S.cns(o); if (!list.length) return ""; return '<div class="cn-list">' + list.map(cn => '<div class="notice cn-item"><div><b>Creditnota ' + K.esc(cn.nummer) + '</b> · ' + K.esc(K.eur(cn.montant)) + ' excl. btw' + (cn.le ? ' · ' + K.esc(S.when(cn.le)) : "") + (cn.retour ? ' · terug in voorraad' : "") + (cn.motif ? '<div class="quiet cn-sub">„' + K.esc(cn.motif) + '”</div>' : "") + '<div class="quiet cn-sub">' + K.esc(K.linesSummary(cn.lignes)) + '</div><div class="cn-acts"><button type="button" class="btn btn-o btn-sm" data-act="credit" data-id="' + o.id + '" data-cn="' + K.esc(cn.nummer) + '">' + K.icon("print") + 'Creditnota ' + K.esc(cn.nummer) + '</button></div></div></div>').join("") + '</div>'; };
+  S.creditnotaBtn = o => K.staff.isAdmin() && o.statut === "Facturée" && S.cnRest(o).some(l => l.rest > 0) ? '<button type="button" class="btn btn-o btn-sm" data-act="creditnota" data-id="' + o.id + '">' + (S.cns(o).length ? "Nog een creditnota" : "Creditnota maken") + '</button>' : "";
+  // « Correctie mailen » (L-08) : zelfde regel als de server (lib/correctie.js) — lijnen of prijzen anders dan
+  // wat de klant laatst per e-mail kreeg (bevestiging of vorige correctiemail), of een nieuwe creditnota.
+  S.correctieNodig = o => {
+    if (!o || o.statut === K.CANCELLED) return false;
+    const cm = o.correctiemail, sent = cm ? cm.cn || [] : [];
+    const byName = t => { const m = new Map(); K.parseLines(t).forEach(l => { const k = String(l.name || "").trim().toLowerCase(), c = m.get(k); if (c) c.qty += l.qty; else m.set(k, { qty: l.qty, price: l.price }); }); return m; };
+    const cents = p => p == null ? null : Math.round(p * 100);
+    const a = byName(cm ? cm.lignes : (o.besteld || o.lignes)), b = byName(o.lignes);
+    if (a.size !== b.size) return true;
+    for (const [k, v] of b) { const w = a.get(k); if (!w || Math.abs(w.qty - v.qty) > 1e-9 || cents(w.price) !== cents(v.price)) return true; }
+    return S.cns(o).some(n => !sent.includes(n.nummer));
+  };
+  S.correctieBtn = o => S.correctieNodig(o) ? '<button type="button" class="btn btn-o btn-sm" data-act="correctiemail" data-id="' + o.id + '" title="De klant een e-mail sturen met wat er veranderde">Correctie mailen</button>' : "";
+  S.correctieMail = async function (o, onDone, btn) {
+    const email = o.klant && o.klant.email;
+    if (!(await K.confirm({ title: "Correctie mailen?", text: o.client + (email ? " (" + email + ")" : "") + " krijgt een e-mail met wat er veranderde (voor → na), het nieuwe totaal en de nieuwe creditnota's.", yes: "Correctie mailen" }))) return;
+    K.busy(btn, true, "Mailen…");
+    try {
+      const d = await S.update(o.id, { correctieMail: true });
+      const m = d.mail || {};
+      if (m.ok) K.toast("Correctiemail verstuurd naar " + (email || o.client));
+      else if (m.skipped === "no-recipient") K.toast("Geen e-mailadres bij deze klant: niets verstuurd.", { kind: "err" });
+      else if (m.skipped === "disabled") K.toast("E-mail staat uit op deze server: niets verstuurd.", { kind: "err" });
+      else K.toast("Correctiemail niet verstuurd.", { kind: "err" });
+      if (onDone) onDone(d);
+    } catch (err) { K.toast(err.message, { kind: "err" }); if (err.status === 409 && onDone) onDone(); }
+    finally { K.busy(btn, false); }
+  };
 
   /* ---------- levering bevestigen (sheet) ---------- */
   S.confirmDelivery = function (o, onDone) {
@@ -325,20 +360,24 @@
     } catch (err) { K.toast(err.message, { kind: "err" }); }
   };
   /* ---------- creditnota (paneel, enkel beheerder, enkel op een gefactureerde bestelling) ---------- */
+  // Meerdere creditnota's per factuur (C-08) : per lijn hoogstens wat nog niet gecrediteerd is ; de server
+  // controleert opnieuw (alle creditnota's samen, per artikel en per btw-tarief).
   S.creditnotaPanel = function (o, onDone) {
-    if (o.creditnota) { K.toast("Er bestaat al een creditnota (" + o.creditnota.nummer + ") op deze factuur."); return; }
-    const lines = K.parseLines(o.lignes), pick = lines.map(l => ({ on: false, qty: l.qty }));
+    const lines = S.cnRest(o), prev = S.cns(o), pick = lines.map(l => ({ on: false, qty: l.rest }));
+    if (!lines.some(l => l.rest > 0)) { K.toast("Alles op deze factuur is al gecrediteerd."); return; }
     const isKg = u => /kg/i.test(u);
-    const p = K.panel({ title: "Creditnota maken", sub: o.client + " · factuur " + (o.factuurnummer || o.ref), body:
-      '<div class="field"><label>Te crediteren artikelen</label><div class="card" id="cnL">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-cn="' + i + '"', { label: "Crediteren: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b><div class="quiet" style="font-size:12px">geleverd ' + K.esc(K.qty(l.qty) + " " + K.unit(l.unit)) + (l.price != null ? " · " + K.esc(K.eur(l.price)) : "") + '</div></div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" max="' + l.qty + '" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.qty + '" aria-label="' + K.esc("Te crediteren: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div></div>' +
+    const sleutel = "cn-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10); // één klik = één creditnota
+    const p = K.panel({ title: prev.length ? "Nog een creditnota" : "Creditnota maken", sub: o.client + " · factuur " + (o.factuurnummer || o.ref), body:
+      (prev.length ? '<div class="field"><label>Al gecrediteerd</label><div class="cn-list">' + prev.map(cn => '<div class="quiet cn-sub"><b>' + K.esc(cn.nummer) + '</b> · ' + K.esc(K.eur(cn.montant)) + ' · ' + K.esc(K.linesSummary(cn.lignes)) + '</div>').join("") + '</div></div>' : "") +
+      '<div class="field"><label>Te crediteren artikelen</label><div class="card" id="cnL">' + lines.map((l, i) => '<div class="line" data-i="' + i + '">' + K.c.check(false, 'data-cn="' + i + '"' + (l.rest > 0 ? "" : " disabled"), { label: "Crediteren: " + l.name }) + '<div><b>' + K.esc(l.name) + '</b><div class="quiet cn-sub">geleverd ' + K.esc(K.qty(l.qty) + " " + K.unit(l.unit)) + (l.rest < l.qty ? " · nog te crediteren " + K.esc(K.qty(l.rest)) : "") + (l.price != null ? " · " + K.esc(K.eur(l.price)) : "") + '</div></div><div class="stepper" data-q="' + i + '"><button type="button" data-dec aria-label="' + K.esc("Minder: " + l.name) + '">−</button><input type="number" inputmode="decimal" min="0" max="' + l.rest + '" step="' + (isKg(l.unit) ? 0.5 : 1) + '" value="' + l.rest + '" aria-label="' + K.esc("Te crediteren: " + l.name) + '"><button type="button" data-inc aria-label="' + K.esc("Meer: " + l.name) + '">+</button></div><span class="tag">' + K.esc(K.unit(l.unit)) + '</span></div>').join("") + '</div></div>' +
       K.c.field("Reden", K.c.input("cnMotif", { placeholder: "bv. 2 kg zalm geweigerd bij levering…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fCnMotif", req: true, hint: "Komt op de creditnota en in het journaal." }) +
-      '<label class="line" style="grid-template-columns:44px minmax(0,1fr);cursor:pointer;border:1px solid var(--line);border-radius:8px">' + K.c.check(false, 'id="cnRetour"', { label: "Retour in voorraad" }) + '<div><b>Retour in voorraad</b><div class="quiet" style="font-size:12px">De gecrediteerde aantallen gaan terug in de voorraad (beweging „Klantretour”).</div></div></label>' +
-      '<div class="notice" style="font-size:12.5px;margin-top:10px"><div><b>Bedrag:</b> <span id="cnSum" class="mono">' + K.esc(K.eur(0)) + '</span> excl. btw · nummer CN-… wordt op de server toegekend. Eén creditnota per factuur.</div></div><div id="cnErr"></div>',
+      '<label class="line cn-opt">' + K.c.check(false, 'id="cnRetour"', { label: "Retour in voorraad" }) + '<div><b>Retour in voorraad</b><div class="quiet cn-sub">Enkel de aantallen van deze creditnota gaan terug in de voorraad (beweging „Klantretour”).</div></div></label>' +
+      '<div class="notice cn-sum"><div><b>Bedrag:</b> <span id="cnSum" class="mono">' + K.esc(K.eur(0)) + '</span> excl. btw · nummer CN-… wordt op de server toegekend.' + (prev.length ? " Alle creditnota's samen nooit meer dan de factuur." : "") + '</div></div><div id="cnErr"></div>',
       footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="cnOk" disabled>Creditnota maken</button>' });
     let retour = false;
     const sum = () => { const s = pick.reduce((a, x, i) => a + (x.on && lines[i].price != null ? lines[i].price * x.qty : 0), 0); p.el.querySelector("#cnSum").textContent = K.eur(s); p.el.querySelector("#cnOk").disabled = !pick.some(x => x.on && x.qty > 0); };
-    K.on(p.el, "click", "[data-cn]", (e, t) => { const i = +t.dataset.cn; pick[i].on = !pick[i].on; K.setOn(t, pick[i].on); sum(); });
-    K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.min(lines[i].qty, Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v))); pick[i].qty = v; inp.value = v; sum(); }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0)); });
+    K.on(p.el, "click", "[data-cn]", (e, t) => { const i = +t.dataset.cn; if (!(lines[i].rest > 0)) return; pick[i].on = !pick[i].on; K.setOn(t, pick[i].on); sum(); });
+    K.$$("[data-q]", p.el).forEach(st => { const i = +st.dataset.q, inp = st.querySelector("input"), step = isKg(lines[i].unit) ? 0.5 : 1; const set = v => { v = Math.min(lines[i].rest, Math.max(0, isKg(lines[i].unit) ? Math.round(v * 1000) / 1000 : Math.round(v))); pick[i].qty = v; inp.value = v; sum(); }; st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step); st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step); inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0)); });
     p.el.querySelector("#cnRetour").onclick = e => { retour = !retour; K.setOn(e.currentTarget, retour); };
     p.el.querySelector("[data-cancel]").onclick = p.close;
     p.el.querySelector("#cnOk").onclick = async () => {
@@ -348,8 +387,12 @@
       if (!(await K.confirm({ title: "Creditnota maken?", text: o.client + " · " + chosen.map(l => K.qty(l.qty) + "× " + l.name).join(", ") + (retour ? " · terug in voorraad" : ""), yes: "Creditnota maken" }))) return;
       const btn = p.el.querySelector("#cnOk"); K.busy(btn, true, "Bezig…");
       try {
-        const d = await S.update(o.id, { creditnota: { lignes: chosen.map(K.formatLine).join("\n"), motif, retourStock: retour } });
-        p.close(); K.toast("Creditnota " + (d.creditnota && d.creditnota.nummer || "") + " · " + K.eur(d.creditnota && d.creditnota.montant || 0) + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad teruggezet" : "")); if (onDone) onDone(d);
+        const d = await S.update(o.id, { creditnota: { lignes: chosen.map(K.formatLine).join("\n"), motif, retourStock: retour, sleutel } });
+        p.close();
+        // Na de creditnota : de klant verwittigen gaat in één tik (L-08), nooit automatisch.
+        const fresh = S.byId(o.id);
+        K.toast("Creditnota " + (d.creditnota && d.creditnota.nummer || "") + " · " + K.eur(d.creditnota && d.creditnota.montant || 0) + (d.stock && d.stock.done && d.stock.done.length ? " · voorraad teruggezet" : ""), fresh && S.correctieNodig(fresh) ? { action: "Correctie mailen", ms: 9000, onAction: () => S.correctieMail(fresh, onDone) } : undefined);
+        if (onDone) onDone(d);
       } catch (err) { p.el.querySelector("#cnErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
     };
   };
@@ -429,8 +472,9 @@
       else if (act === "deliver") S.confirmDelivery(o, refresh);
       else if (act === "invoice") S.openDoc(o, "invoice");
       else if (act === "delivery") S.openDoc(o, "delivery");
-      else if (act === "credit") S.openDoc(o, "credit");
+      else if (act === "credit") S.openDoc(S.withCn(o, t.dataset.cn), "credit");
       else if (act === "creditnota") S.creditnotaPanel(o, refresh);
+      else if (act === "correctiemail") S.correctieMail(o, refresh, t);
       else if (act === "paid") S.togglePaid(o, refresh);
       else if (act === "picking") S.openPicking([o], o.client);
       else if (act === "correct") S.correctPanel(o, refresh);

@@ -87,7 +87,9 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Volgorde levering` | nombre 1..999 | updateorder | allorders | Ordre de tournée. |
 | `Annulée le`, `Motif annulation` | date-heure, texte | updateorder, klantorder | allorders, orders | |
 | `Correcties` | texte multiligne | updateorder, klantorder | allorders | Journal : `date · action · acteur — raison` (Beheer → Journaal). |
-| `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders | `CN-AAAA-NNNN` interne ; une seule par commande. |
+| `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders, klantdoc, export, margin, reminders (via `lib/creditnota.js`) | `CN-AAAA-NNNN` interne : la **première** note de crédit de la commande, écrite une fois et jamais réécrite (sauf renumérotation d'un doublon sur Airtable). Les commandes d'avant C-08 n'ont que ces champs. |
+| `Creditnotas` | texte (JSON) | updateorder (makeCreditnota) | via `lib/creditnota.js` : allorders, orders, klantdoc, export, margin, reminders, correctie | Plusieurs notes de crédit par facture (C-08) : liste **complète** `[{nummer, lignes, montant, le, motif, retour, sleutel?}]` dans l'ordre d'émission (la première = champs `Creditnota …`). Absente = seule la note historique (ou aucune). Plafond : toutes notes ensemble ≤ facturé, par article et par taux de TVA. `sleutel` = clé d'idempotence du navigateur (double clic sans deuxième note ni deuxième retour en stock). |
+| `Correctiemail` | texte (JSON) | updateorder (correctieMail) | allorders, lib/correctie.js | Dernier e-mail de correction envoyé au client (L-08) : `{le, lignes, cn:[numéros], sleutel}` = état envoyé. Réservé avant l'envoi, libéré si l'envoi échoue ; même état = pas de deuxième e-mail. Sans données personnelles (l'adresse n'y est pas). |
 | `BTW per lijn` | texte (JSON) | updateorder (passage en Facturée) | allorders, klantdoc, export UBL | Taux de TVA figés par ligne : un changement de catalogue ne réécrit pas une facture émise. À 0 pour un régime autre que Normal. |
 | `Régime TVA` | liste (comme `Clients.Régime TVA`) | updateorder (passage en Facturée) | allorders, klantdoc, orders, export UBL (`lib/billing.regimeOf`) | C-10 : régime du client **figé** sur la facture (absent = Normal, y compris les factures d'avant) ; un changement du client ne touche ni la facture ni sa note de crédit. |
 | `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
@@ -198,7 +200,9 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `En attente` / `Payé` | FR | Openstaand / Betaald | Statut de paiement. |
 | `caisse` / `carton` / `pièce` / `kg` | FR | kassa / doos / stuk / kg | Unité (`K.unit`, `famoNL.unit`). |
 | `Factuurnummer` | NL | Factuur | Numéro interne `FA-…` du document du portail. |
-| `Creditnota nummer` / `montant` / `motif` / `lignes` / `le` | NL + FR | Creditnota : nummer / bedrag / reden / lijnen / datum | Série hybride : préfixe NL, suffixe FR. `montant` = bedrag (€ HTVA), `motif` = reden, `lignes` = lijnen, `le` = datum. |
+| `Creditnota nummer` / `montant` / `motif` / `lignes` / `le` | NL + FR | Creditnota : nummer / bedrag / reden / lijnen / datum | Série hybride : préfixe NL, suffixe FR. `montant` = bedrag (€ HTVA), `motif` = reden, `lignes` = lijnen, `le` = datum. Première note seulement. |
+| `Creditnotas` | NL | Creditnota's | Toutes les notes de crédit de la commande (JSON), clés `nummer` / `lignes` / `montant` / `le` / `motif` / `retour` (retour en stock). |
+| `Correctiemail` | NL | Correctie mailen | Dernier e-mail de correction envoyé au client. |
 | `Correcties` | NL | Journaal | Journal des corrections d'une commande. |
 | `Uitzondering levering` / `nota` | NL | Uitzondering | Exception à la réception. |
 | `Volgorde` (Catalogue) / `Volgorde levering` (Commandes) | NL | Volgorde | Ordre d'affichage / ordre de tournée. |

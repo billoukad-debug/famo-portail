@@ -540,3 +540,11 @@ a.kp-link:hover{background:var(--row-hover)}
 .ft-sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 @media (max-width:860px){.start-body{grid-template-columns:1fr;gap:28px;padding-top:8px}.login{justify-self:stretch;max-width:none}.hero h1{max-width:none}.tide{display:grid}.ft-sep{display:none}}
 .start-ft .tlink{min-width:44px;justify-content:center;padding:0 4px}
+/* C-08 : plusieurs creditnota's par facture (fiche, paneel, documenten) — classes au lieu de styles en ligne */
+.cn-list{display:flex;flex-direction:column;gap:8px}
+.notice.cn-item{background:var(--canvas)}
+.cn-sub{font-size:12px}
+.cn-acts{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.line.cn-opt{grid-template-columns:44px minmax(0,1fr);cursor:pointer;border:1px solid var(--line);border-radius:var(--r)}
+.notice.cn-sum{font-size:12.5px;margin-top:10px}
+.doc-row{display:flex;justify-content:space-between;align-items:center;gap:8px}

@@ -387,11 +387,11 @@
     if (!rapJaar || !years.includes(rapJaar)) rapJaar = years[0] || String(new Date().getFullYear());
     const yr = done.filter(o => o.dag.startsWith(rapJaar));
     // Creditnota's van het jaar (datum van de creditnota) : in mindering van omzet en btw.
-    const cnYr = all.filter(o => o.creditnota && K.isoDay(o.creditnota.le || o.factureeLe || "").startsWith(rapJaar));
-    const cnSum = cnYr.reduce((s, o) => s + (Number(o.creditnota.montant) || 0), 0);
+    const cnYr = all.reduce((a, o) => a.concat(S.cns(o).filter(cn => K.isoDay(cn.le || o.factureeLe || "").startsWith(rapJaar)).map(cn => ({ o, cn }))), []); // C-08 : elke creditnota
+    const cnSum = cnYr.reduce((s, x) => s + (Number(x.cn.montant) || 0), 0);
     const sum = (arr, f) => arr.reduce((s, o) => s + (Number(f(o)) || 0), 0);
     const group = (arr, key, add) => { const m = new Map(); arr.forEach(o => { const k = key(o); if (!k) return; const g = m.get(k) || { key: k, n: 0, total: 0 }; g.n++; g.total += Number(o.total) || 0; if (add) add(g, o); m.set(k, g); }); return Array.from(m.values()); };
-    const months = group(yr.concat(cnYr.map(o => ({ dag: K.isoDay(o.creditnota.le || o.factureeLe || ""), total: -(Number(o.creditnota.montant) || 0) }))), o => o.dag.slice(0, 7)).sort((a, b) => a.key.localeCompare(b.key));
+    const months = group(yr.concat(cnYr.map(x => ({ dag: K.isoDay(x.cn.le || x.o.factureeLe || ""), total: -(Number(x.cn.montant) || 0) }))), o => o.dag.slice(0, 7)).sort((a, b) => a.key.localeCompare(b.key));
     const clients = group(yr, o => o.client).sort((a, b) => b.total - a.total);
     const prodMap = new Map(); yr.forEach(o => K.parseLines(o.lignes).forEach(l => { const k = l.name.toLowerCase(); const g = prodMap.get(k) || { name: l.name, unit: l.unit, qty: 0, total: 0, noPrice: 0 }; g.qty += l.qty; if (l.price != null) g.total += l.qty * l.price; else g.noPrice++; prodMap.set(k, g); }));
     const prods = Array.from(prodMap.values()).sort((a, b) => b.total - a.total);
@@ -403,7 +403,7 @@
     const rateOf = o => { const m = o.btwFrozen || btwPer; return n => window.FamoVat.rateFrom(m, n, stdRate); };
     const addVat = (o, lignes, sign) => { const priced = K.parseLines(lignes).filter(l => l.price != null); const r0 = window.FamoVat.regime(o.btwRegime).zero ? 0 : stdRate; const t = priced.length ? window.FamoVat.totals(priced, rateOf(o), sign) : { groups: [{ rate: r0, base: sign * (Number(o.total) || 0), tva: window.FamoVat.r2(sign * (Number(o.total) || 0) * r0 / 100) }] }; t.groups.forEach(g => { const v = vat.get(g.rate) || { rate: g.rate, base: 0, tva: 0 }; v.base = window.FamoVat.r2(v.base + g.base); v.tva = window.FamoVat.r2(v.tva + g.tva); vat.set(g.rate, v); vatLinesTotal += g.base; }); };
     yr.forEach(o => addVat(o, o.lignes, 1));
-    cnYr.forEach(o => addVat(o, o.creditnota.lignes, -1));
+    cnYr.forEach(x => addVat(x.o, x.cn.lignes, -1));
     const vatRows = Array.from(vat.values()).sort((a, b) => a.rate - b.rate);
     const mName = k => { const d = K.parseDate(k + "-01"); return d ? d.toLocaleDateString("nl-BE", { month: "long", year: "numeric" }) : k; };
     const card = (title, sub, id, table) => '<div class="card"><div class="card-h"><div><h2 class="h2">' + title + '</h2>' + (sub ? '<p class="sub">' + sub + '</p>' : "") + '</div><button type="button" class="btn btn-o btn-sm" data-csv="' + id + '">CSV</button></div>' + table + '</div>';

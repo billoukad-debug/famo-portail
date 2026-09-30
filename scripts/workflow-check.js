@@ -1380,8 +1380,17 @@ async function main() {
     assert.equal(b.fields["Creditnota lignes"], "Mosselen × 1 caisse [€28.00]\nZalm × 0.5 kg [€20.00]", "AQ5 prijzen figés van de factuur");
     assert.match(b.fields.Correcties, /Creditnota CN-\d{4}-0003 \(€ 38,00\) · beheerder — beschadigd$/, "AQ5 journal");
     assert.equal(r.calls.filter(c => /Stock|Mouvements/.test(c.url)).length, 0, "AQ5 zonder retourStock blijft de voorraad onaangeroerd");
-    r = await call(uo, cn("Mosselen × 1"), [FACT({ "Creditnota nummer": "CN-2026-0001" })], { headers: adminCookieHdr });
-    assert.equal(r.res.statusCode, 409, "AQ5 één creditnota per factuur"); assert.match(r.res.payload.error, /CN-2026-0001/);
+    // C-08 : plusieurs creditnota's par factuur ; la première reste dans les champs historiques, la liste
+    // « Creditnotas » les contient toutes ; le plafond porte sur toutes les notes ensemble.
+    const OUDE = { "Creditnota nummer": "CN-" + yearX + "-0001", "Creditnota lignes": "Mosselen × 1 caisse [€28.00]", "Creditnota montant": 28, "Creditnota le": "2026-09-01T10:00:00.000Z", "Creditnota motif": "oud" };
+    r = await call(uo, cn("Mosselen × 1"), [FACT(OUDE), { records: [{ fields: OUDE }] }, { fields: {} }, { records: [{ id: "o5" }] }], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 200, "AQ5 tweede creditnota op dezelfde factuur"); assert.equal(r.res.payload.creditnota.nummer, "CN-" + yearX + "-0002", "AQ5 nummering volgt");
+    b = cmdPatch(r);
+    assert.equal(b.fields["Creditnota nummer"], undefined, "AQ5 eerste creditnota blijft onaangeroerd");
+    assert.deepEqual(JSON.parse(b.fields.Creditnotas).map(n => n.nummer), ["CN-" + yearX + "-0001", "CN-" + yearX + "-0002"], "AQ5 lijst met beide");
+    assert.ok(decodeURIComponent(r.calls[1].url).includes("fields[]=Creditnotas"), "AQ5 numérotation lit aussi la liste");
+    r = await call(uo, cn("Mosselen × 2"), [FACT(OUDE)], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 400, "AQ5 samen nooit meer dan gefactureerd"); assert.match(r.res.payload.error, /tussen 0 en 1/); assert.equal(methodCallsX(r, "PATCH").length, 0);
     r = await call(uo, cn("Mosselen × 1", { retourStock: true }), [FACT(), { records: [] }, { records: [{ id: "stk", fields: { Produit: "Mosselen", "Quantité disponible": 4 } }] }, { records: [] }, { records: [] }, { fields: {} }, { records: [{ id: "o5" }] }], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ5 retour in voorraad");
     assert.equal(JSON.parse(r.calls.find(c => /\/Stock$/.test(c.url) && (c.options.method || "").toUpperCase() === "PATCH").options.body).records[0].fields["Quantité disponible"], 5, "AQ5 voorraad +1");
