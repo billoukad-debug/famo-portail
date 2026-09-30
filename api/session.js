@@ -1,27 +1,36 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const { at } = require("../lib/airtable");
 const auth = require("../lib/staffauth");
+const log = require("../lib/log");
+const journal = require("../lib/journal");
+
+// Dernier état lu de l'option « Enkel persoonlijke PIN » (audit L-06) sur cette instance.
+let _pinOnlyKnown = false;
 
 // Codes enregistres depuis Beheer (haches) + generation de session (revocation, voir
 // lib/staffauth.js). Lecture a la connexion ; les gardes des autres endpoints restent
 // synchrones. En cas d'echec de lecture on renvoie {} : seuls les codes d'environnement
-// fonctionnent alors, ce qui garde une porte d'entree plutot qu'un blocage total.
+// fonctionnent alors, ce qui garde une porte d'entree plutot qu'un blocage total — sauf si
+// cette instance a déjà vu l'option « Enkel persoonlijke PIN » active : elle le reste (pinOnly).
 async function storedCodes() {
   try {
     const j = await at(`${encodeURIComponent("Configuratie")}?maxRecords=1`);
-    const f = ((j && j.records) || [])[0];
+    if (!j || j.error) return { pinOnly: _pinOnlyKnown };
+    const f = (j.records || [])[0];
     const fields = (f && f.fields) || {};
-    if (j && !j.error) auth.noteGeneration(fields["Sessiegeneratie"]);
+    auth.noteGeneration(fields["Sessiegeneratie"]);
+    _pinOnlyKnown = !!fields["Enkel persoonlijke PIN"];
     return {
       id: (f && f.id) || "",
       gen: Number(fields["Sessiegeneratie"]) || 0,
       adminHash: String(fields["Beheerderscode hash"] || "").trim(),
       staffHash: String(fields["Personeelscode hash"] || "").trim(),
       pinFails: Number(fields["PIN echecs"]) || 0,
-      pinLocked: Date.parse(fields["PIN geblokkeerd tot"] || "") > Date.now()
+      pinLocked: Date.parse(fields["PIN geblokkeerd tot"] || "") > Date.now(),
+      pinOnly: _pinOnlyKnown
     };
   } catch (e) {
-    return {};
+    return { pinOnly: _pinOnlyKnown };
   }
 }
 
@@ -78,7 +87,9 @@ function reserve(key, max, windowMs) {
 // l'essaie contre tous les Medewerkers), un verrou « par compte » n'a donc pas de sens.
 // Le compteur est global, dans Configuratie : après PIN_LOCK_AFTER échecs sans connexion
 // réussie par PIN, la connexion par PIN est suspendue PIN_LOCK_MS ; les codes partagés
-// (≥ 10 caractères) restent utilisables, le magasin n'est donc jamais bloqué.
+// (≥ 10 caractères) restent utilisables, le magasin n'est donc jamais bloqué — SAUF avec
+// l'option « Enkel persoonlijke PIN » : plus de code partagé, seul l'accès de secours
+// ADMIN_CODE reste ouvert pendant le verrou (risque accepté, docs/RUNBOOK.md).
 const PIN_LOCK_AFTER = 20, PIN_LOCK_MS = 15 * 60000;
 async function notePinResult(stored, ok) {
   if (!stored.id || (ok && !stored.pinFails)) return;
@@ -114,9 +125,25 @@ module.exports = async (req, res) => {
     const want = body.want === "admin" ? "admin" : "staff";
     // 1. Codes partagés (environnement ou Beheer → Toegang). 2. PIN personnel (Medewerkers).
     const stored = await storedCodes();
-    let role = auth.roleForCode(body.code, stored, want);
+    const shared = auth.roleForCode(body.code, stored, want);
+    let role = stored.pinOnly ? null : shared;
     let name = "";
     const gen = { g: stored.gen || 0 };
+    if (stored.pinOnly) {
+      // Audit L-06 : option « Enkel persoonlijke PIN ». Code partagé = code faux (même 401 ; la
+      // tentative n'est pas rendue au limiteur et passe par le chemin PIN, donc compte aussi
+      // dans « PIN echecs »). Seule exception : l'accès de secours ADMIN_CODE, depuis la page
+      // Beheer, en rôle beheerder, au nom « Noodtoegang », signalé bruyamment (log + journal).
+      const L = log.from(req, "session");
+      if (want === "admin" && auth.breakGlass(body.code, stored)) {
+        role = "admin";
+        name = "Noodtoegang";
+        L.error("noodtoegang: ADMIN_CODE gebruikt terwijl enkel persoonlijke PIN aan staat", { rol: role });
+        await journal.log({ wie: name, rol: role, actie: "noodtoegang", object: "Sessie", referentie: "ADMIN_CODE (omgeving)", reden: "Enkel persoonlijke PIN staat aan" });
+      } else if (shared) {
+        L.warn("gedeelde code geweigerd: enkel persoonlijke PIN", { rol: shared });
+      }
+    }
     if (!role && !stored.pinLocked) {
       const m = await medewerkerFor(body.code);
       await notePinResult(stored, !!m);
@@ -129,7 +156,9 @@ module.exports = async (req, res) => {
       }
     }
     if (!role && stored.pinLocked) {
-      return res.status(429).json({ error: "Aanmelden met een PIN is tijdelijk geblokkeerd na te veel foute pogingen. Gebruik de teamcode of probeer over 15 minuten opnieuw." });
+      return res.status(429).json({ error: stored.pinOnly
+        ? "Aanmelden met een PIN is tijdelijk geblokkeerd na te veel foute pogingen. Probeer over 15 minuten opnieuw."
+        : "Aanmelden met een PIN is tijdelijk geblokkeerd na te veel foute pogingen. Gebruik de teamcode of probeer over 15 minuten opnieuw." });
     }
     if (!role) {
       return res.status(401).json({ error: "Ongeldige personeelscode" });

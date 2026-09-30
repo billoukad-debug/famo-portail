@@ -75,6 +75,8 @@ const SCHEMA = {
       "Sessiegeneratie": "number",
       // Verrou global des connexions par PIN (api/session.js) : un PIN n'identifie pas son compte.
       "PIN echecs": "number", "PIN geblokkeerd tot": "datetime",
+      // Audit L-06 : codes partagés refusés, seuls les PIN personnels ouvrent (Beheer → Toegang).
+      "Enkel persoonlijke PIN": "checkbox",
       // Conditions générales (C-12) : texte NL/FR et version publiée.
       "Voorwaarden NL": "text", "Voorwaarden FR": "text", "Voorwaarden versie": "text" },
     selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
