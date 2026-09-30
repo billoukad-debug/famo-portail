@@ -12,6 +12,16 @@ Runtimes: CI runs Node 22; Vercel runs the functions on the Node version set in 
 project settings (24.x as of 2026-09-27). `node:sqlite` (tests / local SQL engine only)
 needs a recent Node 22.
 
+### Spec-driven workflow (github/spec-kit)
+- Every change starts as `specs/NNN-name/` (spec.md → plan.md with Constitution Check → tasks.md), then code.
+  Skills: `.claude/skills/speckit-*` (`/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-implement`).
+- Rules that every spec must respect: `.specify/memory/constitution.md` (no build, server decides, tests first
+  and local-only writes, NL/FR + WCAG 2.2 AA + 44 px, schema/RGPD).
+- Done so far: 001 badges, 002 visual identity « Vismijn » (see DESIGN.md), 003 VAT regime + VIES,
+  004 multiple credit notes + correction mail, 005 personal-PIN-only, 006 tech debt (Beheer split, parseLines).
+- Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
+  in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
+
 ### Test / lint / build
 - Test (business rules + syntax + unit tests): `node scripts/check.js`. This is the primary
   gate (mocks `fetch`, needs no external services). CI runs it on every push (all branches)

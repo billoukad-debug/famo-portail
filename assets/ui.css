@@ -562,3 +562,7 @@ a.kp-link:hover{background:var(--row-hover)}
 .stack-10{display:flex!important;flex-direction:column!important;gap:10px!important}.stack-12{display:flex!important;flex-direction:column!important;gap:12px!important}.stack-14{display:flex!important;flex-direction:column!important;gap:14px!important}.stack-6{display:flex!important;flex-direction:column!important;gap:6px!important}
 .spread{display:flex!important;justify-content:space-between!important}.spread-c{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:10px!important}
 .flex-1{flex:1!important}.no-shrink{flex:0 0 auto!important}.w-120{width:120px!important}.w-auto{width:auto!important}
+/* Timonerie : la colonne reste sombre sur toute la hauteur d'une page longue (la barre est sticky à 100vh) */
+.shell{background:linear-gradient(to right,var(--deep) var(--side),transparent var(--side))}
+@media (max-width:1180px){.shell{background:linear-gradient(to right,var(--deep) var(--rail),transparent var(--rail))}}
+@media (max-width:720px){.shell{background:none}}
