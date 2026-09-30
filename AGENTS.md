@@ -39,6 +39,10 @@ needs a recent Node 22.
   APIs return 500; without `ADMIN_CODE`, `adminOk` is always false, so Beheer is closed even for a beheerder PIN; see
   `lib/staffauth.js`). Codes stored from Beheer → Toegang (hashed in Configuratie) replace
   the env code for that role; personal PINs (table `Medewerkers`) are also accepted.
+  With Beheer → Toegang « Enkel persoonlijke pincodes » (Configuratie `Enkel persoonlijke PIN`,
+  audit L-06) shared codes are refused (401) and only PINs log in, except the env `ADMIN_CODE`
+  as logged break-glass (Beheer login page, admin role, name « Noodtoegang »; see
+  `docs/RUNBOOK.md` § 6 and `test/pinonly.test.js`).
   The session is an HttpOnly+Secure cookie signed with `SESSION_SECRET` (or, if unset, a
   secret derived from the codes and the DB credentials); browsers treat `http://localhost`
   as a secure context, so the cookie works over plain http locally.

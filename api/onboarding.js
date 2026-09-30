@@ -105,6 +105,7 @@ async function statusPayload() {
     // On expose seulement l'EXISTENCE d'un code personnalisé, jamais l'empreinte.
     adminCodeCustom: !!String(c["Beheerderscode hash"] || "").trim(),
     staffCodeCustom: !!String(c["Personeelscode hash"] || "").trim(),
+    enkelPin: !!c["Enkel persoonlijke PIN"], // audit L-06 : codes partagés refusés (api/session.js)
     mailFromConfigured: !!String(process.env.MAIL_FROM || "").trim(),
     // Règles de livraison et de facturation (lib/levering) — modifiables ici, lues partout.
     besteldeadline: String(c["Besteldeadline"] || "").trim(),
@@ -690,6 +691,20 @@ const handler = async (req, res) => {
     }
 
     // ---- Medewerkers (comptes individuels, PIN haché) ----
+    // Audit L-06 : avec l'option « Enkel persoonlijke PIN », Beheer ne s'ouvre plus que par le
+    // PIN d'une beheerder active (hors secours ADMIN_CODE). Cette modification (next = champs
+    // modifiés, null = suppression) retirerait-elle la dernière ? → {status, error}, sinon null.
+    const beheerderPin = f => !!(f && f["Actief"] && f["Rol"] === "beheerder" && String(f["PIN hash"] || "").trim());
+    const lastBeheerderBlock = async (id, next) => {
+      const conf = await getConfigRecord();
+      if (conf && conf.error) return { status: 500, error: "Configuratie onleesbaar. Probeer opnieuw." };
+      if (!(conf && conf.fields && conf.fields["Enkel persoonlijke PIN"])) return null;
+      const all = await atAll("Medewerkers");
+      if (all.error) return { status: 500, error: "Medewerkers onleesbaar. Probeer opnieuw." };
+      const recs = all.records || [];
+      const after = recs.some(r => beheerderPin(r.id !== id ? r.fields : next && Object.assign({}, r.fields, next)));
+      return after || !recs.some(r => beheerderPin(r.fields)) ? null : { status: 409, error: "Dit is de laatste actieve medewerker met rol Beheerder en een eigen PIN. Zolang „Enkel persoonlijke pincodes” aan staat, moet er minstens één blijven. Maak eerst een andere beheerder aan of zet de optie uit." };
+    };
     if (action === "saveMedewerker") {
       const naam = clean(body.naam, 60);
       const rol = body.rol === "beheerder" ? "beheerder" : "personeel";
@@ -701,6 +716,10 @@ const handler = async (req, res) => {
       if (!body.id && !pin) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
       if (pin && !/^\d{6,12}$/.test(pin)) return res.status(400).json({ error: "PIN: 6 tot 12 cijfers" });
       const fields = { "Naam": naam, "Rol": rol, "Actief": body.actief !== false };
+      if (body.id && (rol !== "beheerder" || !fields["Actief"])) {
+        const block = await lastBeheerderBlock(body.id, fields);
+        if (block) return res.status(block.status).json({ error: block.error });
+      }
       if (pin) {
         // Deux personnes au même PIN : la connexion ouvrirait au nom de la première trouvée
         // (journal faussé). On compare aux empreintes des autres comptes, actifs ou non.
@@ -720,6 +739,8 @@ const handler = async (req, res) => {
     }
     if (action === "deleteMedewerker") {
       if (!body.id || !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig id" });
+      const block = await lastBeheerderBlock(body.id, null);
+      if (block) return res.status(block.status).json({ error: block.error });
       const del = await at(`Medewerkers/${body.id}`, { method: "DELETE" });
       if (del.error) { console.error("[onboarding] deleteMedewerker", del.error.type, del.error.message); return res.status(500).json({ error: "Verwijderen mislukt" }); }
       __auth.noteMedewerker(body.id, null);
@@ -846,6 +867,38 @@ const handler = async (req, res) => {
         __auth.setCookie(res, __auth.sign(me.exp, me.role, me.name, Object.assign({}, me.gen, { g: next })), Math.max(0, Math.floor((me.exp - Date.now()) / 1000)));
       } else console.error("[onboarding] Sessiegeneratie niet verhoogd", bumped && bumped.error && bumped.error.type);
       return res.status(200).json({ ok: true, ...(await statusPayload()) });
+    }
+
+    // ---- Enkel persoonlijke pincodes (audit L-06, specs/005-pin-personnels-seuls) ----
+    // Active : api/session.js refuse les codes partagés, seuls les PIN (et le secours
+    // ADMIN_CODE) ouvrent. Jamais activée sans beheerder PIN active (sinon Beheer serait fermé).
+    // Activation : génération +1 dans la même écriture (toutes les sessions tombent, comme
+    // « Iedereen afmelden ») ; seul un beheerder connecté par PIN reçoit un cookie neuf. Le
+    // journal (avant → après sur Configuratie) est écrit par l'enveloppe en bas de ce fichier.
+    if (action === "saveEnkelPin") {
+      const aan = body.aan === true;
+      const existing = await getConfigRecord();
+      if (existing && existing.error) { console.error("[onboarding] saveEnkelPin Configuratie", existing.error.type); return res.status(500).json({ error: "Configuratie onleesbaar. Probeer opnieuw." }); }
+      if (!existing || !existing.id) return res.status(400).json({ error: "Vul eerst de bedrijfsgegevens in" });
+      const fields = { "Enkel persoonlijke PIN": aan };
+      const bump = aan && !existing.fields["Enkel persoonlijke PIN"];
+      if (aan) {
+        const all = await atAll("Medewerkers");
+        if (all.error) { console.error("[onboarding] saveEnkelPin Medewerkers", all.error.type); return res.status(500).json({ error: "Medewerkers onleesbaar. Probeer opnieuw." }); }
+        if (!(all.records || []).some(r => beheerderPin(r.fields))) {
+          return res.status(409).json({ error: "Maak eerst een actieve medewerker aan met rol Beheerder en een eigen PIN (hierboven, Medewerkers). Anders kan niemand Beheer nog openen." });
+        }
+      }
+      const next = (Number(existing.fields["Sessiegeneratie"]) || 0) + 1;
+      if (bump) fields["Sessiegeneratie"] = next;
+      const saved = await at(`${encodeURIComponent("Configuratie")}/${existing.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
+      if (!saved || saved.error) { console.error("[onboarding] saveEnkelPin", saved && saved.error && saved.error.type); return res.status(500).json({ error: "Instelling opslaan mislukt. Probeer opnieuw." }); }
+      const viaPin = !!(me.gen && me.gen.med);
+      if (bump) {
+        __auth.noteGeneration(next);
+        if (viaPin) __auth.setCookie(res, __auth.sign(me.exp, me.role, me.name, Object.assign({}, me.gen, { g: next })), Math.max(0, Math.floor((me.exp - Date.now()) / 1000)));
+      }
+      return res.status(200).json({ ok: true, afgemeld: bump && !viaPin, ...(await statusPayload()) });
     }
 
     // ---- Aanvraag (demande d'inscription publique) ----
@@ -1026,7 +1079,7 @@ module.exports = async (req, res) => {
   const action = clean(body.action, 40);
   if (!action || action === "previewCredentials") return handler(req, res);
   let table = TARGET[action] || "", id = table && REC.test(String(body.id || "")) ? String(body.id) : "";
-  if (action === "saveConfig" || action === "saveVoorwaarden") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
+  if (action === "saveConfig" || action === "saveVoorwaarden" || action === "saveEnkelPin") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
   const before = id ? await __journal.get(table, id) : null;
   await handler(req, res);
   if (res.statusCode !== 200) return;

@@ -1630,11 +1630,13 @@ async function main() {
     assert.equal(pb.typecast, true, "AT5 typecast (Rol-optie)"); assert.equal(mf.Naam, "Tom"); assert.equal(mf.Rol, "beheerder"); assert.equal(mf.Actief, true);
     assert.match(mf["PIN hash"], /^scrypt\$131072\$[0-9a-f]+\$[0-9a-f]+$/, "AT5 scrypt"); assert.ok(authlib.verifyHash(mf["PIN hash"], "432109"), "AT5 de hash opent met de PIN");
     assert.ok(!post.options.body.includes("432109"), "AT5 de PIN gaat nooit in klare tekst naar Airtable");
-    r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", rol: "superuser", actief: false }, [{ fields: {} }, ...STATUS()], { headers: adminCookieHdr });
+    // Désactiver / rétrograder / supprimer : Configuratie lue d'abord (option « Enkel persoonlijke PIN »,
+    // garde « dernière beheerder », test/pinonly.test.js) ; ici l'option est absente.
+    r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", rol: "superuser", actief: false }, [{ records: [] }, { fields: {} }, ...STATUS()], { headers: adminCookieHdr });
     assert.equal(r.res.statusCode, 200, "AT5 bijwerken zonder PIN"); assert.deepEqual(patchOfX(r, /Medewerkers\/m1$/).fields, { Naam: "Tom", Rol: "personeel", Actief: false }, "AT5 hash onaangeroerd, onbekende rol → personeel");
     r = await call(ob, { action: "saveMedewerker", id: "m1", naam: "Tom", pin: "12" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 nieuwe PIN te kort");
-    r = await call(ob, { action: "deleteMedewerker", id: "m1" }, [{ deleted: true, id: "m1" }, ...STATUS()], { headers: adminCookieHdr });
-    assert.equal(r.res.statusCode, 200, "AT5 verwijderd"); assert.match(r.calls[0].url, /Medewerkers\/m1$/); assert.equal((r.calls[0].options.method || "").toUpperCase(), "DELETE");
+    r = await call(ob, { action: "deleteMedewerker", id: "m1" }, [{ records: [] }, { deleted: true, id: "m1" }, ...STATUS()], { headers: adminCookieHdr });
+    assert.equal(r.res.statusCode, 200, "AT5 verwijderd"); assert.match(r.calls[0].url, /Configuratie/); assert.match(r.calls[1].url, /Medewerkers\/m1$/); assert.equal((r.calls[1].options.method || "").toUpperCase(), "DELETE");
     r = await call(ob, { action: "deleteMedewerker", id: "m 1" }, [], { headers: adminCookieHdr }); assert.equal(r.res.statusCode, 400, "AT5 id-vorm"); assert.equal(r.calls.length, 0);
     r = await call(ob, { action: "saveMedewerker", naam: "X", pin: "1234" }, [], { headers: cookieHdr }); assert.equal(r.res.statusCode, 401, "AT5 personeel beheert geen accounts");
     // Klant : gebruikersnaam zonder aanhalingstekens/spaties (formule-injectie), wachtwoord ≥ 8.
