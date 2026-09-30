@@ -27,10 +27,10 @@ document.addEventListener("DOMContentLoaded", function () {
   document.documentElement.lang = fr ? "fr" : "nl";
   document.title = "FAMO Seafood · " + T.title;
   const list = a => "<ul>" + a.map(x => "<li>" + K.esc(x) + "</li>").join("") + "</ul>";
-  const sec = (h, body) => '<section class="card card-b" style="margin-top:14px"><h2 class="h2">' + K.esc(h) + "</h2>" + body + "</section>";
+  const sec = (h, body) => '<section class="card card-b mt-14"><h2 class="h2">' + K.esc(h) + "</h2>" + body + "</section>";
   const app = document.getElementById("app");
-  app.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><a class="tlink" href="/">' + K.esc(T.back) + "</a>" + K.langSwitch() + "</div>" +
-    '<h1 class="h1" style="margin-top:18px">' + K.esc(T.title) + '</h1><p class="sub">' + K.esc(T.upd) + "</p>" +
+  app.innerHTML = '<div class="spread-c"><a class="tlink" href="/">' + K.esc(T.back) + "</a>" + K.langSwitch() + "</div>" +
+    '<h1 class="h1 mt-18">' + K.esc(T.title) + '</h1><p class="sub">' + K.esc(T.upd) + "</p>" +
     sec(T.who, '<p>' + K.esc(T.whoTxt) + ' <b id="legalName">Famo Trading BV</b>.</p><p class="muted" id="legalMeta"></p>') +
     sec(T.what, list(T.whatList)) + sec(T.why, list(T.whyList)) + sec(T.rec, list(T.recList)) + sec(T.keep, list(T.keepList)) +
     sec(T.rights, "<p>" + K.esc(T.rightsTxt) + "</p>") + sec(T.cookies, "<p>" + K.esc(T.cookiesTxt) + "</p>") +

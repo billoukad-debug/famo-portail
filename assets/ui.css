@@ -345,7 +345,7 @@ html.dragging,html.dragging *{cursor:grabbing!important;user-select:none!importa
 .drag-ghost.ccat{background:var(--card)}
 /* Leveringen op telefoon : slepen aan de greep vervangt ▲▼ (die blijven op tablet/pc voor het toetsenbord) */
 /* INT-08 : sur téléphone ▲▼ restent disponibles (alternative au glisser), empilés pour laisser la place au nom */
-@media (max-width:560px){.stop .mv{flex-direction:column!important;gap:0!important}.stop .mv .ibtn{width:44px;height:36px}.stop>div[style*="flex:1"]{flex:1 1 calc(100% - 140px)!important}}
+@media (max-width:560px){.stop .mv{flex-direction:column!important;gap:0!important}.stop .mv .ibtn{width:44px;height:36px}.stop>div[style*="flex:1"],.stop>div.flex-1,.stop>div.grow{flex:1 1 calc(100% - 140px)!important}}
 /* zoeklijst bovenaan (K.shell → globalSearch) */
 .gs-list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:6px;max-height:min(420px,70vh);overflow:auto}
 .gs-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 10px;border-radius:var(--r);color:var(--ink);text-decoration:none;font-size:13.5px;min-height:44px}
@@ -408,7 +408,7 @@ a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration
 /* Documenten : deux emplacements fixes (« Openen / PDF » toujours à la même place, l'action de paiement à côté) */
 .act-slots{display:inline-grid;grid-template-columns:128px 186px;gap:8px;align-items:center}.act-slots>.btn{width:100%}
 /* Lignes .stop (Magazijn, Leveringen, Klanten) : les infos gardent 240 px, les boutons passent dessous si la place manque */
-.stop>div[style*="flex:1"]{flex:1 1 240px!important} /* !important : l'élément porte flex:1 en style direct */
+.stop>div[style*="flex:1"],.stop>div.flex-1,.stop>div.grow{flex:1 1 240px!important} /* !important : l'élément porte flex:1 en style direct */
 /* Cartes de hauteurs différentes côte à côte (Bedrijfsgegevens, Rapportage) : colonnes qui se remplissent, sans trou */
 .masonry{display:block!important;columns:2;column-gap:16px}.masonry>*{break-inside:avoid;margin:0 0 16px;display:block}
 @media (max-width:900px){.masonry{columns:1}}
@@ -551,3 +551,14 @@ a.kp-link:hover{background:var(--row-hover)}
 /* Points d'attention (Beheer) : un point ambre, pas « ● ! » dans une pastille */
 .attn-row{min-height:48px}.attn{width:8px;height:8px;border-radius:50%;background:var(--st-new);flex:none}.grow{flex:1;min-width:0}
 .mt-16{margin-top:16px}
+
+/* ---------- I-12 : utilitaires (remplacent les styles en ligne les plus fréquents des pages) ---------- — !important : même force qu'un style en ligne, rendu identique */
+.fs-11{font-size:11px!important}.fs-12{font-size:12px!important}.fs-125{font-size:12.5px!important}.fs-13{font-size:13px!important}.fs-15{font-size:15px!important}.fw-400{font-weight:400!important}
+.t-danger{color:var(--danger)!important}.ws-normal{white-space:normal!important}.ws-pre{white-space:pre-line!important}.d-block{display:block!important}.c-default{cursor:default!important}
+.pt-16{padding-top:16px!important}.pt-20{padding-top:20px!important}.m-12{margin:12px!important}.mb-6{margin:0 0 6px!important}.px-8{padding:0 8px!important}
+.mt-4{margin-top:4px!important}.mt-6{margin-top:6px!important}.mt-8{margin-top:8px!important}.mt-12{margin-top:12px!important}.mt-14{margin-top:14px!important}.mt-18{margin-top:18px!important}
+.grid-2{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}.span-all{grid-column:1/-1!important}
+.row-10{display:flex!important;align-items:center!important;gap:10px!important}.iflex-4{display:inline-flex!important;align-items:center!important;gap:4px!important}
+.stack-10{display:flex!important;flex-direction:column!important;gap:10px!important}.stack-12{display:flex!important;flex-direction:column!important;gap:12px!important}.stack-14{display:flex!important;flex-direction:column!important;gap:14px!important}.stack-6{display:flex!important;flex-direction:column!important;gap:6px!important}
+.spread{display:flex!important;justify-content:space-between!important}.spread-c{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:10px!important}
+.flex-1{flex:1!important}.no-shrink{flex:0 0 auto!important}.w-120{width:120px!important}.w-auto{width:auto!important}

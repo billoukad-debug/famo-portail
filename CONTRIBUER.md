@@ -34,7 +34,7 @@ La CI GitHub (`.github/workflows/check.yml`, onglet Actions) tourne à chaque pu
 - **Scénarios métier** `scripts/workflow-check.js` (une quarantaine de blocs, l'essentiel des contrôles) : prix recalculés par le serveur, stock déduit une seule fois, numéros FA/CN uniques, rôles et sessions (expiration comprise), corrections, e-mails, règles de livraison, portail client, documents FR/NL. Un ✓ par bloc ; le premier échec arrête le script.
 
 ## Règles de la maison
-- Une seule feuille de style (`assets/ui.css`) et un seul module partagé (`assets/ui.js`) : pas de fichier CSS ni de helpers par page. Il reste des styles en ligne dans le JS des pages (≈ 460 `style="`, dont ≈ 140 dans `beheer.js`) : ne pas en ajouter, les déplacer dans `ui.css` quand on touche une page.
+- Une seule feuille de style (`assets/ui.css`) et un seul module partagé (`assets/ui.js`) : pas de fichier CSS ni de helpers par page. Il reste des styles en ligne dans le JS des pages (264 `style="` au 30/09/2026, dont 84 dans `beheer.js` ; 234 migrés vers les utilitaires I-12 de `ui.css`, rendu vérifié identique au pixel sur 55 écrans) : ne pas en ajouter ; utiliser une classe de `ui.css` (utilitaires `fs-*`, `mt-*`, `stack-*`, `row-10`, `grow`…) ou en créer une.
 - Personnel et Beheer : tout texte visible en néerlandais. Portail client : NL et FR (`K.t()` + `K.FR`). Documents (leveringsbon, factuur, creditnota) : langue du client (NL/FR). E-mails : néerlandais. Les valeurs de la base restent en français (`Reçue`, `caisse`) et se traduisent à l'affichage (glossaire : `docs/SCHEMA.md`).
 - Cibles tactiles ≥ 44 px. Le personnel travaille avec des gants sur une tablette.
 - Une action principale par écran ; les détails à la demande (panneau latéral).
