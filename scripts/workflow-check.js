@@ -38,9 +38,9 @@ function clearModule(rel) {
   delete require.cache[abs];
 }
 
-// Facturation (api/updateorder.js billingContext) : Configuratie puis Catalogue, lus une fois quand
-// un numéro de facture est attribué (taux figés, lib/billing.js).
-const BILL = () => [{ records: [{ fields: {} }] }, { records: [] }];
+// Facturation (api/updateorder.js billingContext) : Configuratie, Catalogue puis le client (régime de
+// TVA, C-10), lus une fois AVANT l'attribution du numéro de facture (taux et régime figés, lib/billing.js).
+const BILL = () => [{ records: [{ fields: {} }] }, { records: [] }, { fields: {} }];
 
 async function call(handler, body, replies, opts) {
   opts = opts || {};
@@ -1345,7 +1345,7 @@ async function main() {
     assert.equal(r.res.statusCode, 409, "AQ2 al bevestigd"); assert.match(r.res.payload.error, /al bevestigd/); assert.equal(methodCallsX(r, "PATCH").length, 0);
     // 3. Uitzondering bij levering : op de bestelling én in het journaal ; onbekende → 400.
     const SORTIE = { fields: { Statut: "Sortie en livraison", "Référence": "CMD-41", "Préparation validée": true, "Lignes (produits / quantités)": "Mosselen × 2 caisse [€28.00]", Client: ["cliAQ"] } };
-    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Gedeeltelijk", uitzonderingNota: "1 doos\nte weinig" }, [SORTIE, { records: [{ fields: { Factuurnummer: "FA-" + yearX + "-0007" } }] }, ...BILL(), { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
+    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Gedeeltelijk", uitzonderingNota: "1 doos\nte weinig" }, [SORTIE, ...BILL(), { records: [{ fields: { Factuurnummer: "FA-" + yearX + "-0007" } }] }, { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 200, "AQ3 uitzondering"); assert.equal(r.res.payload.factuurnummer, "FA-" + yearX + "-0008", "AQ3 factuurnummer volgt");
     b = cmdPatch(r);
     assert.equal(b.fields["Uitzondering levering"], "Gedeeltelijk"); assert.equal(b.fields["Uitzondering nota"], "1 doos te weinig", "AQ3 nota op één regel");
@@ -1353,7 +1353,7 @@ async function main() {
     assert.match(b.fields.Correcties, /Uitzondering bij levering: Gedeeltelijk · personeel — 1 doos te weinig$/, "AQ3 journal");
     r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji", uitzondering: "Verdwenen" }, [SORTIE], { headers: cookieHdr });
     assert.equal(r.res.statusCode, 400, "AQ3 onbekende uitzondering"); assert.match(r.res.payload.error, /Ongeldige uitzondering/);
-    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji" }, [SORTIE, { records: [] }, ...BILL(), { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
+    r = await call(uo, { id: "o3", statut: "Facturée", deliveryConfirmed: true, recipient: "Kenji" }, [SORTIE, ...BILL(), { records: [] }, { fields: {} }, { records: [{ fields: {} }] }], { headers: cookieHdr });
     b = cmdPatch(r); assert.equal(b.fields["Uitzondering levering"], undefined, "AQ3 zonder uitzondering niets geschreven"); assert.equal(b.fields.Correcties, undefined);
     // 4. Volgorde levering : enig veld, ook na vertrek ; 1..999 of leeg ; nooit op een geannuleerde.
     r = await call(uo, { id: "o4", volgorde: 3 }, [{ fields: { Statut: "Prête" } }, { fields: {} }], { headers: cookieHdr });
@@ -1748,8 +1748,8 @@ async function main() {
     const PRETE_OUT = { fields: { Statut: "Sortie en livraison", "Livraison confirmée": false, "Lignes (produits / quantités)": "Mosselen × 1 caisse [€28.00]", Client: ["c1"] } };
     let r = await call(uo, { id: "recZZ", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
       PRETE_OUT,
+      ...BILL(),                                                               // taux et régime figés (avant le numéro)
       { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0007" } }] }, // nextNumber → 0008
-      ...BILL(),                                                               // taux figés
       { fields: {} },                                                         // PATCH commande
       { records: [{ id: "recAA" }, { id: "recZZ" }] },                        // 0008 existe deux fois
       { records: [{ fields: { Factuurnummer: "FA-" + yearAX + "-0008" } }] }, // nextNumber → 0009
@@ -1760,7 +1760,7 @@ async function main() {
     assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0009", "AX1 doublon détecté → numéro suivant");
     assert.equal(JSON.parse(r.calls.filter(isPatch).pop().options.body).fields.Factuurnummer, "FA-" + yearAX + "-0009", "AX1 le nouveau numéro est écrit");
     r = await call(uo, { id: "recAA", statut: "Facturée", deliveryConfirmed: true, recipient: "Chef" }, [
-      PRETE_OUT, { records: [] }, ...BILL(), { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
+      PRETE_OUT, ...BILL(), { records: [] }, { fields: {} }, { records: [{ id: "recAA" }, { id: "recZZ" }] }
     ], { headers: cookieHdr });
     assert.equal(r.res.payload.factuurnummer, "FA-" + yearAX + "-0001", "AX1 le plus petit identifiant garde son numéro");
     assert.equal(r.calls.filter(isPatch).length, 1, "AX1 aucune renumérotation pour celui qui garde");

@@ -2,6 +2,7 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 const { at, atAll } = require("../lib/airtable");
 const __rev = require("../lib/revision");
 const __auth = require("../lib/staffauth");
+const __bill = require("../lib/billing");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -24,15 +25,17 @@ module.exports = async (req, res) => {
     const rev = await __rev.current();
     if (q.rev !== undefined && rev !== null && String(q.rev) === String(rev)) return res.status(200).json({ unchanged: true, rev });
     const [cl, cat] = await Promise.all([atAll("Clients"), atAll("Catalogue")]);
-    const nameById = {}, infoById = {};
+    const nameById = {}, infoById = {}, fieldsById = {};
     (cl.records || []).forEach(r => {
       nameById[r.id] = r.fields["Nom"] || "";
+      fieldsById[r.id] = r.fields || {};
       infoById[r.id] = {
         nom: r.fields["Nom"] || "",
         adresse: r.fields["Lieu de livraison"] || "",
         btw: r.fields["BTW-nummer"] || "",
         klantnr: r.fields["Klantnummer"] || "",
         taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL", // langue des documents
+        regime: __bill.vat.regime(r.fields["Régime TVA"]).key, // régime de TVA actuel (C-10)
         // Téléphone et e-mail : le chauffeur appelle, le magasin prévient. Jamais le mot de passe.
         tel: r.fields["Téléphone"] || "",
         email: (r.fields["Email"] || "").trim(),
@@ -93,6 +96,8 @@ module.exports = async (req, res) => {
       bestelddoor: r.fields["Besteld door"] || "",
       herinneringen: [r.fields["Herinnering 1 op"] || "", r.fields["Herinnering 2 op"] || ""].filter(Boolean),
       lots: (() => { try { return r.fields["Lots"] ? JSON.parse(r.fields["Lots"]) : null; } catch (e) { return null; } })(),
+      // Régime de TVA (C-10) : figé sur une facture émise, sinon celui du client (documents, montants).
+      btwRegime: __bill.regimeOf(r.fields, fieldsById[(r.fields["Client"] || [])[0]]),
       btwFrozen: (() => { try { return r.fields["BTW per lijn"] ? JSON.parse(r.fields["BTW per lijn"]) : null; } catch (e) { return null; } })(),
       volgorde: Number.isFinite(Number(r.fields["Volgorde levering"])) && r.fields["Volgorde levering"] !== undefined ? Number(r.fields["Volgorde levering"]) : null,
       creditnota: r.fields["Creditnota nummer"] ? {

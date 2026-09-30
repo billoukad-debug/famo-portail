@@ -43,8 +43,8 @@
     const bi = page.querySelector("#bulkInv"); if (bi) bi.onclick = () => S.openDocs(inv.map(d => d.o), "invoice");
     // Boekhouding : maatstaf en btw per tarief, zelfde regel als de documenten (assets/vat.js, vastgezette tarieven).
     const cb = page.querySelector("#csvBoek"); if (cb) cb.onclick = () => {
-      const rows = [["Type", "Nummer", "Datum", "Oorspronkelijke factuur", "Klantnummer", "Klant", "BTW-nummer klant", "Bestelling", "Btw-tarief", "Maatstaf", "Btw", "Totaal incl. btw"]];
-      const push = (typ, nr, datum, orig, o, lignes, sign) => { const map = S.btwPerLine(o); const t = window.FamoVat.totals(K.parseLines(lignes).filter(l => l.price != null), n => window.FamoVat.rateFrom(map, n, S.rate("")), sign); t.groups.forEach(g => rows.push([typ, nr, K.isoDay(datum), orig, o.klant && o.klant.klantnr || "", o.client, o.klant && o.klant.btw || "", o.ref, K.num(g.rate), K.num(g.base), K.num(g.tva), K.num(window.FamoVat.r2(g.base + g.tva))])); };
+      const rows = [["Type", "Nummer", "Datum", "Oorspronkelijke factuur", "Klantnummer", "Klant", "BTW-nummer klant", "Bestelling", "Btw-tarief", "Maatstaf", "Btw", "Totaal incl. btw", "Btw-regime"]];
+      const push = (typ, nr, datum, orig, o, lignes, sign) => { const map = S.btwPerLine(o); const t = window.FamoVat.totals(K.parseLines(lignes).filter(l => l.price != null), n => window.FamoVat.rateFrom(map, n, S.rate("")), sign); t.groups.forEach(g => rows.push([typ, nr, K.isoDay(datum), orig, o.klant && o.klant.klantnr || "", o.client, o.klant && o.klant.btw || "", o.ref, K.num(g.rate), K.num(g.base), K.num(g.tva), K.num(window.FamoVat.r2(g.base + g.tva)), window.FamoVat.regime(o.btwRegime).short])); };
       inv.forEach(d => { const o = d.o; push("Factuur", o.factuurnummer, o.factureeLe || d.date, "", o, o.lignes, 1); if (o.creditnota) push("Creditnota", o.creditnota.nummer, o.creditnota.le, o.factuurnummer, o, o.creditnota.lignes, -1); });
       S.csvDownload(rows, "Famo-boekhouding-" + (van || "begin") + "-" + (tot || K.today()) + ".csv");
     };

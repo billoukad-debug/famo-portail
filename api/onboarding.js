@@ -14,6 +14,7 @@ const __lev = require("../lib/levering");
 const __bill = require("../lib/billing");
 const __guard = require("../lib/guardrails");
 const __journal = require("../lib/journal");
+const __vies = require("../lib/vies");
 const BASE = "appcdduLth9iGX8I0";
 const REC = /^[A-Za-z0-9]{1,40}$/;
 
@@ -165,7 +166,10 @@ async function statusPayload() {
     gearchiveerd: !!r.fields["Gearchiveerd"],
     voorwaardenVersie: r.fields["Voorwaarden versie"] || "",
     voorwaardenOp: r.fields["Voorwaarden aanvaard op"] || "",
-    taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL"
+    taal: String(r.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL",
+    // Régime de TVA (C-10) et dernier contrôle VIES (C-16).
+    regime: __bill.vat.regime(r.fields["Régime TVA"]).key,
+    vies: __vies.stored(r.fields)
   })).sort((a, b) => a.nom.localeCompare(b.nom, "nl"));
 
   const priceList = (prices.records || []).map(r => ({
@@ -543,12 +547,24 @@ const handler = async (req, res) => {
         "Klantnummer": clean(body.klantnr, 40),
         "Email": clean(body.email, 120).toLowerCase(),
         "Taal": String(body.taal || "").toUpperCase() === "FR" ? "FR" : "NL", // langue des documents
+        // Régime de TVA (C-10) : « Normal » = champ absent (valeur vide = effacé).
+        "Régime TVA": "",
         "Gebruikersnaam": user,
         "Wachtwoord": __ca.hashPassword(password)
       };
       if (fields["Email"] && !__mail.isEmail(fields["Email"])) {
         return res.status(400).json({ error: "Ongeldig e-mailadres voor deze klant" });
       }
+      // Régime de TVA (C-10) : valeur connue, cohérente avec le n° de TVA (intracommunautaire :
+      // autre pays de l'UE ; cocontractant : n° belge valide). Rien n'est écrit sinon. Non envoyé
+      // (ancien onglet, autre appelant) : celui déjà enregistré reste, et reste contrôlé.
+      const cur = body.id ? await at(`Clients/${body.id}`) : null;
+      const curFields = cur && !cur.error ? cur.fields || {} : {};
+      const regime = body.regime === undefined ? __bill.vat.regime(curFields["Régime TVA"]).key : body.regime === null || body.regime === "" ? "Normal" : String(body.regime);
+      if (!__bill.vat.REGIME_KEYS.includes(regime)) return res.status(400).json({ error: "Onbekend btw-regime" });
+      const regimeErr = __bill.regimeProblem(regime, fields["BTW-nummer"]);
+      if (regimeErr) return res.status(400).json({ error: regimeErr });
+      if (regime !== "Normal") fields["Régime TVA"] = regime;
       // N° TVA belge : contrôle modulo 97 (il devient l'adresse Peppol du client dans l'UBL).
       const tva = fields["BTW-nummer"].toUpperCase().replace(/[\s.]/g, "");
       if (tva && /^(BE)?\d{9,10}$/.test(tva)) { const d = tva.replace(/\D/g, "").padStart(10, "0"); if (97 - (Number(d.slice(0, 8)) % 97) !== Number(d.slice(8))) return res.status(400).json({ error: "Ongeldig Belgisch BTW-nummer voor deze klant (controlecijfers)" }); }
@@ -557,6 +573,10 @@ const handler = async (req, res) => {
       if (body.id) {
         // On update: only set password if generate or password provided
         if (!generate && !clean(body.password, 80)) delete fields["Wachtwoord"];
+        // Contrôle VIES (C-16) d'un AUTRE numéro que celui enregistré : il ne vaut plus, effacé.
+        const prev = __vies.stored(curFields);
+        const now = (__bill.parseVat(fields["BTW-nummer"]) || {}).full || "";
+        if (prev && prev.vatNumber !== now) { fields["VIES gecontroleerd op"] = null; fields["VIES resultaat"] = ""; }
         saved = await at(`Clients/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields }) });
       } else {
         saved = await at("Clients", { method: "POST", body: JSON.stringify({ records: [{ fields }] }) });
@@ -582,6 +602,30 @@ const handler = async (req, res) => {
         mail,
         ...(await statusPayload())
       });
+    }
+
+    // ---- Contrôle VIES d'un n° de TVA européen (audit C-16) ----
+    // Beheerder seul (adminOk + adminSession ci-dessus, garde lib/guard en tête du module). Le numéro
+    // contrôlé est celui envoyé (champ du formulaire) ou, à défaut, celui du client. Le résultat
+    // n'est enregistré sur le client que s'il porte sur SON numéro enregistré. VIES en panne ou lent
+    // (8 s) → 503 clair, rien n'est écrit ; l'enregistrement de la fiche n'en dépend jamais.
+    if (action === "checkVies") {
+      if (body.id && !REC.test(String(body.id))) return res.status(400).json({ error: "Ongeldig klant-id" });
+      const cur = body.id ? await at(`Clients/${body.id}`) : null;
+      if (cur && cur.error) return res.status(404).json({ error: "Klant niet gevonden" });
+      const savedNr = cur ? String(cur.fields["BTW-nummer"] || "") : "";
+      const nr = clean(body.btw, 40) || savedNr;
+      let v;
+      try { v = await __vies.check(nr); } catch (e) {
+        if (e && (e.status === 400 || e.status === 503)) return res.status(e.status).json({ error: e.message });
+        throw e;
+      }
+      const stored = !!cur && (__bill.parseVat(savedNr) || {}).full === v.vatNumber;
+      if (stored) {
+        const w = await at(`Clients/${body.id}`, { method: "PATCH", body: JSON.stringify({ fields: { "VIES gecontroleerd op": v.checkedAt, "VIES resultaat": JSON.stringify({ valid: v.valid, name: v.name, address: v.address, vatNumber: v.vatNumber }) } }) });
+        if (w.error) return res.status(500).json({ error: "VIES-resultaat opslaan mislukt" });
+      }
+      return res.status(200).json({ ok: true, vies: v, stored, ...(await statusPayload()) });
     }
 
     // ---- Utilisateurs supplémentaires d'un client (H-08) : chef, gérant, second établissement…
@@ -1014,7 +1058,7 @@ const handler = async (req, res) => {
 // Journal d'audit (lib/journal.js, moteur SQL) : chaque action Beheer réussie, avec l'état de
 // l'enregistrement avant → après (prix de base, IBAN, taux de TVA, archivage, suppressions…).
 // Codes, PIN et mots de passe : jamais la valeur, seulement « gewijzigd ».
-const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", saveClient: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
+const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", saveClient: "Clients", checkVies: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
   resetPassword: "Clients", revokeAccess: "Clients", saveMedewerker: "Medewerkers", deleteMedewerker: "Medewerkers", closeAanvraag: "Aanvragen", deletePrice: "Prix négociés",
   saveKlantgebruiker: "Klantgebruikers", resetKlantgebruiker: "Klantgebruikers", deleteKlantgebruiker: "Klantgebruikers" };
 module.exports = async (req, res) => {

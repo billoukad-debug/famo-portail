@@ -21,8 +21,10 @@ const SCHEMA = {
       // Sessiegeneratie : +1 à la déconnexion, révoque les jetons du client (lib/clientauth.js).
       "Sessiegeneratie": "number",
       // Conditions générales acceptées (lib/terms.js, C-12).
-      "Voorwaarden versie": "text", "Voorwaarden aanvaard op": "datetime" },
-    selects: { "Taal": ["NL", "FR"] }, primary: "Nom"
+      "Voorwaarden versie": "text", "Voorwaarden aanvaard op": "datetime",
+      // Régime de TVA (C-10, assets/vat.js ; absent = Normal) et dernier contrôle VIES (C-16, lib/vies.js).
+      "Régime TVA": "select", "VIES gecontroleerd op": "datetime", "VIES resultaat": "text" },
+    selects: { "Taal": ["NL", "FR"], "Régime TVA": ["Normal", "Intracommunautaire", "Export", "Cocontractant"] }, primary: "Nom"
   },
   Catalogue: {
     // BTW-tarief : taux par produit (6 / 21) ; vide = taux de Configuratie.
@@ -52,12 +54,15 @@ const SCHEMA = {
       // Utilisateur (supplémentaire) qui a passé la commande (lib/klantlogin.js, H-08).
       "Besteld door": "text",
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
-      "Lots": "text"
+      "Lots": "text",
+      // Régime de TVA du client figé au passage en « Facturée » (C-10) ; absent = Normal.
+      "Régime TVA": "select"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
       "Mode de paiement": ["Contant", "Overschrijving", "Bancontact", "Andere"],
-      "Uitzondering levering": ["Afwezig", "Geweigerd", "Gedeeltelijk", "Beschadigd"]
+      "Uitzondering levering": ["Afwezig", "Geweigerd", "Gedeeltelijk", "Beschadigd"],
+      "Régime TVA": ["Normal", "Intracommunautaire", "Export", "Cocontractant"]
     },
     fieldIds: { fldjCdOntoPXPKLIb: "Preuve de livraison", fld4P0uySgGI6P6yE: "Photo préparation" }, primary: "Référence"
   },

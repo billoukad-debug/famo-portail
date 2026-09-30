@@ -29,7 +29,9 @@ module.exports = async (req, res) => {
     const mode = __bill.modeOf(c), legal = __bill.legalOf(c), fallback = __bill.defaultRate(c);
     // Mêmes taux que le document du personnel : figés à la facturation, sinon catalogue actuel
     // (avant : un seul taux pour toute la facture côté client, audit B-05).
-    const btwPerLine = __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, __bill.ratesFromCatalogue((cat && cat.records) || []), fallback);
+    // Régime de TVA (C-10) : figé sur la facture, sinon celui du client (0 % → toutes les lignes à 0).
+    const btwRegime = __bill.regimeOf(f, client.fields);
+    const btwPerLine = __bill.linesRates(parseLines(f["Lignes (produits / quantités)"]), f, __bill.ratesFromCatalogue((cat && cat.records) || []), fallback, btwRegime);
     res.status(200).json({
       order: {
         id: rec.id, ref: f["Référence"] || "", date: f["Date"] || "", dateLiv: f["Date livraison souhaitée"] || "",
@@ -39,7 +41,7 @@ module.exports = async (req, res) => {
         klant: { nom: client.fields["Nom"] || "", adresse: client.fields["Lieu de livraison"] || "", btw: client.fields["BTW-nummer"] || "", klantnr: client.fields["Klantnummer"] || "", taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL" },
         livreeLe: f["Livrée le"] || "", receptionnePar: f["Réceptionné par"] || "",
         getekend: (f["Preuve de livraison"] || []).some(a => /^handtekening-/.test(String(a && a.filename || ""))),
-        factureeLe: f["Facturée le"] || "", btwPerLine,
+        factureeLe: f["Facturée le"] || "", btwPerLine, btwRegime,
         besteld: f["Lignes besteld"] || "",
         lots: (() => { try { return f["Lots"] ? JSON.parse(f["Lots"]) : null; } catch (e) { return null; } })()
       },

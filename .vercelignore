@@ -10,3 +10,5 @@ docs
 *.md
 eslint.config.js
 .claude
+specs
+.specify

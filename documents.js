@@ -145,20 +145,25 @@ window.FamoDocuments=(()=>{
     // arrondie au centime. Avant, elle était retranchée d'un total supposé TTC (≈ 6 % de trop peu).
     const pct=Number.isFinite(Number(COMPANY.btwTarief))&&Number(COMPANY.btwTarief)>=0?Number(COMPANY.btwTarief):6;
     const map=priced?(order.btwFrozen&&typeof order.btwFrozen==="object"?order.btwFrozen:rateMap(order)):null;
+    // Régime de TVA du client (C-10, assets/vat.js) : figé sur la facture par le serveur (order.btwRegime).
+    // Intracommunautaire / export / cocontractant : 0 % sur chaque ligne + mention légale sous les totaux.
+    const reg=priced&&window.FamoVat&&window.FamoVat.regime?window.FamoVat.regime(order.btwRegime):{zero:false};
     const baseTotal=credit?(cn.montant==null?order.total:cn.montant):order.total;
     // Règle unique (assets/vat.js) : ligne arrondie au cent, base et TVA par taux. Sans prix de ligne
     // (anciennes commandes), un seul groupe au taux de l'entreprise sur le total stocké.
     let htva, groups, tva, total;
     if(rows.some(r=>r.price!=null)&&window.FamoVat){
-      const t=window.FamoVat.totals(rows,name=>rateFor(name,map,pct),sign);
+      const t=window.FamoVat.totals(rows,name=>reg.zero?0:rateFor(name,map,pct),sign);
       htva=t.htva; groups=t.groups; tva=t.tva; total=t.total;
     }else{
       htva=cents(Number(baseTotal||0)*sign);
-      groups=[{rate:pct,base:htva,tva:Math.round(htva*pct)/100}];
+      const p0=reg.zero?0:pct;
+      groups=[{rate:p0,base:htva,tva:Math.round(htva*p0)/100}];
       tva=cents(groups[0].tva); total=cents(htva+tva);
     }
     const num=number(order,type);
     const lang=langOf(order), L=T[lang];
+    const regimeTxt=reg.zero?(reg[lang]||reg.nl||""):"";
     const pro=accountant();
     const title=credit?(pro?L.retour:L.credit):(invoice?(pro?L.proforma:L.invoice):L.delivery);
     // Rendu uniquement à partir d'ici — parse/calculs inchangés (parité M6).
@@ -237,7 +242,7 @@ window.FamoDocuments=(()=>{
       '<div class="trow"><span>'+L.totalEx+'</span><span>'+eur(htva)+'</span></div>'+
       groups.map(g=>'<div class="trow"><span>'+L.vatLine+' '+esc(String(g.rate).replace(".",","))+'%'+(groups.length>1?' <small>('+L.on+' '+esc(eur(g.base))+')</small>':'')+'</span><span>'+eur(g.tva)+'</span></div>').join("")+
       '<div class="trow grand"><span>'+L.totalInc+'</span><span>'+eur(total)+'</span></div>'+
-      '</div>';
+      '</div>'+(regimeTxt?'<div class="regime">'+esc(regimeTxt)+'</div>':'');
     const css='*{box-sizing:border-box}'+
       'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#232323;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
       'em{font-style:italic}'+
@@ -273,6 +278,7 @@ window.FamoDocuments=(()=>{
       '.bankrow span{flex:none;width:92px;color:rgba(35,35,35,.62)}'+
       '.bankrow b{font-weight:600}'+
       '.bankexample{margin-top:6px;color:#7A5410}'+
+      '.regime{margin:12px 0 0 auto;max-width:420px;padding:9px 12px;border:1px solid #E3E0D6;border-radius:12px;font-size:11px;font-weight:600;line-height:1.5;text-align:right;page-break-inside:avoid}'+
       '.foot{margin-top:30px;border-top:1px solid #E3E0D6;padding-top:10px;font-size:9px;line-height:1.7;color:rgba(35,35,35,.62)}'+
       '.trow small{font-size:10px;color:rgba(35,35,35,.55)}'+
       '.doc+.doc{margin-top:38px}'+
