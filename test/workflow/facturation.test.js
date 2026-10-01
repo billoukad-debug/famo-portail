@@ -53,7 +53,7 @@ describe("Facturation : numéros FA/CN uniques, paiement, creditnota, OGM, monta
   test("O. Gestructureerde mededeling (FA-nummer → +++…+++, mod 97)", async () => {
     // --- O. Gestructureerde mededeling op de factuur ---------------------------
     {
-      const docsSrc = fs.readFileSync(path.join(ROOT, "documents.js"), "utf8");
+      const docsSrc = fs.readFileSync(path.join(ROOT, "assets/docs/documents.js"), "utf8");
       const sandbox = { window: {}, console };
       vm.runInNewContext(docsSrc, sandbox);
       const FamoDocs = sandbox.window.FamoDocuments;
@@ -339,8 +339,8 @@ describe("Facturation : numéros FA/CN uniques, paiement, creditnota, OGM, monta
       const sb = { window: {}, document: { documentElement: {}, addEventListener() {}, querySelector() { return null; } }, localStorage: { getItem() { return null; }, setItem() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} }, navigator: { language: "nl" }, location: { search: "", pathname: "/", hash: "" } };
       sb.window = sb; vm.createContext(sb);
       vm.runInContext(fs.readFileSync(path.join(ROOT, "assets", "ui.js"), "utf8"), sb);
-      vm.runInContext(fs.readFileSync(path.join(ROOT, "documents.js"), "utf8"), sb);
-      const docSrc = fs.readFileSync(path.join(ROOT, "documents.js"), "utf8");
+      vm.runInContext(fs.readFileSync(path.join(ROOT, "assets/docs/documents.js"), "utf8"), sb);
+      const docSrc = fs.readFileSync(path.join(ROOT, "assets/docs/documents.js"), "utf8");
       const docEur = vm.runInNewContext("(" + docSrc.match(/const eur=(value=>\{[\s\S]*?\});/)[1] + ")");
       for (const v of [0, 7.5, 1234.5, 1234567.891, -12]) {
         const screen = sb.K.eur(v).replace(/\u00a0/g, " ");

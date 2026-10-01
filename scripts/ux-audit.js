@@ -8,7 +8,7 @@
 // CLA-02 anneau de focus visible sur chaque élément atteignable au Tab · ACC-05 contraste RENDU (texte 4,5:1,
 // grand texte 3:1, contour des champs 3:1 — les couleurs réelles à l'écran, opacités comprises) ·
 // ACC-06 état « choisi » (.on) exposé (aria-pressed / aria-current / aria-selected / aria-expanded).
-// États visités en plus des pages : fiche commande (order.html), Journaal, Magazijn Bord, confirmation de
+// États visités en plus des pages : fiche commande (team/bestelling.html), Journaal, Magazijn Bord, confirmation de
 // commande, panier rempli, panneaux ouverts (Valideren, fiche client, produit) et l'aperçu d'un document.
 //
 //   node scripts/dev.js            (autre terminal : portail de dev + données de test)
@@ -22,18 +22,18 @@ const EXE = process.env.CHROMIUM || (require("fs").existsSync("/opt/pw-browsers/
 const firstOrder = async p => p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => { const o = (d.orders || []).find(x => x.statut === "Facturée") || (d.orders || [])[0]; return o ? o.id : ""; }));
 const clickAndWait = (sel, ms) => async p => { const el = p.locator(sel).first(); if (await el.count()) { await el.click(); await p.waitForTimeout(ms || 800); } };
 const pages = {
-  staff: ["/bestellingen.html#/tabel", "/bestellingen.html#/bord", "/bestellingen.html#/kalender", "/entrepot.html#/dag", "/entrepot.html#/bord", "/leveringen.html", "/documenten.html",
-    { name: "/order.html (fiche commande)", url: async p => "/order.html?id=" + encodeURIComponent(await firstOrder(p)) },
-    { name: "/bestellingen.html · panneau Artikelen valideren", url: "/bestellingen.html#/tabel", after: clickAndWait('[data-act="validate"]', 700) },
-    { name: "/documenten.html · aperçu d'un document", url: "/documenten.html", after: clickAndWait('[data-act="invoice"], [data-act="delivery"]', 2500) }],
-  admin: ["/beheer.html#/overzicht", "/beheer.html#/aanvragen", "/beheer.html#/klanten", "/beheer.html#/producten", "/beheer.html#/prijzen", "/beheer.html#/rapportage", "/beheer.html#/journaal", "/beheer.html#/bedrijf", "/beheer.html#/toegang", "/beheer.html#/status", "/invoer.html", "/stock.html",
-    { name: "/beheer.html#/klanten · panneau klant", url: "/beheer.html#/klanten", after: clickAndWait("[data-edit]", 700) },
-    { name: "/beheer.html#/producten · panneau product", url: "/beheer.html#/producten", after: clickAndWait("[data-new-product]", 700) }],
-  klant: ["/klant.html#/catalogus", "/klant.html#/winkelmand", "/klant.html#/bestellingen", "/klant.html#/favorieten", "/klant.html#/account",
-    { name: "/klant.html#/winkelmand (rempli)", url: "/klant.html#/winkelmand", before: async p => { await p.evaluate(() => { const c = JSON.parse(sessionStorage.getItem("famoKlantCatalogus") || "{}"); const items = {}; (c.products || []).slice(0, 3).forEach(x => { items[x.id] = 2; }); localStorage.setItem("famoCart:aloha", JSON.stringify({ items, comments: {}, note: "", day: "" })); }); } },
-    { name: "/klant.html#/bevestigd (commande reçue)", url: "/klant.html#/bevestigd", before: async p => { await p.evaluate(() => sessionStorage.setItem("famoLastOrder", JSON.stringify({ ref: "CMD-TEST", total: 42, day: new Date(Date.now() + 864e5).toISOString().slice(0, 10), items: [{ nom: "Test", qty: 2, prix: 21 }], at: Date.now(), mail: { customer: { ok: true } }, email: "test@example.com" }))); } },
-    { name: "/klant.html#/bestellingen · fiche commande", url: "/klant.html#/bestellingen", after: async p => { await clickAndWait('[data-of="alles"]', 300)(p); await clickAndWait(".orow-main", 600)(p); } }],
-  public: ["/", "/aanvraag.html", "/wachtwoord.html", "/personeel.html", "/beheer-login.html"] };
+  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender", "/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen", "/team/documenten",
+    { name: "/team/bestelling (fiche commande)", url: async p => "/team/bestelling?id=" + encodeURIComponent(await firstOrder(p)) },
+    { name: "/team/bestellingen · panneau Artikelen valideren", url: "/team/bestellingen#/tabel", after: clickAndWait('[data-act="validate"]', 700) },
+    { name: "/team/documenten · aperçu d'un document", url: "/team/documenten", after: clickAndWait('[data-act="invoice"], [data-act="delivery"]', 2500) }],
+  admin: ["/beheer#/overzicht", "/beheer#/aanvragen", "/beheer#/klanten", "/beheer#/producten", "/beheer#/prijzen", "/beheer#/rapportage", "/beheer#/journaal", "/beheer#/bedrijf", "/beheer#/toegang", "/beheer#/status", "/team/invoeren", "/team/voorraad",
+    { name: "/beheer#/klanten · panneau klant", url: "/beheer#/klanten", after: clickAndWait("[data-edit]", 700) },
+    { name: "/beheer#/producten · panneau product", url: "/beheer#/producten", after: clickAndWait("[data-new-product]", 700) }],
+  klant: ["/klant#/catalogus", "/klant#/winkelmand", "/klant#/bestellingen", "/klant#/favorieten", "/klant#/account",
+    { name: "/klant#/winkelmand (rempli)", url: "/klant#/winkelmand", before: async p => { await p.evaluate(() => { const c = JSON.parse(sessionStorage.getItem("famoKlantCatalogus") || "{}"); const items = {}; (c.products || []).slice(0, 3).forEach(x => { items[x.id] = 2; }); localStorage.setItem("famoCart:aloha", JSON.stringify({ items, comments: {}, note: "", day: "" })); }); } },
+    { name: "/klant#/bevestigd (commande reçue)", url: "/klant#/bevestigd", before: async p => { await p.evaluate(() => sessionStorage.setItem("famoLastOrder", JSON.stringify({ ref: "CMD-TEST", total: 42, day: new Date(Date.now() + 864e5).toISOString().slice(0, 10), items: [{ nom: "Test", qty: 2, prix: 21 }], at: Date.now(), mail: { customer: { ok: true } }, email: "test@example.com" }))); } },
+    { name: "/klant#/bestellingen · fiche commande", url: "/klant#/bestellingen", after: async p => { await clickAndWait('[data-of="alles"]', 300)(p); await clickAndWait(".orow-main", 600)(p); } }],
+  public: ["/", "/aanvraag", "/wachtwoord", "/team/aanmelden", "/beheer/aanmelden"] };
 
 // ---------- contrôles dans la page ----------
 function audit() {

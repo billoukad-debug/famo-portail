@@ -106,7 +106,7 @@ describe("Portail client : le client change lui-même son mot de passe", () => {
       // AL6 — portail : formulaire relié à l'API, ancien mot de passe jamais comparé dans le navigateur.
       const klantAL = fs.readFileSync(path.join(ROOT, "assets", "pages", "klant.js"), "utf8");
       assert.match(klantAL, /\/api\/klantwachtwoord/, "AL6 Account appelle /api/klantwachtwoord");
-      assert.ok(!/\/wachtwoord\.html/.test(klantAL), "AL6 Account ne renvoie plus vers la demande à Famo");
+      assert.ok(!/\/wachtwoord/.test(klantAL), "AL6 Account ne renvoie plus vers la demande à Famo");
       assert.match(klantAL, /autocomplete="current-password"[\s\S]*autocomplete="new-password"/, "AL6 champs reconnus par les gestionnaires de mots de passe");
       assert.match(klantAL, /json: \{ user: sess\.user, pw: huidig, nieuw \}/, "AL6 le mot de passe actuel envoyé est celui retapé");
       assert.ok(!/(creds\(\)\.pw|sess\.pw)\s*[!=]==/.test(klantAL), "AL6 l'ancien mot de passe n'est jamais vérifié dans le navigateur");

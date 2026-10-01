@@ -25,7 +25,7 @@ La CI GitHub (`.github/workflows/check.yml`, onglet Actions) tourne à chaque pu
 ## Ce qui est vérifié (`scripts/check.js`)
 - Syntaxe de tout le JavaScript et des scripts inline.
 - `api/` : aucun secret, aucun code de secours ; `lib/staffauth.js` reste fail-closed (contrôle textuel).
-- Les e-mails lient toujours `/order.html?id=` ; tout lien interne pointe vers une page existante.
+- Les e-mails lient toujours `/team/bestelling?id=` ; tout lien interne pointe vers une page existante.
 - Interface : dialogues maison (`K.confirm`, `K.prompt`), jamais `alert()` ; aucun code personnel en storage ni en URL.
 - Néerlandais : `caisse` n'est jamais affiché tel quel (→ `kassa` via `K.unit`). Contrôle étroit : seulement `>caisse<` et `"caisse" +`.
 - Chaque page charge `assets/ui.css` + `assets/ui.js` et a un meta viewport.

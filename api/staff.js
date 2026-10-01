@@ -112,7 +112,7 @@ module.exports = async (req, res) => {
             lignes: order.lignes,
             total: order.total,
             bron: bron || "Handmatig",
-            orderUrl: url ? url + "/order.html?id=" + encodeURIComponent(j.records[0].id) : "",
+            orderUrl: url ? url + "/team/bestelling?id=" + encodeURIComponent(j.records[0].id) : "",
             klant: cli && !cli.error ? __mail.clientFrom(cli) : { nom: clientId },
             opsEmail: cfg.opsEmail,
             company: cfg

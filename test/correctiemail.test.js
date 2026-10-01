@@ -57,7 +57,7 @@ const ORDER = (id, extra) => rec(id, Object.assign({ "Référence": "CMD-" + YEA
 
 const base = {
   ref: "CMD-2026-0042", recordId: "recORD0001", company: { bedrijfsnaam: "FAMO Seafood", email: "info@famo.test", telefoon: "03 111" }, opsEmail: "ops@famo.test",
-  klant: { nom: "Resto <b>A</b>", email: "chef@resto.test", taal: "NL" }, portalUrl: "https://portaal.famo.test", orderUrl: "https://portaal.famo.test/order.html?id=recORD0001",
+  klant: { nom: "Resto <b>A</b>", email: "chef@resto.test", taal: "NL" }, portalUrl: "https://portaal.famo.test", orderUrl: "https://portaal.famo.test/team/bestelling?id=recORD0001",
   wijzigingen: [{ name: "Zalm", unit: "kg", voor: { qty: 2, price: 12.5 }, na: { qty: 1.5, price: 12.5 } }, { name: "Saus", unit: "pièce", voor: { qty: 3, price: 5 }, na: null }, { name: "Tong", unit: "kg", voor: null, na: { qty: 1, price: 20 } }],
   totalExcl: 38.75, totalIncl: 41.08, creditnotas: [], sleutel: "abc123"
 };
@@ -87,14 +87,14 @@ test("buildCorrectionMail (NL) : avant → après, nouveau total, lien portail c
   assert.equal(m.to, "chef@resto.test"); assert.equal(m.replyTo, "info@famo.test");
   assert.equal(m.subject, "Correctie van uw bestelling CMD-2026-0042");
   assert.equal(m.idempotencyKey, "correctie:recORD0001:abc123");
-  for (const s of ["Uw bestelling werd aangepast", "Zalm", "2 kg", "1,5 kg", "geschrapt", "nieuw", "€ 38,75", "€ 41,08", "https://portaal.famo.test/klant.html#/bestellingen"]) assert.ok(m.html.includes(s), "html contient " + s);
+  for (const s of ["Uw bestelling werd aangepast", "Zalm", "2 kg", "1,5 kg", "geschrapt", "nieuw", "€ 38,75", "€ 41,08", "https://portaal.famo.test/klant#/bestellingen"]) assert.ok(m.html.includes(s), "html contient " + s);
   assert.ok(!m.html.includes("<b>A</b>"), "nom échappé");
-  assert.ok(!m.html.includes("ops@famo.test") && !m.html.includes("order.html"), "ni boîte interne ni lien du personnel");
+  assert.ok(!m.html.includes("ops@famo.test") && !m.html.includes("/team/bestelling"), "ni boîte interne ni lien du personnel");
   assert.match(m.text, /Zalm: 2 kg → 1,5 kg/); assert.match(m.text, /Nieuw totaal incl\. btw: € 41,08/);
   assert.ok(!/<style|display\s*:\s*flex/i.test(m.html));
 });
 
-test("buildCorrectionMail (FR) et notes de crédit ; copie interne NL avec /order.html?id=", () => {
+test("buildCorrectionMail (FR) et notes de crédit ; copie interne NL avec /team/bestelling?id=", () => {
   const ctx = Object.assign({}, base, { klant: { nom: "Resto", email: "chef@resto.test", taal: "FR" }, facturatie: "portaal", wijzigingen: [], creditnotas: [{ nummer: "CN-2026-0003", montantIncl: 21.2, motif: "abîmé" }], netIncl: 19.88 });
   const m = om.buildCorrectionMail(ctx);
   assert.equal(m.subject, "Correction de votre commande CMD-2026-0042");
@@ -106,7 +106,7 @@ test("buildCorrectionMail (FR) et notes de crédit ; copie interne NL avec /orde
   const t = om.buildCorrectionTeamMail(ctx);
   assert.equal(t.to, "ops@famo.test"); assert.equal(t.replyTo, "chef@resto.test");
   assert.match(t.subject, /^Correctiemail verstuurd — CMD-2026-0042/);
-  assert.match(t.html, /\/order\.html\?id=recORD0001/); assert.match(t.text, /\/order\.html\?id=recORD0001/);
+  assert.match(t.html, /\/team\/bestelling\?id=recORD0001/); assert.match(t.text, /\/team\/bestelling\?id=recORD0001/);
   assert.match(t.text, /CN-2026-0003/);
   assert.equal(t.idempotencyKey, "correctie:recORD0001:abc123:team");
 });
@@ -127,7 +127,7 @@ test("lignes corrigées par le magasin → « Correctie mailen » : un e-mail cl
   assert.match(client.body.text, /Zalm: 2 kg → 1,5 kg/);
   assert.match(client.body.text, /Nieuw totaal excl\. btw: € 33,75/);
   assert.match(client.body.text, /Nieuw totaal incl\. btw: € 38,03/, "6 % sur le poisson, 21 % sur la sauce");
-  assert.match(team.body.html, /\/order\.html\?id=recORD0001/);
+  assert.match(team.body.html, /\/team\/bestelling\?id=recORD0001/);
   assert.ok(client.key && client.key.startsWith("correctie:recORD0001:"), "clé d'idempotence Resend");
   const f = await fieldsOf("recORD0001");
   assert.match(f.Correcties, /Correctiemail verstuurd aan klant \(Zalm\) · personeel$/, "sans l'adresse : le journal survit à l'anonymisation");

@@ -26,7 +26,7 @@ Ne jamais donner aux déploiements Preview les secrets de production (`DATABASE_
 Auth staff = cookie de session HttpOnly (`/api/session`). Les pages n'utilisent plus `?code=`.
 
 ## Première mise en route
-1. Ouvrir `/beheer.html` et se connecter avec `ADMIN_CODE`
+1. Ouvrir `/beheer` et se connecter avec `ADMIN_CODE`
 2. **Bedrijfsgegevens** : identité (Famo Trading BV / FAMO Seafood, BCE 0788.705.713), IBAN/BIC réels, taux de TVA, conditions
 3. **Producten** : vérifier le catalogue et les prix
 4. **Klanten** : créer le premier client (identifiants affichés une seule fois — les copier)

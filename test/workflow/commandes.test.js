@@ -151,7 +151,7 @@ describe("Commandes : prix et quantités décidés par le serveur, minimum, leve
       assert.match(result.res.payload.error, /hoeveelheid|Catalogus|gevonden|decimale/i);
 
       // documents esc path
-      const docsSrc = fs.readFileSync(path.join(ROOT, "documents.js"), "utf8");
+      const docsSrc = fs.readFileSync(path.join(ROOT, "assets/docs/documents.js"), "utf8");
       const sandbox = { window: {}, console };
       vm.runInNewContext(docsSrc, sandbox);
       assert.equal(typeof sandbox.window.FamoDocuments.esc, "function");

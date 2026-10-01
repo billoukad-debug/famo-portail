@@ -60,7 +60,7 @@ Rayons hiérarchisés : **6** ce qu'on touche (boutons, champs), **10** ce qui c
 
 ## Marque
 
-`assets/brand/famo-mark.svg` (fond clair : carré Noordzee, F blanc) et `famo-mark-light.svg` (timonerie : carré clair, F Diepzee) : un **F sobre**, dessiné en tracés (pas une lettre de police), coins arrondis 7/32. Choix du client le 30/09/2026 (le poisson de la spec 002 est retiré, spec 007). Utilisée par `.logo` (CSS), le favicon, les icônes PWA (`assets/icons/`) et l'en-tête des documents (`documents.js`). Le nom « FAMO Seafood » est écrit à côté.
+`assets/brand/famo-mark.svg` (fond clair : carré Noordzee, F blanc) et `famo-mark-light.svg` (timonerie : carré clair, F Diepzee) : un **F sobre**, dessiné en tracés (pas une lettre de police), coins arrondis 7/32. Choix du client le 30/09/2026 (le poisson de la spec 002 est retiré, spec 007). Utilisée par `.logo` (CSS), le favicon, les icônes PWA (`assets/icons/`) et l'en-tête des documents (`assets/docs/documents.js`). Le nom « FAMO Seafood » est écrit à côté.
 
 ## Accueil client
 
@@ -122,7 +122,7 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 5. **`alert()` / `confirm()` / `prompt()` natifs interdits** : `K.toast`, `K.confirm`, `K.prompt`, `K.panel`.
 6. **Cibles tactiles ≥ 44 px** partout où le personnel appuie (`--tap`).
 7. **Portail client bilingue** : tout texte visible passe par `K.t()` et a sa traduction dans `K.FR` (`assets/ui.js`) ; un test échoue sinon. Personnel, Beheer et e-mails restent en néerlandais ; les documents suivent la langue du client (NL/FR).
-8. **Documents** (`documents.js`) et **e-mails** (gabarit commun `lib/maillayout.js`, utilisé par `lib/ordermail.js` et `lib/authmail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Vismijn (encre `#0E2229`, gris `#475A61`, filet `#D3DDDF`, fond `#EFF3F3`, action `#0B5A6C`) ; police système (Arial dans les e-mails, Helvetica/Arial dans les PDF) : les polices web y sont peu fiables. Pas de ligne de signature sur les documents. E-mails : tableaux, `color-scheme` clair, fond et couleur explicites sur chaque cellule, blanc seulement sur Noordzee, texte d'aperçu, pas de `<style>` ni d'image (spec 012).
+8. **Documents** (`assets/docs/documents.js`) et **e-mails** (gabarit commun `lib/maillayout.js`, utilisé par `lib/ordermail.js` et `lib/authmail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Vismijn (encre `#0E2229`, gris `#475A61`, filet `#D3DDDF`, fond `#EFF3F3`, action `#0B5A6C`) ; police système (Arial dans les e-mails, Helvetica/Arial dans les PDF) : les polices web y sont peu fiables. Pas de ligne de signature sur les documents. E-mails : tableaux, `color-scheme` clair, fond et couleur explicites sur chaque cellule, blanc seulement sur Noordzee, texte d'aperçu, pas de `<style>` ni d'image (spec 012).
 9. `node scripts/check.js` et `npx -y eslint@9.39.5 .` (tout le dépôt) doivent rester verts ; la CI joue les deux, plus `scripts/ux-audit.js` dans un navigateur.
 
 ---

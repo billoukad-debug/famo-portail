@@ -58,7 +58,7 @@ describe("Portail client : profil, favoris, mot de passe oublié, compte archiv�
       const sent = r.calls.filter(c => /api\.resend\.com/.test(c.url));
       assert.equal(sent.length, 1, "AR4 één mail, naar het gekende adres"); assert.ok(sent[0].options.body.includes("keuken@aloha.test"));
       const mailAR = JSON.parse(sent[0].options.body);
-      const linkAR = (mailAR.text.match(/\/wachtwoord\.html\?t=([^\s]+)/) || [])[1];
+      const linkAR = (mailAR.text.match(/\/wachtwoord\?t=([^\s]+)/) || [])[1];
       assert.ok(linkAR, "AR4 de mail bevat een link naar wachtwoord.html?t=…");
       assert.deepEqual(require(path.join(ROOT, "lib/clientauth")).readResetToken(decodeURIComponent(linkAR)), { id: "cliAR2", fp: require(path.join(ROOT, "lib/clientauth")).fingerprint(HASH_AR) }, "AR4 link ondertekend, gebonden aan het huidige wachtwoord");
       assert.ok(!/wachtwoord:\s*\S{8,}/i.test(mailAR.text) && !mailAR.text.includes("huidig-pw"), "AR4 geen wachtwoord in klare tekst in de mail");

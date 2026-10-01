@@ -130,10 +130,10 @@ describe("E-mails et documents : envois de commande, langue du client", () => {
       assert.equal(resendCalls(r5.calls).length, 1, "M5 un seul envoi sans boite ops");
       assert.ok(bodyOf(resendCalls(r5.calls)[0]).to.includes("chef@resto.test"), "M5 c'est le client qui recoit");
 
-      // M6 — parite du parseur avec documents.js (garde anti-derive).
+      // M6 — parite du parseur avec assets/docs/documents.js (garde anti-derive).
       const om = require(path.join(ROOT, "lib", "ordermail.js"));
       {
-        const docsSrc = fs.readFileSync(path.join(ROOT, "documents.js"), "utf8");
+        const docsSrc = fs.readFileSync(path.join(ROOT, "assets/docs/documents.js"), "utf8");
         const sandbox = { window: {}, console };
         vm.runInNewContext(docsSrc, sandbox);
         const FamoDocs = sandbox.window.FamoDocuments;
@@ -145,7 +145,7 @@ describe("E-mails et documents : envois de commande, langue du client", () => {
           "Garnalen × 3"
         ];
         fixtures.forEach(f => {
-          assert.deepEqual(om.parseLines(f), FamoDocs.parse(f), "M6 parseur identique a documents.js : " + f);
+          assert.deepEqual(om.parseLines(f), FamoDocs.parse(f), "M6 parseur identique a assets/docs/documents.js : " + f);
           assert.equal(om.nlLines(f), famoNL.lines(f), "M6b traduction identique a ui.js (famoNL) : " + f);
         });
       }
@@ -184,7 +184,7 @@ describe("E-mails et documents : envois de commande, langue du client", () => {
     {
       const sb = { console, document: { documentElement: {}, addEventListener() {}, querySelector() { return null; } }, localStorage: { getItem() { return null; }, setItem() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} }, navigator: { language: "nl" }, location: { search: "", pathname: "/", hash: "" } };
       sb.window = sb; vm.createContext(sb);
-      for (const f of ["assets/ui.js", "assets/vat.js", "staff-company.js", "documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), sb);
+      for (const f of ["assets/ui.js", "assets/vat.js", "assets/docs/bedrijf.js", "assets/docs/documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), sb);
       const D = sb.FamoDocuments;
       D.setCompany({ nom: "FAMO Seafood", adresse: "Kaai 1", cp: "2000 Antwerpen", btw: "BE 0123.456.789", iban: "BE71096123456769", facturatie: "portaal" });
       const base = { ref: "CMD-2026-0007", client: "Chez Paul", lignes: "Mosselen × 2 caisse [€28.00]\nZalm × 1.5 kg [€20.00]", total: 86, dateLiv: "2026-09-28", factuurnummer: "FA-2026-0007", factureeLe: "2026-09-28T08:00:00Z" };

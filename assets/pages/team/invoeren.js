@@ -58,7 +58,7 @@
       const btn = page.querySelector("#place"); K.busy(btn, true, "Plaatsen…"); page.querySelector("#err").innerHTML = "";
       try {
         const d = await K.api("/api/staff", { json: { clientId, notes: note, dateLivraison: day, bron, items: Object.entries(items).filter(([id, qv]) => qv > 0).map(([id, qv]) => ({ productId: id, quantity: qv })) } });
-        K.toast("Bestelling " + d.ref + " geplaatst"); location.href = "/order.html?id=" + encodeURIComponent(d.id);
+        K.toast("Bestelling " + d.ref + " geplaatst"); location.href = "/team/bestelling?id=" + encodeURIComponent(d.id);
       } catch (err) { page.querySelector("#err").innerHTML = K.c.error(err.message); if (/leverdag|zondag|die dag/i.test(err.message)) K.setErr("fDay", err.message); K.busy(btn, false); }
     };
   }

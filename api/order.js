@@ -92,7 +92,7 @@ async function notifyOrderMail(ctx) {
     lignes: ctx.lignes,
     total: ctx.total,
     bron: ctx.bron,
-    orderUrl: __mail.portalUrl(ctx.req) ? __mail.portalUrl(ctx.req) + "/order.html?id=" + encodeURIComponent(ctx.recordId) : "",
+    orderUrl: __mail.portalUrl(ctx.req) ? __mail.portalUrl(ctx.req) + "/team/bestelling?id=" + encodeURIComponent(ctx.recordId) : "",
     klant: __mail.clientFrom(ctx.client),
     opsEmail: cfg.opsEmail,
     company: cfg

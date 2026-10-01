@@ -37,7 +37,7 @@ Contrôles automatiques (portail de dev lancé avec `node scripts/dev.js`) :
 ```
 node scripts/ux-audit.js          # FOR-01, ACC-02/03/04, INT-01, INT-03, MEP-04 sur 27 écrans × 2 largeurs (1280, 390)
 node scripts/kbd-audit.js         # parcours clavier seul (client 390/1440, équipe, Beheer) : focus masqué, anneau, nom, piège, Entrée ; BASE local uniquement
-                                  # non couverts : order.html, beheer.html#/journaal
+                                  # non couverts : team/bestelling.html, beheer.html#/journaal
 node scripts/check.js             # règles métier + tests unitaires (dont K.eur)
 grep -nE "transition:\s*all" assets/ui.css                        # vide attendu
 grep -rnE "<(div|span|tr|li|td)[^>]*onclick" assets *.html         # vide attendu
@@ -155,7 +155,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 |---|---|---|---|
 | CHI-01 | Chiffres tabulaires quand on compare. | `.mono` / `font-variant-numeric: tabular-nums`. | ✅ |
 | CHI-02 | Montants alignés à droite ; espace **insécable** entre € et le montant ; dates `nl-BE`. | `K.eur` → `€ 1.284,50` (test `ui.test.js`). | 🔧 (un montant ne se coupe plus en fin de ligne). |
-| CHI-03 | Toujours 2 décimales pour les montants. | `K.eur`, `documents.js`, `lib/ordermail.js` : même format (test de parité). | ✅ |
+| CHI-03 | Toujours 2 décimales pour les montants. | `K.eur`, `assets/docs/documents.js`, `lib/ordermail.js` : même format (test de parité). | ✅ |
 | CHI-04 | Jamais deux devises additionnées. | — | — une seule devise. |
 | CHI-05 | Donnée absente clairement signalée. | « — » dans les tableaux, « Adres bij Famo bekend ». | ⚠️ « — » gardé (pas de composant « MANQUANT » dans FAMO). |
 | CHI-06 | Valeur déduite vs prouvée. | — | — |

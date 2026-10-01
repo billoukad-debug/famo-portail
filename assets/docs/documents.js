@@ -202,7 +202,7 @@ window.FamoDocuments=(()=>{
     const mark='<svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0B5A6C"/><path d="M11 8h11v3.4h-7.2v3.3h6.2v3.4h-6.2V24H11z" fill="#FFFFFF"/></svg>';
     const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?L.vat+" "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
     const lg=COMPANY.legal||{};
-    const termsUrl=(typeof location!=="undefined"&&/^https?:/.test(location.protocol)?location.origin:"")+"/voorwaarden.html";
+    const termsUrl=(typeof location!=="undefined"&&/^https?:/.test(location.protocol)?location.origin:"")+"/voorwaarden";
     const termsLine=COMPANY.voorwaardenVersie?esc(L.terms.replace("{v}",COMPANY.voorwaardenVersie).replace("{u}",termsUrl)):"";
     const legalLine=[lg.naam?(lg.naam+(lg.rechtsvorm&&!String(lg.naam).toLowerCase().split(/[^a-z0-9.]+/).includes(String(lg.rechtsvorm).toLowerCase())?" "+lg.rechtsvorm:"")):"",lg.ondernemingsnummer?L.companyNo+" "+lg.ondernemingsnummer:"",lg.rpr||"",lg.naam&&lg.handelsnaam&&lg.handelsnaam!==lg.naam?L.tradeName+" "+lg.handelsnaam:""].filter(Boolean).map(esc).join(" · ");
     // En-tête : à gauche qui envoie, à droite quel document.

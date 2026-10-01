@@ -32,14 +32,14 @@ describe("Interface : traductions, navigation par rôle, contrats frontend", () 
     // --- I. Navigation v2 : destinations quotidiennes et séparation des rôles ---
     {
       const ui = fs.readFileSync(path.join(ROOT, "assets", "ui.js"), "utf8");
-      assert.match(ui, /const NAV_DAILY\s*=\s*\[\["bestellingen\.html",\s*"Bestellingen"[\s\S]*?\["entrepot\.html",\s*"Magazijn"[\s\S]*?\["leveringen\.html",\s*"Leveringen"/, "I destinations quotidiennes v2");
-      assert.match(ui, /const NAV_ADMIN\s*=\s*\[\["invoer\.html",\s*"Invoeren"[\s\S]*?\["documenten\.html",\s*"Documenten"[\s\S]*?\["beheer\.html",\s*"Beheer"/, "I destinations beheer v2");
-      assert.match(ui, /const NAV_STAFF_MORE\s*=\s*\[\["invoer\.html",\s*"Invoeren"[\s\S]*?\["documenten\.html",\s*"Documenten"\]?[^\]]*\]\s*\]/, "I personnel : Invoeren + Documenten, sans Beheer");
+      assert.match(ui, /const NAV_DAILY\s*=\s*\[\["bestellingen\.html",\s*"\/team\/bestellingen",\s*"Bestellingen"[\s\S]*?\["entrepot\.html",\s*"\/team\/magazijn",\s*"Magazijn"[\s\S]*?\["leveringen\.html",\s*"\/team\/leveringen",\s*"Leveringen"/, "I destinations quotidiennes v2");
+      assert.match(ui, /const NAV_ADMIN\s*=\s*\[\["invoer\.html",\s*"\/team\/invoeren",\s*"Invoeren"[\s\S]*?\["documenten\.html",\s*"\/team\/documenten",\s*"Documenten"[\s\S]*?\["beheer\.html",\s*"\/beheer",\s*"Beheer"/, "I destinations beheer v2");
+      assert.match(ui, /const NAV_STAFF_MORE\s*=\s*\[\["invoer\.html",\s*"\/team\/invoeren",\s*"Invoeren"[\s\S]*?\["documenten\.html",\s*"\/team\/documenten",\s*"Documenten"\]?[^\]]*\]\s*\]/, "I personnel : Invoeren + Documenten, sans Beheer");
       assert.ok(!/NAV_STAFF_MORE\s*=[^;]*beheer\.html/.test(ui), "I personnel sans écran Beheer");
       assert.match(ui, /admin\s*\?\s*NAV_ADMIN\s*:\s*NAV_STAFF_MORE/, "I menu sélectionné selon le rôle");
-      assert.match(ui, /link\(\["stock\.html",\s*"Voorraad"/, "I Voorraad voor personeel én beheerder");
-      assert.match(fs.readFileSync(path.join(ROOT, "assets", "pages", "stock.js"), "utf8"), /K\.requireStaff\(\)/, "I stock.js open voor personeel");
-      assert.match(fs.readFileSync(path.join(ROOT, "assets", "pages", "invoer.js"), "utf8"), /K\.requireStaff\(\)/, "I invoer.js open voor personeel");
+      assert.match(ui, /link\(\["stock\.html",\s*"\/team\/voorraad",\s*"Voorraad"/, "I Voorraad voor personeel én beheerder");
+      assert.match(fs.readFileSync(path.join(ROOT, "assets", "pages", "team", "voorraad.js"), "utf8"), /K\.requireStaff\(\)/, "I stock.js open voor personeel");
+      assert.match(fs.readFileSync(path.join(ROOT, "assets", "pages", "team", "invoeren.js"), "utf8"), /K\.requireStaff\(\)/, "I invoer.js open voor personeel");
     }
   });
 
@@ -52,12 +52,12 @@ describe("Interface : traductions, navigation par rôle, contrats frontend", () 
       const read = rel => fs.readFileSync(path.join(ROOT, rel), "utf8");
       const common = read("assets/pages/staff-common.js");
       const klant = read("assets/pages/klant.js");
-      const orders = read("assets/pages/bestellingen.js");
-      const warehouse = read("assets/pages/entrepot.js");
-      const deliveries = read("assets/pages/leveringen.js");
-      const docs = read("assets/pages/documenten.js");
+      const orders = read("assets/pages/team/bestellingen.js");
+      const warehouse = read("assets/pages/team/magazijn.js");
+      const deliveries = read("assets/pages/team/leveringen.js");
+      const docs = read("assets/pages/team/documenten.js");
       const beheer = read("assets/pages/beheer.js");
-      const stock = read("assets/pages/stock.js");
+      const stock = read("assets/pages/team/voorraad.js");
 
       assert.match(common, /data-act="validate"[\s\S]*?Klaarzetten/, "V2 action de préparation");
       assert.match(common, /data-act="depart"[\s\S]*?Vertrekt/, "V2 action de départ");

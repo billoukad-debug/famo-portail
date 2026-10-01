@@ -323,7 +323,7 @@ function withMail() {
   };
   return { sent, done() { global.fetch = prevFetch; delete process.env.RESEND_API_KEY; delete process.env.PORTAL_URL; clear(); } };
 }
-const linkIn = (m) => decodeURIComponent((/\/wachtwoord\.html\?t=([^\s"]+)/.exec(m.text) || [])[1] || "");
+const linkIn = (m) => decodeURIComponent((/\/wachtwoord\?t=([^\s"]+)/.exec(m.text) || [])[1] || "");
 
 test("A-05 : reset → lien à usage unique, l'ancien mot de passe vaut jusqu'au choix du nouveau", async () => {
   const mail = withMail();
@@ -337,7 +337,7 @@ test("A-05 : reset → lien à usage unique, l'ancien mot de passe vaut jusqu'au
     assert.match(m.subject, /mot de passe/, "client FR : e-mail en français");
     const token = linkIn(m);
     assert.match(token, /^r\./, "lien wachtwoord.html?t=…");
-    assert.ok(m.text.includes("https://portaal.famo.test/wachtwoord.html?t="), "lien absolu vers PORTAL_URL");
+    assert.ok(m.text.includes("https://portaal.famo.test/wachtwoord?t="), "lien absolu vers PORTAL_URL");
     assert.ok(!m.text.includes("oud-wachtwoord") && !/scrypt\$/.test(m.html), "aucun mot de passe dans l'e-mail");
     // Rien n'a changé tant que le client n'a pas choisi : l'ancien mot de passe ouvre toujours.
     assert.equal((await callApi("catalogue", { method: "POST", body: { user: "reset1", pw: "oud-wachtwoord" } })).statusCode, 200);
@@ -429,7 +429,7 @@ test("A-10 : garde Origin / Content-Type", async () => {
   assert.equal(guard.sameOrigin(req({ origin: "https://evil.test" })), false);
   assert.equal(guard.sameOrigin(req({ origin: "https://portaal.famo.test.evil.test" })), false);
   assert.equal(guard.sameOrigin(req({ origin: "null" })), false, "Origin null (iframe sandbox, no-referrer)");
-  assert.equal(guard.sameOrigin(req({ referer: "https://portaal.famo.test/beheer.html" })), true, "Referer à défaut d'Origin");
+  assert.equal(guard.sameOrigin(req({ referer: "https://portaal.famo.test/beheer" })), true, "Referer à défaut d'Origin");
   assert.equal(guard.sameOrigin(req({ referer: "https://evil.test/x" })), false);
   assert.equal(guard.sameOrigin(req({ "content-type": "application/json" })), true, "sans Origin ni Referer : JSON accepté");
   assert.equal(guard.sameOrigin(req({ "content-type": "text/plain" })), false, "sans Origin ni Referer : formulaire refusé");

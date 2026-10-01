@@ -148,7 +148,7 @@
     "Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.": "Indiquez votre identifiant et l'adresse e-mail de votre établissement. S'ils correspondent, nous envoyons un nouveau mot de passe à cette adresse.",
     "Nieuw wachtwoord aanvragen": "Demander un nouveau mot de passe", "E-mailadres van uw zaak": "Adresse e-mail de votre établissement", "E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.": "L'envoi d'e-mail n'est pas possible pour le moment. Appelez-nous ou écrivez-nous pour un nouveau mot de passe.",
     "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe.",
-    // documentvoorbeeld (staff-doc-preview.js)
+    // documentvoorbeeld (assets/docs/voorbeeld.js)
     "Documentvoorbeeld": "Aperçu du document", "Afdrukken": "Imprimer", "PDF downloaden": "Télécharger le PDF", "Document laden…": "Chargement du document…",
     "Geen documentinhoud beschikbaar.": "Aucun contenu de document disponible.", "Afdrukken mislukt: voorbeeld niet geladen.": "Impression impossible : aperçu non chargé.", "Afdrukken mislukt. Probeer opnieuw.": "Impression impossible. Réessayez.",
     "Download mislukt: voorbeeld niet geladen.": "Téléchargement impossible : aperçu non chargé.", "PDF genereren…": "Création du PDF…", "PDF gedownload:": "PDF téléchargé :", "PDF downloaden mislukt.": "Le téléchargement du PDF a échoué.",
@@ -203,7 +203,7 @@
     // Catégories du catalogue Airtable (valeurs françaises historiques) ; repli : valeur brute.
     cat: { "poisson": "Vis", "poissons": "Vis", "coquillages": "Schelpdieren", "coquillage": "Schelpdieren", "crustacés": "Schaaldieren", "crustaces": "Schaaldieren", "crustacé": "Schaaldieren", "céphalopodes": "Inktvis", "fumé": "Gerookt", "surgelé": "Diepvries", "divers": "Algemeen", "général": "Algemeen", "": "Algemeen" }
   };
-  // documents.js lit ce même dictionnaire (famoNL) : une seule source (ancien staff-i18n.js).
+  // assets/docs/documents.js lit ce même dictionnaire (famoNL) : une seule source (ancien staff-i18n.js).
   global.FAMO_NL = K.NL;
   global.famoNL = {
     status: v => K.NL.status[v] || v,
@@ -284,7 +284,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "779cc54cc4";
+  K.DOCS_VER = "8e28e60aa8";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -295,7 +295,7 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    docsLoading = ["/assets/vat.js", "/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
+    docsLoading = ["/assets/vat.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;
@@ -700,7 +700,8 @@
   K.go = (path, params) => { const q = params ? "?" + new URLSearchParams(params).toString() : ""; location.hash = "#/" + path + q; };
 
   /* ---------- personeel/beheer shell ---------- */
-  const NAV_DAILY = [["bestellingen.html", "Bestellingen", "orders"], ["entrepot.html", "Magazijn", "box"], ["leveringen.html", "Leveringen", "truck"]];
+  // [clé de pastille, URL, libellé, icône] : la clé reste l'ancien nom de fichier (mémoire « vu » des pastilles inchangée).
+  const NAV_DAILY = [["bestellingen.html", "/team/bestellingen", "Bestellingen", "orders"], ["entrepot.html", "/team/magazijn", "Magazijn", "box"], ["leveringen.html", "/team/leveringen", "Leveringen", "truck"]];
   // Invoeren en Voorraad staan open voor het personeel (bestelling ingeven aan de telefoon, voorraad
   // tellen) ; enkel verwijderen in Voorraad en Beheer blijven voor de beheerder (server : adminOk).
   // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
@@ -752,30 +753,30 @@
     K.$$("[data-badgemode]").forEach(x => { const on = x.dataset.badgemode === b.dataset.badgemode; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
     K.setBadges({});
   });
-  const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];
-  const NAV_STAFF_MORE = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"]];
+  const NAV_ADMIN = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"], ["beheer.html", "/beheer", "Beheer", "settings"]];
+  const NAV_STAFF_MORE = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"]];
   K.shell = function (opts) {
     const o = opts || {};
     K.lang = "nl"; // personeel en beheer werken altijd in het Nederlands, ook op een toestel dat het klantportaal in het Frans toont
     if (doc && doc.documentElement) doc.documentElement.lang = "nl";
-    const here = (location.pathname.split("/").pop() || "").toLowerCase();
+    const here = (location.pathname.replace(/\.html$/, "").replace(/\/+$/, "") || "/").toLowerCase(); // URL propre (/team/magazijn), avec ou sans .html
     const admin = K.staff.isAdmin();
     const portal = o.portal || (admin ? "beheer" : "personeel");
     document.body.classList.remove("portal-klant", "portal-personeel", "portal-beheer");
     document.body.classList.add("portal-" + portal);
-    const link = ([href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="/' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span><b class="nbadge" data-badge="' + href + '" hidden></b></a>';
+    const link = ([key, href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span><b class="nbadge" data-badge="' + key + '" hidden></b></a>';
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
-    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/team/bestellingen"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
-      link(["stock.html", "Voorraad", "stock"]) +
+      link(["stock.html", "/team/voorraad", "Voorraad", "stock"]) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
       '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
-    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-contrasttoggle aria-pressed="' + (K.contrast() === "hoog") + '" title="Hoog contrast" aria-label="Hoog contrast">' + K.icon("contrast") + '</button><button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
+    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-contrasttoggle aria-pressed="' + (K.contrast() === "hoog") + '" title="Hoog contrast" aria-label="Hoog contrast">' + K.icon("contrast") + '</button><button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
@@ -787,7 +788,7 @@
     const edge = () => { const max = sideEl.scrollWidth - sideEl.clientWidth; sideEl.classList.toggle("more-r", max - sideEl.scrollLeft > 4); sideEl.classList.toggle("more-l", sideEl.scrollLeft > 4); };
     const onNav = sideEl.querySelector(".nav.on"); if (onNav && sideEl.scrollWidth > sideEl.clientWidth) sideEl.scrollLeft = Math.max(0, onNav.offsetLeft - (sideEl.clientWidth - onNav.offsetWidth) / 2);
     sideEl.addEventListener("scroll", edge, { passive: true }); if (global.addEventListener) global.addEventListener("resize", edge); edge();
-    K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
+    K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/team/aanmelden"; });
     globalSearch(app);
     return document.getElementById("page");
   };
@@ -802,9 +803,9 @@
     let hits = [], cur = 0;
     const source = () => (global.S && global.S.load ? global.S.load().then(S => S.orders) : K.api("/api/allorders").then(d => d.orders || []));
     const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
-    const open = o => { location.href = "/order.html?id=" + encodeURIComponent(o.id); };
+    const open = o => { location.href = "/team/bestelling?id=" + encodeURIComponent(o.id); };
     const paint = () => {
-      list.innerHTML = hits.length ? hits.map((o, i) => '<a role="option" href="/order.html?id=' + encodeURIComponent(o.id) + '" class="gs-item' + (i === cur ? " on" : "") + '"' + (i === cur ? ' aria-selected="true"' : "") + '><b>' + K.esc(o.client || "—") + '</b><span class="quiet mono">' + K.esc(o.ref || "") + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</span><span class="quiet">' + K.esc(K.relDay(o.dateLiv || o.date || "")) + " · " + K.esc(K.status(o.statut)) + '</span></a>').join("") : '<div class="gs-empty quiet">Geen bestelling gevonden</div>';
+      list.innerHTML = hits.length ? hits.map((o, i) => '<a role="option" href="/team/bestelling?id=' + encodeURIComponent(o.id) + '" class="gs-item' + (i === cur ? " on" : "") + '"' + (i === cur ? ' aria-selected="true"' : "") + '><b>' + K.esc(o.client || "—") + '</b><span class="quiet mono">' + K.esc(o.ref || "") + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</span><span class="quiet">' + K.esc(K.relDay(o.dateLiv || o.date || "")) + " · " + K.esc(K.status(o.statut)) + '</span></a>').join("") : '<div class="gs-empty quiet">Geen bestelling gevonden</div>';
       list.hidden = false; input.setAttribute("aria-expanded", "true");
     };
     const search = K.debounce(async () => {
@@ -835,10 +836,10 @@
   K.requireStaff = async function (opts) {
     const o = opts || {};
     const ok = await K.staff.check();
-    if (!ok) { K.saveReturn(); location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"); return false; }
-    if (o.admin && !K.staff.isAdmin()) { K.saveReturn(); location.replace("/beheer-login.html?denied=1"); return false; }
+    if (!ok) { K.saveReturn(); location.replace(o.admin ? "/beheer/aanmelden" : "/team/aanmelden"); return false; }
+    if (o.admin && !K.staff.isAdmin()) { K.saveReturn(); location.replace("/beheer/aanmelden?denied=1"); return false; }
     if (K.staff.offline) { K.toast("Geen netwerk · laatst geladen gegevens; bevestigingen gaan in de wachtrij", { kind: "err" }); global.addEventListener("online", () => { K.staff.offline = false; }, { once: true }); }
-    document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"), 1200); }, { once: true });
+    document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer/aanmelden" : "/team/aanmelden"), 1200); }, { once: true });
     return true;
   };
   K.klantTabs = active => {

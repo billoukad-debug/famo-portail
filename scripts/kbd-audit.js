@@ -190,7 +190,7 @@ async function staff(b, W) {
   const ctx = await b.newContext({ viewport: { width: W, height: W < 600 ? 844 : 900 }, hasTouch: W < 600 });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "équipe " + W + " · " + e.message));
   const J = journey("équipe " + W, p, cdp);
-  await p.goto(B + "/personeel.html"); await p.waitForTimeout(700);
+  await p.goto(B + "/team/aanmelden"); await p.waitForTimeout(700);
   if (await J.tabTo("#code", "connexion")) { await p.keyboard.type("team-dev-code"); await p.keyboard.press("Enter"); }
   await p.waitForURL(/bestellingen/); await p.waitForTimeout(1500);
   // Vues Tabel / Bord : état exposé, focus gardé.
@@ -218,7 +218,7 @@ async function staff(b, W) {
     }
     // Leveringen de la même commande : Vertrekt → Ontvangst bevestigen (Entrée dans le champ = bevestigen).
     const day = await p.evaluate(id => (window.S && S.byId(id) || {}).day || "", oid);
-    await p.goto(B + "/leveringen.html?dag=" + encodeURIComponent(day)); await p.waitForTimeout(1500);
+    await p.goto(B + "/team/leveringen?dag=" + encodeURIComponent(day)); await p.waitForTimeout(1500);
     if (await J.tabTo('[data-act="depart"][data-id="' + oid + '"]', "Leveringen", { max: 120 })) {
       await p.keyboard.press("Enter"); await p.waitForTimeout(400);
       const d = await J.info(); if (!d.dialog) add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · Ronde vertrekt?");
@@ -240,7 +240,7 @@ async function staff(b, W) {
       }
     }
     // Fiche de la commande livrée → aperçu de la facture (équipe) : modale, Échap, retour du focus.
-    await p.goto(B + "/order.html?id=" + encodeURIComponent(oid)); await p.waitForTimeout(1500);
+    await p.goto(B + "/team/bestelling?id=" + encodeURIComponent(oid)); await p.waitForTimeout(1500);
     if (await J.tabTo('[data-act="invoice"][data-id="' + oid + '"]', "Fiche commande", { max: 60 })) {
       await p.keyboard.press("Enter"); await p.waitForTimeout(2500);
       const g = await J.info(); if (g.dialog !== "famoDocTitle") add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · aperçu facture");
@@ -252,13 +252,13 @@ async function staff(b, W) {
     }
   }
   // Magazijn : Vandaag / Morgen exposés, Bord sans bouton imbriqué dans un lien.
-  await p.goto(B + "/entrepot.html#/dag"); await p.waitForTimeout(1400);
+  await p.goto(B + "/team/magazijn#/dag"); await p.waitForTimeout(1400);
   if (await J.tabTo(".page-h .opt [data-day]:not(.on)", "Magazijn")) {
     await p.keyboard.press("Enter"); await J.notLost("Magazijn : autre jour", 500);
     const st = await p.evaluate(() => { const a = document.activeElement; return a && a.matches("[data-day]") ? a.getAttribute("aria-pressed") : "?"; });
     if (st !== "true") add("4.1.2 état non exposé", "équipe " + W + " · Magazijn : jour choisi sans aria-pressed=true");
   }
-  await p.goto(B + "/entrepot.html#/bord"); await p.waitForTimeout(1400);
+  await p.goto(B + "/team/magazijn#/bord"); await p.waitForTimeout(1400);
   const nested = await p.evaluate(() => document.querySelectorAll("a button, a a, button button, button a").length);
   if (nested) add("4.1.2 élément interactif imbriqué", "équipe " + W + " · Magazijn Bord : " + nested);
   await J.tabTo('[data-act]', "Magazijn Bord", { max: 60 });
@@ -280,9 +280,9 @@ async function beheer(b) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "beheer · " + e.message));
   const J = journey("beheer", p, cdp);
-  await p.goto(B + "/beheer-login.html"); await p.waitForTimeout(700);
+  await p.goto(B + "/beheer/aanmelden"); await p.waitForTimeout(700);
   if (await J.tabTo("#code", "connexion")) { await p.keyboard.type("beheer-dev-code"); await p.keyboard.press("Enter"); }
-  await p.waitForURL(/beheer\.html/); await p.waitForTimeout(1500);
+  await p.waitForURL(/\/beheer(?:[?#]|$)/); await p.waitForTimeout(1500);
   if (await J.tabTo('.tabs a[href="#/producten"]', "Overzicht")) {
     await p.keyboard.press("Enter"); await J.notLost("onglet Producten", 1200);
     const cur = await p.evaluate(() => document.querySelector('.tabs a[href="#/producten"]').getAttribute("aria-current"));

@@ -3,7 +3,7 @@
   "short_name": "FAMO Team",
   "description": "Klaarzetten, leveren en ontvangst bevestigen — ook met zwak netwerk.",
   "lang": "nl-BE",
-  "start_url": "/bestellingen.html",
+  "start_url": "/team/bestellingen",
   "scope": "/",
   "display": "standalone",
   "background_color": "#EFF3F3",

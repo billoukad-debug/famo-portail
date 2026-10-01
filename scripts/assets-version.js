@@ -15,7 +15,7 @@ const crypto = require("crypto");
 
 const ROOT = path.join(__dirname, "..");
 const CHECK = process.argv.includes("--check");
-const DOCS = ["assets/vat.js", "staff-company.js", "documents.js", "staff-doc-preview.js"];
+const DOCS = ["assets/vat.js", "assets/docs/bedrijf.js", "assets/docs/documents.js", "assets/docs/voorbeeld.js"];
 const hashOf = buf => crypto.createHash("sha256").update(buf).digest("hex").slice(0, 10);
 const read = rel => fs.readFileSync(path.join(ROOT, rel));
 
@@ -32,7 +32,8 @@ const docsVer = hashOf(Buffer.concat(DOCS.map(read)));
 write("assets/ui.js", read("assets/ui.js").toString("utf8").replace(/K\.DOCS_VER = "[^"]*";/, `K.DOCS_VER = "${docsVer}";`));
 
 // 2. Références dans les pages.
-const pages = fs.readdirSync(ROOT).filter(f => f.endsWith(".html"));
+const sub = d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith(".html")).map(f => d + "/" + f) : [];
+const pages = [...fs.readdirSync(ROOT).filter(f => f.endsWith(".html")), ...sub("team"), ...sub("beheer")];
 const ref = /(<(?:script[^>]*\ssrc|link[^>]*\shref)=")(\/(?:assets\/[^"?]+|[a-z-]+\.js))(?:\?v=[0-9a-f]+)?(")/g;
 for (const page of pages) {
   const html = read(page).toString("utf8");

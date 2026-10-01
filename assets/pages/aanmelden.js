@@ -12,7 +12,7 @@
     (denied ? K.c.warn("Deze pagina is enkel voor beheerders. Meld u aan met de beheerderscode.") : "") +
     K.c.field(admin ? "Beheerderscode of PIN" : "Personeelscode of PIN", K.c.input("code", { type: "password", attrs: ' autocomplete="current-password" inputmode="text" required style="font-size:20px;letter-spacing:.2em"' }), { id: "fCode", for: "code", hint: "Een persoonlijke PIN meldt u aan op naam; die naam staat dan in het logboek van correcties." }) +
     '<div id="err"></div><button type="submit" class="btn btn-p" id="btn" style="min-height:50px;font-size:15px">Aanmelden</button>' +
-    '<div class="quiet fs-125">' + (admin ? "Personeel? " : "Code of PIN kwijt? Vraag de beheerder. Na 5 foute pogingen wacht u 30 seconden. ") + (admin ? '<a href="/personeel.html">Naar het teamportaal</a>' : '<a href="/beheer-login.html">Beheerder? Naar beheer</a>') + '</div></form></div></div>';
+    '<div class="quiet fs-125">' + (admin ? "Personeel? " : "Code of PIN kwijt? Vraag de beheerder. Na 5 foute pogingen wacht u 30 seconden. ") + (admin ? '<a href="/team/aanmelden">Naar het teamportaal</a>' : '<a href="/beheer/aanmelden">Beheerder? Naar beheer</a>') + '</div></form></div></div>';
   document.getElementById("f").addEventListener("submit", async e => {
     e.preventDefault();
     const code = document.getElementById("code").value.trim();
@@ -24,8 +24,8 @@
       // Op naam aangemeld (persoonlijke PIN) : even begroeten, dan door.
       if (d.name) { K.toast("Welkom, " + d.name); K.busy(btn, true, "Welkom, " + d.name + "…"); }
       const ret = K.takeReturn(null);
-      setTimeout(() => { location.href = ret || (admin ? "/beheer.html" : "/bestellingen.html"); }, d.name ? 600 : 0);
+      setTimeout(() => { location.href = ret || (admin ? "/beheer" : "/team/bestellingen"); }, d.name ? 600 : 0);
     } catch (err) { document.getElementById("err").innerHTML = K.c.error(err.message); K.busy(btn, false); }
   });
-  K.staff.check().then(ok => { if (ok && (!admin || K.staff.isAdmin())) { const ret = K.takeReturn(null); location.replace(ret || (admin ? "/beheer.html" : "/bestellingen.html")); } });
+  K.staff.check().then(ok => { if (ok && (!admin || K.staff.isAdmin())) { const ret = K.takeReturn(null); location.replace(ret || (admin ? "/beheer" : "/team/bestellingen")); } });
 })();

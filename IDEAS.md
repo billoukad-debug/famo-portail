@@ -17,7 +17,7 @@ sans transformer le portail en ERP générique.
 |---|---|---|
 | Parcours ops staff | Solide | Règles métier côté serveur (prix, stock une fois, facture une fois) |
 | UI staff | En cours (PRs) | Shell + nav 4+Meer ; documents PDF in-app |
-| Go-live | En production | Vercel + Neon (`DB_BACKEND=postgres`) ; Airtable n'est plus utilisé. `/aan-de-slag.html` n'existe plus (redirigé vers `/beheer.html`, onglet Overzicht) |
+| Go-live | En production | Vercel + Neon (`DB_BACKEND=postgres`) ; Airtable n'est plus utilisé. `/aan-de-slag.html` n'existe plus (redirigé vers `/beheer`, onglet Overzicht) |
 | Facturation légale | Hors portail (décision du 27/09/2026) | Le comptable émet les factures légales via Billtobox (Peppol) ; les documents du portail sont internes (« pas une facture »), exports CSV/UBL à prévoir (`docs/adr/0005-facturation-legale.md`) |
 | Auth | Acceptable pour démarrer | Codes partagés (modifiables et hachés depuis Beheer) + PIN personnels (`Medewerkers`) ; pas de fallback ; mots de passe clients hachés (scrypt) ; session client par cookie HttpOnly (jeton signé 12 h) |
 | Portail client `/` | Fonctionnel, NL/FR, version ordinateur | Détail commande, documents téléchargeables, relevé impayés, favoris synchronisés, mot de passe oublié par e-mail ; session par cookie HttpOnly |
@@ -39,13 +39,13 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 ### A2. Configuratie → documents — [FAIT]
 **Fait :** les documents lisent l'identité, l'IBAN/BIC et les conditions de Configuratie (`/api/config`, `staff-common.js`, `klant.js`) ; bannière si l'IBAN manque.
 **Problème (d'origine) :** IBAN / BIC / identité saisis à l’onboarding n’apparaissaient pas sur LB / facture / creditnota.  
-**Idée :** `documents.js` (et preview Magazijn) lisent `/api/config` ; pied de page dynamique ; alerte si banque non confirmée.  
+**Idée :** `assets/docs/documents.js` (et preview Magazijn) lisent `/api/config` ; pied de page dynamique ; alerte si banque non confirmée.  
 **DoD :** changer IBAN dans Aan de slag → prochain PDF à jour.  
 **Effort :** faible · **Risque :** faible
 
 ### A3. Départ unifié (Magazijn = Order) — [FAIT]
 **Fait :** Magazijn, Bestellingen et la fiche commande passent par la même action partagée (`S.depart`, `assets/pages/staff-common.js`).
-**Problème :** Magazijn a un modal de confirmation avant déduction stock ; `order.html` peut partir sans le même garde-fou UX.  
+**Problème :** Magazijn a un modal de confirmation avant déduction stock ; `team/bestelling.html` peut partir sans le même garde-fou UX.  
 **Idée :** un seul flux `confirmAdvance` / sheet partagé pour « Sortie en livraison », avec retour clair des erreurs stock (`missing` / `insufficient`).  
 **DoD :** impossible de déduire le stock sans la même confirmation, quel que soit l’écran.  
 **Effort :** faible · **Risque :** faible (règle API déjà là)

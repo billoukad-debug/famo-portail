@@ -263,7 +263,7 @@
   }
   // Conditions générales (C-12) : nouvelle version publiée → lire et accepter avant de commander.
   async function ensureTerms(versie) {
-    const ok = await K.confirm({ title: K.t("Algemene voorwaarden"), text: K.t("Onze algemene verkoopsvoorwaarden zijn nieuw of gewijzigd. Lees en aanvaard ze om te bestellen."), html: '<a class="tlink" href="/voorwaarden.html" target="_blank" rel="noopener" style="display:inline-block;min-height:44px;line-height:44px">' + K.esc(K.t("Voorwaarden lezen")) + '</a>', yes: K.t("Ik aanvaard"), no: K.t("Later") });
+    const ok = await K.confirm({ title: K.t("Algemene voorwaarden"), text: K.t("Onze algemene verkoopsvoorwaarden zijn nieuw of gewijzigd. Lees en aanvaard ze om te bestellen."), html: '<a class="tlink" href="/voorwaarden" target="_blank" rel="noopener" style="display:inline-block;min-height:44px;line-height:44px">' + K.esc(K.t("Voorwaarden lezen")) + '</a>', yes: K.t("Ik aanvaard"), no: K.t("Later") });
     if (!ok) return false;
     await api("/api/klantorder", { json: Object.assign({}, creds(), { action: "acceptTerms", versie }) });
     if (cat) { cat.voorwaarden = { versie, aanvaard: true }; K.session.set(CAT_KEY, cat); }

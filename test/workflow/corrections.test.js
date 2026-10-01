@@ -113,9 +113,9 @@ describe("Corrections : terug, annuleren, herstellen, bewerken", () => {
       assert.match(common, /S\.correctPanel = function/, "AN10 correctPanel");
       assert.match(common, /correction: c\.correction, reden/, "AN10 correction + reden naar de server");
       assert.match(common, /act === "correct"\) S\.correctPanel/, "AN10 data-act correct");
-      for (const f of ["assets/pages/order.js", "assets/pages/entrepot.js", "assets/pages/leveringen.js"]) assert.match(readF(f), /S\.correctBtn\(o/, "AN10 Corrigeren op " + f);
-      assert.match(readF("assets/pages/bestellingen.js"), /value="Annulée"/, "AN10 filter Geannuleerd");
-      for (const f of ["assets/pages/entrepot.js", "assets/pages/bestellingen.js", "assets/pages/beheer.js"]) assert.match(readF(f), /K\.isClosed\(o\)/, "AN10 geannuleerd uit het dagwerk : " + f);
+      for (const f of ["assets/pages/team/bestelling.js", "assets/pages/team/magazijn.js", "assets/pages/team/leveringen.js"]) assert.match(readF(f), /S\.correctBtn\(o/, "AN10 Corrigeren op " + f);
+      assert.match(readF("assets/pages/team/bestellingen.js"), /value="Annulée"/, "AN10 filter Geannuleerd");
+      for (const f of ["assets/pages/team/magazijn.js", "assets/pages/team/bestellingen.js", "assets/pages/beheer.js"]) assert.match(readF(f), /K\.isClosed\(o\)/, "AN10 geannuleerd uit het dagwerk : " + f);
       assert.match(klantSrc2, /\/api\/klantorder/, "AN10 klant annuleert via API");
       assert.match(klantSrc2, /data-cancel-order/, "AN10 knop Annuleren klant");
       assert.match(ui, /K\.langSwitch = /, "AN10 taalkeuze");
@@ -127,8 +127,8 @@ describe("Corrections : terug, annuleren, herstellen, bewerken", () => {
       assert.deepEqual(missing, [], "AN10 elke K.t-sleutel heeft een Franse vertaling");
       assert.equal(sandboxFR.K.status("Facturée"), "Livrée"); assert.equal(sandboxFR.K.cat("Poisson"), "Poissons"); assert.equal(sandboxFR.K.date("2026-09-30"), "mer 30/09");
       assert.match(readF("assets/pages/beheer.js"), /action: "deleteProduct"/, "AN10 product verwijderen in Beheer");
-      assert.match(readF("assets/pages/stock.js"), /inCatalogue === false/, "AN10 orphelins in Voorraad");
-      assert.match(readF("assets/pages/stock.js"), /action: "deleteProduct", id: i\.productId/, "AN10 Voorraad verwijdert het product zelf");
+      assert.match(readF("assets/pages/team/voorraad.js"), /inCatalogue === false/, "AN10 orphelins in Voorraad");
+      assert.match(readF("assets/pages/team/voorraad.js"), /action: "deleteProduct", id: i\.productId/, "AN10 Voorraad verwijdert het product zelf");
       assert.match(readF("api/stock.js"), /actif: prod \? !!prod\.fields\["Actif"\]/, "AN10 Voorraad kent de actief-status");
       assert.ok(!/Catalogue\?filterByFormula=\$\{encodeURIComponent\("\{Actif\}=1"\)\}`\),\n    atAll\("Clients"\)/.test(readF("lib/beheer/common.js")), "AN10 Beheer laadt ook inactieve producten");
     }

@@ -137,18 +137,120 @@
     },
     {
       "source": "/aan-de-slag.html",
-      "destination": "/beheer.html",
+      "destination": "/beheer",
       "permanent": true
     },
     {
       "source": "/dagprep.html",
-      "destination": "/entrepot.html?view=dag",
+      "destination": "/team/magazijn?view=dag",
       "permanent": true
     },
     {
       "source": "/overzicht.html",
-      "destination": "/bestellingen.html",
+      "destination": "/team/bestellingen",
+      "permanent": true
+    },
+    {
+      "source": "/personeel",
+      "destination": "/team/aanmelden",
+      "permanent": true
+    },
+    {
+      "source": "/bestellingen",
+      "destination": "/team/bestellingen",
+      "permanent": true
+    },
+    {
+      "source": "/entrepot",
+      "destination": "/team/magazijn",
+      "permanent": true
+    },
+    {
+      "source": "/leveringen",
+      "destination": "/team/leveringen",
+      "permanent": true
+    },
+    {
+      "source": "/invoer",
+      "destination": "/team/invoeren",
+      "permanent": true
+    },
+    {
+      "source": "/documenten",
+      "destination": "/team/documenten",
+      "permanent": true
+    },
+    {
+      "source": "/stock",
+      "destination": "/team/voorraad",
+      "permanent": true
+    },
+    {
+      "source": "/lots",
+      "destination": "/team/lots",
+      "permanent": true
+    },
+    {
+      "source": "/order",
+      "destination": "/team/bestelling",
+      "permanent": true
+    },
+    {
+      "source": "/beheer-login",
+      "destination": "/beheer/aanmelden",
+      "permanent": true
+    },
+    {
+      "source": "/personeel.html",
+      "destination": "/team/aanmelden",
+      "permanent": true
+    },
+    {
+      "source": "/bestellingen.html",
+      "destination": "/team/bestellingen",
+      "permanent": true
+    },
+    {
+      "source": "/entrepot.html",
+      "destination": "/team/magazijn",
+      "permanent": true
+    },
+    {
+      "source": "/leveringen.html",
+      "destination": "/team/leveringen",
+      "permanent": true
+    },
+    {
+      "source": "/invoer.html",
+      "destination": "/team/invoeren",
+      "permanent": true
+    },
+    {
+      "source": "/documenten.html",
+      "destination": "/team/documenten",
+      "permanent": true
+    },
+    {
+      "source": "/stock.html",
+      "destination": "/team/voorraad",
+      "permanent": true
+    },
+    {
+      "source": "/lots.html",
+      "destination": "/team/lots",
+      "permanent": true
+    },
+    {
+      "source": "/order.html",
+      "destination": "/team/bestelling",
+      "permanent": true
+    },
+    {
+      "source": "/beheer-login.html",
+      "destination": "/beheer/aanmelden",
       "permanent": true
     }
-  ]
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }

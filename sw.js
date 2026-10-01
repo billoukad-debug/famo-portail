@@ -1,11 +1,11 @@
 // Service worker de l'équipe (audit H-12) : le portail s'ouvre et reste utilisable avec un
 // réseau faible (camionnette, chambre froide).
 //  - Fichiers statiques versionnés (?v=…) : cache d'abord (le nom change à chaque version).
-//  - Pages HTML : réseau d'abord, copie en cache en secours, sinon /offline.html.
+//  - Pages HTML : réseau d'abord, copie en cache en secours, sinon /offline.
 //  - /api/* : JAMAIS en cache (données clients, prix, sessions). La file hors ligne des
 //    confirmations de livraison est dans la page (assets/offline-queue.js), pas ici.
 const CACHE = "famo-static-v1";
-const OFFLINE = "/offline.html";
+const OFFLINE = "/offline";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll([OFFLINE])).then(() => self.skipWaiting()));

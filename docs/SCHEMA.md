@@ -80,7 +80,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Préparation validée`, `Préparée le` | case, date-heure | updateorder | allorders | Validation article par article. |
 | `Stock afgeboekt` | case | updateorder | allorders | Stock déduit au départ (une seule fois). |
 | `Livrée le`, `Livraison confirmée`, `Réceptionné par` | date-heure, case, texte | updateorder | allorders, klantdoc, orders | Réception. |
-| `Preuve de livraison` | pièces jointes | updateorder (lien https), bewijs (signature PNG `handtekening-…`, photo JPEG `foto-…`, H-09) | allorders, klantdoc (`getekend`), order.html | Ajoutées après la confirmation, jamais remplacées ; servies par /api/foto au personnel seulement (privé, sans cache). |
+| `Preuve de livraison` | pièces jointes | updateorder (lien https), bewijs (signature PNG `handtekening-…`, photo JPEG `foto-…`, H-09) | allorders, klantdoc (`getekend`), team/bestelling.html | Ajoutées après la confirmation, jamais remplacées ; servies par /api/foto au personnel seulement (privé, sans cache). |
 | `Factuurnummer`, `Facturée le` | texte, date-heure | updateorder | allorders, klantdoc, orders, ordermail | `FA-AAAA-NNNN`, **numéro interne du portail** (pas la facture légale : `docs/adr/0005-facturation-legale.md`). Dédoublonné par `ensureUnique`. |
 | `Payé le`, `Mode de paiement` | date-heure, liste `Contant` / `Overschrijving` / `Bancontact` / `Andere` | updateorder | allorders, orders | |
 | `Uitzondering levering`, `Uitzondering nota` | liste `Afwezig` / `Geweigerd` / `Gedeeltelijk` / `Beschadigd`, texte | updateorder | allorders, orders | Exception à la réception. |
@@ -96,8 +96,8 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
 | `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
 | `Lignes JSON` | texte (JSON) | order, staff (création), updateorder (lignes modifiées), onboarding (renommage produit, commandes ouvertes : `naam`) | updateorder (stock : départ, retour arrière, annulation, note de crédit ; lignes modifiées), orders (`items` pour « Opnieuw bestellen ») via `lib/lignesjson.js` | B4 (specs/016) : `[{productId, naam, qty, unit, prijs, comment?}]`, **écrit par le serveur seul** (référence, nom, unité, prix du catalogue ou prix figé ; rien du navigateur), à côté du texte qui reste l'affichage et le document légal. Le texte fait foi pour quantité et prix ; une ligne n'est rattachée à `productId` que si une entrée a le même `naam`. **Absent = ancienne commande** : appariement par nom, comme avant (aucun rattrapage). Jamais réécrit après `Facturée`. Hors du journal d'audit (bruit technique). Pas une donnée personnelle. |
-| `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, order.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
-| `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, order.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
+| `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, team/bestelling.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
+| `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, team/bestelling.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |
 
 ### `Stock` — stock par produit

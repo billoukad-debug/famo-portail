@@ -12,7 +12,7 @@ const { parseLines } = require("./updateorder");
 //     → 422 { problems:[…] } si une donnée obligatoire manque (n° TVA du client, adresse…) :
 //       mieux vaut le dire ici que de voir Billtobox refuser le fichier.
 //   Le CSV (une ligne par facture et par taux) est construit dans le navigateur à partir des
-//   mêmes montants (assets/vat.js, taux figés) : assets/pages/documenten.js.
+//   mêmes montants (assets/vat.js, taux figés) : assets/pages/team/documenten.js.
 module.exports = async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ error: "Gebruik GET." });
   if (!(await __auth.adminSession(req))) return res.status(401).json({ error: "Enkel voor de beheerder" });

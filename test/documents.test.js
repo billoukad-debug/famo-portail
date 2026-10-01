@@ -3,14 +3,14 @@ const assert = require("node:assert");
 const vm = require("vm");
 const fs = require("fs");
 const path = require("path");
-// Charge staff-company.js puis documents.js dans un faux window (mêmes helpers purs que le navigateur).
+// Charge assets/docs/bedrijf.js puis assets/docs/documents.js dans un faux window (mêmes helpers purs que le navigateur).
 function load() {
   const win = { console, Intl, Date };
   win.window = win;
   vm.createContext(win);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "assets", "vat.js"), "utf8"), win);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "staff-company.js"), "utf8"), win);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "documents.js"), "utf8"), win);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "assets/docs/bedrijf.js"), "utf8"), win);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "assets/docs/documents.js"), "utf8"), win);
   return win.FamoDocuments;
 }
 // Mode « portaal » : le portail émet la facture (tests historiques de la facture). Le mode par défaut
@@ -167,7 +167,7 @@ test("poids réel (H-04) : « besteld X » seulement là où la livraison diffè
 test("CGV (C-12) : mention au pied du document quand une version est publiée, NL et FR", () => {
   const D = load();
   D.setCompany({ ...CFG, voorwaardenVersie: "2026-09-28 10:05" });
-  assert.match(D.build(ORDER, "delivery"), /Onze algemene verkoopsvoorwaarden zijn van toepassing \(versie 2026-09-28 10:05\) : \/voorwaarden\.html/);
+  assert.match(D.build(ORDER, "delivery"), /Onze algemene verkoopsvoorwaarden zijn van toepassing \(versie 2026-09-28 10:05\) : \/voorwaarden/);
   assert.match(D.build({ ...ORDER, klant: { ...ORDER.klant, taal: "FR" } }, "invoice"), /Nos conditions générales de vente s'appliquent \(version 2026-09-28 10:05\)/);
   D.setCompany(CFG);
   assert.ok(!/verkoopsvoorwaarden zijn van toepassing/.test(D.build(ORDER, "delivery")), "rien sans version publiée");
