@@ -14,4 +14,4 @@ Au départ, le navigateur du client gardait son identifiant et son mot de passe 
 ## Conséquences
 - Le mot de passe ne circule qu'une fois ; un jeton volé expire en 12 h au plus ; révocation globale en changeant `SESSION_SECRET`.
 - Un jeton en `sessionStorage` reste lisible par un script injecté (XSS) : la CSP de `vercel.json` et `K.esc()` sont la défense. Un cookie HttpOnly pour le client reste une amélioration possible (`IDEAS.md`, B3).
-- Les expirations sont testées avec des jetons correctement signés (`scripts/workflow-check.js`, session staff et AX5).
+- Les expirations sont testées avec des jetons correctement signés (`test/workflow/` : session staff dans `sessions-roles.test.js`, AX5 dans `facturation.test.js`).

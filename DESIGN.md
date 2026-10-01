@@ -90,7 +90,7 @@ Prix négocié grand et serré, prix public petit et barré, « uw prijs » en *
 
 Chaque page HTML charge `assets/ui.css`, `assets/ui.js` puis son script `assets/pages/<page>.js`, qui dessine tout dans `#app`. La coque du personnel et de Beheer est produite par **`K.shell()`** (`assets/ui.js`) : barre latérale `.side` (desktop), rail (≤ 1180 px), bandeau (≤ 720 px), `.topbar`, onglets mobiles `.mtabs`.
 
-Menu (figé par les tests, section I de `scripts/workflow-check.js`) :
+Menu (figé par les tests, bloc I de `test/workflow/interface.test.js`) :
 
 - **Dagelijks** : Bestellingen · Magazijn · Leveringen (`NAV_DAILY`)
 - **Meer** (personnel) : Invoeren · Documenten (`NAV_STAFF_MORE`) ; **Beheer** (beheerder) : Invoeren · Documenten · Beheer (`NAV_ADMIN`)

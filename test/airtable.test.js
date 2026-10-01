@@ -1,6 +1,6 @@
 // lib/airtable.js : reprise sur 429 / 5xx et normalisation des erreurs HTTP.
 // Le mock de fetch renvoie de vraies réponses HTTP (statut + corps), contrairement au
-// mock ordonné de scripts/workflow-check.js (réponses sans statut).
+// mock ordonné des scénarios métier (call() de test/workflow/_helpers.js, réponses sans statut).
 // Les attentes entre deux essais passent par des timers simulés (mock.timers) : le
 // test reste instantané quelle que soit la durée du backoff choisie dans lib/airtable.js.
 // On teste le CONTRAT, pas le nombre exact d'essais ni les délais :

@@ -65,9 +65,11 @@ if (!failsSince(pagesStart)) ok("Pages : couche partagée + viewport");
 { const r = require("child_process").spawnSync(process.execPath, [path.join(ROOT, "scripts", "contrast-check.js")], { cwd: ROOT, encoding: "utf8" }); if (r.status !== 0) fail("Contraste AA insuffisant (docs/CHECKLIST-UX.md ACC-05) :\n" + (r.stdout || "").split("\n").filter(l => l.startsWith("✗") || l.startsWith("?")).join("\n")); else ok("Contrastes AA des couleurs du thème (ACC-05)"); }
 if (fs.existsSync(path.join(ROOT, "test"))) { const r = require("child_process").spawnSync(process.execPath, ["--test", ...fs.readdirSync(path.join(ROOT, "test")).filter(f => f.endsWith(".test.js")).map(f => "test/" + f)], { cwd: ROOT, stdio: "inherit" }); if (r.status !== 0) fail("node --test a échoué"); else ok("Tests unitaires"); }
 
-// 8. Scénarios métier hérités de la v1, adaptés aux contrats frontend v2.
+// 8. Scénarios métier (hérités de la v1, adaptés aux contrats frontend v2) : test/workflow/*.test.js,
+// un fichier par domaine, lancés en parallèle par scripts/workflow-check.js (audit F-10).
+const workflowFiles = list("test/workflow", /\.test\.js$/).length;
 const workflow = childProcess.spawnSync(process.execPath, [path.join(__dirname, "workflow-check.js")], { cwd: ROOT, stdio: "inherit" });
-if (workflow.status !== 0) fail("Scénarios métier critiques"); else ok("Scénarios métier critiques");
+if (workflow.status !== 0) fail("Scénarios métier critiques (test/workflow)"); else ok("Scénarios métier critiques (test/workflow : " + workflowFiles + " fichiers en parallèle)");
 
 if (errors.length) { console.log("\n\x1b[31m" + errors.length + " problème(s).\x1b[0m"); process.exit(1); }
 console.log("\n\x1b[32mTout est bon.\x1b[0m");
