@@ -25,6 +25,25 @@
   --sans:"Atkinson Hyperlegible Next",-apple-system,"Segoe UI",system-ui,sans-serif;--monof:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 
+/* Hoog contrast (knop in de bovenbalk, K.contrast ; volgt « meer contrast » van het toestel zolang er geen keuze is) :
+   vroege dienst, fel licht in de koelcel, vermoeide ogen. Zelfde tokens, wit vlak, donkerder inkt, zichtbare lijnen.
+   Tekst haalt AAA (7:1), lijnen en focus 4,5:1 : nagerekend door scripts/contrast-check.js. */
+:root[data-contrast="hoog"]{
+  --p:#06475A;--p-soft:#D3E5EA;--p-deep:#03303D;
+  --ink:#06141A;--ink-2:#1C3038;--ink-3:#24383F;--line:#6B7E84;--line-soft:#97A8AC;--line-strong:#3A4E55;--line-input:#2A3E45;--canvas:#FFFFFF;--soft:#E3EAEB;--card:#FFFFFF;
+  --st-new:#7A5000;--st-new-bg:#F7EDD3;--st-new-ink:#422C00;
+  --st-ready:#06475A;--st-ready-bg:#DDEBEE;--st-ready-ink:#04313D;
+  --st-road:#14304F;--st-road-bg:#E1E8F1;--st-road-ink:#112A45;
+  --st-done:#24502C;--st-done-bg:#E2EFE3;--st-done-ink:#1B3E21;
+  --st-inv:#4D5A5E;--st-inv-bg:#E8EDEE;--st-inv-ink:#2B3639;
+  --danger:#841F11;--danger-bg:#F8E4DF;--klei:#8A3210;--gold:#8A3210;
+  --th-bg:#EEF3F3;--row-hover:#EAF0F0;
+  --deep:#03161C;--deep-2:#0C2A33;--deep-ink:#FFFFFF;--deep-ink-2:#D2DFE2;
+}
+:root[data-contrast="hoog"] body{font-size:15.5px}
+:root[data-contrast="hoog"] :focus-visible{outline-width:3px}
+.ibtn[data-contrasttoggle][aria-pressed="true"]{background:var(--p-soft);color:var(--p-deep)}
+
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--canvas);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
@@ -402,7 +421,7 @@ a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration
 .orow-a{grid-area:a;display:none;gap:6px;justify-content:flex-end;flex-wrap:nowrap}.orow-a .btn{white-space:nowrap}
 /* Bestellingen (tableau) : mêmes largeurs de colonnes dans chaque groupe (Vandaag, Morgen…), les colonnes s'alignent d'un groupe à l'autre */
 .tbl-orders{table-layout:fixed;width:100%;min-width:920px} /* Artikelen garde au moins ~200 px */
-.tbl-orders th:nth-child(1){width:52px}.tbl-orders th:nth-child(2){width:150px}.tbl-orders th:nth-child(3){width:160px}.tbl-orders th:nth-child(5){width:130px}.tbl-orders th:nth-child(6){width:120px}.tbl-orders th:nth-child(7){width:100px}.tbl-orders th:nth-child(8){width:136px}
+.tbl-orders th:nth-child(1){width:52px}.tbl-orders th:nth-child(2){width:150px}.tbl-orders th:nth-child(3){width:160px}.tbl-orders th:nth-child(5){width:130px}.tbl-orders th:nth-child(6){width:120px}.tbl-orders th:nth-child(7){width:100px}.tbl-orders th:nth-child(8){width:180px} /* « Ontvangst bevestigen » (btn-sm) tient sur une ligne */
 @media (max-width:1440px){.tbl-orders .hide-md{display:none}} /* Betaling : visible en grand écran, sinon dans la fiche */
 .tbl-orders td{max-width:none}.tbl-orders td:last-child{text-align:right}
 /* Documenten : deux emplacements fixes (« Openen / PDF » toujours à la même place, l'action de paiement à côté) */

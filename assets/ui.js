@@ -260,7 +260,21 @@
     get(k, d) { try { const v = sessionStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } },
     del(k) { try { sessionStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };  // Hoog contrast (vroege dienst, fel licht in de koelcel, vermoeide ogen) : keuze per toestel. Zonder keuze volgt
+  // het toestel de systeeminstelling « meer contrast ». Attribuut op <html> : ui.css herdefinieert enkel de tokens.
+  K.contrast = () => {
+    const m = K.store.get("famoContrast", "");
+    if (m === "hoog" || m === "normaal") return m;
+    try { return global.matchMedia && global.matchMedia("(prefers-contrast: more)").matches ? "hoog" : "normaal"; } catch (e) { return "normaal"; }
   };
+  K.applyContrast = () => {
+    const html = global.document && global.document.documentElement; if (!html) return;
+    const hoog = K.contrast() === "hoog";
+    if (hoog) html.setAttribute("data-contrast", "hoog"); else html.removeAttribute("data-contrast");
+    (global.document.querySelectorAll ? Array.from(global.document.querySelectorAll("[data-contrasttoggle]")) : []).forEach(b => b.setAttribute("aria-pressed", String(hoog)));
+  };
+  K.applyContrast();
+
 
   // Voert fn uit voor elk item, hoogstens n tegelijk (bv. 3 facturen op betaald) ; geeft [{item, ok, error}] terug.
   K.pool = async (items, n, fn) => { const out = new Array(items.length); let i = 0; const worker = async () => { while (i < items.length) { const k = i++; try { out[k] = { item: items[k], ok: true, value: await fn(items[k]) }; } catch (error) { out[k] = { item: items[k], ok: false, error }; } } }; await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker)); return out; };
@@ -381,6 +395,7 @@
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     grip: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
     bell: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/>',
+    contrast: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 010 17z" fill="currentColor"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5M12 17h.01"/>',
     table: '<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"/>',
     board: '<path d="M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v13h-4z"/>',
@@ -755,10 +770,11 @@
       '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
-    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
+    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-contrasttoggle aria-pressed="' + (K.contrast() === "hoog") + '" title="Hoog contrast" aria-label="Hoog contrast">' + K.icon("contrast") + '</button><button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
+    app.querySelector("[data-contrasttoggle]").onclick = () => { K.store.set("famoContrast", K.contrast() === "hoog" ? "normaal" : "hoog"); K.applyContrast(); K.toast(K.contrast() === "hoog" ? "Hoog contrast aan" : "Hoog contrast uit"); };
     app.querySelector("[data-badgesettings]").onclick = () => K.panel({ title: "Tellers in het menu", sub: "Voor dit toestel", width: "420px", body: '<div class="badgeset"><p class="muted">' + K.badgeHelp() + '</p>' + K.badgeSwitch() + '</div>' });
     // G-20 : au téléphone la navigation défile à l'horizontale — un fondu montre qu'il reste des onglets,
     // et l'onglet de la page est ramené dans la vue.

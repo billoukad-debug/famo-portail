@@ -38,5 +38,18 @@ for (const [fg, bg, min, use] of PAIRS) {
   if (!ok) bad++;
   console.log((ok ? "✓ " : "✗ ") + r.toFixed(2).padStart(5) + " ≥ " + min + "  " + (fg + " / " + bg).padEnd(28) + use);
 }
-console.log(bad ? "\n" + bad + " couple(s) sous le seuil AA." : "\nTous les couples passent AA.");
+// Variante « hoog contrast » (:root[data-contrast="hoog"]) : mêmes couples, seuils relevés à AAA
+// (7 pour le texte, 4,5 pour les lignes, icônes et focus).
+const hoog = (css.match(/:root\[data-contrast="hoog"\]\s*\{([^}]*)\}/) || [])[1] || "";
+if (!hoog) { console.log("?  variante hoog contrast absente de ui.css"); bad++; }
+const T0 = Object.assign({}, T);
+hoog.replace(/--([a-z0-9-]+)\s*:\s*(#[0-9a-f]{3,8})/gi, (m, k, v) => { T[k] = v; return m; });
+console.log("\nHoog contrast (AAA) :");
+for (const [fg, bg, min, use] of PAIRS) {
+  const need = min >= 4.5 ? 7 : 4.5, r = ratio(fg, bg), ok = r >= need;
+  if (!ok) bad++;
+  console.log((ok ? "✓ " : "✗ ") + r.toFixed(2).padStart(5) + " ≥ " + need + "  " + (fg + " / " + bg).padEnd(28) + use);
+}
+Object.assign(T, T0);
+console.log(bad ? "\n" + bad + " couple(s) sous le seuil (AA, ou AAA en hoog contrast)." : "\nTous les couples passent AA, et AAA en hoog contrast.");
 process.exit(bad ? 1 : 0);
