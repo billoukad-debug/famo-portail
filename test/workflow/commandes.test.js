@@ -296,7 +296,7 @@ describe("Commandes : prix et quantités décidés par le serveur, minimum, leve
       const orderSrc = fs.readFileSync(path.join(ROOT, "api", "order.js"), "utf8");
       assert.ok(orderSrc.indexOf("checkDeliveryDate(dateLivraison)") < orderSrc.indexOf('rateLimited("order:"'), "AM4 la date est contrôlée avant le compteur anti-abus et Airtable");
       const klantSrc = fs.readFileSync(path.join(ROOT, "assets", "pages", "klant.js"), "utf8");
-      assert.match(klantSrc, /type="date" class="input" id="otherDay"/, "AM5 le panier propose un champ date libre");
+      assert.match(klantSrc, /type="date" class="input[^"]*" id="otherDay"/, "AM5 le panier propose un champ date libre");
       assert.match(klantSrc, /CUTOFF_HOUR = 22/, "AM5 coupure 22:00 côté client");
       assert.match(klantSrc, /Op zondag leveren we niet/, "AM5 message zondag côté client");
       const beheerSrc = fs.readFileSync(path.join(ROOT, "assets", "pages", "beheer.js"), "utf8");

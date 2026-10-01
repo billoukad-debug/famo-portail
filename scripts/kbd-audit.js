@@ -346,7 +346,7 @@ async function beheer(b) {
   }
   // Klanten → fiche → prix négocié : Entrée enregistre, focus gardé.
   if (await J.tabTo('.tabs a[href="#/klanten"]', "Producten", { back: true, max: 120 })) { await p.keyboard.press("Enter"); await J.notLost("onglet Klanten", 1200); }
-  if (await J.tabTo("a[data-c]:not([style*='p-soft'])", "Klanten", { max: 40 })) { await p.keyboard.press("Enter"); await J.notLost("autre klant", 1200); }
+  if (await J.tabTo("a[data-c]:not(.bg-p-soft)", "Klanten", { max: 40 })) { await p.keyboard.press("Enter"); await J.notLost("autre klant", 1200); }
   if (await J.tabTo("[data-price]", "Klantfiche", { max: 60 })) {
     await p.keyboard.type("9,99"); await p.keyboard.press("Enter");
     // Prix très éloigné du prix de base : le portail demande confirmation (garde-fou L-04), au clavier aussi.
