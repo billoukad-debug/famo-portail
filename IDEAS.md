@@ -29,7 +29,8 @@ sans transformer le portail en ERP générique.
 
 Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le modèle Airtable en profondeur.
 
-### A1. Preuve de livraison réelle (upload) — [À FAIRE]
+### A1. Preuve de livraison réelle (upload) — [FAIT]
+**Fait (28/09/2026, audit H-09) :** signature à l'écran + photo facultative depuis la feuille de réception Leveringen (`api/bewijs.js`, `assets/proof.js`), stockées en base (`famo_files`), visibles sur la fiche commande et le bon ; rejouables hors ligne.
 **Problème :** la réception accepte seulement un lien HTTPS externe (« Bewijs (optioneel) », champ `Preuve de livraison`) ; aucun envoi de photo depuis l'appareil.  
 **Idée :** dépôt direct (Vercel Blob en premier choix) depuis la feuille de confirmation Leveringen.  
 **DoD :** photo/signature jointe → URL HTTPS stockée dans Airtable → visible sur la facture / fiche commande.  
@@ -50,7 +51,7 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 **Effort :** faible · **Risque :** faible (règle API déjà là)
 
 ### A4. Leveringen « chauffeur d’abord » — [PARTIEL]
-**Fait :** ordre de tournée (`Volgorde levering`, glisser ou ▲▼), notes visibles. **Reste :** mode « une commande à la fois », preuve photo (A1).
+**Fait :** ordre de tournée (`Volgorde levering`, glisser ou ▲▼), notes visibles. **Reste :** mode « une commande à la fois » (la preuve photo A1 est faite).
 **Problème :** la file existe (Maps + réception) mais reste une liste plate.  
 **Idée :** ordre de tournée simple (glisser ou numéro), CTA photo-first, adresse + client en grand, mode une commande à la fois.  
 **DoD :** un livreur termine 5 stops sans ouvrir Magazijn ni Documenten.  
@@ -69,7 +70,8 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 
 À faire **avant** plusieurs tablettes / livreurs en parallèle sur les mêmes commandes.
 
-### B1. Numérotation facture atomique — [PARTIEL]
+### B1. Numérotation facture atomique — [FAIT]
+**Fait (28/09/2026, audit B-01) :** compteur par série dans la table `Compteurs`, écriture conditionnelle (CAS) sur le moteur SQL (`lib/billing.js`). Reste connu : un numéro réservé puis abandonné (échec après réservation) laisse un trou dans la série — voir `docs/RUNBOOK.md`.
 **Fait :** `ensureUnique` (api/updateorder.js) détecte un doublon FA ou CN juste après l'écriture et renumérote la commande au plus grand identifiant (tests AX1 et AQ5b). **Reste :** pas de compteur atomique, et rien de tel pour les références `CMD-` (`lib/ordernumber.js`).
 **Problème (d'origine) :** `FA-{année}-{nnnn}` = max+1 (course possible).  
 **Idée :** compteur dédié Airtable (ou table Compteurs) avec mise à jour conditionnelle ; retry si conflit.  
@@ -183,4 +185,4 @@ Le client `/` a été volontairement laissé hors redesign staff. Idées ciblée
 
 ---
 
-*Document de planification, mis à jour le 27/09/2026 : A2, A3, A5, B2, C2, D1, D2, D3 sont faits ; A4, B1, B3, C3 partiellement ; A1, B4, D4 restent à faire ; C1 est tranché (facturation légale chez le comptable). À trancher avec Bilou / Mohsen.*
+*Document de planification, mis à jour le 27/09/2026 : A2, A3, A5, B2, C2, D1, D2, D3 sont faits ; A4, B1, B3, C3 partiellement ; B4, D4 restent à faire ; A1 et B1 faits le 28/09/2026 ; C1 est tranché (facturation légale chez le comptable). À trancher avec Bilou / Mohsen.*

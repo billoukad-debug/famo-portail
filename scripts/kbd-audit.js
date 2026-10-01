@@ -262,6 +262,17 @@ async function staff(b, W) {
   const nested = await p.evaluate(() => document.querySelectorAll("a button, a a, button button, button a").length);
   if (nested) add("4.1.2 élément interactif imbriqué", "équipe " + W + " · Magazijn Bord : " + nested);
   await J.tabTo('[data-act]', "Magazijn Bord", { max: 60 });
+  // CLA-10 : une carte qui change de colonne (Klaar → Onderweg) garde le focus clavier sur sa nouvelle action.
+  if (W === 1440) {
+    const oid = await p.evaluate(() => { const b = Array.from(document.querySelectorAll(".ocard-acts [data-act]")).find(x => /Vertrekt/.test(x.textContent)); if (!b) return null; b.focus(); return b.closest(".ocard-group").querySelector(".ocard").dataset.oid; });
+    if (oid) {
+      await p.keyboard.press("Enter"); await p.waitForTimeout(1200);
+      if (await p.locator(".dialog [data-yes]").count()) { await p.keyboard.press("Enter"); }
+      await p.waitForTimeout(2500);
+      const where = await p.evaluate(id => { const a = document.activeElement, g = a && a.closest && a.closest(".ocard-group"), c = g && g.querySelector(".ocard"); return c && c.dataset.oid === id ? "ok" : (a ? a.tagName + "." + a.className : "?"); }, oid);
+      if (where !== "ok") add("CLA-10 focus perdu quand une carte change de colonne", "équipe 1440 · Magazijn Bord : " + where);
+    } else add("CLA-10 scénario impossible", "équipe 1440 · Magazijn Bord : aucune carte « Vertrekt » dans les données de démo");
+  }
   await ctx.close();
 }
 

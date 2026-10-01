@@ -132,8 +132,8 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 1. **Personnel à 5 h du matin** : une variante très contrastée (fond sombre, texte clair, cibles plus grandes) pour Magazijn et Leveringen, activable sur l'appareil.
 2. **Documents A4** : couleurs alignées sur Crème, mais la mise en page n'a pas été redessinée. C'est l'objet qui arrive physiquement chez le client.
 3. **E-mails** : couleurs alignées, gabarit à retravailler (en-tête, pied, mode sombre de Gmail et d'Outlook).
-4. **Logo** : le monogramme « F-houle » bleu sert de favicon, de tuile et d'en-tête de document. Il reste à valider comme logo, avec un mot-symbole « FAMO Seafood ».
-5. **Styles en ligne** : plus aucun dans les pages HTML, mais ≈ 460 `style="` dans le JavaScript des pages (≈ 140 dans `beheer.js`, ≈ 70 dans `klant.js`, ≈ 40 dans `order.js`) : à déplacer dans `ui.css`.
+4. **Logo** : le F sobre (spec 007) sert de marque, favicon, icône d'app et en-tête de document. Reste à décider : un mot-symbole « FAMO Seafood » dessiné, ou le nom en texte comme aujourd'hui.
+5. **Styles en ligne** : 264 `style="` dans le JavaScript des pages au 01/10/2026 (234 déjà migrés vers les utilitaires I-12 de `ui.css`), une quinzaine dans les pages HTML et le bloc `<style>` de `klant.html` : à déplacer dans `ui.css`.
 6. **Design system sur claude.ai** (« FAMO Portail Design System ») : il porte encore « Famo Trading » et les valeurs d'avant Crème. À resynchroniser sur ce dépôt.
 
 # Ce qu'il ne faut pas faire

@@ -33,7 +33,11 @@
   // erin : de API blijft eentalig, de vertaling gebeurt bij het tonen (K.errText).
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
-    "Verse vis en zeevruchten, Antwerpen": "Poissons et fruits de mer, Anvers", "Meer links": "Autres liens", "Personeel": "Personnel", "Beheer": "Gestion",
+    "Verse vis en zeevruchten, Antwerpen": "Poissons et fruits de mer, Anvers", "Meer links": "Autres liens",
+    "Die dag is te vroeg: de eerste mogelijke leverdag is {d}.": "Ce jour est trop tôt : le premier jour de livraison possible est {d}.",
+    "Bestel vóór {t} voor levering op {d}.": "Commandez avant {t} pour une livraison le {d}.",
+    "Levering op {d}. Vóór {t} besteld = geleverd op de eerstvolgende leverdag.": "Livraison le {d}. Commandé avant {t} = livré au prochain jour de livraison.",
+    "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór {t} voor levering op {d}.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant {t} pour une livraison le {d}.", "Personeel": "Personnel", "Beheer": "Gestion",
     "Vóór {t} besteld,": "Commandé avant {t},", "morgen in uw keuken.": "demain dans votre cuisine.",             "Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.": "Livraison {d} à Anvers et environs. Vous voyez vos prix négociés, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures.",
     "Tellers in het menu": "Pastilles du menu", "Nieuw": "Nouveau", "Uit": "Aucune", "nieuw sinds uw laatste bezoek": "nouveau depuis votre dernière visite",
     "Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.": "Nouveau : disparaît dès que vous ouvrez la page. Tout : reste tant qu'il y a quelque chose à faire. Aucune : pas de pastille.",
@@ -57,9 +61,9 @@
     "Geen levering op zondag. Vóór 22:00 besteld = morgen geleverd.": "Pas de livraison le dimanche. Commandé avant 22 h = livré demain.",
     "Leveradres": "Adresse de livraison", "Adres bij Famo bekend": "Adresse connue de Famo", "Ander adres? Zet het in de opmerking.": "Autre adresse ? Indiquez-la dans la remarque.",
     "Opmerking voor Famo": "Remarque pour Famo", "bv. graag achteraan bellen…": "ex. sonner à l’arrière…", "Totaal excl. btw": "Total HTVA",
-    "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór 22:00 voor levering morgen.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant 22 h pour une livraison demain.",
+   
     "Bestelling plaatsen": "Passer la commande", "Uw winkelmand is leeg": "Votre panier est vide", "Kies producten in de catalogus.": "Choisissez des produits dans le catalogue.", "Naar de catalogus": "Vers le catalogue",
-    "Op zondag leveren we niet. Kies een andere dag.": "Nous ne livrons pas le dimanche. Choisissez un autre jour.", "Die dag is te vroeg: bestel vóór 22:00 voor levering morgen.": "Ce jour est trop tôt : commandez avant 22 h pour une livraison demain.",
+    "Op zondag leveren we niet. Kies een andere dag.": "Nous ne livrons pas le dimanche. Choisissez un autre jour.",
     "Kies een dag binnen de komende 60 dagen.": "Choisissez un jour dans les 60 prochains jours.", "Winkelmand leegmaken?": "Vider le panier ?", "Alle artikelen worden verwijderd.": "Tous les articles seront retirés.",
     "Bestelling versturen…": "Envoi de la commande…", "Uw sessie is verlopen. Meld u opnieuw aan.": "Votre session a expiré. Reconnectez-vous.",
     // bevestigd
@@ -71,7 +75,7 @@
     "Mijn bestellingen": "Mes commandes", "Lopend": "En cours", "Geleverd · documenten": "Livrées · documents", "Te betalen": "À payer", "Levering": "Livraison",
     "Geleverd · betaald": "Livrée · payée", "Geleverd · openstaand": "Livrée · à payer", "Te laat": "En retard", "Factuur": "Facture", "Leveringsbon": "Bon de livraison", "Opnieuw bestellen": "Commander à nouveau",
     "Wordt klaargezet · wijzigen of annuleren: bel Famo.": "En préparation · pour modifier ou annuler : appelez Famo.", "Geen lopende bestellingen": "Aucune commande en cours", "Niets in deze lijst": "Rien dans cette liste",
-    "Bestel vóór 22:00 voor levering morgen.": "Commandez avant 22 h pour une livraison demain.", "Bestelling": "Commande", "annuleren?": "annuler ?", "Behouden": "Garder", "Annuleren…": "Annulation…", "geannuleerd": "annulée",
+    "Bestelling": "Commande", "annuleren?": "annuler ?", "Behouden": "Garder", "Annuleren…": "Annulation…", "geannuleerd": "annulée",
     "Ze wordt niet klaargezet en niet geleverd. U kunt ze daarna opnieuw bestellen.": "Elle ne sera ni préparée ni livrée. Vous pourrez la commander à nouveau ensuite.",
     "in de winkelmand gezet": "ajouté(s) au panier", "Deze artikelen staan niet meer in de catalogus": "Ces articles ne sont plus au catalogue",
     // favorieten
@@ -114,9 +118,9 @@
     "Aanvraag versturen mislukt. Probeer later opnieuw of bel ons.": "L'envoi de la demande a échoué. Réessayez plus tard ou appelez-nous.",
     "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een nieuw wachtwoord.": "Si les données sont correctes, vous recevrez dans quelques minutes un e-mail avec un nouveau mot de passe.",
     // leveringsregels (uit Configuratie) — {t} = deadline, {n} = dagen, {d} = dagenlijst, {m}/{r} = bedragen
-    "Bestel vóór {t} voor levering morgen": "Commandez avant {t} pour une livraison demain", "Bestel vóór {t} voor levering morgen.": "Commandez avant {t} pour une livraison demain.",
-    "Levering op {d}. Vóór {t} besteld = morgen geleverd.": "Livraison le {d}. Commandé avant {t} = livré demain.", "Die dag is te vroeg: bestel vóór {t} voor levering morgen.": "Ce jour est trop tôt : commandez avant {t} pour une livraison demain.",
-    "Kies een leverdag binnen de komende {n} dagen": "Choisissez un jour de livraison dans les {n} prochains jours", "De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór {t} voor levering morgen.": "La TVA est ajoutée sur la facture. Livraison gratuite · commandez avant {t} pour une livraison demain.",
+   
+   
+    "Kies een leverdag binnen de komende {n} dagen": "Choisissez un jour de livraison dans les {n} prochains jours",
     "Minimumbestelling {m} excl. btw · nog {r} toe te voegen.": "Commande minimum {m} HTVA · encore {r} à ajouter.", "Minimumbestelling {m} excl. btw": "Commande minimum {m} HTVA",
     "zo": "dim", "ma": "lun", "di": "mar", "wo": "mer", "do": "jeu", "vr": "ven", "za": "sam",
     // beschikbaarheid
