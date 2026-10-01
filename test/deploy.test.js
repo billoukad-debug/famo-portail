@@ -29,6 +29,20 @@ test("lib/ (nécessaire aux fonctions) et chemins internes bloqués en HTTP", ()
   for (const p of ["/lib/:path*", "/.dev-data/:path*", "/scripts/:path*", "/test/:path*"]) assert.ok(src.includes(p), p + " doit être redirigé");
 });
 
+test("anciennes adresses : redirigées par leur forme propre (cleanUrls passe avant les redirections)", () => {
+  // En production, /dagprep.html devient d'abord /dagprep (cleanUrls) : une source « /x.html » n'est jamais
+  // atteinte (incident du 01/10/2026 : /dagprep.html, /aan-de-slag.html, /overzicht.html finissaient en 404).
+  assert.equal(vercel.cleanUrls, true);
+  const src = new Map((vercel.redirects || []).map((r) => [r.source, r.destination]));
+  for (const s of src.keys()) assert.ok(!s.endsWith(".html"), s + " : source jamais atteinte avec cleanUrls, utiliser la forme sans .html");
+  const old = ["personeel", "bestellingen", "entrepot", "leveringen", "invoer", "documenten", "stock", "lots", "order", "beheer-login", "aan-de-slag", "dagprep", "overzicht"];
+  for (const n of old) {
+    assert.ok(src.has("/" + n), "/" + n + " doit être redirigée");
+    const to = src.get("/" + n).split("?")[0], file = to === "/" ? "index.html" : to.slice(1) + ".html";
+    assert.ok(fs.existsSync(path.join(ROOT, file)), "/" + n + " → " + to + " : page absente");
+  }
+});
+
 test("données de dev jamais suivies par git", () => {
   const gi = fs.readFileSync(path.join(ROOT, ".gitignore"), "utf8");
   assert.match(gi, /^\.dev-data\/$/m);
