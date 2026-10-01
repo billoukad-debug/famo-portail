@@ -30,7 +30,6 @@
   const deliverable = iso => { const r = rules(); return r.leverdagen.includes(DAY_KEYS[dow(iso)]) && !r.geslotenDagen.includes(iso); };
   // Eerste leverbare dag : morgen (na de deadline overmorgen), daarna de eerste leverdag die niet gesloten is.
   const firstDay = () => K.orderWindow(rules()).first;
-  const shortDay = iso => { try { return new Intl.DateTimeFormat(K.lang === "fr" ? "fr-BE" : "nl-BE", { weekday: "long", day: "numeric", month: "long" }).format(K.parseDate(iso)); } catch (e) { return iso; } };
   const lastDay = () => K.addDays(K.today(), rules().maxDagen);
   // Zelfde volgorde en meldingen als checkDate in lib/levering.js ; de deadline komt er client-side bij.
   const dayErr = iso => {
@@ -171,7 +170,7 @@
     const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" ? "Favorieten" : K.cat(p.cat)); (groups[g] = groups[g] || []).push(p); });
     const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : byCat(a, b)));
     const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + count(c) + '</span></button>';
-    const top = '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div class="grow"><h1 class="ktitle">' + K.t("Catalogus") + '</h1><span class="quiet ksub">' + K.esc(K.tt("Vóór {t} besteld, geleverd op {d}", { t: deadline(), d: shortDay(firstDay()) })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div>' +
+    const top = '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div class="grow"><h1 class="ktitle">' + K.t("Catalogus") + '</h1></div>' + K.c.avatar(cat.client.nom) + '</div>' +
       '<label class="search" style="max-width:none">' + K.icon("search") + '<input id="q" type="search" placeholder="' + K.t("Zoek een product…") + '" aria-label="' + K.t("Zoek een product…") + '" aria-keyshortcuts="/" value="' + K.esc(q) + '" autocomplete="off" spellcheck="false"></label>' +
       '<div class="cats" role="group" aria-label="' + K.t("Categorieën") + '">' + cats.map(catBtn).join("") + '</div></div>';
     const head = '<div class="prhead" aria-hidden="true"><span>' + K.t("Product") + '</span><span>' + K.t("Kaliber") + '</span><span>' + K.t("Eenheid") + '</span><span>' + K.t("Prijs excl. btw") + '</span><span></span><span>' + K.t("Aantal") + '</span></div>';
