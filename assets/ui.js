@@ -357,15 +357,20 @@
   K.saveReturn = () => K.session.set(K.RETURN, location.pathname + location.search + location.hash);
   K.takeReturn = fb => { const v = K.session.get(K.RETURN, null); K.session.del(K.RETURN); return v && v.startsWith("/") && !v.startsWith("//") ? v : (fb || null); };
 
-  /* ---------- klant sessie (ondertekend token, enkel in dit tabblad ; nooit het wachtwoord) ---------- */
+  /* ---------- klant sessie : HttpOnly-cookie van de server (famo_klant, IDEAS B3) ---------- */
+  // Het sessietoken zit in een cookie die JavaScript niet kan lezen. Dit tabblad bewaart enkel
+  // weergavegegevens : gebruikersnaam + id, naam en taal van de zaak. Nooit een token of wachtwoord.
   K.klant = {
     KEY: "famoKlant",
+    safe(v) { if (!v || !v.user) return null; const c = v.client || {}; return { user: String(v.user), client: { id: String(c.id || ""), nom: String(c.nom || ""), taal: c.taal === "FR" ? "FR" : "NL" } }; },
     get() { return K.session.get(K.klant.KEY, null); },
-    set(v) { K.session.set(K.klant.KEY, v); },
+    set(v) { const s = K.klant.safe(v); if (s) K.session.set(K.klant.KEY, s); else K.klant.clear(); },
     clear() { K.session.del(K.klant.KEY); },
-    // Oude sessie (van vóór het token) : wachtwoord nog één keer meesturen, daarna vervangt het token het.
-    creds() { const c = K.klant.get(); return c ? (c.token ? { token: c.token } : { user: c.user, pw: c.pw }) : null; },
-    setToken(token) { const c = K.klant.get(); if (!c || !token) return; const n = Object.assign({}, c, { token }); delete n.pw; K.klant.set(n); }
+    // Elke klant-API krijgt de gebruikersnaam mee : de server controleert dat de cookie bij dezelfde login hoort.
+    // Overgang (tot 31/10/2026) : een token van vóór de cookie gaat nog mee tot het eerste geslaagde verzoek
+    // (de server zet dan de cookie) ; forgetToken() wist het daarna.
+    creds() { const c = K.klant.get(); if (!c || !c.user) return null; return c.token ? { user: c.user, token: c.token } : { user: c.user }; },
+    forgetToken() { const c = K.klant.get(); if (c && (c.token || c.pw)) K.klant.set(c); }
   };
 
   /* ---------- iconen (één stijl, 24-grid, stroke) ---------- */

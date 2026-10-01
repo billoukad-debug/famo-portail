@@ -17,7 +17,8 @@
   const creds = () => K.klant.creds();
   // 401 op eender welke klant-API : opgeslagen gegevens wissen en terug naar de aanmelding (met melding).
   function expire() { K.klant.clear(); K.session.del(CAT_KEY); location.replace("/?sessie=verlopen"); }
-  const api = async (url, opts) => { try { return await K.api(url, opts); } catch (err) { if (err.status === 401) expire(); throw err; } };
+  // Na een geslaagd verzoek staat de sessie in de HttpOnly-cookie : een oud token in dit tabblad (overgang) wordt gewist.
+  const api = async (url, opts) => { try { const d = await K.api(url, opts); K.klant.forgetToken(); return d; } catch (err) { if (err.status === 401) expire(); throw err; } };
 
   /* ---------- leveringsregels (company.levering, zelfde bron als lib/levering.js) ---------- */
   // Standaardregels = lib/levering DEFAULTS ; enkel gebruikt zolang company.levering ontbreekt (oude cache).
@@ -89,11 +90,10 @@
   async function loadCatalogue(force) {
     const cached = K.session.get(CAT_KEY, null);
     if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; return cat; }
-    const d = await api("/api/catalogue", { json: creds(), retry: true });
-    if (d.token) K.klant.setToken(d.token); // jeton renouvelé à chaque ouverture du catalogue
+    const d = await api("/api/catalogue", { json: creds(), retry: true }); // de server vernieuwt de sessiecookie
     cat = { at: Date.now(), products: d.products || [], client: d.client, company: d.company, voorwaarden: d.voorwaarden || null };
     K.session.set(CAT_KEY, cat);
-    K.klant.set(Object.assign({}, K.klant.get() || sess, { client: d.client, company: d.company }));
+    K.klant.set({ user: sess.user, client: d.client });
     adoptFavs(d.client);
     return cat;
   }
@@ -468,9 +468,8 @@
       const btn = p.el.querySelector("#pwOk"); sending = true; K.busy(btn, true, K.t("Wijzigen…"));
       try {
         // Rechtstreeks K.api : een 401 betekent hier « huidig wachtwoord fout », niet « sessie verlopen ».
-        const changed = await K.api("/api/klantwachtwoord", { json: { user: sess.user, pw: huidig, nieuw } });
-        // L'ancien jeton ne vaut plus (il dépend du mot de passe) : le nouveau le remplace.
-        K.klant.setToken(changed.token);
+        // L'ancien cookie de session ne vaut plus (il dépend du mot de passe) : le serveur en pose un nouveau.
+        await K.api("/api/klantwachtwoord", { json: { user: sess.user, pw: huidig, nieuw } });
         p.close();
         K.toast(K.t("Wachtwoord gewijzigd. Gebruik voortaan uw nieuwe wachtwoord."));
       } catch (err) {
@@ -523,7 +522,7 @@
     K.on(app, "click", "[data-goto]", () => { ordFilter = "geleverd"; });
     K.on(app, "click", "[data-profile]", openProfilePanel);
     document.getElementById("pwChange").onclick = openPasswordPanel;
-    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { try { const c = K.klant.creds(); if (c && c.token) await K.api("/api/klantwachtwoord", { json: { action: "logout", token: c.token } }); } catch (e) { /* hors ligne : le jeton local est quand même effacé */ } K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
+    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { try { await K.api("/api/klantwachtwoord", { json: { action: "logout", token: (K.klant.creds() || {}).token } }); } catch (e) { /* hors ligne : les données locales sont quand même effacées */ } K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
   }
 
   /* ---------- router ---------- */

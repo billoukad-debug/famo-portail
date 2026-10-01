@@ -950,7 +950,8 @@ async function main() {
     assert.equal(r.res.statusCode, 200, "AL1 ancien mot de passe correct → changement accepté");
     assert.equal(r.res.payload.ok, true, "AL1 ok");
     assert.ok(!JSON.stringify(r.res.payload).includes("wachtwoord"), "AL1 le mot de passe n'est jamais renvoyé");
-    assert.match(String(r.res.payload.token), /^k\.recAnna\./, "AL1 nouveau jeton client (l'ancien ne vaut plus)");
+    assert.match(String((/famo_klant=([^;]*)/.exec([].concat(r.res.headers["Set-Cookie"] || []).join("\n")) || [])[1]), /^k\.recAnna\./, "AL1 nouveau jeton client, en cookie HttpOnly (l'ancien ne vaut plus)");
+    assert.equal(r.res.payload.token, undefined, "AL1 jamais de jeton dans le corps (spec 013)");
     assert.match(lookupAL(r.calls), /LOWER\(\{Gebruikersnaam\}\)='anna'/, "AL1 le client est retrouvé par son gebruikersnaam");
     assert.equal(patchesAL(r.calls).length, 1, "AL1 exactement un PATCH");
     assert.match(patchesAL(r.calls)[0].url, /\/Clients\/recAnna$/, "AL1 PATCH sur le client vérifié");
@@ -1808,17 +1809,18 @@ async function main() {
     assert.ok(ca.isHashed(upPw) && ca.checkPassword(upPw, "oud-klaar"), "AX4 le texte clair est remplacé par son empreinte");
 
     // AX5 — jeton client : valable, lié au mot de passe, refusé s'il est modifié ou périmé.
-    const tok = r.res.payload.token;
+    const tok = (/famo_klant=([^;]*)/.exec([].concat(r.res.headers["Set-Cookie"] || []).join("\n")) || [])[1]; // cookie HttpOnly (spec 013)
+    const jarAX = t => ({ headers: { cookie: "famo_klant=" + t } });
     assert.match(String(tok), /^k\.recL\./, "AX5 jeton renvoyé à la connexion");
     assert.ok(!JSON.stringify(r.res.payload).includes("oud-klaar"), "AX5 jamais le mot de passe dans la réponse");
     const REC_H = { id: "recL", fields: { Gebruikersnaam: "legacy", Wachtwoord: upPw, Nom: "Legacy" } };
-    r = await call(cat, { token: tok }, [REC_H, { records: [] }, { records: [] }, { records: [{ fields: {} }] }]);
+    r = await call(cat, {}, [REC_H, { records: [] }, { records: [] }, { records: [{ fields: {} }] }], jarAX(tok));
     assert.equal(r.res.statusCode, 200, "AX5 jeton accepté sans mot de passe");
     assert.match(r.calls[0].url, /\/Clients\/recL$/, "AX5 le client vient du jeton signé");
-    r = await call(cat, { token: tok }, [{ id: "recL", fields: { Gebruikersnaam: "legacy", Wachtwoord: ca.hashPassword("nieuw-pw-1") } }]);
+    r = await call(cat, {}, [{ id: "recL", fields: { Gebruikersnaam: "legacy", Wachtwoord: ca.hashPassword("nieuw-pw-1") } }], jarAX(tok));
     assert.equal(r.res.statusCode, 401, "AX5 mot de passe changé → ancien jeton refusé"); assert.equal(r.res.payload.expired, true);
     const forged = tok.replace(/^k\.recL\./, "k.recX.");
-    r = await call(cat, { token: forged }, []);
+    r = await call(cat, {}, [], jarAX(forged));
     assert.equal(r.res.statusCode, 401, "AX5 jeton falsifié → refusé sans lecture"); assert.equal(r.calls.length, 0);
     assert.equal(ca.readToken("k.recL.1.abc.def"), null, "AX5 jeton non signé refusé");
     // Jeton correctement signé mais périmé : seule l'échéance doit le faire refuser.
@@ -1828,7 +1830,7 @@ async function main() {
     const signedAX = exp => { const p = "k.recL." + exp + "." + fpAX + "." + iatAX + ".0"; return p + "." + hmacAX(p); };
     assert.deepEqual(ca.readToken(signedAX(Date.now() + 60000)), { id: "recL", fp: fpAX, iat: iatAX, gen: 0 }, "AX5 témoin : jeton signé non périmé accepté");
     assert.equal(ca.readToken(signedAX(Date.now() - 1000)), null, "AX5 jeton signé périmé refusé");
-    r = await call(cat, { token: signedAX(Date.now() - 1000) }, []);
+    r = await call(cat, {}, [], jarAX(signedAX(Date.now() - 1000)));
     assert.equal(r.res.statusCode, 401, "AX5 jeton périmé → 401"); assert.equal(r.calls.length, 0, "AX5 jeton périmé : aucune lecture");
     // AX6 (D-06) — base injoignable ≠ mauvais identifiants : 503, jeton gardé, pas de verrou.
     const DOWN = { error: { type: "SERVER_ERROR", message: "upstream down" } };
@@ -1836,9 +1838,9 @@ async function main() {
       r = await call(cat, { user: "loginAX", pw: "fout-of-niet" }, [DOWN]);
       assert.equal(r.res.statusCode, 503, "AX6 panne pendant la connexion → 503 (essai " + (i + 1) + "), jamais 401 ni 429");
     }
-    r = await call(cat, { token: signedAX(Date.now() + 60000) }, [DOWN]);
+    r = await call(cat, {}, [DOWN], jarAX(signedAX(Date.now() + 60000)));
     assert.equal(r.res.statusCode, 503, "AX6 panne pendant la relecture du jeton → 503"); assert.ok(!r.res.payload.expired, "AX6 le client n'est pas déconnecté");
-    r = await call(cat, { token: signedAX(Date.now() + 60000) }, [{ error: { type: "NOT_FOUND" } }, { error: { type: "NOT_FOUND" } }]); // Clients puis Klantgebruikers (H-08)
+    r = await call(cat, {}, [{ error: { type: "NOT_FOUND" } }, { error: { type: "NOT_FOUND" } }], jarAX(signedAX(Date.now() + 60000))); // Clients puis Klantgebruikers (H-08)
     assert.equal(r.res.statusCode, 401, "AX6 client supprimé → 401 (pas une panne)");
   }
   // --- AY. Ordre du catalogue (glisser-déposer Beheer) : validation, seuls les changements écrits ---

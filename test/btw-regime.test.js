@@ -24,6 +24,8 @@ const vat = require(path.join(ROOT, "assets", "vat.js"));
 
 const VIES_URL = "https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number";
 const H = { host: "localhost", origin: "http://localhost", "content-type": "application/json" };
+// Session client : cookie famo_klant (spec 013), plus le jeton dans le corps.
+const asKlant = (token) => ({ headers: Object.assign({ cookie: "famo_klant=" + encodeURIComponent(token) }, H) });
 const hdr = (role) => Object.assign({ cookie: "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600e3, role)) }, H);
 function mkRes() { return { statusCode: 200, payload: null, body: "", headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, status(c) { this.statusCode = c; return this; }, json(p) { this.payload = p; return this; }, send(b) { this.body = b; return this; } }; }
 let ip = 0;
@@ -166,7 +168,7 @@ test("facture émise : le client repasse en Normal, la facture, le document clie
   assert.equal(o.btwRegime, "Intracommunautaire"); assert.deepStrictEqual(o.btwFrozen, { tong: 0, saus: 0 });
   assert.equal(o.klant.regime, "Normal", "le client a changé, pas la facture");
   const token = ca.issueToken({ id: "recNL", fields: await client("recNL") });
-  const d = await call("klantdoc.js", { token, ref: "CMD-2026-0003" }, { headers: H });
+  const d = await call("klantdoc.js", { ref: "CMD-2026-0003" }, asKlant(token));
   assert.equal(d.statusCode, 200, JSON.stringify(d.payload));
   assert.equal(d.payload.order.btwRegime, "Intracommunautaire"); assert.deepStrictEqual(d.payload.order.btwPerLine, { tong: 0, saus: 0 });
 });
@@ -176,9 +178,9 @@ test("commande pas encore facturée d'un client Export : montants à 0 % partout
   const list = await call("allorders.js", null, { method: "GET", headers: hdr("staff") });
   assert.equal(list.payload.orders[0].btwRegime, "Export");
   const token = ca.issueToken({ id: "recGB", fields: await client("recGB") });
-  const d = await call("klantdoc.js", { token, ref: "CMD-2026-0004" }, { headers: H });
+  const d = await call("klantdoc.js", { ref: "CMD-2026-0004" }, asKlant(token));
   assert.equal(d.payload.order.btwRegime, "Export"); assert.deepStrictEqual(d.payload.order.btwPerLine, { tong: 0, saus: 0 });
-  const mine = await call("orders.js", { token }, { headers: H });
+  const mine = await call("orders.js", {}, asKlant(token));
   assert.equal(mine.statusCode, 200, JSON.stringify(mine.payload));
   assert.equal(mine.payload.orders[0].totalIncl, 35.42, "TVAC = HTVA à 0 %");
 });

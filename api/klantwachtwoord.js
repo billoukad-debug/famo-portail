@@ -1,16 +1,18 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 // Le client change lui-même son mot de passe (Klant → Account).
 // POST {user, pw, nieuw} : pw = le mot de passe ACTUEL, retapé par le client.
-// POST {action:"logout", token} : déconnexion serveur (tous les appareils du client).
-// POST {action:"setPassword", token, nieuw} : mot de passe choisi via le lien reçu par e-mail.
+// POST {action:"logout"} : déconnexion serveur (tous les appareils du client), cookie effacé.
+// POST {action:"setPassword", token, nieuw} : mot de passe choisi via le lien reçu par e-mail
+// (token = le lien r.…, pas une session).
 //
 // Le client modifié est TOUJOURS celui que authClient vient de vérifier (gebruikersnaam
 // + mot de passe actuel). Aucun identifiant de client n'est lu dans le body : sans le
 // mot de passe actuel d'un autre client, impossible de toucher à son compte.
 //
-// Stockage : empreinte scrypt (lib/clientauth.js), jamais le texte clair. La réponse
-// contient un nouveau jeton : l'ancien cesse de valoir dès que le mot de passe change.
-const { authClient, authUnavailable } = require("./catalogue");
+// Stockage : empreinte scrypt (lib/clientauth.js), jamais le texte clair. La réponse pose
+// un nouveau cookie de session (famo_klant, HttpOnly) : l'ancien cesse de valoir dès que le
+// mot de passe change.
+const { authClient, authRequest, authUnavailable } = require("./catalogue");
 const __kl = require("../lib/klantlogin");
 const __ca = require("../lib/clientauth");
 
@@ -44,10 +46,13 @@ module.exports = async (req, res) => {
     if (typeof q === "string") q = JSON.parse(q || "{}");
     if (!q) q = {};
 
-    // ---- Déconnexion : POST {action:"logout", token}. La génération du client (+1) révoque
-    // tous ses jetons, sur tous ses appareils. Réponse identique si le jeton ne vaut plus rien.
+    // ---- Déconnexion : POST {action:"logout"} + cookie famo_klant (ou, en transition, {token}).
+    // La génération du client (+1) révoque tous ses jetons, sur tous ses appareils. Réponse
+    // identique si la session ne vaut plus rien. Le cookie de CET appareil est effacé dans tous
+    // les cas, même si l'écriture échoue (tablette partagée : l'appareil doit être déconnecté).
     if (q.action === "logout") {
-      const client = q.token ? await authClient(null, null, q.token) : null;
+      __ca.clearSessionCookie(res);
+      const client = await authRequest(req, { token: q.token });
       if (client) {
         const lg = client.login; // la fiche qui porte l'identifiant (client ou utilisateur, H-08)
         const saved = await __kl.patch(lg, { "Sessiegeneratie": __ca.generationOf(lg) + 1 });
@@ -82,8 +87,10 @@ module.exports = async (req, res) => {
         console.error("[klantwachtwoord] setPassword", t.id, saved && saved.error && saved.error.type);
         return res.status(500).json({ error: "Wachtwoord opslaan mislukt. Probeer het later opnieuw." });
       }
-      // Connecté dans la foulée : jeton de session neuf (le mot de passe vient de changer).
-      return res.status(200).json({ ok: true, user: f["Gebruikersnaam"] || "", token: __ca.issueToken({ id: t.id, fields: Object.assign({}, f, fields) }) });
+      // Connecté dans la foulée : cookie de session neuf (le mot de passe vient de changer). Le
+      // jeton ne figure plus dans la réponse (B3) ; l'identifiant sert à l'affichage.
+      __ca.setSessionCookie(res, __ca.issueToken({ id: t.id, fields: Object.assign({}, f, fields) }));
+      return res.status(200).json({ ok: true, user: f["Gebruikersnaam"] || "" });
     }
 
     const pw = typeof q.pw === "string" ? q.pw : "";
@@ -109,7 +116,9 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: "Wachtwoord wijzigen mislukt. Probeer het later opnieuw." });
     }
     _rl.delete(rlKey);
-    return res.status(200).json({ ok: true, token: __ca.issueToken({ id: client.login.id, fields: Object.assign({}, client.login.fields, { "Wachtwoord": hashed }) }) });
+    // L'ancien cookie ne vaut plus (il dépend du mot de passe) : le nouveau le remplace.
+    __ca.setSessionCookie(res, __ca.issueToken({ id: client.login.id, fields: Object.assign({}, client.login.fields, { "Wachtwoord": hashed }) }));
+    return res.status(200).json({ ok: true });
   } catch (e) {
     if (authUnavailable(res, e)) return;
     console.error("[klantwachtwoord]", e && e.message || e);
