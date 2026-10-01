@@ -45,7 +45,6 @@ async function main() {
     process.env.MAIL_FROM = process.env.MAIL_FROM || "FAMO Seafood <bestellingen@famotrading.be>";
     process.env.ADMIN_CODE = process.env.ADMIN_CODE || "beheer-dev-code";
     process.env.STAFF_CODE = process.env.STAFF_CODE || "team-dev-code";
-    process.env.FAMO_DEV = "1";
     globalThis.__famoDev = { db, box, at, rs, seed: () => { seed(db); box.reset(); } };
     console.log("Nagebootste Airtable op " + at.url + " · postvak " + rs.url + "/inbox");
     // DB_BACKEND=sqlite : le portail tourne sur le moteur Postgres/SQL (lib/at-engine.js),
@@ -57,7 +56,6 @@ async function main() {
     }
     console.log("Codes: personeel = team-dev-code · beheer = beheer-dev-code · klant: aloha / welkom123");
   }
-  process.env.FAMO_INSECURE_COOKIES = "1";
   process.env.PORTAL_URL = process.env.PORTAL_URL || `http://localhost:${PORT}`;
   process.env.PORT = String(PORT);
   require("./dev-server.js");

@@ -112,6 +112,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log("FAMO Portail dev server → http://localhost:" + PORT);
-  console.log("STAFF_CODE=" + (process.env.STAFF_CODE ? "(défini)" : "famo2026 (fallback)") +
+  console.log("STAFF_CODE=" + (process.env.STAFF_CODE ? "(défini)" : "(absent — pas de code de secours : sans STAFF_CODE ni ADMIN_CODE, /api/session répond 500)") +
     "  AIRTABLE_TOKEN=" + (process.env.AIRTABLE_TOKEN ? "(défini)" : "(absent — les appels Airtable échoueront)"));
 });

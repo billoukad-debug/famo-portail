@@ -25,7 +25,7 @@ Support des fournisseurs : Vercel (vercel.com/help), Neon (console → Support),
 2. Vercel → projet → **Deployments** : le dernier déploiement de production est-il « Ready » ? Date du dernier déploiement = heure du début de l'incident ?
 3. Vercel → projet → **Logs** (Runtime Logs) : filtrer sur 5xx ; chercher `DATABASE_NOT_CONFIGURED`, `[mail]`, `[updateorder]`, `Error`.
 4. Beheer → **Systeemstatus** → Database : backend `postgres`, « bereikbaar ».
-5. `api/health` : **à venir** (un endpoint de santé est en cours d'ajout par un autre développeur ; quand il existera, `GET /api/health` sera la première vérification).
+5. `GET /api/health` (sans connexion) : version déployée, backend, base joignable, e-mail configuré ou non, dernière sauvegarde. C'est la première vérification, à brancher sur une sonde externe.
 6. Pages d'état des fournisseurs (Vercel, Neon, Resend : lien « Status » en pied de leur site) : panne générale en cours ?
 
 ## 2. Mauvais déploiement → rollback Vercel
@@ -74,7 +74,7 @@ Alternative sans toucher la production : créer une **branche** Neon à l'instan
 ### 3.3 Restauration depuis un export (plan B)
 Indépendant de l'historique Neon, utile au-delà de la fenêtre de restauration ou pour changer de fournisseur.
 
-- **À venir** : des actions `export` et `restore` sont en cours d'ajout à `api/dbadmin` (Beheer → Systeemstatus) par un autre développeur. Tant qu'elles n'existent pas, il n'y a **pas** d'export applicatif : seul l'historique Neon protège les données.
+- **Export / restauration** : Beheer → Systeemstatus → Database → « Back-up maken » (export complet, `api/dbadmin` action `export`) et « Back-up terugzetten » (`restore`, base SQL seulement, protégé : saisir RESTORE, sauvegarde automatique avant). Sauvegarde nocturne par e-mail : `api/backup-cron` (exige `CRON_SECRET` + `RESEND_API_KEY` + destinataire).
 - Procédure prévue, à préciser quand ces actions seront livrées :
   1. Exporter régulièrement (au moins chaque semaine et avant toute opération risquée) ; conserver le fichier hors de Vercel et de Neon (stockage de l'entreprise), chiffré s'il contient des données clients.
   2. Restaurer d'abord dans une **nouvelle branche** Neon ou une base vide, jamais directement sur la production.
@@ -108,7 +108,7 @@ Symptôme : les clients ou la boîte interne ne reçoivent plus rien. Un échec 
 | `DATABASE_URL` | Neon → Roles → réinitialiser le mot de passe du rôle → copier la nouvelle adresse dans Vercel → Redeploy | Si `SESSION_SECRET` est absente, déconnecte aussi tout le monde. |
 | `RESEND_API_KEY` | Resend → API Keys → créer la nouvelle, la poser dans Vercel, Redeploy, **puis** révoquer l'ancienne | Pas d'interruption si l'ordre est respecté. |
 | `AIRTABLE_TOKEN` | Airtable → Developer hub → révoquer (plus utilisé en production) | Si `SESSION_SECRET` est absente, déconnecte tout le monde. |
-| `CRON_SECRET` | à venir | — |
+| `CRON_SECRET` | à remplir | Obligatoire pour la sauvegarde nocturne et les relances (sinon 500). |
 | Mot de passe d'un client | Beheer → Klanten → Nieuw wachtwoord / Toegang blokkeren | Invalide aussi ses jetons. |
 
 Après une rotation : vérifier la connexion Beheer, une commande test, un e-mail test.

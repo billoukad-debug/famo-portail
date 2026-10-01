@@ -42,8 +42,8 @@ needs a recent Node 22.
   serverless handlers on `http://localhost:3000` (set `PORT` to change), without fake
   services. This harness reproduces the Vercel function contract (`req.query`, JSON
   `req.body`, `res.status().json()`); it exists because `vercel dev` requires Vercel
-  login/linking that isn't available headless. Its start banner still prints
-  « famo2026 (fallback) » when `STAFF_CODE` is unset: that is wrong, there is no fallback.
+  login/linking that isn't available headless. Its start banner says when
+  `STAFF_CODE` is unset (there is no fallback code).
 - Staff auth: `POST /api/session` with `{"code": "..."}`. At least one of `STAFF_CODE` /
   `ADMIN_CODE` must be set (fail-closed, no fallback: with neither, `/api/session` and staff
   APIs return 500; without `ADMIN_CODE`, `adminOk` is always false, so Beheer is closed even for a beheerder PIN; see

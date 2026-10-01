@@ -141,7 +141,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | MEP-02 | Contenus longs gérés (`min-width:0`, `overflow-wrap`). | Noms de produits en majuscules longues, adresses. | ✅ |
 | MEP-03 | Tableau large : défile dans sa carte. | `.tblwrap`. | ✅ |
 | MEP-04 | Pas de défilement horizontal, de 390 à 1680 px. | `ux-audit` : 0 défilement horizontal à 1280 et 390 px ; 1024, 1440 et 1680 px vus à la main (pas de script). | 🔧 **portail client refait pour ordinateur** : en-tête avec onglets et panier, catégories à gauche (≥ 1200 px), liste en tableau, panier fixe à droite, colonnes calibre/unité à partir de 1600 px, pages en deux colonnes. |
-| MEP-05 | Toute ancre visible sous les barres collantes. | `scroll-padding-top`. | ⚠️ **à revérifier** (correction en cours, 27/09/2026) — 🔧 |
+| MEP-05 | Toute ancre visible sous les barres collantes. | `scroll-padding-top` ; `kbd-audit` vérifie à chaque arrêt de tabulation que l'élément focalisé n'est jamais caché par un élément fixe ou collant (2.4.11). | ✅ **vérifié le 01/10/2026** (`kbd-audit` : 0 écart, ordre CI ux-audit → kbd-audit sur données neuves) |
 | MEP-06 | Une seule action primaire par zone. | Catalogue : « Bestellen » ; Winkelmand : « Bestelling plaatsen ». | ✅ |
 | MEP-07 | Densité : l'essentiel au-dessus de la ligne de flottaison. | Catalogue : une ligne de ~56 px par produit (au lieu d'une carte de ~110 px) ; photo et détails au dépliage. | 🔧 |
 | MEP-08 | **Pas de trou** : des cartes de hauteurs différentes côte à côte se répartissent en colonnes (`.masonry`), jamais en grille à rangées fixes qui laisse du vide sous la plus courte. Pourquoi : un écran « à moitié vide » paraît cassé. | Bedrijfsgegevens, Rapportage, Account (client) à 1440 px : pas d'espace > 20 px entre deux cartes d'une même colonne (à la main). | 🔧 (27/09) — remarque de Bilal sur Account. |
@@ -242,7 +242,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
   - largeurs et lignes cohérentes (MEP-11) : Favorieten, Magazijn, Klanten ;
   - pastilles de compteur (ETA-12) : toute la navigation.
 - **Mise à jour du 27/09/2026 (audit qualité)** : preuves vers des scripts absents du dépôt retirées ; MEP-04 ramené aux deux largeurs réellement contrôlées ; FOR-03 corrigé (pas de verrou entre instances) ; ACC-05, ACC-06, CLA-03, CLA-04, CLA-10, MEP-05, INT-07, FOR-01, ETA-12 marqués « à revérifier » (corrections en cours par ailleurs).
-- **Écarts assumés (⚠️)** : chacun est justifié dans sa ligne. Un seul touche encore le clavier : une carte qui quitte une colonne d'Entrepot laisse le focus en place (CLA-10).
+- **Écarts assumés (⚠️)** : chacun est justifié dans sa ligne. CLA-10 (carte qui change de colonne dans Magazijn Bord) n'est plus un écart : mesuré le 01/10/2026, le focus suit la carte sur sa nouvelle action (Klaarzetten → Klaar, Vertrekt → Onderweg) ; scénario ajouté à `scripts/kbd-audit.js`.
 - **Contrôles à relancer après chaque changement d'interface** :
   - `node scripts/check.js`, qui inclut les contrastes ;
   - `node scripts/ux-audit.js` (lancé aussi par la CI, job « Navigateur »).

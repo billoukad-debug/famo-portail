@@ -54,7 +54,7 @@ Une fois les comptes transférés, toute personne qui a vu un secret ne doit plu
 3. Mot de passe du rôle Neon → nouvelle `DATABASE_URL`.
 4. `RESEND_API_KEY`.
 5. `AIRTABLE_TOKEN` : révoquer (plus utilisé en production).
-6. `CRON_SECRET` : à venir.
+6. `CRON_SECRET` : obligatoire (sauvegarde nocturne et relances ; sans elle, 500). Nouvelle valeur aléatoire ≥ 16 caractères à la reprise.
 
 Chaque changement de variable : **Redeploy**, puis vérification (connexion Beheer, commande test, e-mail test).
 

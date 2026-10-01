@@ -19,7 +19,7 @@ Toutes les variables lues par `api/` et `lib/`. Après toute modification : **Re
 | `MAIL_FROM` | `FAMO Seafood <bestellingen@VOTRE-DOMAINE.be>` | Domaine **vérifié chez Resend** obligatoire. Sans elle : `onboarding@resend.dev`, qui ne délivre qu'au propriétaire du compte Resend. |
 | `MAIL_TIMEOUT_MS` | `4000` (défaut) | Facultatif : délai max d'un envoi. |
 | `PORTAL_URL` | `https://VOTRE-DOMAINE` (sans `/` final) | Liens des e-mails. Sans elle, l'adresse est déduite de la requête (peut donner l'adresse `*.vercel.app`). |
-| `CRON_SECRET` | aléatoire | **À venir** : tâche planifiée en cours d'ajout ; à poser quand elle existera. |
+| `CRON_SECRET` | aléatoire (≥ 16 caractères) | **Obligatoire** : protège les deux tâches planifiées de `vercel.json` (`/api/backup-cron` 02:17 UTC, `/api/reminders-cron` 07:43 UTC). Sans elle, les deux répondent 500 et ne font rien. 16 caractères aléatoires minimum. La sauvegarde nocturne part **par e-mail** : il faut aussi `RESEND_API_KEY` et un destinataire (`BACKUP_EMAIL` ou Beheer → Bedrijfsgegevens → Bestellingen e-mail). |
 
 Ne jamais donner aux déploiements Preview les secrets de production (`DATABASE_URL` de production surtout) : une preview écrirait dans la base réelle. Utiliser une branche Neon dédiée pour Preview.
 

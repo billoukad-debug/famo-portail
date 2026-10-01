@@ -146,7 +146,7 @@ Liste complète des variables lues par `api/` et `lib/` (`grep -rn process.env a
 | `RESEND_API_KEY`, `MAIL_FROM` | e-mails (confirmation, annulation, onderweg, geleverd, bienvenue, nouvelle demande d'accès, mot de passe). Sans clé : aucun e-mail, tout le reste fonctionne. |
 | `MAIL_TIMEOUT_MS` | facultatif : délai max d'un envoi Resend (4000 ms par défaut). |
 | `PORTAL_URL` | adresse publique du portail pour les liens des e-mails (sinon déduite de la requête). |
-| `CRON_SECRET` | à venir (tâche planifiée en cours d'ajout) : à poser quand la tâche existera. |
+| `CRON_SECRET` | **Obligatoire** : protège les deux tâches planifiées de `vercel.json` (`/api/backup-cron` 02:17 UTC, `/api/reminders-cron` 07:43 UTC). Sans elle, les deux répondent 500 et ne font rien. 16 caractères aléatoires minimum. La sauvegarde nocturne part **par e-mail** : il faut aussi `RESEND_API_KEY` et un destinataire (`BACKUP_EMAIL` ou Beheer → Bedrijfsgegevens → Bestellingen e-mail). |
 
 Local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff (test depuis une IP du réseau, jamais sur Vercel), `DB_SQLITE_FILE`, `PORT`, `FAMO_RESEED`, `FAMO_REAL`.
 
