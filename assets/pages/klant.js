@@ -320,10 +320,12 @@
   /* ---------- bestellingen ---------- */
   let ordFilter = "lopend";
   const unpaid = o => o.statut === "Facturée" && o.paiement !== "Payé";
-  // Regels van een bestelling terug in de winkelmand (op naam : de referentie van het product staat niet in de regel).
+  // Regels van een bestelling terug in de winkelmand : op productreferentie (o.items van /api/orders, B4 —
+  // een hernoemd product blijft herkend), op naam enkel zonder referentie (oude bestellingen).
   function linesToCart(o) {
     let n = 0;
-    K.parseLines(o.lignes).forEach(l => { const p = (cat.products || []).find(x => x.nom.toLowerCase() === l.name.toLowerCase()); if (!p || !(l.qty > 0)) return; const qv = capQty(p, l.qty); if (qv > 0) { cart.items[p.id] = qv; if (l.comment) cart.comments[p.id] = l.comment; n++; } });
+    const src = Array.isArray(o.items) ? o.items : K.parseLines(o.lignes).map(l => ({ productId: null, naam: l.name, qty: l.qty, comment: l.comment }));
+    src.forEach(l => { const p = l.productId ? byId(l.productId) : (cat.products || []).find(x => x.nom.toLowerCase() === String(l.naam || "").toLowerCase()); if (!p || !(l.qty > 0)) return; const qv = capQty(p, l.qty); if (qv > 0) { cart.items[p.id] = qv; if (l.comment) cart.comments[p.id] = l.comment; n++; } });
     saveCart(); return n;
   }
   function reorder(o) { const n = linesToCart(o); K.toast(n ? n + " " + K.t(n === 1 ? "artikel" : "artikelen") + " " + K.t("in de winkelmand gezet") : K.t("Deze artikelen staan niet meer in de catalogus"), { kind: n ? "" : "err" }); if (n) { closePanel(); K.go("winkelmand"); } }
