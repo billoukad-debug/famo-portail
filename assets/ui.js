@@ -33,7 +33,7 @@
   // erin : de API blijft eentalig, de vertaling gebeurt bij het tonen (K.errText).
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
-    "Verse vis en zeevruchten, Antwerpen": "Poissons et fruits de mer, Anvers", "Meer links": "Autres liens", "Vóór {t} besteld, geleverd op {d}": "Commandé avant {t}, livré le {d}", "Personeel": "Personnel", "Beheer": "Gestion",
+    "Verse vis en zeevruchten, Antwerpen": "Poissons et fruits de mer, Anvers", "Meer links": "Autres liens", "Personeel": "Personnel", "Beheer": "Gestion",
     "Vóór {t} besteld,": "Commandé avant {t},", "morgen in uw keuken.": "demain dans votre cuisine.",             "Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.": "Livraison {d} à Anvers et environs. Vous voyez vos prix négociés, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures.",
     "Tellers in het menu": "Pastilles du menu", "Nieuw": "Nouveau", "Uit": "Aucune", "nieuw sinds uw laatste bezoek": "nouveau depuis votre dernière visite",
     "Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.": "Nouveau : disparaît dès que vous ouvrez la page. Tout : reste tant qu'il y a quelque chose à faire. Aucune : pas de pastille.",
