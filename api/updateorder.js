@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
   if (!before || res.statusCode !== 200) return;
   const after = await __journal.get("Commandes", id);
   const actie = body.correction ? "Correctie: " + body.correction : body.creditnota ? "Creditnota" : body.correctieMail === true ? "Correctiemail" : body.paiement ? "Betaalstatus: " + body.paiement
-    : body.statut ? "Status → " + body.statut : typeof body.lignes === "string" ? "Lijnen gewijzigd" : body.volgorde !== undefined ? "Volgorde levering" : "Bestelling bijgewerkt";
+    : body.statut ? "Status → " + body.statut : typeof body.lignes === "string" ? "Lijnen gewijzigd" : body.volgorde !== undefined ? "Volgorde levering" : body.leverslot !== undefined ? "Leverslot" : "Bestelling bijgewerkt";
   await __journal.log({ wie: __auth.actorOf(req), rol: __auth.roleOf(req), actie, object: "Commandes", record: id, referentie: (after || before)["Référence"] || "",
     wijzigingen: __journal.diff(before, after), reden: body.reden || (body.creditnota && body.creditnota.motif) || body.uitzonderingNota || "" });
 };

@@ -69,6 +69,8 @@ module.exports = async (req, res) => {
         annuleeLe: r.fields["Annulée le"] || "",
         motifAnnulation: r.fields["Motif annulation"] || "",
         uitzondering: r.fields["Uitzondering levering"] || "",
+        // Heure de livraison prévue posée par le personnel (D4) : "HH:MM-HH:MM" ou "".
+        leverslot: r.fields["Leverslot"] || "",
         creditnota: r.fields["Creditnota nummer"] ? { nummer: r.fields["Creditnota nummer"], montant: Number(r.fields["Creditnota montant"] || 0), le: r.fields["Creditnota le"] || "" } : null,
         // Toutes les notes de crédit (C-08) ; le détail (lignes, motif) vient de /api/klantdoc.
         creditnotas: __cn.list(r.fields).map(n => ({ nummer: n.nummer, montant: n.montant, le: n.le }))

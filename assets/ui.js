@@ -127,7 +127,7 @@
     "Nog {n}": "Encore {n}", "Uitverkocht": "Épuisé", "Slechts {n} beschikbaar.": "Seulement {n} disponible(s).",
     // bestelling detail
     "Details": "Détails", "details": "détails", "Artikelen": "Articles", "Verloop": "Suivi", "Klaar": "Préparée", "Geleverd": "Livrée", "Gefactureerd": "Facturée", "Geannuleerd": "Annulée", "Betaald": "Payée", "Reden": "Motif",
-    "Factuurnummer": "Numéro de facture", "Gefactureerd op": "Facturée le", "Geleverd op": "Livrée le", "Ontvangen door": "Réceptionné par", "Betaald op": "Payée le", "Uitzondering levering": "Exception de livraison",
+    "Factuurnummer": "Numéro de facture", "Gefactureerd op": "Facturée le", "Geleverd op": "Livrée le", "Ontvangen door": "Réceptionné par", "Betaald op": "Payée le", "Uitzondering levering": "Exception de livraison", "Verwacht leveruur": "Heure de livraison prévue", "tussen {van} en {tot}": "entre {van} et {tot}",
     "Creditnota": "Note de crédit", "Uw opmerking": "Votre remarque", "Besteld op": "Commandée le", "Gewenste leverdag": "Jour de livraison souhaité", "Sluiten": "Fermer",
     "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
     "Bestelling geannuleerd · artikelen in de winkelmand": "Commande annulée · articles dans le panier", "Geannuleerd door klant": "Annulée par le client",
@@ -248,6 +248,21 @@
   });
   K.formatLine = l => `${l.name} × ${K.qty(l.qty).replace(",", ".")}${l.unit ? " " + l.unit : ""}${l.price != null ? " [€" + Number(l.price).toFixed(2) + "]" : ""}${l.comment ? " (" + l.comment + ")" : ""}`;
   K.linesSummary = txt => K.parseLines(txt).map(l => K.qty(l.qty) + "× " + l.name).join(" · ");
+  // Heure de livraison prévue (D4) : "HH:MM-HH:MM" (normalisé par le serveur, lib/levering.parseSlot) → { van, tot }.
+  K.slot = v => { const m = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(String(v || "")); return m ? { van: m[1], tot: m[2] } : null; };
+  // Tournée du chauffeur (A4, Leveringen) : ordre de la route, stop « afgehandeld », prochain stop à faire.
+  K.ronde = {
+    order: list => (list || []).slice().sort((a, b) => (a.volgorde == null ? Infinity : a.volgorde) - (b.volgorde == null ? Infinity : b.volgorde) || String(a.client || "").localeCompare(String(b.client || ""), "nl")),
+    // Livré, en file hors ligne (queued), ou Afwezig / Geweigerd (rien livré, la commande reste onderweg).
+    done: (o, queued) => !!(o && (o.statut === "Facturée" || queued || (o.statut === "Sortie en livraison" && (o.uitzondering === "Afwezig" || o.uitzondering === "Geweigerd")))),
+    // Prochain stop non fait APRÈS cur (en bouclant), jamais cur lui-même ; sans cur : le premier à faire ; null : rien d'autre.
+    next: (route, cur, isDone) => {
+      const r = route || [], i = r.findIndex(o => o.id === cur);
+      if (i < 0) { const f = r.find(o => !isDone(o)); return f ? f.id : null; }
+      for (let k = 1; k < r.length; k++) { const o = r[(i + k) % r.length]; if (!isDone(o)) return o.id; }
+      return null;
+    }
+  };
   K.isLate = o => o.statut !== "Facturée" && o.statut !== "Annulée" && o.dateLiv && o.dateLiv < K.today();
 
   /* ---------- opslag ---------- */
@@ -385,6 +400,7 @@
     table: '<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"/>',
     board: '<path d="M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v13h-4z"/>',
     cal: '<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     filter: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
     group: '<path d="M4 6h16M4 12h10M4 18h6"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',

@@ -50,8 +50,8 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 **DoD :** impossible de déduire le stock sans la même confirmation, quel que soit l’écran.  
 **Effort :** faible · **Risque :** faible (règle API déjà là)
 
-### A4. Leveringen « chauffeur d’abord » — [PARTIEL]
-**Fait :** ordre de tournée (`Volgorde levering`, glisser ou ▲▼), notes visibles. **Reste :** mode « une commande à la fois » (la preuve photo A1 est faite).
+### A4. Leveringen « chauffeur d’abord » — [FAIT]
+**Fait :** ordre de tournée (`Volgorde levering`, glisser ou ▲▼), notes visibles ; mode « Chauffeur » (01/10/2026, spec 015) : un stop à la fois dans l'ordre de la tournée, client / adresse / téléphone / nota / articles en grand, « Ontvangst bevestigen » avec preuve photo et file hors ligne, « Volgende stop », « Stop 2 van 5 » ; choix mémorisé sur l'appareil.
 **Problème :** la file existe (Maps + réception) mais reste une liste plate.  
 **Idée :** ordre de tournée simple (glisser ou numéro), CTA photo-first, adresse + client en grand, mode une commande à la fois.  
 **DoD :** un livreur termine 5 stops sans ouvrir Magazijn ni Documenten.  
@@ -136,7 +136,7 @@ Le client `/` a été volontairement laissé hors redesign staff. Idées ciblée
 | ~~**D1. Modifier / annuler avant préparation**~~ | Fait : le client annule tant que statut = Reçue, puis recommande |
 | ~~**D2. Télécharger LB / facture**~~ | Fait : `/api/klantdoc` (le client n'ouvre que ses propres documents) |
 | ~~**D3. Favoris synchronisés**~~ | Fait : champ `Favorieten` (JSON) de `Clients`, synchronisé entre appareils |
-| **D4. Créneau / note de livraison visible** — [À FAIRE] | Transparence sans tracking GPS |
+| ~~**D4. Créneau / note de livraison visible**~~ | Fait (spec 015) : « Leveruur » posé par le personnel (fiche, Leveringen), vu par le client en NL/FR jusqu'à la livraison |
 
 ---
 

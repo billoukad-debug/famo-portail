@@ -9,7 +9,8 @@
 // grand texte 3:1, contour des champs 3:1 — les couleurs réelles à l'écran, opacités comprises) ·
 // ACC-06 état « choisi » (.on) exposé (aria-pressed / aria-current / aria-selected / aria-expanded).
 // États visités en plus des pages : fiche commande (order.html), Journaal, Magazijn Bord, confirmation de
-// commande, panier rempli, panneaux ouverts (Valideren, fiche client, produit) et l'aperçu d'un document.
+// commande, panier rempli, panneaux ouverts (Valideren, Leveruur, fiche client, produit), Leveringen en mode
+// Chauffeur et l'aperçu d'un document.
 //
 //   node scripts/dev.js            (autre terminal : portail de dev + données de test)
 //   node scripts/ux-audit.js       (BASE=http://localhost:4200 par défaut ; sortie 1 s'il y a un écart)
@@ -22,8 +23,11 @@ const EXE = process.env.CHROMIUM || (require("fs").existsSync("/opt/pw-browsers/
 const firstOrder = async p => p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => { const o = (d.orders || []).find(x => x.statut === "Facturée") || (d.orders || [])[0]; return o ? o.id : ""; }));
 const clickAndWait = (sel, ms) => async p => { const el = p.locator(sel).first(); if (await el.count()) { await el.click(); await p.waitForTimeout(ms || 800); } };
 const pages = {
-  staff: ["/bestellingen.html#/tabel", "/bestellingen.html#/bord", "/bestellingen.html#/kalender", "/entrepot.html#/dag", "/entrepot.html#/bord", "/leveringen.html", "/documenten.html",
+  staff: ["/bestellingen.html#/tabel", "/bestellingen.html#/bord", "/bestellingen.html#/kalender", "/entrepot.html#/dag", "/entrepot.html#/bord", "/leveringen.html",
+    { name: "/leveringen.html (mode Chauffeur)", url: "/leveringen.html", before: async p => { await p.evaluate(() => localStorage.setItem("famoLevMode", JSON.stringify("chauffeur"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoLevMode")); } },
+    "/documenten.html",
     { name: "/order.html (fiche commande)", url: async p => "/order.html?id=" + encodeURIComponent(await firstOrder(p)) },
+    { name: "/order.html · panneau Leveruur", url: async p => "/order.html?id=" + encodeURIComponent(await p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => ((d.orders || []).find(x => x.statut === "Prête") || {}).id || ""))), after: clickAndWait('[data-act="slot"]', 700) },
     { name: "/bestellingen.html · panneau Artikelen valideren", url: "/bestellingen.html#/tabel", after: clickAndWait('[data-act="validate"]', 700) },
     { name: "/documenten.html · aperçu d'un document", url: "/documenten.html", after: clickAndWait('[data-act="invoice"], [data-act="delivery"]', 2500) }],
   admin: ["/beheer.html#/overzicht", "/beheer.html#/aanvragen", "/beheer.html#/klanten", "/beheer.html#/producten", "/beheer.html#/prijzen", "/beheer.html#/rapportage", "/beheer.html#/journaal", "/beheer.html#/bedrijf", "/beheer.html#/toegang", "/beheer.html#/status", "/invoer.html", "/stock.html",

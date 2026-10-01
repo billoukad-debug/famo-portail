@@ -81,6 +81,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | CLA-08 | Raccourcis cohérents entre écrans. | `/` = recherche sur toutes les pages de l'équipe et dans le catalogue client. | ✅ ; 🔧 `/` va aussi à la recherche du catalogue client (`aria-keyshortcuts`). |
 | CLA-09 | Édition en ligne : Entrée valide, Échap annule. | `K.prompt` : Entrée valide, Échap annule. Grille des prix : saisie directe puis « Prijzen opslaan ». | ✅ |
 | CLA-10 | Quand l'élément focalisé disparaît, le focus va au suivant. | Beheer : modifier un produit, enregistrer → focus sur son « Bewerken ». | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 à la fermeture d'un panneau, le focus revient au bouton qui l'a ouvert, **même si la liste a été redessinée** (retrouvé par son identifiant) ; ⚠️ carte qui quitte une colonne après une action (Entrepot) : focus non repositionné. |
+| CLA-11 | Leveringen en mode Chauffeur : « Volgende stop » place le focus sur le nom du nouveau stop ; Vertrekt puis Ontvangst bevestigen gardent le focus sur l'action principale du même stop (ensuite « Volgende stop ») ; au téléphone, un toast ne cache pas le bouton atteint au clavier. | `kbd-audit` (scénario Chauffeur, 1440 et 390 px). | ✅ **vérifié le 01/10/2026** (`ux-audit` puis `kbd-audit` : 0 écart) — spec 015. |
 
 ## 4. Formulaires & saisie (FOR)
 

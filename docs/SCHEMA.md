@@ -85,6 +85,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Payé le`, `Mode de paiement` | date-heure, liste `Contant` / `Overschrijving` / `Bancontact` / `Andere` | updateorder | allorders, orders | |
 | `Uitzondering levering`, `Uitzondering nota` | liste `Afwezig` / `Geweigerd` / `Gedeeltelijk` / `Beschadigd`, texte | updateorder | allorders, orders | Exception à la réception. |
 | `Volgorde levering` | nombre 1..999 | updateorder | allorders | Ordre de tournée. |
+| `Leverslot` | texte `HH:MM-HH:MM` | updateorder (personnel, avant livraison) | allorders, orders | Heure de livraison prévue (D4), normalisée par `lib/levering.parseSlot` ; montrée au client (« tussen … en … » / « entre … et … ») jusqu'à la livraison. Pas une donnée personnelle ; dans l'export RGPD avec la commande. |
 | `Annulée le`, `Motif annulation` | date-heure, texte | updateorder, klantorder | allorders, orders | |
 | `Correcties` | texte multiligne | updateorder, klantorder | allorders | Journal : `date · action · acteur — raison` (Beheer → Journaal). |
 | `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders, klantdoc, export, margin, reminders (via `lib/creditnota.js`) | `CN-AAAA-NNNN` interne : la **première** note de crédit de la commande, écrite une fois et jamais réécrite (sauf renumérotation d'un doublon sur Airtable). Les commandes d'avant C-08 n'ont que ces champs. |
@@ -206,6 +207,7 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `Correcties` | NL | Journaal | Journal des corrections d'une commande. |
 | `Uitzondering levering` / `nota` | NL | Uitzondering | Exception à la réception. |
 | `Volgorde` (Catalogue) / `Volgorde levering` (Commandes) | NL | Volgorde | Ordre d'affichage / ordre de tournée. |
+| `Leverslot` (Commandes) | NL | Leveruur · client : Verwacht leveruur / Heure de livraison prévue | Créneau `HH:MM-HH:MM` posé par le personnel. |
 | `Voorraad afboeken` (Configuratie) | NL | Voorraad automatisch afboeken | Déduire le stock au départ. |
 | `Stock afgeboekt` (Commandes) | NL | — | Stock déjà déduit pour cette commande. |
 | `Prix négocié` | FR | Uw prijs / Prijs | Prix propre au client. |
