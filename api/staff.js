@@ -5,6 +5,7 @@ const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
 const __orderNumber = require("../lib/ordernumber");
 const __lev = require("../lib/levering");
+const __lj = require("../lib/lignesjson");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -40,14 +41,16 @@ async function buildOrderLines(clientId, items){
     merged.set(productId, old);
   }
   let total = 0;
-  const lines = [];
+  const lines = [], structured = [];
   for (const [productId, item] of merged) {
     const fields = products.get(productId).fields;
     const price = __prices.unitPrice(products.get(productId), prices);
     total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * item.quantity); // = le prix écrit dans la ligne (B-09)
     lines.push(`${fields["Produit"] || "Artikel"} × ${item.quantity}${fields["Unité"] ? " " + fields["Unité"] : ""} [€${price.toFixed(2)}]${item.comment ? " (" + item.comment + ")" : ""}`);
+    // Même ligne, structurée (B4) : référence, nom, unité et prix du catalogue — rien du navigateur.
+    structured.push(__lj.entry(products.get(productId), { qty: item.quantity, unit: fields["Unité"] || "", price, comment: item.comment }));
   }
-  return { lignes: lines.join("\n"), total: Math.round(total * 100) / 100 };
+  return { lignes: lines.join("\n"), json: __lj.serialize(structured), total: Math.round(total * 100) / 100 };
 }
 
 module.exports = async (req, res) => {
@@ -79,6 +82,7 @@ module.exports = async (req, res) => {
         "Date": __lev.brusselsToday(), // jour de Bruxelles, pas UTC (00:00–02:00 = même jour)
         "Lignes (produits / quantités)": order.lignes,
         "Lignes besteld": order.lignes,
+        [__lj.FIELD]: order.json,
         "Statut": "Reçue",
         "Statut paiement": "En attente",
         "Total": order.total,

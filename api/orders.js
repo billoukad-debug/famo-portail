@@ -8,6 +8,7 @@ const log = require("../lib/log");
 const { authClient, authUnavailable } = require("./catalogue");
 const __bill = require("../lib/billing");
 const __cn = require("../lib/creditnota");
+const __lj = require("../lib/lignesjson");
 const { parseLines } = require("./updateorder");
 
 // Ouvert + 365 jours d'historique (voir api/allorders.js).
@@ -56,6 +57,9 @@ module.exports = async (req, res) => {
         date: r.fields["Date"] || "",
         dateLiv: r.fields["Date livraison souhaitée"] || "",
         lignes: r.fields["Lignes (produits / quantités)"] || "",
+        // Lignes rattachées au catalogue par référence (B4, specs/016) pour « Opnieuw bestellen » :
+        // productId null = ancienne commande, le portail apparie alors par nom (comme avant).
+        items: __lj.linked(r.fields["Lignes (produits / quantités)"], r.fields[__lj.FIELD]).map(l => ({ productId: l.productId, naam: l.nom, qty: l.qty, comment: l.comment || "" })),
         total: r.fields["Total"] || 0,
         totalIncl: tvac(r.fields),
         statut: r.fields["Statut"] || "",

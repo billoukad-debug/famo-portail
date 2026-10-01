@@ -52,7 +52,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 
 | Champ | Type | Écrit par | Lu par | Remarque |
 |---|---|---|---|---|
-| `Produit` | texte | onboarding (saveProduct, renommage) | allorders, catalogue, order, staff, prices, stock | Nom ; **clé de jointure** avec `Stock.Produit` et les lignes de commande (par nom normalisé). |
+| `Produit` | texte | onboarding (saveProduct, renommage) | allorders, catalogue, order, staff, prices, stock | Nom ; **clé de jointure** avec `Stock.Produit` (par nom normalisé, la ligne de stock est renommée avec le produit). Lignes de commande : par id via `Commandes.Lignes JSON` quand il existe, sinon par nom (anciennes commandes). |
 | `Prix de base` | nombre (€ HTVA) | onboarding | catalogue, staff, prices | |
 | `Unité` | liste `kg` / `pièce` / `caisse` / `carton` | onboarding | catalogue, order, staff, updateorder | Valeur FR stockée, affichée en NL (`kg`, `stuk`, `kassa`, `doos`). |
 | `Catégorie` | texte | onboarding | catalogue, staff | |
@@ -70,7 +70,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 |---|---|---|---|---|
 | `Référence` | texte | order, staff | allorders, klantdoc, klantorder, orders, updateorder, ordernumber | `CMD-AAAA-NNNN` (max + 1, non atomique : voir `lib/ordernumber.js`). |
 | `Date` | date | order, staff | allorders, klantdoc, orders | Date de la commande. |
-| `Lignes (produits / quantités)` | texte multiligne | order, staff, updateorder, onboarding (renommage produit) | allorders, klantdoc, klantorder, orders | Une ligne : `Nom × qté unité [€prix]` ; prix figé par le serveur. |
+| `Lignes (produits / quantités)` | texte multiligne | order, staff, updateorder, onboarding (renommage produit) | allorders, klantdoc, klantorder, orders | Une ligne : `Nom × qté unité [€prix]` ; prix figé par le serveur. Affichage humain et légal (documents, e-mails) ; forme structurée à côté : `Lignes JSON`. |
 | `Statut` | liste `Reçue` / `Prête` / `Sortie en livraison` / `Facturée` / `Annulée` | order, staff, updateorder, klantorder | allorders, klantdoc, onboarding, orders | Affiché : Ontvangen / Klaar / Onderweg / Geleverd / Geannuleerd. |
 | `Statut paiement` | liste `En attente` / `Payé` | order, staff, updateorder | allorders, klantdoc, orders | Openstaand / Betaald. |
 | `Total` | nombre (€ HTVA) | order, staff, updateorder | allorders, dbadmin, klantdoc, klantorder, orders | Recalculé par le serveur. |
@@ -95,6 +95,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
 | `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
 | `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
+| `Lignes JSON` | texte (JSON) | order, staff (création), updateorder (lignes modifiées), onboarding (renommage produit, commandes ouvertes : `naam`) | updateorder (stock : départ, retour arrière, annulation, note de crédit ; lignes modifiées), orders (`items` pour « Opnieuw bestellen ») via `lib/lignesjson.js` | B4 (specs/016) : `[{productId, naam, qty, unit, prijs, comment?}]`, **écrit par le serveur seul** (référence, nom, unité, prix du catalogue ou prix figé ; rien du navigateur), à côté du texte qui reste l'affichage et le document légal. Le texte fait foi pour quantité et prix ; une ligne n'est rattachée à `productId` que si une entrée a le même `naam`. **Absent = ancienne commande** : appariement par nom, comme avant (aucun rattrapage). Jamais réécrit après `Facturée`. Hors du journal d'audit (bruit technique). Pas une donnée personnelle. |
 | `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, order.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
 | `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, order.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |

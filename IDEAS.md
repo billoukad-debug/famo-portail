@@ -93,7 +93,8 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 **DoD :** plus de `pw` dans le body des requêtes après login ; Airtable ne stocke plus le clair.  
 **Effort :** élevé · **Risque :** moyen (migration clients existants)
 
-### B4. Lignes de commande structurées — [À FAIRE]
+### B4. Lignes de commande structurées — [FAIT, commandes nouvelles ou modifiées]
+**Fait (specs/016-lignes-structurees) :** champ `Lignes JSON` (productId, naam, qty, unit, prijs) écrit par le serveur à côté du texte ; stock (départ, retour, note de crédit), lignes du magasin et « Opnieuw bestellen » rattachés par id ; anciennes commandes par nom (pas de rattrapage). Restent appariés par nom : lots, marge, taux TVA d'une commande non facturée.
 **Problème :** lignes = texte avec `[€prix]` ; stock joint par **nom** normalisé → renommer un produit casse la déduction.  
 **Idée :** stocker productId + qty + prix serveur (JSON ou table Lignes) ; affichage texte dérivé pour l’humain.  
 **DoD :** renommer un produit catalogue → stock et reorder restent corrects.  

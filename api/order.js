@@ -5,6 +5,7 @@ const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
 const __orderNumber = require("../lib/ordernumber");
 const __lev = require("../lib/levering");
+const __lj = require("../lib/lignesjson");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -59,7 +60,7 @@ async function buildOrderLines(clientId, items){
     merged.set(productId, prev);
   }
 
-  const lines = [];
+  const lines = [], structured = [];
   let total = 0;
   for (const [productId, entry] of merged) {
     const quantity = entry.quantity;
@@ -71,9 +72,11 @@ async function buildOrderLines(clientId, items){
     // Keep the agreed unit price with the order. It makes a later invoice
     // reproducible even if the catalogue price changes in the meantime.
     lines.push(`${name} × ${quantity}${unit ? " " + unit : ""} [€${price.toFixed(2)}]${comment ? " (" + comment + ")" : ""}`);
+    // Même ligne, structurée (B4) : référence, nom, unité et prix du catalogue — rien du navigateur.
+    structured.push(__lj.entry(products.get(productId), { qty: quantity, unit, price, comment }));
     total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * quantity); // = le prix écrit dans la ligne (B-09)
   }
-  return { lignes: lines.join("\n"), total: roundMoney(total) };
+  return { lignes: lines.join("\n"), json: __lj.serialize(structured), total: roundMoney(total) };
 }
 
 // Prepare et envoie les deux confirmations. Ne jette jamais.
@@ -171,6 +174,7 @@ module.exports = async (req, res) => {
       "Date": today,
       "Lignes (produits / quantités)": order.lignes,
       "Lignes besteld": order.lignes,
+      [__lj.FIELD]: order.json,
       "Statut": "Reçue",
       "Statut paiement": "En attente",
       "Total": order.total,

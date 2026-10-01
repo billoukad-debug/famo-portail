@@ -53,6 +53,9 @@ const SCHEMA = {
       // Lignes telles que COMMANDÉES (figées à la création) : la ligne réelle peut ensuite être
       // corrigée au poids livré ; les documents montrent l'écart « besteld / geleverd » (audit H-04).
       "Lignes besteld": "text",
+      // Lignes structurées (B4, lib/lignesjson.js) : JSON [{productId, naam, qty, unit, prijs, comment?}]
+      // écrit par le serveur à côté du texte ; rattache chaque ligne au catalogue par id (renommage).
+      "Lignes JSON": "text",
       // Relances de paiement envoyées (lib/reminders.js, H-01).
       "Herinnering 1 op": "datetime", "Herinnering 2 op": "datetime",
       // Utilisateur (supplémentaire) qui a passé la commande (lib/klantlogin.js, H-08).
