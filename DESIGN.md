@@ -122,7 +122,7 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 5. **`alert()` / `confirm()` / `prompt()` natifs interdits** : `K.toast`, `K.confirm`, `K.prompt`, `K.panel`.
 6. **Cibles tactiles ≥ 44 px** partout où le personnel appuie (`--tap`).
 7. **Portail client bilingue** : tout texte visible passe par `K.t()` et a sa traduction dans `K.FR` (`assets/ui.js`) ; un test échoue sinon. Personnel, Beheer et e-mails restent en néerlandais ; les documents suivent la langue du client (NL/FR).
-8. **Documents** (`documents.js`) et **e-mails** (`lib/ordermail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Vismijn (encre `#0E2229`, filet `#D3DDDF`, fond `#EFF3F3`, action `#0B5A6C`) ; police système (Arial dans les e-mails, Helvetica dans les PDF) : les polices web y sont peu fiables. Pas de ligne de signature sur les documents.
+8. **Documents** (`documents.js`) et **e-mails** (gabarit commun `lib/maillayout.js`, utilisé par `lib/ordermail.js` et `lib/authmail.js`) ont leur CSS en ligne ; ils reprennent les valeurs des jetons Vismijn (encre `#0E2229`, gris `#475A61`, filet `#D3DDDF`, fond `#EFF3F3`, action `#0B5A6C`) ; police système (Arial dans les e-mails, Helvetica/Arial dans les PDF) : les polices web y sont peu fiables. Pas de ligne de signature sur les documents. E-mails : tableaux, `color-scheme` clair, fond et couleur explicites sur chaque cellule, blanc seulement sur Noordzee, texte d'aperçu, pas de `<style>` ni d'image (spec 012).
 9. `node scripts/check.js` et `npx -y eslint@9.39.5 .` (tout le dépôt) doivent rester verts ; la CI joue les deux, plus `scripts/ux-audit.js` dans un navigateur.
 
 ---
@@ -130,8 +130,8 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 # Reste à faire côté design
 
 1. **Personnel à 5 h du matin** : une variante très contrastée (fond sombre, texte clair, cibles plus grandes) pour Magazijn et Leveringen, activable sur l'appareil.
-2. **Documents A4** : couleurs alignées sur Crème, mais la mise en page n'a pas été redessinée. C'est l'objet qui arrive physiquement chez le client.
-3. **E-mails** : couleurs alignées, gabarit à retravailler (en-tête, pied, mode sombre de Gmail et d'Outlook).
+2. **Documents A4** : redessinés (spec 012) — fournisseur et client à gauche, titre et faits à droite, taux de TVA par ligne, récapitulatif par taux, paiement, mentions, pied légal ; `@page` A4 et en-tête de tableau répété à l'impression. Reste : le PDF (html2pdf, capture) ne répète pas l'en-tête de tableau ; numéros de page absents.
+3. **E-mails** : gabarit commun (spec 012). Reste : pas de thème sombre dédié (il faudrait un `<style>`, refusé par Gmail replié et par les tests) ; vérifier sur de vrais clients (Litmus ou boîtes de test) — seul un rendu Chromium a été relu.
 4. **Logo** : le F sobre (spec 007) sert de marque, favicon, icône d'app et en-tête de document. Reste à décider : un mot-symbole « FAMO Seafood » dessiné, ou le nom en texte comme aujourd'hui.
 5. **Styles en ligne** : 264 `style="` dans le JavaScript des pages au 01/10/2026 (234 déjà migrés vers les utilitaires I-12 de `ui.css`), une quinzaine dans les pages HTML et le bloc `<style>` de `klant.html` : à déplacer dans `ui.css`.
 6. **Design system sur claude.ai** (« FAMO Portail Design System ») : il porte encore « Famo Trading » et les valeurs d'avant Crème. À resynchroniser sur ce dépôt.

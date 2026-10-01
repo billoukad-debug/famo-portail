@@ -14,14 +14,14 @@ window.FamoDocuments=(()=>{
     nl:{delivery:"LEVERINGSBON",invoice:"FACTUUR",credit:"CREDITNOTA",bank:"Bankgegevens",beneficiary:"Begunstigde",ref:"Mededeling",example:"Voorbeeld — nog niet definitief",
       paid:"Betaald",paidOn:"Betaald op",creditOn:"Creditnota op factuur",reason:"Reden",creditDate:"Creditnotadatum",invoiceDate:"Factuurdatum",dueDate:"Vervaldatum",deliveryDate:"Leverdatum",
       date:"Datum",document:"Document",order:"Bestelling",invoiceNo:"Factuur",customerNo:"Klantnummer",payStatus:"Betaalstatus",customer:"Klant",vat:"BTW",desc:"Beschrijving",qty:"Aantal",unit:"Eenheid",
-      unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
+      unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",rateCol:"Btw-tarief",baseCol:"Maatstaf",vatCol:"Btw",amount:"Bedrag",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
       exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
       lot:"Lot",tht:"THT",thawed:"ontdooid",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
       proforma:"PRO FORMA",retour:"RETOURBON",receivedBy:"Ontvangen door",signed:"ondertekend",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
-      unitPrice:"Prix unitaire",subtotal:"Sous-total",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
+      unitPrice:"Prix unitaire",subtotal:"Sous-total",rateCol:"Taux TVA",baseCol:"Base",vatCol:"TVA",amount:"Montant",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
       exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
       lot:"Lot",tht:"DLC",thawed:"décongelé",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
       proforma:"PRO FORMA",retour:"BON DE RETOUR",receivedBy:"Réceptionné par",signed:"signé",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
@@ -152,7 +152,8 @@ window.FamoDocuments=(()=>{
     // Règle unique (assets/vat.js) : ligne arrondie au cent, base et TVA par taux. Sans prix de ligne
     // (anciennes commandes), un seul groupe au taux de l'entreprise sur le total stocké.
     let htva, groups, tva, total;
-    if(rows.some(r=>r.price!=null)&&window.FamoVat){
+    const linePriced=!!(rows.some(r=>r.price!=null)&&window.FamoVat);
+    if(linePriced){
       const t=window.FamoVat.totals(rows,name=>reg.zero?0:rateFor(name,map,pct),sign);
       htva=t.htva; groups=t.groups; tva=t.tva; total=t.total;
     }else{
@@ -177,19 +178,15 @@ window.FamoDocuments=(()=>{
     const ordered=(!credit&&order.besteld)?parse(order.besteld):[];
     const orderedOf=name=>{const k=String(name||"").trim().toLowerCase();const o=ordered.find(x=>String(x.name||"").trim().toLowerCase()===k);return o?o.qty:null;};
     const diffTxt=row=>{const o=orderedOf(row.name);if(o==null)return"";const a=Number(String(o).replace(",",".")),b=Number(String(row.qty).replace(",","."));return Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)>1e-9?'<small class="ordered">'+L.ordered+" "+esc(qtyTxt(o))+" "+esc(nlUnit(row.unit))+'</small>':"";};
+    // Taux de TVA de chaque ligne (EN 16931, constitution V) : même règle que les totaux ci-dessus.
+    const fmtRate=r=>esc(String(r).replace(".",","))+"%";
+    const lineRate=name=>linePriced?(reg.zero?0:rateFor(name,map,pct)):groups[0].rate;
     const lineRows=rows.map(row=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
       const sub=unitPrice==null?null:(window.FamoVat?window.FamoVat.r2(unitPrice*qty):unitPrice*qty);
-      return '<tr><td>'+esc(row.name)+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+'</td><td class="num">'+esc(qtyTxt(row.qty))+diffTxt(row)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
+      return '<tr><td class="desc"><span class="item">'+esc(row.name)+'</span>'+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+'</td><td class="num">'+esc(qtyTxt(row.qty))+diffTxt(row)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num rate">'+fmtRate(lineRate(row.name))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
-    const bank='<div class="bank"><div class="banklabel">'+L.bank+'</div>'+
-      '<div class="bankrow"><span>'+L.beneficiary+'</span><b>'+esc(COMPANY.nom)+'</b></div>'+
-      '<div class="bankrow"><span>IBAN</span><b class="mono">'+esc(ibanFmt(COMPANY.iban))+'</b></div>'+
-      (COMPANY.bic?'<div class="bankrow"><span>BIC</span><b class="mono">'+esc(COMPANY.bic)+'</b></div>':'')+
-      (ogm?'<div class="bankrow"><span>'+L.ref+'</span><b class="mono">'+esc(ogm)+'</b></div>':'')+
-      (COMPANY.exampleBank?'<div class="bankexample"><em>'+L.example+'</em></div>':'')+
-      '</div>';
     // Betaalstatus enkel wanneer betaald (met datum indien gekend).
     const paid=String(order.paiement||"")==="Payé"||/^(betaald|payé)$/i.test(String(order.paiement||""));
     const paidTxt=paid?(order.payeLe?L.paidOn+" "+date(order.payeLe):L.paid):"";
@@ -201,14 +198,16 @@ window.FamoDocuments=(()=>{
         : esc(COMPANY.leveringsvoorwaarden||"").replace(/\n/g,'<br>'));
     const notice=pro&&priced?'<div class="banner"><b>'+esc(credit?L.notCredit:L.notInvoice)+'</b></div>':'';
     const banners=notice+(invoice&&!pro&&COMPANY.exampleBank?'<div class="banner"><b>'+L.exampleBanner+'</b> '+(lang==="nl"&&window.famoCompany?esc(famoCompany.EXAMPLE.label):L.exampleFix)+'</div>':'');
-    // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
-    const mark='<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0B5A6C"/><path d="M11 8h11v3.4h-7.2v3.3h6.2v3.4h-6.2V24H11z" fill="#fff"/></svg>';
+    // Marque F sobre (assets/brand/famo-mark.svg) : carré Noordzee, F blanc en tracés.
+    const mark='<svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0B5A6C"/><path d="M11 8h11v3.4h-7.2v3.3h6.2v3.4h-6.2V24H11z" fill="#FFFFFF"/></svg>';
     const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?L.vat+" "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
     const lg=COMPANY.legal||{};
     const termsUrl=(typeof location!=="undefined"&&/^https?:/.test(location.protocol)?location.origin:"")+"/voorwaarden.html";
     const termsLine=COMPANY.voorwaardenVersie?esc(L.terms.replace("{v}",COMPANY.voorwaardenVersie).replace("{u}",termsUrl)):"";
     const legalLine=[lg.naam?(lg.naam+(lg.rechtsvorm&&!String(lg.naam).toLowerCase().split(/[^a-z0-9.]+/).includes(String(lg.rechtsvorm).toLowerCase())?" "+lg.rechtsvorm:"")):"",lg.ondernemingsnummer?L.companyNo+" "+lg.ondernemingsnummer:"",lg.rpr||"",lg.naam&&lg.handelsnaam&&lg.handelsnaam!==lg.naam?L.tradeName+" "+lg.handelsnaam:""].filter(Boolean).map(esc).join(" · ");
-    const mast='<header class="mast"><div class="brand">'+mark+'<div class="wordmark">'+esc(COMPANY.nom||"—")+'</div></div><div class="coords">'+(coords||'<em>'+L.noCompany+'</em>')+'</div></header>';
+    // En-tête : à gauche qui envoie, à droite quel document.
+    const mast='<header class="mast"><div class="supplier">'+mark+'<div><div class="wordmark">'+esc(COMPANY.nom||"—")+'</div><div class="coords">'+(coords||'<em>'+L.noCompany+'</em>')+'</div></div></div>'+
+      '<div class="doctype"><h1>'+title+'</h1></div></header>';
     const klant=order.klant||{};
     const metaCell=(label,value,mono)=>value?'<div><div class="metalabel">'+label+'</div><div class="metavalue'+(mono?' mono':'')+'">'+esc(value)+'</div></div>':'';
     // Datums : factuur = Facturée le (anders vandaag) + vervaldatum ; creditnota = datum creditnota ;
@@ -231,61 +230,99 @@ window.FamoDocuments=(()=>{
       (!priced&&order.receptionnePar?metaCell(L.receivedBy,order.receptionnePar+((order.preuveLivraison||[]).some(a=>/^handtekening-/.test(a&&a.filename||""))||order.getekend?" · "+L.signed:"")):"")+
       (invoice&&!pro&&paidTxt?metaCell(L.payStatus,paidTxt):"")+
       '</div>';
+    // Deuxième rangée : à gauche à qui (bloc adresse), à droite les faits du document.
     const klantBlock='<section class="party"><h2>'+L.customer+'</h2><div class="partyname">'+esc(order.client)+'</div>'+
       (klant.adresse?'<div class="partymeta">'+esc(klant.adresse).replace(/\n/g,"<br>")+'</div>':'')+
       (klant.btw?'<div class="partymeta">'+L.vat+' '+esc(klant.btw)+'</div>':'')+
       '</section>';
-    const table='<table><thead><tr><th>'+L.desc+'</th><th class="num">'+L.qty+'</th><th>'+L.unit+'</th>'+
-      (priced?'<th class="num">'+L.unitPrice+'</th><th class="num">'+L.subtotal+'</th>':'')+
+    const head='<div class="head">'+klantBlock+metaband+'</div>';
+    const table='<table class="lines"><thead><tr><th>'+L.desc+'</th><th class="num">'+L.qty+'</th><th>'+L.unit+'</th>'+
+      (priced?'<th class="num">'+L.unitPrice+'</th><th class="num">'+L.vat+'</th><th class="num">'+L.subtotal+'</th>':'')+
       '</tr></thead><tbody>'+lineRows+'</tbody></table>';
-    const totals='<div class="totals">'+
+    // Récapitulatif TVA par taux (base, TVA) à gauche, totaux à droite.
+    const vatsum='<table class="vatsum"><thead><tr><th>'+L.rateCol+'</th><th class="num">'+L.baseCol+'</th><th class="num">'+L.vatCol+'</th></tr></thead><tbody>'+
+      groups.map(g=>'<tr><td>'+fmtRate(g.rate)+'</td><td class="num">'+eur(g.base)+'</td><td class="num">'+eur(g.tva)+'</td></tr>').join("")+
+      '</tbody></table>';
+    const totals='<section class="sum">'+vatsum+'<div class="totals">'+
       '<div class="trow"><span>'+L.totalEx+'</span><span>'+eur(htva)+'</span></div>'+
       groups.map(g=>'<div class="trow"><span>'+L.vatLine+' '+esc(String(g.rate).replace(".",","))+'%'+(groups.length>1?' <small>('+L.on+' '+esc(eur(g.base))+')</small>':'')+'</span><span>'+eur(g.tva)+'</span></div>').join("")+
       '<div class="trow grand"><span>'+L.totalInc+'</span><span>'+eur(total)+'</span></div>'+
-      '</div>'+(regimeTxt?'<div class="regime">'+esc(regimeTxt)+'</div>':'');
-    const css='*{box-sizing:border-box}'+
-      'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#0E2229;margin:0;padding:38px 42px 32px;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-      'em{font-style:italic}'+
+      '</div></section>'+(regimeTxt?'<div class="regime">'+esc(regimeTxt)+'</div>':'');
+    // Paiement (facture du portail) : montant, échéance, puis où et avec quelle communication.
+    const bank='<section class="bank"><div class="banklabel">'+L.bank+'</div>'+
+      '<div class="bankrow"><span>'+L.amount+'</span><b class="mono">'+eur(total)+'</b></div>'+
+      '<div class="bankrow"><span>'+L.dueDate+'</span><b>'+date(vervaldatum)+'</b></div>'+
+      '<div class="bankrow"><span>'+L.beneficiary+'</span><b>'+esc(COMPANY.nom)+'</b></div>'+
+      '<div class="bankrow"><span>IBAN</span><b class="mono">'+esc(ibanFmt(COMPANY.iban))+'</b></div>'+
+      (COMPANY.bic?'<div class="bankrow"><span>BIC</span><b class="mono">'+esc(COMPANY.bic)+'</b></div>':'')+
+      (ogm?'<div class="bankrow"><span>'+L.ref+'</span><b class="mono">'+esc(ogm)+'</b></div>':'')+
+      (COMPANY.exampleBank?'<div class="bankexample"><em>'+L.example+'</em></div>':'')+
+      '</section>';
+    const ink="#0E2229",muted="#475A61",line="#D3DDDF",soft="#E3EAEB",ijs="#EFF3F3";
+    const css='@page{size:A4;margin:14mm 16mm 16mm}'+
+      '*{box-sizing:border-box}'+
+      'html{background:#FFFFFF}'+
+      'body{margin:0;padding:40px 60px 12px;background:#FFFFFF;color:'+ink+';font-family:Helvetica,Arial,sans-serif;font-size:11.5px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+      'h1,h2{margin:0}em{font-style:italic}b{font-weight:700}'+
       '.mast{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}'+
-      '.brand{display:flex;align-items:center;gap:12px}'+
-      '.brand svg{display:block;flex:none}'+
-      '.wordmark{font-size:14px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}'+
-      '.coords{text-align:right;font-size:10.5px;line-height:1.65;color:rgba(35,35,35,.62)}'+
-      'h1{margin:30px 0 0;font-family:Georgia,"Iowan Old Style",serif;font-size:26px;font-weight:500;letter-spacing:-.012em}'+
-      '.metaband{display:flex;flex-wrap:wrap;margin-top:14px;border-top:1px solid #D3DDDF;border-bottom:1px solid #D3DDDF}'+
-      '.metaband>div{padding:9px 20px 10px 0}'+
-      '.metaband>div+div{border-left:1px solid #D3DDDF;padding-left:20px}'+
-      '.metalabel{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
-      '.metavalue{margin-top:3px;font-size:12px}'+
-      '.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}'+
-      '.banner{margin-top:14px;padding:10px 13px;border:1px solid #D3DDDF;border-radius:12px;background:#EFF3F3;color:#7A5410;font-size:11px;line-height:1.5}'+
-      '.party{margin-top:24px}'+
-      'h2{margin:0 0 6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
-      '.partyname{font-size:14px;font-weight:600}'+
-      '.partymeta{margin-top:3px;font-size:11.5px;line-height:1.55;color:rgba(35,35,35,.70)}'+
-      'table{width:100%;border-collapse:collapse;margin-top:26px}'+
-      'thead th{padding:8px 10px;background:#E4EBEB;border-bottom:1px solid #D3DDDF;text-align:left;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
-      'td{padding:10px;border-bottom:1px solid #D3DDDF;text-align:left;vertical-align:top;font-size:12px}'+
-      'td small{display:block;margin-top:2px;font-size:10.5px;color:rgba(35,35,35,.62)}'+
+      '.supplier{display:flex;align-items:flex-start;gap:12px}'+
+      '.supplier svg{display:block;flex:none}'+
+      '.wordmark{font-size:15px;font-weight:700;line-height:1.2}'+
+      '.coords{margin-top:4px;font-size:10px;line-height:1.5;color:'+muted+'}'+
+      '.doctype{text-align:right}'+
+      'h1{font-size:22px;font-weight:700;line-height:1.15;letter-spacing:.04em}'+
+      '.head{display:flex;justify-content:space-between;align-items:flex-start;gap:32px;margin-top:26px;padding-top:16px;border-top:1px solid '+ink+'}'+
+      '.party{flex:1;min-width:0}'+
+      'h2,.banklabel{margin:0 0 5px;font-size:10px;font-weight:700;color:'+muted+'}'+
+      '.partyname{font-size:13px;font-weight:700;line-height:1.3}'+
+      '.partymeta{margin-top:3px;font-size:11px;line-height:1.5}'+
+      '.metaband{flex:none;width:310px}'+
+      '.metaband>div{display:flex;gap:12px}'+
+      '.metalabel{flex:none;width:128px;font-size:10.5px;line-height:18px;color:'+muted+'}'+
+      '.metavalue{min-width:0;font-size:11.5px;line-height:18px}'+
+      '.metaband>div:first-child .metavalue{font-weight:700}'+
+      '.mono{font-variant-numeric:tabular-nums;letter-spacing:.01em}'+
+      '.banner{margin-top:18px;padding:9px 12px;background:'+ijs+';border:1px solid '+line+';border-radius:6px;font-size:11px;line-height:1.5}'+
+      'table{width:100%;border-collapse:collapse}'+
+      '.lines{margin-top:26px}'+
+      '.lines th{padding:0 8px 6px;border-bottom:1px solid '+ink+';text-align:left;vertical-align:bottom;font-size:10px;font-weight:700;color:'+muted+'}'+
+      '.lines td{padding:8px;border-bottom:1px solid '+soft+';text-align:left;vertical-align:top}'+
+      '.lines th:first-child,.lines td:first-child{padding-left:0}'+
+      '.lines th:last-child,.lines td:last-child{padding-right:0}'+
+      '.item{font-weight:700}'+
+      'td small{display:block;margin-top:2px;font-size:10px;line-height:1.4;color:'+muted+'}'+
       '.num{text-align:right;white-space:nowrap}'+
-      '.totals{width:280px;max-width:100%;margin:8px 0 0 auto}'+
-      '.trow{display:flex;justify-content:space-between;gap:16px;padding:6px 10px;color:rgba(35,35,35,.70)}'+
-      '.trow span:last-child{color:#0E2229}'+
-      '.grand{margin-top:4px;border-top:2px solid #0E2229;padding-top:10px;font-size:18px;font-weight:600;color:#0E2229}'+
-      '.bank{margin-top:24px;padding:13px 16px;border:1px solid #D3DDDF;border-radius:12px;background:#EFF3F3;font-size:11.5px;page-break-inside:avoid}'+
-      '.banklabel{margin-bottom:6px;font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:rgba(35,35,35,.62)}'+
-      '.bankrow{display:flex;gap:14px;padding:2px 0}'+
-      '.bankrow span{flex:none;width:92px;color:rgba(35,35,35,.62)}'+
-      '.bankrow b{font-weight:600}'+
+      '.lines .num{text-align:right}'+
+      '.rate{color:'+muted+'}'+
+      '.sum{display:flex;justify-content:space-between;align-items:flex-start;gap:32px;margin-top:18px}'+
+      '.vatsum{width:250px}'+
+      '.vatsum th{padding:0 0 4px;border-bottom:1px solid '+line+';text-align:left;font-size:10px;font-weight:700;color:'+muted+'}'+
+      '.vatsum td{padding:4px 0;border-bottom:1px solid '+soft+';font-size:10.5px}'+
+      '.vatsum .num{padding-left:12px;text-align:right}'+
+      '.totals{flex:none;width:270px}'+
+      '.trow{display:flex;justify-content:space-between;gap:16px;padding:3px 0}'+
+      '.trow span:first-child{color:'+muted+'}'+
+      '.trow small{font-size:10px;color:'+muted+'}'+
+      '.grand{margin-top:6px;padding-top:8px;border-top:1.5px solid '+ink+';font-size:15px;font-weight:700}'+
+      '.grand span:first-child{color:'+ink+'}'+
+      '.regime{margin-top:16px;padding:9px 12px;background:'+ijs+';border-radius:6px;font-size:10.5px;font-weight:700;line-height:1.5}'+
+      '.bank{margin-top:20px;padding:12px 16px;background:'+ijs+';border-radius:10px}'+
+      '.bankrow{display:flex;gap:12px;padding:1px 0}'+
+      '.bankrow span{flex:none;width:128px;color:'+muted+'}'+
       '.bankexample{margin-top:6px;color:#7A5410}'+
-      '.regime{margin:12px 0 0 auto;max-width:420px;padding:9px 12px;border:1px solid #D3DDDF;border-radius:12px;font-size:11px;font-weight:600;line-height:1.5;text-align:right;page-break-inside:avoid}'+
-      '.foot{margin-top:30px;border-top:1px solid #D3DDDF;padding-top:10px;font-size:9px;line-height:1.7;color:rgba(35,35,35,.62)}'+
-      '.trow small{font-size:10px;color:rgba(35,35,35,.55)}'+
-      '.doc+.doc{margin-top:38px}'+
-      '@media print{thead{display:table-header-group}tr{page-break-inside:avoid}.totals,.banner,.metaband{page-break-inside:avoid}.doc+.doc{margin-top:0}}';
-    const body=mast+'<h1>'+title+'</h1>'+metaband+banners+klantBlock+table+
+      '.foot{margin-top:24px;font-size:10px;line-height:1.55}'+
+      '.legal{margin-top:14px;padding-top:8px;border-top:1px solid '+line+';font-size:9px;line-height:1.5;color:'+muted+'}'+
+      '.doc+.doc{margin-top:48px}'+
+      'thead{display:table-header-group}'+
+      'tr{break-inside:avoid;page-break-inside:avoid}'+
+      '.mast,.head,.banner,.sum,.regime,.bank,.foot,.legal{break-inside:avoid;page-break-inside:avoid}'+
+      '.mast,.head{break-after:avoid;page-break-after:avoid}'+
+      '@media print{body{padding:0}.doc+.doc{margin-top:0}}';
+    const legal=legalLine?'<div class="legal">'+legalLine+'</div>':'';
+    const body=mast+head+banners+table+
       (priced?totals+(invoice&&!pro?bank:''):'')+
-      (foot||legalLine||termsLine?'<div class="foot">'+[foot,termsLine,legalLine].filter(Boolean).join('<br>')+'</div>':'');
+      (foot||termsLine?'<div class="foot">'+[foot,termsLine].filter(Boolean).join('<br>')+'</div>':'')+
+      legal;
     return{num,title,css,body,lang};
   }
   const wrap=(titleTxt,css,inner,lang)=>'<!doctype html><html lang="'+(lang||"nl")+'"><head><meta charset="utf-8"><title>'+esc(titleTxt)+'</title><style>'+css+'</style></head><body>'+inner+'</body></html>';

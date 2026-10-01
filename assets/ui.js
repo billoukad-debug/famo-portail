@@ -284,7 +284,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "b5d928515b";
+  K.DOCS_VER = "779cc54cc4";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
