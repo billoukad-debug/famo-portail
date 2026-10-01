@@ -132,7 +132,8 @@ test("3 commandes du même produit partent ensemble : 3 décomptes (8 → 5)", a
 
 test("double « Vertrekt » sur deux instances : un seul décompte", async () => {
   await seedStock([PRETE("recDEP0004", 2)], 8);
-  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; return require(p); };
+  // Instance neuve : le point d'entrée ET ses modules lib/commande/ (A6, specs/010) rechargés.
+  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; Object.keys(require.cache).filter((k) => k.startsWith(path.join(ROOT, "lib", "commande") + path.sep)).forEach((k) => { delete require.cache[k]; }); return require(p); };
   const a = inst(), b = inst();
   const go = async (h) => { const res = mkRes(); await h({ method: "POST", body: { id: "recDEP0004", statut: "Sortie en livraison" }, headers: cookie("staff"), query: {} }, res); return res; };
   const [x, y] = await Promise.all([go(a), go(b)]);

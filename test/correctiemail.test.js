@@ -142,7 +142,8 @@ test("lignes corrigées par le magasin → « Correctie mailen » : un e-mail cl
 
 test("deux clics simultanés sur deux instances : un seul envoi", async () => {
   await seed([ORDER("recORD0002", { "Lignes (produits / quantités)": "Zalm × 1 kg [€12.50]\nSaus × 3 pièce [€5.00]", Total: 27.5 })]);
-  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; return require(p); };
+  // Instance neuve : le point d'entrée ET ses modules lib/commande/ (A6, specs/010) rechargés.
+  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; Object.keys(require.cache).filter((k) => k.startsWith(path.join(ROOT, "lib", "commande") + path.sep)).forEach((k) => { delete require.cache[k]; }); return require(p); };
   const go = async (h) => { const res = mkRes(); await h({ method: "POST", body: { id: "recORD0002", correctieMail: true }, headers: cookie("staff"), query: {} }, res); return res; };
   const [a, b] = await Promise.all([go(inst()), go(inst())]);
   assert.deepStrictEqual([a.statusCode, b.statusCode].sort(), [200, 409]);

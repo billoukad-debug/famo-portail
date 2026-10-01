@@ -17,7 +17,7 @@ Une seule peau « Vismijn » pour les trois portails (voir `DESIGN.md`) : fond f
 ## Structure
 
 ```
-api/            fonctions serverless (+ api/klantdoc.js documents client, api/klantwachtwoord.js mot de passe client, api/klantorder.js annulation par le client ; api/updateorder.js porte aussi les corrections)
+api/            fonctions serverless (+ api/klantdoc.js documents client, api/klantwachtwoord.js mot de passe client, api/klantorder.js annulation par le client ; api/updateorder.js aiguille vers lib/commande/ : statut, corrections, creditnota, correctiemail)
 lib/            règles métier (prix négociés, numérotation, auth, mail)
 assets/ui.css   une seule feuille de style (jetons, composants, responsive, print)
 assets/ui.js    couche partagée : K.api, K.staff, K.klant, K.c (composants), K.shell (navigation), K.toast/confirm/panel

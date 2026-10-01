@@ -139,7 +139,8 @@ test("retour en stock par note, une seule fois (clé d'idempotence : double clic
 
 test("deux notes simultanées sur deux instances : aucune perdue, plafond tenu", async () => {
   await seed([FACT("recORD0006")]);
-  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; return require(p); };
+  // Instance neuve : le point d'entrée ET ses modules lib/commande/ (A6, specs/010) rechargés.
+  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; Object.keys(require.cache).filter((k) => k.startsWith(path.join(ROOT, "lib", "commande") + path.sep)).forEach((k) => { delete require.cache[k]; }); return require(p); };
   const go = async (h, body) => { const res = mkRes(); await h({ method: "POST", body, headers: cookie("admin"), query: {} }, res); return res; };
   let [x, y] = await Promise.all([go(inst(), { id: "recORD0006", creditnota: { motif: "a-kant", lignes: "Tong × 1 kg", sleutel: "p1" } }), go(inst(), { id: "recORD0006", creditnota: { motif: "b-kant", lignes: "Saus × 1", sleutel: "p2" } })]);
   assert.equal(x.statusCode, 200, JSON.stringify(x.payload)); assert.equal(y.statusCode, 200, JSON.stringify(y.payload));

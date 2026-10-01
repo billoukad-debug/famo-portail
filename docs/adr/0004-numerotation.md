@@ -16,3 +16,11 @@ Il faut des numéros lisibles et séquentiels par année : commandes `CMD-AAAA-N
 - Simple et sans dépendance. Pas de trou garanti ni d'absence de doublon transitoire : un numéro peut être remplacé juste après son attribution.
 - Deux commandes créées au même instant peuvent partager une référence CMD (non testé, `lib/ordernumber.js` le documente).
 - Piste : compteur atomique dans Postgres (séquence ou ligne compteur avec mise à jour conditionnelle).
+
+## Mise à jour 2026-10-01 (specs/010-updateorder-numerotation)
+- Le compteur atomique existe (`lib/billing.js` `reserve`, table interne `Compteurs`, moteur SQL).
+- FA/CN (`lib/commande/`) : tout contrôle qui peut refuser passe AVANT la réservation ; la note de crédit
+  ne réserve qu'au moment d'écrire, sur l'état relu. Un numéro réservé puis non écrit est rendu au
+  compteur si le refus est certain et qu'il est encore le dernier (`billing.release`), sinon journalisé
+  « Nummer vervallen » (Journaal + logs). Une écriture en échec ne rend jamais le numéro (issue incertaine).
+  Procédure : `docs/RUNBOOK.md` § 6.

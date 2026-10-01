@@ -36,6 +36,8 @@ function mkRes() {
 function clearModule(rel) {
   const abs = require.resolve(path.join(ROOT, rel));
   delete require.cache[abs];
+  // api/updateorder.js découpé (A6, specs/010) : ses modules lib/commande/ sont rechargés avec lui.
+  if (rel === "api/updateorder.js") Object.keys(require.cache).filter(k => k.startsWith(path.join(ROOT, "lib", "commande") + path.sep)).forEach(k => { delete require.cache[k]; });
 }
 
 // Facturation (api/updateorder.js billingContext) : Configuratie, Catalogue puis le client (régime de
