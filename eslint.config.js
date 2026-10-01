@@ -6,7 +6,7 @@
 //
 // Deux règles recommandées restent désactivées tant que le code ne les respecte pas :
 //   no-useless-escape (18 cas : api/, assets/ui.js, documents.js…) et
-//   no-regex-spaces (2 cas dans scripts/workflow-check.js). Les corriger puis les activer.
+//   no-regex-spaces (2 cas dans test/workflow/corrections.test.js, bloc AN). Les corriger puis les activer.
 const common = {
   console: "readonly", Date: "readonly", Math: "readonly", JSON: "readonly", Number: "readonly", String: "readonly",
   Object: "readonly", Array: "readonly", Map: "readonly", Set: "readonly", WeakMap: "readonly", Promise: "readonly",

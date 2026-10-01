@@ -26,6 +26,12 @@ needs a recent Node 22.
 - Test (business rules + syntax + unit tests): `node scripts/check.js`. This is the primary
   gate (mocks `fetch`, needs no external services). CI runs it on every push (all branches)
   and every pull request (`.github/workflows/check.yml`).
+- Business scenarios (mocked Airtable/Resend, real `fetch` refused): `test/workflow/*.test.js`, one
+  file per domain, shared helpers in `test/workflow/_helpers.js` (env, `call()` mock, cookies).
+  `node scripts/workflow-check.js [name]` runs them in parallel (`node --test`, one process per
+  file — required, files mutate `global.fetch`/`process.env`); `check.js` calls it. New scenario:
+  add a `test()` to the matching domain file; `test/workflow/inventaire.test.js` guards against
+  lost blocks/assertions (spec 011, audit F-10).
 - Lint: `npx -y eslint@9.39.5 .` (pinned; flat config in `eslint.config.js` with the
   `eslint:recommended` rules except `no-useless-escape` and `no-regex-spaces`; server AND
   browser code, vendor excluded).

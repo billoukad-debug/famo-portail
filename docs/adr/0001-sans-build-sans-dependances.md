@@ -13,5 +13,5 @@ Petite équipe, un seul développeur à la fois, portail de taille modeste (une 
 
 ## Conséquences
 - Déploiement = copie des fichiers ; aucune chaîne de build à casser ; audit de sécurité des dépendances quasi nul.
-- Tout est écrit à la main : duplications (`esc`, `eur`, `parseLines`, `rateLimited`) compensées par des tests de parité (`scripts/workflow-check.js`, blocs M6 et AZ).
+- Tout est écrit à la main : duplications (`esc`, `eur`, `parseLines`, `rateLimited`) compensées par des tests de parité (`test/workflow/` : bloc M6 dans `emails-documents.test.js`, AZ dans `facturation.test.js`).
 - Pas de typage ni de minification ; styles en ligne à surveiller.

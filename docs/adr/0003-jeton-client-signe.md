@@ -14,7 +14,7 @@ Au départ, le navigateur du client gardait son identifiant et son mot de passe 
 ## Conséquences
 - Le mot de passe ne circule qu'une fois ; un jeton volé expire en 12 h au plus ; révocation globale en changeant `SESSION_SECRET`.
 - Un jeton en `sessionStorage` reste lisible par un script injecté (XSS) : la CSP de `vercel.json` et `K.esc()` sont la défense. Un cookie HttpOnly pour le client reste une amélioration possible (`IDEAS.md`, B3).
-- Les expirations sont testées avec des jetons correctement signés (`scripts/workflow-check.js`, session staff et AX5).
+- Les expirations sont testées avec des jetons correctement signés (`test/workflow/` : session staff dans `sessions-roles.test.js`, AX5 dans `facturation.test.js`).
 
 ## Mise à jour (01/10/2026, `specs/013-cookie-client-httponly`, IDEAS B3)
 - Le jeton client (même format, `k.<recId>.<exp>.<empreinte>.<iat>.<génération>.<signature>`) ne passe plus par JavaScript : le serveur le pose dans le cookie **`famo_klant`** (HttpOnly, Secure, **SameSite=Strict**, **Path=/api**, Max-Age = durée restante du jeton) à la connexion, au choix du mot de passe par lien, au changement de mot de passe et à chaque ouverture du catalogue ; la déconnexion l'efface (et augmente la génération). Aucune réponse ne contient plus le jeton.
