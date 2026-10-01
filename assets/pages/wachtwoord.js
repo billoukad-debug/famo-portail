@@ -25,15 +25,15 @@ document.addEventListener("DOMContentLoaded", function () { // na de uitgestelde
     if (token) { sessionStorage.setItem(KEY, token); history.replaceState(null, "", location.pathname); }
     else token = sessionStorage.getItem(KEY) || "";
   } catch (e) { /* privévenster : de token blijft in het geheugen */ }
-  const head = title => '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><a class="tlink" href="/" style="font-size:13px">' + K.t("← Aanmelden") + '</a>' + K.langSwitch() + '</div><h1 class="h1 mt-18">' + K.t(title) + '</h1>';
+  const head = title => '<div class="d-flex ai-c jc-sb gap-10"><a class="tlink fs-13" href="/">' + K.t("← Aanmelden") + '</a>' + K.langSwitch() + '</div><h1 class="h1 mt-18">' + K.t(title) + '</h1>';
 
   if (token) {
     // ---- Nieuw wachtwoord kiezen via de link ----
-    app.innerHTML = '<div style="max-width:480px;margin:0 auto;padding:24px 16px">' + head("Nieuw wachtwoord kiezen") + '<p class="sub ws-normal">' + K.t("Kies uw wachtwoord. Daarna meldt u zich aan met uw gebruikersnaam en dit wachtwoord.") + '</p>' +
+    app.innerHTML = '<div class="wrap-480">' + head("Nieuw wachtwoord kiezen") + '<p class="sub ws-normal">' + K.t("Kies uw wachtwoord. Daarna meldt u zich aan met uw gebruikersnaam en dit wachtwoord.") + '</p>' +
       '<form id="f" class="card card-b mt-16 stack-12" novalidate>' +
       K.c.field(K.t("Nieuw wachtwoord"), K.c.input("pw1", { type: "password", attrs: ' autocomplete="new-password" minlength="8" maxlength="80" required' }), { id: "fPw1", for: "pw1", hint: K.t("Minstens 8 tekens.") }) +
       K.c.field(K.t("Herhaal nieuw wachtwoord"), K.c.input("pw2", { type: "password", attrs: ' autocomplete="new-password" maxlength="80" required' }), { id: "fPw2", for: "pw2" }) +
-      '<div id="msg"></div><button type="submit" class="btn btn-p" id="btn" style="min-height:50px;font-size:15px">' + K.t("Wachtwoord opslaan") + '</button></form></div>';
+      '<div id="msg"></div><button type="submit" class="btn btn-p btn-tall" id="btn">' + K.t("Wachtwoord opslaan") + '</button></form></div>';
     document.getElementById("f").addEventListener("submit", async e => {
       e.preventDefault();
       const pw1 = document.getElementById("pw1").value, pw2 = document.getElementById("pw2").value;
@@ -46,11 +46,11 @@ document.addEventListener("DOMContentLoaded", function () { // na de uitgestelde
         try { sessionStorage.removeItem(KEY); } catch (err) { /* niets */ }
         // Meteen aangemeld : de server zette de HttpOnly-sessiecookie ; hier enkel de gebruikersnaam (weergave).
         if (d.ok && d.user) K.klant.set({ user: d.user });
-        document.getElementById("f").innerHTML = K.c.ok(K.t("Wachtwoord opgeslagen.")) + '<a class="btn btn-p" href="/klant#/catalogus" style="margin-top:12px">' + K.t("Naar het bestelportaal") + '</a>';
+        document.getElementById("f").innerHTML = K.c.ok(K.t("Wachtwoord opgeslagen.")) + '<a class="btn btn-p mt-12" href="/klant#/catalogus">' + K.t("Naar het bestelportaal") + '</a>';
       } catch (err) {
         if (err.payload && err.payload.expired) {
           try { sessionStorage.removeItem(KEY); } catch (e2) { /* niets */ }
-          document.getElementById("f").innerHTML = K.c.warn(err.message) + '<a class="btn btn-o" href="/wachtwoord" style="margin-top:12px">' + K.t("Nieuwe link aanvragen") + '</a>';
+          document.getElementById("f").innerHTML = K.c.warn(err.message) + '<a class="btn btn-o mt-12" href="/wachtwoord">' + K.t("Nieuwe link aanvragen") + '</a>';
           return;
         }
         document.getElementById("msg").innerHTML = K.c.error(err.message); K.busy(btn, false);
@@ -60,10 +60,10 @@ document.addEventListener("DOMContentLoaded", function () { // na de uitgestelde
   }
 
   // ---- Link aanvragen : gebruikersnaam + e-mail van de zaak ----
-  app.innerHTML = '<div style="max-width:480px;margin:0 auto;padding:24px 16px">' + head("Wachtwoord vergeten") + '<p class="sub ws-normal">' + K.t("Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een link naar dat adres om een nieuw wachtwoord te kiezen.") + '</p>' +
-    '<form id="f" class="card card-b mt-16 stack-12" novalidate>' + K.c.field(K.t("Gebruikersnaam"), K.c.input("user", { attrs: ' autocomplete="username" autocapitalize="none" spellcheck="false" required' }), { id: "fUser", for: "user" }) + K.c.field(K.t("E-mailadres van uw zaak"), K.c.input("email", { type: "email", attrs: ' autocomplete="email" inputmode="email" required' }), { id: "fMail", for: "email" }) + '<div id="msg"></div><button type="submit" class="btn btn-p" id="btn" style="min-height:50px;font-size:15px">' + K.t("Nieuw wachtwoord aanvragen") + '</button></form>' +
-    '<div class="card card-b" style="margin-top:16px;display:flex;flex-direction:column;gap:8px" id="contact"><b>FAMO Seafood</b><span class="muted">' + K.t("Gegevens laden…") + '</span></div></div>';
-  K.api("/api/config?public=1").then(d => { const c = d.config || {}; document.getElementById("contact").innerHTML = "<b>" + K.esc(c.bedrijfsnaam || "FAMO Seafood") + "</b><span class=\"muted\">" + K.t("Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.") + "</span>" + (c.telefoon ? "<a class=\"tlink\" href=\"tel:" + K.esc(String(c.telefoon).replace(/\s+/g, "")) + "\">" + K.esc(c.telefoon) + "</a>" : "") + (c.email ? "<a class=\"tlink\" href=\"mailto:" + K.esc(c.email) + "\">" + K.esc(c.email) + "</a>" : "") + "<span class=\"quiet\" style=\"font-size:12px\">" + K.esc([c.adres, c.plaats].filter(Boolean).join(", ")) + "</span>"; }).catch(() => {});
+  app.innerHTML = '<div class="wrap-480">' + head("Wachtwoord vergeten") + '<p class="sub ws-normal">' + K.t("Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een link naar dat adres om een nieuw wachtwoord te kiezen.") + '</p>' +
+    '<form id="f" class="card card-b mt-16 stack-12" novalidate>' + K.c.field(K.t("Gebruikersnaam"), K.c.input("user", { attrs: ' autocomplete="username" autocapitalize="none" spellcheck="false" required' }), { id: "fUser", for: "user" }) + K.c.field(K.t("E-mailadres van uw zaak"), K.c.input("email", { type: "email", attrs: ' autocomplete="email" inputmode="email" required' }), { id: "fMail", for: "email" }) + '<div id="msg"></div><button type="submit" class="btn btn-p btn-tall" id="btn">' + K.t("Nieuw wachtwoord aanvragen") + '</button></form>' +
+    '<div class="card card-b mt-16 d-flex f-col gap-8" id="contact"><b>FAMO Seafood</b><span class="muted">' + K.t("Gegevens laden…") + '</span></div></div>';
+  K.api("/api/config?public=1").then(d => { const c = d.config || {}; document.getElementById("contact").innerHTML = "<b>" + K.esc(c.bedrijfsnaam || "FAMO Seafood") + "</b><span class=\"muted\">" + K.t("Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.") + "</span>" + (c.telefoon ? "<a class=\"tlink\" href=\"tel:" + K.esc(String(c.telefoon).replace(/\s+/g, "")) + "\">" + K.esc(c.telefoon) + "</a>" : "") + (c.email ? "<a class=\"tlink\" href=\"mailto:" + K.esc(c.email) + "\">" + K.esc(c.email) + "</a>" : "") + "<span class=\"quiet fs-12\">" + K.esc([c.adres, c.plaats].filter(Boolean).join(", ")) + "</span>"; }).catch(() => {});
   document.getElementById("f").addEventListener("submit", async e => {
     e.preventDefault();
     const user = document.getElementById("user").value.trim(), email = document.getElementById("email").value.trim();
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function () { // na de uitgestelde
     try {
       const d = await K.api("/api/klantorder", { json: { action: "reset", user, email } });
       // mail:false = de server kan geen e-mail versturen (geen mailsleutel) : dan helpt enkel bellen.
-      document.getElementById("f").innerHTML = (d.mail === false ? K.c.warn(K.t("E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.")) : K.c.ok(K.errText(d.message || "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een link om een nieuw wachtwoord te kiezen."))) + '<a class="btn btn-o" href="/" style="margin-top:12px">' + K.t("← Aanmelden") + '</a>';
+      document.getElementById("f").innerHTML = (d.mail === false ? K.c.warn(K.t("E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.")) : K.c.ok(K.errText(d.message || "Als de gegevens kloppen, ontvangt u binnen enkele minuten een e-mail met een link om een nieuw wachtwoord te kiezen."))) + '<a class="btn btn-o mt-12" href="/">' + K.t("← Aanmelden") + '</a>';
     } catch (err) { document.getElementById("msg").innerHTML = K.c.error(err.message); K.busy(btn, false); }
   });
 });
