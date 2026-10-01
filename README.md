@@ -8,26 +8,34 @@ Les documents FA-/CN- du portail sont des documents internes : la facture légal
 
 | Portail | Pages | Accès |
 |---|---|---|
-| **Klant** | `/` (accueil + connexion), `/klant.html` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag.html`, `/wachtwoord.html` | gebruikersnaam + wachtwoord |
-| **Personeel** | `/personeel.html` (connexion), `/bestellingen.html` (tabel · bord · kalender), `/order.html`, `/entrepot.html` (dag · bord), `/leveringen.html`, `/documenten.html`, `/invoer.html`, `/stock.html` | `STAFF_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN personnel (cookie 8 h) |
-| **Beheer** | `/beheer-login.html`, `/beheer.html` (overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status) + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
+| **Klant** | `/` (accueil + connexion), `/klant` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag`, `/wachtwoord` | gebruikersnaam + wachtwoord |
+| **Personeel** | `/team/aanmelden` (connexion), `/team/bestellingen` (tabel · bord · kalender), `/team/bestelling`, `/team/magazijn` (dag · bord), `/team/leveringen`, `/team/documenten`, `/team/invoeren`, `/team/voorraad` | `STAFF_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN personnel (cookie 8 h) |
+| **Beheer** | `/beheer/aanmelden`, `/beheer` (overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status) + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
 
 Une seule peau « Vismijn » pour les trois portails (voir `DESIGN.md`) : fond froid, une couleur d'action (Noordzee), la barre de l'équipe en bleu-noir, un F sobre comme marque, la police Atkinson Hyperlegible Next. Les couleurs de statut sont identiques partout : ambre ontvangen, Noordzee klaar, bleu onderweg, vert geleverd, gris gefactureerd, rouge te laat.
 
 ## Structure
 
+L'arborescence suit les adresses : `/team/magazijn` = `team/magazijn.html` + `assets/pages/team/magazijn.js`.
+URL propres sans `.html` (`vercel.json` : `cleanUrls`) ; les anciennes adresses (`/team/magazijn`, `/team/bestelling?id=…`
+des e-mails déjà envoyés…) redirigent en permanent vers les nouvelles.
+
 ```
-api/            fonctions serverless (+ api/klantdoc.js documents client, api/klantwachtwoord.js mot de passe client, api/klantorder.js annulation par le client ; api/updateorder.js porte aussi les corrections)
-lib/            règles métier (prix négociés, numérotation, auth, mail)
-assets/ui.css   une seule feuille de style (jetons, composants, responsive, print)
+index.html klant.html aanvraag.html wachtwoord.html privacy.html voorwaarden.html offline.html
+                portail client (/, /klant, /aanvraag, /wachtwoord, /privacy, /voorwaarden) et page hors ligne
+team/           personnel : aanmelden, bestellingen, bestelling (?id=…), magazijn, leveringen, invoeren, documenten, voorraad, lots
+beheer.html     Beheer (/beheer) ; beheer/aanmelden.html = connexion Beheer (/beheer/aanmelden)
+api/            fonctions serverless (+ api/klantdoc.js documents client, api/klantwachtwoord.js mot de passe client, api/klantorder.js annulation par le client ; api/updateorder.js aiguille vers lib/commande/ : statut, corrections, creditnota, correctiemail)
+lib/            règles métier (prix négociés, numérotation, auth, mail) ; lib/beheer/ et lib/commande/ : un module par domaine
+assets/ui.css   une seule feuille de style (jetons, composants, responsive, print, hoog contrast)
 assets/ui.js    couche partagée : K.api, K.staff, K.klant, K.c (composants), K.shell (navigation), K.toast/confirm/panel
-assets/pages/   un script par page (klant.js, bestellingen.js, order.js, entrepot.js, leveringen.js, invoer.js, documenten.js, beheer.js, stock.js, start.js, login.js, aanvraag.js, staff-common.js)
-documents.js    génération leveringsbon / factuur / creditnota, en NL ou FR selon la langue du client
-staff-doc-preview.js  aperçu A4, impression, PDF (vendor/html2pdf.bundle.min.js, copie locale)
-scripts/dev.js  serveur local avec Airtable et Resend nabootsés (zéro quota)
-scripts/check.js garde-fous (syntaxe, secrets, liens, NL, contrastes, tests unitaires, scénarios métier)
+assets/pages/   un script par page client + beheer.js, aanmelden.js (connexion équipe et Beheer), staff-common.js (partagé équipe/Beheer)
+assets/pages/team/  un script par page du personnel (même nom que la page)
+assets/docs/    assets/docs/documents.js (leveringsbon / factuur / creditnota, NL ou FR selon le client), bedrijf.js (coordonnées), voorbeeld.js (aperçu A4, impression, PDF via vendor/html2pdf.bundle.min.js)
+scripts/dev.js  serveur local avec Airtable et Resend nabootsés (zéro quota) ; scripts/dev-server.js reproduit cleanUrls et les redirections de vercel.json
+scripts/check.js garde-fous (syntaxe, secrets, liens en URL propre, NL, contrastes, tests unitaires, scénarios métier)
 scripts/ux-audit.js audit navigateur (Playwright) de 27 écrans à 1280 et 390 px
-test/           tests unitaires node --test (moteur SQL, documents, e-mails, lib/airtable, Beheer…)
+test/           tests unitaires node --test (moteur SQL, documents, e-mails, lib/airtable, Beheer…) ; test/workflow/ : scénarios métier par domaine
 docs/           schéma des données, runbook, comptes, transfert, coûts, ADR, checklist UX
 ```
 
@@ -100,10 +108,10 @@ Chiffre d'affaires facturé par mois, par client et par produit, impayés, TVA p
 
 ## Comptes clients
 
-Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Le serveur renvoie alors un jeton signé (HMAC, 12 h, `lib/clientauth.js`) que l'onglet garde en `sessionStorage` à la place du mot de passe ; chaque appel est revérifié (signature, échéance, empreinte du mot de passe : changer ou réinitialiser le mot de passe invalide les jetons existants).
+Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Le serveur pose alors un jeton signé (HMAC, 12 h, `lib/clientauth.js`) dans le cookie `famo_klant` (HttpOnly, Secure, SameSite=Strict, chemin `/api`) : ni le jeton ni le mot de passe ne sont lisibles par la page, l'onglet ne garde que l'identifiant et le nom de la zaak (`specs/013-cookie-client-httponly`) ; chaque appel est revérifié (signature, échéance, empreinte du mot de passe : changer ou réinitialiser le mot de passe invalide les jetons existants).
 
 - **Changer son mot de passe** : Klant → Account → Wachtwoord → Wijzigen (`/api/klantwachtwoord`). Le client retape son mot de passe actuel, vérifié côté serveur ; seul le compte qui vient d'être vérifié est modifié, jamais un identifiant envoyé par le navigateur. Nouveau mot de passe : 8 à 80 caractères, différent de l'actuel ; 5 essais ratés par 30 s.
-- **Mot de passe oublié** : `/wachtwoord.html` → gebruikersnaam + e-mail connu → nouveau mot de passe envoyé par e-mail (`/api/klantorder`, action `reset`, réponse neutre, 3 demandes par heure). Sans `RESEND_API_KEY`, Famo le remet depuis Beheer.
+- **Mot de passe oublié** : `/wachtwoord` → gebruikersnaam + e-mail connu → nouveau mot de passe envoyé par e-mail (`/api/klantorder`, action `reset`, réponse neutre, 3 demandes par heure). Sans `RESEND_API_KEY`, Famo le remet depuis Beheer.
 - **Compte** : e-mail et téléphone modifiables par le client ; favoris et « standaardbestelling » synchronisés entre appareils (`Favorieten`, JSON) ; relevé des factures ouvertes avec IBAN/BIC et communication ; détail de chaque commande (statut, facture, livraison, exception, creditnota) ; annulation ou modification (annule + remet au panier) tant que la commande est « Reçue ».
 - **Anti-force brute** : 5 échecs par 30 s par gebruikersnaam (et 30 par 5 min par IP) à la connexion (`authClient` partagé). Le compteur est en mémoire de chaque instance serverless : sur Vercel, c'est un frein, pas une limite globale garantie. Un client archivé ne peut plus se connecter.
 - **Mots de passe** : stockés hachés (scrypt, `scrypt$<sel>$<empreinte>`) dans `Wachtwoord`. Un ancien mot de passe encore en clair est accepté une fois puis remplacé par son empreinte à la connexion.
@@ -154,4 +162,4 @@ Local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff (
 
 ## Pas dans cette version
 
-Optimisation automatique de tournée (l'ordre se règle à la main dans Leveringen), carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, envoi Peppol depuis le portail (la facture légale part du comptable via Billtobox), session client par cookie (le jeton signé vit dans l'onglet).
+Optimisation automatique de tournée (l'ordre se règle à la main dans Leveringen), carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, envoi Peppol depuis le portail (la facture légale part du comptable via Billtobox).

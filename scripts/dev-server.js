@@ -54,9 +54,33 @@ function decorateRes(res) {
   return res;
 }
 
-function serveStatic(res, urlPath) {
+// Redirections de vercel.json (« /x/:path* », « /x.html ») : même réponse qu'en production.
+const VERCEL = JSON.parse(fs.readFileSync(path.join(root, "vercel.json"), "utf8"));
+const REDIRECTS = (VERCEL.redirects || []).map((r) => {
+  const keys = [];
+  const src = r.source.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/:(\w+)\\\*/g, (m, k) => { keys.push(k); return "(.*)"; }).replace(/:(\w+)/g, (m, k) => { keys.push(k); return "([^/]+)"; });
+  return { re: new RegExp("^" + src + "$"), keys, to: r.destination, code: r.permanent ? 308 : 307 };
+});
+function redirect(res, to, code) { res.statusCode = code; res.setHeader("Location", to); res.end(); }
+function vercelRedirect(pathname, search) {
+  for (const r of REDIRECTS) {
+    const m = r.re.exec(pathname); if (!m) continue;
+    let to = r.to; r.keys.forEach((k, i) => { to = to.replace(new RegExp(":" + k + "\\*?"), m[i + 1]); });
+    if (search) to += (to.includes("?") ? "&" : "?") + search.slice(1); // la requête d'origine suit, comme sur Vercel
+    return { to, code: r.code };
+  }
+  return null;
+}
+
+// cleanUrls : /team/magazijn sert team/magazijn.html, /team/magazijn.html redirige vers /team/magazijn.
+function serveStatic(res, urlPath, search) {
   let rel = decodeURIComponent(urlPath);
+  const r = vercelRedirect(rel, search || "");
+  if (r) return redirect(res, r.to, r.code);
+  if (rel.length > 1 && rel.endsWith("/")) return redirect(res, rel.replace(/\/+$/, "") + (search || ""), 308);
+  if (VERCEL.cleanUrls && rel.endsWith(".html")) return redirect(res, (rel.replace(/(\/index)?\.html$/, "") || "/") + (search || ""), 308);
   if (rel === "/" || rel === "") rel = "/index.html";
+  else if (VERCEL.cleanUrls && !path.extname(rel)) rel = fs.existsSync(path.join(root, rel + ".html")) ? rel + ".html" : rel + "/index.html";
   // Empêche la traversée de répertoire.
   const filePath = path.join(root, path.normalize(rel).replace(/^(\.\.[/\\])+/, ""));
   if (!filePath.startsWith(root)) {
@@ -107,7 +131,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  serveStatic(res, parsed.pathname);
+  serveStatic(res, parsed.pathname, parsed.search);
 });
 
 server.listen(PORT, () => {

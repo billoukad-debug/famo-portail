@@ -139,7 +139,8 @@ test("retour en stock par note, une seule fois (clé d'idempotence : double clic
 
 test("deux notes simultanées sur deux instances : aucune perdue, plafond tenu", async () => {
   await seed([FACT("recORD0006")]);
-  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; return require(p); };
+  // Instance neuve : le point d'entrée ET ses modules lib/commande/ (A6, specs/010) rechargés.
+  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; Object.keys(require.cache).filter((k) => k.startsWith(path.join(ROOT, "lib", "commande") + path.sep)).forEach((k) => { delete require.cache[k]; }); return require(p); };
   const go = async (h, body) => { const res = mkRes(); await h({ method: "POST", body, headers: cookie("admin"), query: {} }, res); return res; };
   let [x, y] = await Promise.all([go(inst(), { id: "recORD0006", creditnota: { motif: "a-kant", lignes: "Tong × 1 kg", sleutel: "p1" } }), go(inst(), { id: "recORD0006", creditnota: { motif: "b-kant", lignes: "Saus × 1", sleutel: "p2" } })]);
   assert.equal(x.statusCode, 200, JSON.stringify(x.payload)); assert.equal(y.statusCode, 200, JSON.stringify(y.payload));
@@ -172,12 +173,13 @@ test("portail client : toutes les notes (liste et documents), jamais celles d'un
   await credit("recORD0010", { lignes: "Tong × 1 kg" });
   await credit("recORD0010", { lignes: "Saus × 1", motif: "kapot" });
   const token = ca.issueToken({ id: "recCLA", fields: (await store().get("Clients", "recCLA")).fields });
-  const list = await call("orders.js", { token });
+  const kl = { headers: { cookie: "famo_klant=" + encodeURIComponent(token) } }; // session client : cookie (spec 013)
+  const list = await call("orders.js", {}, kl);
   assert.equal(list.statusCode, 200, JSON.stringify(list.payload));
   const o = list.payload.orders[0];
   assert.deepStrictEqual(o.creditnotas.map((n) => n.nummer), [nr(1), nr(2)]);
   assert.equal(o.creditnota.nummer, nr(1));
-  const doc = await call("klantdoc.js", { token, ref: o.ref });
+  const doc = await call("klantdoc.js", { ref: o.ref }, kl);
   assert.equal(doc.statusCode, 200, JSON.stringify(doc.payload));
   assert.deepStrictEqual(doc.payload.order.creditnotas.map((n) => [n.nummer, n.montant, n.motif]), [[nr(1), 16, "beschadigd"], [nr(2), 5, "kapot"]]);
   assert.equal(doc.payload.order.creditnotas[1].lignes, "Saus × 1 pièce [€5.00]");

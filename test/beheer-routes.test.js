@@ -20,7 +20,7 @@ test("chaque action envoyée par les pages vers /api/onboarding a son module", (
   const routed = new Set(MODS.flatMap(([, m]) => m.ACTIONS));
   const dir = path.join(ROOT, "assets", "pages");
   const sent = new Set();
-  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith(".js"))) {
+  for (const f of [...fs.readdirSync(dir), ...fs.readdirSync(path.join(dir, "team")).map((x) => "team/" + x)].filter((x) => x.endsWith(".js"))) {
     const src = fs.readFileSync(path.join(dir, f), "utf8");
     if (!src.includes("/api/onboarding")) continue;
     for (const m of src.matchAll(/action:\s*"(\w+)"/g)) sent.add(m[1]);
@@ -29,7 +29,7 @@ test("chaque action envoyée par les pages vers /api/onboarding a son module", (
   const orphan = [...sent].filter((a) => !routed.has(a) && !/^(cancel|profile|logout|setPassword|nieuw|correct)/.test(a));
   // Les actions d'autres API (klantorder, klantwachtwoord, updateorder) partagent le mot « action » : on les
   // reconnaît à ce qu'aucun module Beheer ne les connaît ET qu'elles ne sont pas envoyées à /api/onboarding.
-  const reallyOnboarding = orphan.filter((a) => fs.readdirSync(dir).some((f) => new RegExp('/api/onboarding"[^;]*action:\\s*"' + a + '"').test(fs.readFileSync(path.join(dir, f), "utf8"))));
+  const reallyOnboarding = orphan.filter((a) => fs.readdirSync(dir).filter((f) => f.endsWith(".js")).some((f) => new RegExp('/api/onboarding"[^;]*action:\\s*"' + a + '"').test(fs.readFileSync(path.join(dir, f), "utf8"))));
   assert.deepStrictEqual(reallyOnboarding, [], "actions sans module");
 });
 

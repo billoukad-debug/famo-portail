@@ -6,7 +6,7 @@
   let lev = DEF;
   app.innerHTML = '<div class="start">' +
     '<a class="skip" href="#main">' + K.t("Naar de inhoud") + '</a><header class="start-hd"><a class="brand" href="/"><span class="logo logo-lg" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + K.t("Verse vis en zeevruchten, Antwerpen") + '</small></span></a>' +
-    '<nav class="mini">' + K.langSwitch() + '<a class="tlink" href="/aanvraag.html">' + K.t("Toegang aanvragen") + '</a></nav></header>' +
+    '<nav class="mini">' + K.langSwitch() + '<a class="tlink" href="/aanvraag">' + K.t("Toegang aanvragen") + '</a></nav></header>' +
     '<main class="start-body" id="main" tabindex="-1"><section class="hero"><h1 id="heroT"></h1>' +
     '<p id="hero"></p></section>' +
     '<form class="card login" id="loginForm" novalidate><div><h2 class="h2 login-t">' + K.t("Klantportaal") + '</h2><p class="sub">' + K.t("Aanmelden met uw gebruikersnaam") + '</p></div>' +
@@ -15,8 +15,8 @@
     K.c.field(K.t("Wachtwoord"), '<div class="pwwrap">' + K.c.input("pw", { type: "password", attrs: ' autocomplete="current-password" required' }) + '<button type="button" class="btn btn-ghost btn-sm" id="togglePw" data-ux-exempt>' + K.t("Tonen") + '</button></div>', { id: "fPw", for: "pw" }) +
     '<div id="loginErr"></div>' +
     '<button type="submit" class="btn btn-p btn-lg" id="loginBtn">' + K.t("Aanmelden") + '</button>' +
-    '<div class="login-links"><a class="tlink" href="/wachtwoord.html">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag.html">' + K.t("Nog geen klant? Toegang aanvragen") + '</a></div></form></main>' +
-    '<footer class="start-ft"><span class="quiet" id="foot">FAMO Seafood</span><nav class="mini" aria-label="' + K.t("Meer links") + '"><a class="tlink" href="/privacy.html">' + K.t("Privacy") + '</a><a class="tlink" href="/voorwaarden.html">' + K.t("Voorwaarden") + '</a><span class="ft-sep"></span><span>' + K.t("Werkt u bij Famo?") + '</span><a class="btn btn-o btn-sm" href="/personeel.html">' + K.t("Personeel") + '</a><a class="btn btn-o btn-sm" href="/beheer-login.html">' + K.t("Beheer") + '</a></nav></footer></div>';
+    '<div class="login-links"><a class="tlink" href="/wachtwoord">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag">' + K.t("Nog geen klant? Toegang aanvragen") + '</a></div></form></main>' +
+    '<footer class="start-ft"><span class="quiet" id="foot">FAMO Seafood</span><nav class="mini" aria-label="' + K.t("Meer links") + '"><a class="tlink" href="/privacy">' + K.t("Privacy") + '</a><a class="tlink" href="/voorwaarden">' + K.t("Voorwaarden") + '</a><span class="ft-sep"></span><span>' + K.t("Werkt u bij Famo?") + '</span><a class="btn btn-o btn-sm" href="/team/aanmelden">' + K.t("Personeel") + '</a><a class="btn btn-o btn-sm" href="/beheer/aanmelden">' + K.t("Beheer") + '</a></nav></footer></div>';
 
   const KEYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
   function daysLabel() {
@@ -45,15 +45,16 @@
     document.getElementById("loginErr").innerHTML = "";
     try {
       const d = await K.api("/api/catalogue", { json: { user, pw } });
-      K.klant.set({ user, token: d.token, client: d.client, company: d.company });
+      // De sessie zit in de HttpOnly-cookie die de server net zette ; hier enkel weergavegegevens.
+      K.klant.set({ user, client: d.client });
       // Klant in het Frans (Clients.Taal) en nog geen taal gekozen op dit toestel : portaal meteen in het Frans.
       try { if (!localStorage.getItem("famoLang") && d.client && d.client.taal === "FR") localStorage.setItem("famoLang", "fr"); } catch (e) { /* privévenster */ }
       K.session.set("famoKlantCatalogus", { at: Date.now(), products: d.products, client: d.client, company: d.company });
-      location.href = "/klant.html#/catalogus";
+      location.href = "/klant#/catalogus";
     } catch (err) {
       document.getElementById("loginErr").innerHTML = K.c.error(err.status === 401 ? K.t("Gebruikersnaam of wachtwoord klopt niet.") : err.message);
       K.busy(btn, false);
     }
   });
-  const saved = K.klant.get(); if (saved && saved.user) { location.replace("/klant.html#/catalogus"); }
+  const saved = K.klant.get(); if (saved && saved.user) { location.replace("/klant#/catalogus"); }
 })();

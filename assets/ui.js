@@ -127,7 +127,7 @@
     "Nog {n}": "Encore {n}", "Uitverkocht": "Épuisé", "Slechts {n} beschikbaar.": "Seulement {n} disponible(s).",
     // bestelling detail
     "Details": "Détails", "details": "détails", "Artikelen": "Articles", "Verloop": "Suivi", "Klaar": "Préparée", "Geleverd": "Livrée", "Gefactureerd": "Facturée", "Geannuleerd": "Annulée", "Betaald": "Payée", "Reden": "Motif",
-    "Factuurnummer": "Numéro de facture", "Gefactureerd op": "Facturée le", "Geleverd op": "Livrée le", "Ontvangen door": "Réceptionné par", "Betaald op": "Payée le", "Uitzondering levering": "Exception de livraison",
+    "Factuurnummer": "Numéro de facture", "Gefactureerd op": "Facturée le", "Geleverd op": "Livrée le", "Ontvangen door": "Réceptionné par", "Betaald op": "Payée le", "Uitzondering levering": "Exception de livraison", "Verwacht leveruur": "Heure de livraison prévue", "tussen {van} en {tot}": "entre {van} et {tot}",
     "Creditnota": "Note de crédit", "Uw opmerking": "Votre remarque", "Besteld op": "Commandée le", "Gewenste leverdag": "Jour de livraison souhaité", "Sluiten": "Fermer",
     "Bestelling wijzigen?": "Modifier la commande ?", "Deze bestelling wordt geannuleerd en de artikelen komen in uw winkelmand. Plaats daarna een nieuwe bestelling.": "Cette commande sera annulée et ses articles remis dans votre panier. Passez ensuite une nouvelle commande.",
     "Bestelling geannuleerd · artikelen in de winkelmand": "Commande annulée · articles dans le panier", "Geannuleerd door klant": "Annulée par le client",
@@ -148,7 +148,7 @@
     "Vul uw gebruikersnaam en het e-mailadres van uw zaak in. Als ze overeenkomen, sturen we een nieuw wachtwoord naar dat adres.": "Indiquez votre identifiant et l'adresse e-mail de votre établissement. S'ils correspondent, nous envoyons un nouveau mot de passe à cette adresse.",
     "Nieuw wachtwoord aanvragen": "Demander un nouveau mot de passe", "E-mailadres van uw zaak": "Adresse e-mail de votre établissement", "E-mail versturen is momenteel niet mogelijk. Bel of mail ons voor een nieuw wachtwoord.": "L'envoi d'e-mail n'est pas possible pour le moment. Appelez-nous ou écrivez-nous pour un nouveau mot de passe.",
     "Liever bellen? Wij zetten meteen een nieuw wachtwoord klaar.": "Vous préférez appeler ? Nous préparons aussitôt un nouveau mot de passe.",
-    // documentvoorbeeld (staff-doc-preview.js)
+    // documentvoorbeeld (assets/docs/voorbeeld.js)
     "Documentvoorbeeld": "Aperçu du document", "Afdrukken": "Imprimer", "PDF downloaden": "Télécharger le PDF", "Document laden…": "Chargement du document…",
     "Geen documentinhoud beschikbaar.": "Aucun contenu de document disponible.", "Afdrukken mislukt: voorbeeld niet geladen.": "Impression impossible : aperçu non chargé.", "Afdrukken mislukt. Probeer opnieuw.": "Impression impossible. Réessayez.",
     "Download mislukt: voorbeeld niet geladen.": "Téléchargement impossible : aperçu non chargé.", "PDF genereren…": "Création du PDF…", "PDF gedownload:": "PDF téléchargé :", "PDF downloaden mislukt.": "Le téléchargement du PDF a échoué.",
@@ -203,7 +203,7 @@
     // Catégories du catalogue Airtable (valeurs françaises historiques) ; repli : valeur brute.
     cat: { "poisson": "Vis", "poissons": "Vis", "coquillages": "Schelpdieren", "coquillage": "Schelpdieren", "crustacés": "Schaaldieren", "crustaces": "Schaaldieren", "crustacé": "Schaaldieren", "céphalopodes": "Inktvis", "fumé": "Gerookt", "surgelé": "Diepvries", "divers": "Algemeen", "général": "Algemeen", "": "Algemeen" }
   };
-  // documents.js lit ce même dictionnaire (famoNL) : une seule source (ancien staff-i18n.js).
+  // assets/docs/documents.js lit ce même dictionnaire (famoNL) : une seule source (ancien staff-i18n.js).
   global.FAMO_NL = K.NL;
   global.famoNL = {
     status: v => K.NL.status[v] || v,
@@ -248,6 +248,21 @@
   });
   K.formatLine = l => `${l.name} × ${K.qty(l.qty).replace(",", ".")}${l.unit ? " " + l.unit : ""}${l.price != null ? " [€" + Number(l.price).toFixed(2) + "]" : ""}${l.comment ? " (" + l.comment + ")" : ""}`;
   K.linesSummary = txt => K.parseLines(txt).map(l => K.qty(l.qty) + "× " + l.name).join(" · ");
+  // Heure de livraison prévue (D4) : "HH:MM-HH:MM" (normalisé par le serveur, lib/levering.parseSlot) → { van, tot }.
+  K.slot = v => { const m = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(String(v || "")); return m ? { van: m[1], tot: m[2] } : null; };
+  // Tournée du chauffeur (A4, Leveringen) : ordre de la route, stop « afgehandeld », prochain stop à faire.
+  K.ronde = {
+    order: list => (list || []).slice().sort((a, b) => (a.volgorde == null ? Infinity : a.volgorde) - (b.volgorde == null ? Infinity : b.volgorde) || String(a.client || "").localeCompare(String(b.client || ""), "nl")),
+    // Livré, en file hors ligne (queued), ou Afwezig / Geweigerd (rien livré, la commande reste onderweg).
+    done: (o, queued) => !!(o && (o.statut === "Facturée" || queued || (o.statut === "Sortie en livraison" && (o.uitzondering === "Afwezig" || o.uitzondering === "Geweigerd")))),
+    // Prochain stop non fait APRÈS cur (en bouclant), jamais cur lui-même ; sans cur : le premier à faire ; null : rien d'autre.
+    next: (route, cur, isDone) => {
+      const r = route || [], i = r.findIndex(o => o.id === cur);
+      if (i < 0) { const f = r.find(o => !isDone(o)); return f ? f.id : null; }
+      for (let k = 1; k < r.length; k++) { const o = r[(i + k) % r.length]; if (!isDone(o)) return o.id; }
+      return null;
+    }
+  };
   K.isLate = o => o.statut !== "Facturée" && o.statut !== "Annulée" && o.dateLiv && o.dateLiv < K.today();
 
   /* ---------- opslag ---------- */
@@ -260,7 +275,21 @@
     get(k, d) { try { const v = sessionStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } },
     del(k) { try { sessionStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };  // Hoog contrast (vroege dienst, fel licht in de koelcel, vermoeide ogen) : keuze per toestel. Zonder keuze volgt
+  // het toestel de systeeminstelling « meer contrast ». Attribuut op <html> : ui.css herdefinieert enkel de tokens.
+  K.contrast = () => {
+    const m = K.store.get("famoContrast", "");
+    if (m === "hoog" || m === "normaal") return m;
+    try { return global.matchMedia && global.matchMedia("(prefers-contrast: more)").matches ? "hoog" : "normaal"; } catch (e) { return "normaal"; }
   };
+  K.applyContrast = () => {
+    const html = global.document && global.document.documentElement; if (!html || typeof html.removeAttribute !== "function") return;
+    const hoog = K.contrast() === "hoog";
+    if (hoog) html.setAttribute("data-contrast", "hoog"); else html.removeAttribute("data-contrast");
+    (global.document.querySelectorAll ? Array.from(global.document.querySelectorAll("[data-contrasttoggle]")) : []).forEach(b => b.setAttribute("aria-pressed", String(hoog)));
+  };
+  K.applyContrast();
+
 
   // Voert fn uit voor elk item, hoogstens n tegelijk (bv. 3 facturen op betaald) ; geeft [{item, ok, error}] terug.
   K.pool = async (items, n, fn) => { const out = new Array(items.length); let i = 0; const worker = async () => { while (i < items.length) { const k = i++; try { out[k] = { item: items[k], ok: true, value: await fn(items[k]) }; } catch (error) { out[k] = { item: items[k], ok: false, error }; } } }; await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker)); return out; };
@@ -270,7 +299,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "b5d928515b";
+  K.DOCS_VER = "8e28e60aa8";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -281,7 +310,7 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    docsLoading = ["/assets/vat.js", "/staff-company.js", "/documents.js", "/staff-doc-preview.js"]
+    docsLoading = ["/assets/vat.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;
@@ -357,15 +386,20 @@
   K.saveReturn = () => K.session.set(K.RETURN, location.pathname + location.search + location.hash);
   K.takeReturn = fb => { const v = K.session.get(K.RETURN, null); K.session.del(K.RETURN); return v && v.startsWith("/") && !v.startsWith("//") ? v : (fb || null); };
 
-  /* ---------- klant sessie (ondertekend token, enkel in dit tabblad ; nooit het wachtwoord) ---------- */
+  /* ---------- klant sessie : HttpOnly-cookie van de server (famo_klant, IDEAS B3) ---------- */
+  // Het sessietoken zit in een cookie die JavaScript niet kan lezen. Dit tabblad bewaart enkel
+  // weergavegegevens : gebruikersnaam + id, naam en taal van de zaak. Nooit een token of wachtwoord.
   K.klant = {
     KEY: "famoKlant",
+    safe(v) { if (!v || !v.user) return null; const c = v.client || {}; return { user: String(v.user), client: { id: String(c.id || ""), nom: String(c.nom || ""), taal: c.taal === "FR" ? "FR" : "NL" } }; },
     get() { return K.session.get(K.klant.KEY, null); },
-    set(v) { K.session.set(K.klant.KEY, v); },
+    set(v) { const s = K.klant.safe(v); if (s) K.session.set(K.klant.KEY, s); else K.klant.clear(); },
     clear() { K.session.del(K.klant.KEY); },
-    // Oude sessie (van vóór het token) : wachtwoord nog één keer meesturen, daarna vervangt het token het.
-    creds() { const c = K.klant.get(); return c ? (c.token ? { token: c.token } : { user: c.user, pw: c.pw }) : null; },
-    setToken(token) { const c = K.klant.get(); if (!c || !token) return; const n = Object.assign({}, c, { token }); delete n.pw; K.klant.set(n); }
+    // Elke klant-API krijgt de gebruikersnaam mee : de server controleert dat de cookie bij dezelfde login hoort.
+    // Overgang (tot 31/10/2026) : een token van vóór de cookie gaat nog mee tot het eerste geslaagde verzoek
+    // (de server zet dan de cookie) ; forgetToken() wist het daarna.
+    creds() { const c = K.klant.get(); if (!c || !c.user) return null; return c.token ? { user: c.user, token: c.token } : { user: c.user }; },
+    forgetToken() { const c = K.klant.get(); if (c && (c.token || c.pw)) K.klant.set(c); }
   };
 
   /* ---------- iconen (één stijl, 24-grid, stroke) ---------- */
@@ -381,10 +415,12 @@
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     grip: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
     bell: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/>',
+    contrast: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 010 17z" fill="currentColor"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5M12 17h.01"/>',
     table: '<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"/>',
     board: '<path d="M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v13h-4z"/>',
     cal: '<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     filter: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
     group: '<path d="M4 6h16M4 12h10M4 18h6"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
@@ -680,7 +716,8 @@
   K.go = (path, params) => { const q = params ? "?" + new URLSearchParams(params).toString() : ""; location.hash = "#/" + path + q; };
 
   /* ---------- personeel/beheer shell ---------- */
-  const NAV_DAILY = [["bestellingen.html", "Bestellingen", "orders"], ["entrepot.html", "Magazijn", "box"], ["leveringen.html", "Leveringen", "truck"]];
+  // [clé de pastille, URL, libellé, icône] : la clé reste l'ancien nom de fichier (mémoire « vu » des pastilles inchangée).
+  const NAV_DAILY = [["bestellingen.html", "/team/bestellingen", "Bestellingen", "orders"], ["entrepot.html", "/team/magazijn", "Magazijn", "box"], ["leveringen.html", "/team/leveringen", "Leveringen", "truck"]];
   // Invoeren en Voorraad staan open voor het personeel (bestelling ingeven aan de telefoon, voorraad
   // tellen) ; enkel verwijderen in Voorraad en Beheer blijven voor de beheerder (server : adminOk).
   // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
@@ -732,33 +769,34 @@
     K.$$("[data-badgemode]").forEach(x => { const on = x.dataset.badgemode === b.dataset.badgemode; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
     K.setBadges({});
   });
-  const NAV_ADMIN = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"], ["beheer.html", "Beheer", "settings"]];
-  const NAV_STAFF_MORE = [["invoer.html", "Invoeren", "plus"], ["documenten.html", "Documenten", "doc"]];
+  const NAV_ADMIN = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"], ["beheer.html", "/beheer", "Beheer", "settings"]];
+  const NAV_STAFF_MORE = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"]];
   K.shell = function (opts) {
     const o = opts || {};
     K.lang = "nl"; // personeel en beheer werken altijd in het Nederlands, ook op een toestel dat het klantportaal in het Frans toont
     if (doc && doc.documentElement) doc.documentElement.lang = "nl";
-    const here = (location.pathname.split("/").pop() || "").toLowerCase();
+    const here = (location.pathname.replace(/\.html$/, "").replace(/\/+$/, "") || "/").toLowerCase(); // URL propre (/team/magazijn), avec ou sans .html
     const admin = K.staff.isAdmin();
     const portal = o.portal || (admin ? "beheer" : "personeel");
     document.body.classList.remove("portal-klant", "portal-personeel", "portal-beheer");
     document.body.classList.add("portal-" + portal);
-    const link = ([href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="/' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span><b class="nbadge" data-badge="' + href + '" hidden></b></a>';
+    const link = ([key, href, label, icon]) => '<a class="nav' + (here === href ? " on" : "") + '" href="' + href + '"' + (here === href ? ' aria-current="page"' : "") + '>' + K.icon(icon) + '<span>' + label + '</span><b class="nbadge" data-badge="' + key + '" hidden></b></a>';
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
-    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/bestellingen.html"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/team/bestellingen"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
-      link(["stock.html", "Voorraad", "stock"]) +
+      link(["stock.html", "/team/voorraad", "Voorraad", "stock"]) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
       '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
-    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer.html#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
+    const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-contrasttoggle aria-pressed="' + (K.contrast() === "hoog") + '" title="Hoog contrast" aria-label="Hoog contrast">' + K.icon("contrast") + '</button><button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';
     const app = document.getElementById("app");
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
+    app.querySelector("[data-contrasttoggle]").onclick = () => { K.store.set("famoContrast", K.contrast() === "hoog" ? "normaal" : "hoog"); K.applyContrast(); K.toast(K.contrast() === "hoog" ? "Hoog contrast aan" : "Hoog contrast uit"); };
     app.querySelector("[data-badgesettings]").onclick = () => K.panel({ title: "Tellers in het menu", sub: "Voor dit toestel", width: "420px", body: '<div class="badgeset"><p class="muted">' + K.badgeHelp() + '</p>' + K.badgeSwitch() + '</div>' });
     // G-20 : au téléphone la navigation défile à l'horizontale — un fondu montre qu'il reste des onglets,
     // et l'onglet de la page est ramené dans la vue.
@@ -766,7 +804,7 @@
     const edge = () => { const max = sideEl.scrollWidth - sideEl.clientWidth; sideEl.classList.toggle("more-r", max - sideEl.scrollLeft > 4); sideEl.classList.toggle("more-l", sideEl.scrollLeft > 4); };
     const onNav = sideEl.querySelector(".nav.on"); if (onNav && sideEl.scrollWidth > sideEl.clientWidth) sideEl.scrollLeft = Math.max(0, onNav.offsetLeft - (sideEl.clientWidth - onNav.offsetWidth) / 2);
     sideEl.addEventListener("scroll", edge, { passive: true }); if (global.addEventListener) global.addEventListener("resize", edge); edge();
-    K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/personeel.html"; });
+    K.on(app, "click", "[data-logout]", async e => { e.preventDefault(); await K.staff.logout(); location.href = "/team/aanmelden"; });
     globalSearch(app);
     return document.getElementById("page");
   };
@@ -781,9 +819,9 @@
     let hits = [], cur = 0;
     const source = () => (global.S && global.S.load ? global.S.load().then(S => S.orders) : K.api("/api/allorders").then(d => d.orders || []));
     const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
-    const open = o => { location.href = "/order.html?id=" + encodeURIComponent(o.id); };
+    const open = o => { location.href = "/team/bestelling?id=" + encodeURIComponent(o.id); };
     const paint = () => {
-      list.innerHTML = hits.length ? hits.map((o, i) => '<a role="option" href="/order.html?id=' + encodeURIComponent(o.id) + '" class="gs-item' + (i === cur ? " on" : "") + '"' + (i === cur ? ' aria-selected="true"' : "") + '><b>' + K.esc(o.client || "—") + '</b><span class="quiet mono">' + K.esc(o.ref || "") + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</span><span class="quiet">' + K.esc(K.relDay(o.dateLiv || o.date || "")) + " · " + K.esc(K.status(o.statut)) + '</span></a>').join("") : '<div class="gs-empty quiet">Geen bestelling gevonden</div>';
+      list.innerHTML = hits.length ? hits.map((o, i) => '<a role="option" href="/team/bestelling?id=' + encodeURIComponent(o.id) + '" class="gs-item' + (i === cur ? " on" : "") + '"' + (i === cur ? ' aria-selected="true"' : "") + '><b>' + K.esc(o.client || "—") + '</b><span class="quiet mono">' + K.esc(o.ref || "") + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</span><span class="quiet">' + K.esc(K.relDay(o.dateLiv || o.date || "")) + " · " + K.esc(K.status(o.statut)) + '</span></a>').join("") : '<div class="gs-empty quiet">Geen bestelling gevonden</div>';
       list.hidden = false; input.setAttribute("aria-expanded", "true");
     };
     const search = K.debounce(async () => {
@@ -814,10 +852,10 @@
   K.requireStaff = async function (opts) {
     const o = opts || {};
     const ok = await K.staff.check();
-    if (!ok) { K.saveReturn(); location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"); return false; }
-    if (o.admin && !K.staff.isAdmin()) { K.saveReturn(); location.replace("/beheer-login.html?denied=1"); return false; }
+    if (!ok) { K.saveReturn(); location.replace(o.admin ? "/beheer/aanmelden" : "/team/aanmelden"); return false; }
+    if (o.admin && !K.staff.isAdmin()) { K.saveReturn(); location.replace("/beheer/aanmelden?denied=1"); return false; }
     if (K.staff.offline) { K.toast("Geen netwerk · laatst geladen gegevens; bevestigingen gaan in de wachtrij", { kind: "err" }); global.addEventListener("online", () => { K.staff.offline = false; }, { once: true }); }
-    document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer-login.html" : "/personeel.html"), 1200); }, { once: true });
+    document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer/aanmelden" : "/team/aanmelden"), 1200); }, { once: true });
     return true;
   };
   K.klantTabs = active => {

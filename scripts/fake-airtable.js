@@ -40,6 +40,8 @@ const SCHEMA = {
       "Payé le": "datetime", "Mode de paiement": "select",
       // Exception à la réception (absent, refusé, partiel, abîmé) + ordre de tournée.
       "Uitzondering levering": "select", "Uitzondering nota": "text", "Volgorde levering": "number",
+      // Heure de livraison prévue "HH:MM-HH:MM" (D4, lib/levering.parseSlot), visible par le client.
+      "Leverslot": "text",
       // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
       "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text",
       // Plusieurs notes par facture (C-08) : liste JSON de TOUTES les notes ; les champs ci-dessus gardent la première.
@@ -53,6 +55,9 @@ const SCHEMA = {
       // Lignes telles que COMMANDÉES (figées à la création) : la ligne réelle peut ensuite être
       // corrigée au poids livré ; les documents montrent l'écart « besteld / geleverd » (audit H-04).
       "Lignes besteld": "text",
+      // Lignes structurées (B4, lib/lignesjson.js) : JSON [{productId, naam, qty, unit, prijs, comment?}]
+      // écrit par le serveur à côté du texte ; rattache chaque ligne au catalogue par id (renommage).
+      "Lignes JSON": "text",
       // Relances de paiement envoyées (lib/reminders.js, H-01).
       "Herinnering 1 op": "datetime", "Herinnering 2 op": "datetime",
       // Utilisateur (supplémentaire) qui a passé la commande (lib/klantlogin.js, H-08).

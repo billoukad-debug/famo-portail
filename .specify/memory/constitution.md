@@ -9,11 +9,12 @@ chaque pull request. Détails opérationnels : `AGENTS.md`, `CONTRIBUER.md`, `do
 
 ### I. Sans build, sans dépendance
 
-- Pages HTML statiques à la racine + JavaScript vanilla ; fonctions Vercel `api/*.js` en Node
+- Pages HTML statiques (racine : client et Beheer ; `team/` : personnel ; `beheer/` : connexion Beheer),
+  servies en URL propres sans `.html` (`vercel.json` `cleanUrls`), + JavaScript vanilla ; fonctions Vercel `api/*.js` en Node
   CommonJS ; code partagé serveur dans `lib/`, navigateur dans `assets/`.
 - Aucun `package.json`, aucun bundler, aucune dépendance npm : Node intégré + `fetch` global.
 - Une seule feuille de style (`assets/ui.css`) et un seul module partagé (`assets/ui.js`, objet
-  `K`) ; le JS de page vit dans `assets/pages/`. Aucun style en ligne ajouté ; ceux qu'on touche
+  `K`) ; le JS de page vit dans `assets/pages/` (même arborescence que les pages). Aucun style en ligne ajouté ; ceux qu'on touche
   migrent vers `ui.css`.
 - Après toute modification front : `node scripts/assets-version.js` (versions `?v=`).
 
@@ -34,12 +35,12 @@ Raison : un seul développeur à la fois, zéro chaîne d'outils à maintenir, r
 ### III. Les tests d'abord, en local
 
 - Toute règle métier a un test (`test/*.test.js` sur SQLite en mémoire, ou un bloc de
-  `scripts/workflow-check.js`) écrit avant ou avec le code, et qui échoue sans le code.
+  `test/workflow/`) écrit avant ou avec le code, et qui échoue sans le code.
 - Portes obligatoires avant push, codes de sortie vérifiés un par un :
   `node scripts/check.js` et `npx -y eslint@9.39.5 .` ; pour toute modification d'interface,
   `node scripts/ux-audit.js` et `node scripts/kbd-audit.js` contre `node scripts/dev.js`.
 - Aucune écriture (POST, PATCH, DELETE) vers la production, aucun vrai identifiant, aucune
-  soumission de `/aanvraag.html` en production : tous les tests d'écriture se font en local.
+  soumission de `/aanvraag` en production : tous les tests d'écriture se font en local.
 - On ne désactive, ne saute ni ne met en quarantaine un test pour obtenir du vert.
 
 ### IV. Terrain d'abord : langue, accessibilité, gants
@@ -91,4 +92,4 @@ fichier, version incrémentée (MAJEUR : principe retiré ou redéfini ; MINEUR 
 ajouté ; CORRECTIF : formulation), `AGENTS.md` / `CONTRIBUER.md` alignés dans le même commit.
 Chaque revue vérifie la conformité aux principes II et III en premier.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-09-30
+**Version**: 1.0.1 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-10-01

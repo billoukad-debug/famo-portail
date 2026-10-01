@@ -51,9 +51,9 @@ test("préparation avec lot → instantané figé, bon de livraison avec mention
   await call("lots.js", Object.assign({}, LOT, { id: lotId, vangstgebied: "FAO 27 VII" }));
   const o = (await call("allorders.js", null, { method: "GET" })).payload.orders[0];
   assert.equal(o.lots.Tong[0].vangstgebied, "FAO 27 IV");
-  // Bon de livraison (documents.js) : lot, nom scientifique, zone, méthode, engin, THT.
+  // Bon de livraison (assets/docs/documents.js) : lot, nom scientifique, zone, méthode, engin, THT.
   const win = { console, Intl, Date }; win.window = win; vm.createContext(win);
-  for (const f of ["assets/vat.js", "staff-company.js", "documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), win);
+  for (const f of ["assets/vat.js", "assets/docs/bedrijf.js", "assets/docs/documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), win);
   win.FamoDocuments.setCompany({ bedrijfsnaam: "FAMO Seafood" });
   const html = win.FamoDocuments.build(Object.assign({}, o, { klant: { taal: "NL" } }), "delivery");
   assert.match(html, /Lot L-2026-117 · <i>Solea solea<\/i> · FAO 27 IV · Gevangen op zee · boomkor · THT 01\/10\/2026/);

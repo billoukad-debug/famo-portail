@@ -25,6 +25,25 @@
   --sans:"Atkinson Hyperlegible Next",-apple-system,"Segoe UI",system-ui,sans-serif;--monof:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 
+/* Hoog contrast (knop in de bovenbalk, K.contrast ; volgt « meer contrast » van het toestel zolang er geen keuze is) :
+   vroege dienst, fel licht in de koelcel, vermoeide ogen. Zelfde tokens, wit vlak, donkerder inkt, zichtbare lijnen.
+   Tekst haalt AAA (7:1), lijnen en focus 4,5:1 : nagerekend door scripts/contrast-check.js. */
+:root[data-contrast="hoog"]{
+  --p:#06475A;--p-soft:#D3E5EA;--p-deep:#03303D;
+  --ink:#06141A;--ink-2:#1C3038;--ink-3:#24383F;--line:#6B7E84;--line-soft:#97A8AC;--line-strong:#3A4E55;--line-input:#2A3E45;--canvas:#FFFFFF;--soft:#E3EAEB;--card:#FFFFFF;
+  --st-new:#7A5000;--st-new-bg:#F7EDD3;--st-new-ink:#422C00;
+  --st-ready:#06475A;--st-ready-bg:#DDEBEE;--st-ready-ink:#04313D;
+  --st-road:#14304F;--st-road-bg:#E1E8F1;--st-road-ink:#112A45;
+  --st-done:#24502C;--st-done-bg:#E2EFE3;--st-done-ink:#1B3E21;
+  --st-inv:#4D5A5E;--st-inv-bg:#E8EDEE;--st-inv-ink:#2B3639;
+  --danger:#841F11;--danger-bg:#F8E4DF;--klei:#8A3210;--gold:#8A3210;
+  --th-bg:#EEF3F3;--row-hover:#EAF0F0;
+  --deep:#03161C;--deep-2:#0C2A33;--deep-ink:#FFFFFF;--deep-ink-2:#D2DFE2;
+}
+:root[data-contrast="hoog"] body{font-size:15.5px}
+:root[data-contrast="hoog"] :focus-visible{outline-width:3px}
+.ibtn[data-contrasttoggle][aria-pressed="true"]{background:var(--p-soft);color:var(--p-deep)}
+
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--canvas);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
@@ -402,7 +421,7 @@ a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration
 .orow-a{grid-area:a;display:none;gap:6px;justify-content:flex-end;flex-wrap:nowrap}.orow-a .btn{white-space:nowrap}
 /* Bestellingen (tableau) : mêmes largeurs de colonnes dans chaque groupe (Vandaag, Morgen…), les colonnes s'alignent d'un groupe à l'autre */
 .tbl-orders{table-layout:fixed;width:100%;min-width:920px} /* Artikelen garde au moins ~200 px */
-.tbl-orders th:nth-child(1){width:52px}.tbl-orders th:nth-child(2){width:150px}.tbl-orders th:nth-child(3){width:160px}.tbl-orders th:nth-child(5){width:130px}.tbl-orders th:nth-child(6){width:120px}.tbl-orders th:nth-child(7){width:100px}.tbl-orders th:nth-child(8){width:136px}
+.tbl-orders th:nth-child(1){width:52px}.tbl-orders th:nth-child(2){width:150px}.tbl-orders th:nth-child(3){width:160px}.tbl-orders th:nth-child(5){width:130px}.tbl-orders th:nth-child(6){width:120px}.tbl-orders th:nth-child(7){width:100px}.tbl-orders th:nth-child(8){width:180px} /* « Ontvangst bevestigen » (btn-sm) tient sur une ligne */
 @media (max-width:1440px){.tbl-orders .hide-md{display:none}} /* Betaling : visible en grand écran, sinon dans la fiche */
 .tbl-orders td{max-width:none}.tbl-orders td:last-child{text-align:right}
 /* Documenten : deux emplacements fixes (« Openen / PDF » toujours à la même place, l'action de paiement à côté) */
@@ -560,3 +579,34 @@ a.kp-link:hover{background:var(--row-hover)}
 .shell{background:linear-gradient(to right,var(--deep) var(--side),transparent var(--side))}
 @media (max-width:1180px){.shell{background:linear-gradient(to right,var(--deep) var(--rail),transparent var(--rail))}}
 @media (max-width:720px){.shell{background:none}}
+/* Leveringen · Chauffeur (A4, spec 015) : één stop tegelijk, groot genoeg voor handschoenen en een vochtig scherm */
+.drv{overflow:hidden}
+.drv-top{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:14px 18px 8px}
+.drv-count{font-size:15px;font-weight:700;color:var(--ink)}
+.drv-prog{display:block;width:calc(100% - 36px);height:8px;margin:0 18px;border:0;border-radius:4px;background:var(--soft);color:var(--p);-webkit-appearance:none;appearance:none}
+.drv-prog::-webkit-progress-bar{background:var(--soft);border-radius:4px}
+.drv-prog::-webkit-progress-value{background:var(--p);border-radius:4px}
+.drv-prog::-moz-progress-bar{background:var(--p);border-radius:4px}
+.drv-b{display:flex;flex-direction:column;gap:12px}
+.drv-name{font-size:28px;font-weight:700;line-height:1.15;letter-spacing:-.01em;margin:0;color:var(--ink);overflow-wrap:anywhere}
+.drv-tags{display:flex;gap:6px;flex-wrap:wrap}
+.drv-adr{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.drv-adr p{flex:1 1 100%;margin:0;font-size:19px;line-height:1.35;color:var(--ink)}
+.drv-adr .btn,.drv .btn-sm{min-height:48px;font-size:15px;padding:0 16px}
+.drv-note{font-size:16px;line-height:1.4;color:var(--ink);background:var(--soft);border-radius:var(--r-sm);padding:10px 12px;overflow-wrap:anywhere}
+.drv-note b{margin-right:6px}
+.drv-lines{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-soft)}
+.drv-lines li{display:flex;gap:12px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:17px;color:var(--ink)}
+.drv-lines li>b{flex:none;min-width:84px}
+.drv-acts{display:flex;gap:10px;flex-wrap:wrap;padding:4px 18px 16px}
+.drv-acts .notice{flex:1 1 100%}
+.drv-acts .btn{min-height:56px;font-size:16px}
+.drv-main{flex:1 1 240px}
+.drv-nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 18px;border-top:1px solid var(--line-soft);background:var(--canvas)}
+@media (max-width:560px){.drv-name{font-size:24px}.drv-acts .btn{flex:1 1 100%}.drv-nav .spacer{display:none}}
+/* Personnel au téléphone : un toast (« … is onderweg · Ongedaan maken », « Geleverd · factuur … ») ne cache jamais
+   le bouton atteint au clavier en bas de l'écran (2.4.11) ; la fiche du chauffeur peut remonter au-dessus. */
+@media (max-width:720px){html:has(body.portal-personeel){scroll-padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}.content:has(>.drv){padding-bottom:160px}}
+/* Leveruur (D4) : tag in de lijst, twee tijdvelden in het paneel */
+.tag-slot{gap:4px}.tag-slot .ico{width:14px;height:14px}
+.slot-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}

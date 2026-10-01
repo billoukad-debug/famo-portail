@@ -78,7 +78,7 @@
       S.orders.forEach(o => known.add(o.id));
       if (nieuw.length) {
         fresh += nieuw.length; document.title = "(" + fresh + ") " + base;
-        K.toast(nieuw.length === 1 ? "Nieuwe bestelling: " + nieuw[0].client : nieuw.length + " nieuwe bestellingen", { action: "Bekijken", ms: 12000, onAction: () => { location.href = "/order.html?id=" + encodeURIComponent(nieuw[0].id); } });
+        K.toast(nieuw.length === 1 ? "Nieuwe bestelling: " + nieuw[0].client : nieuw.length + " nieuwe bestellingen", { action: "Bekijken", ms: 12000, onAction: () => { location.href = "/team/bestelling?id=" + encodeURIComponent(nieuw[0].id); } });
       }
       const now = sig(); if (now !== last && !busy()) { last = now; render(); }
     };
@@ -94,7 +94,7 @@
 
   /* ---------- btw : tarief per product (Catalogus) of standaardtarief (Configuratie) ---------- */
   S.rate = name => { const k = String(name || "").trim().toLowerCase(); const r = Number(S.btw[k]); if (Number.isFinite(r) && r > 0) return r; const d = Number(S.config && S.config.btwTarief); return Number.isFinite(d) && d > 0 ? d : 6; };
-  // { "productnaam": tarief } voor de lijnen van deze bestelling (wat documents.js leest als order.btwPerLine).
+  // { "productnaam": tarief } voor de lijnen van deze bestelling (wat assets/docs/documents.js leest als order.btwPerLine).
   // Régime de TVA du client (C-10, o.btwRegime venu du serveur) : à 0 % (intracommunautaire, export,
   // cocontractant), chaque ligne est à 0 tant que la facture n'a pas figé ses taux.
   S.btwPerLine = o => { if (o.btwFrozen && typeof o.btwFrozen === "object") return o.btwFrozen; const zero = !!(window.FamoVat && window.FamoVat.regime && window.FamoVat.regime(o.btwRegime).zero); const m = {}; K.parseLines(o.lignes).forEach(l => { m[l.name.trim().toLowerCase()] = zero ? 0 : S.rate(l.name); }); return m; };
@@ -147,7 +147,7 @@
   S.csvCell = v => { let s = String(v == null ? "" : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
   S.csvDownload = function (rows, name) { const csv = rows.map(r => r.map(S.csvCell).join(";")).join("\r\n"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 30000); };
 
-  /* ---------- fiche : blokken die order.html en de panelen delen ---------- */
+  /* ---------- fiche : blokken die team/bestelling.html en de panelen delen ---------- */
   S.UITZ = ["Afwezig", "Geweigerd", "Gedeeltelijk", "Beschadigd"];
   S.MODES = ["Contant", "Overschrijving", "Bancontact", "Andere"];
   S.telLink = (tel, label) => tel ? '<a class="btn btn-o btn-sm" href="tel:' + K.esc(String(tel).replace(/[^+\d]/g, "")) + '">' + K.icon("phone") + K.esc(label || "Bellen") + '</a>' : "";
@@ -163,7 +163,7 @@
   S.weightDiffHtml = o => { const d = S.weightDiff(o); return d.length ? '<div class="notice"><div><b>Besteld ≠ geleverd</b>' + d.map(x => '<div class="quiet fs-12">' + K.esc(x.name + ": besteld " + K.qty(x.besteld) + " " + K.unit(x.unit) + " → geleverd " + K.qty(x.geleverd) + " " + K.unit(x.unit)) + '</div>').join("") + '</div></div>' : ""; };
   // Creditnota's (C-08) : alle creditnota's van een bestelling, ook uit een oud antwoord met één creditnota.
   S.cns = o => (o && o.creditnotas && o.creditnotas.length) ? o.creditnotas : (o && o.creditnota ? [o.creditnota] : []);
-  // Bestelling met één gekozen creditnota (documents.js drukt order.creditnota af).
+  // Bestelling met één gekozen creditnota (assets/docs/documents.js drukt order.creditnota af).
   S.withCn = (o, nummer) => { const l = S.cns(o), n = l.find(x => x.nummer === nummer) || l[0]; return n ? Object.assign({}, o, { creditnota: n }) : o; };
   // Per factuurlijn : wat nog te crediteren valt (geleverd − alle creditnota's samen), zoals de server rekent.
   S.cnRest = o => { const key = n => String(n || "").trim().toLowerCase(), done = new Map(); S.cns(o).forEach(n => K.parseLines(n.lignes).forEach(l => done.set(key(l.name), (done.get(key(l.name)) || 0) + l.qty))); return K.parseLines(o.lignes).map(l => { const d = done.get(key(l.name)) || 0, rest = Math.max(0, Math.round((l.qty - d) * 1000) / 1000); done.set(key(l.name), Math.max(0, d - l.qty)); return Object.assign({}, l, { rest }); }); };
@@ -451,6 +451,30 @@
       catch (err) { p.el.querySelector("#eErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
     };
   };
+  // Leveruur (D4) : verwachte levertijd, door de server gecontroleerd ("HH:MM-HH:MM"), zichtbaar voor de klant.
+  S.slotTxt = v => { const s = K.slot(v); return s ? "tussen " + s.van + " en " + s.tot : ""; };
+  S.slotTag = o => o.leverslot && o.statut !== "Facturée" && o.statut !== "Annulée" ? '<span class="tag tag-slot">' + K.icon("clock") + K.esc(S.slotTxt(o.leverslot)) + '</span>' : "";
+  S.slotPanel = function (o, onDone) {
+    const cur = K.slot(o.leverslot) || {};
+    const p = K.panel({ title: "Leveruur", sub: o.client + " · " + o.ref, body:
+      '<div class="slot-grid">' + K.c.field("Vanaf", '<input type="time" class="input" id="sVan" step="900" value="' + K.esc(cur.van || "") + '">', { id: "fSVan" }) + K.c.field("Tot", '<input type="time" class="input" id="sTot" step="900" value="' + K.esc(cur.tot || "") + '">', { id: "fSTot" }) + '</div>' +
+      '<p class="quiet fs-125">De klant ziet dit uur bij de bestelling in het klantportaal (NL/FR) tot de levering.</p><div id="sErr"></div>',
+      footer: (o.leverslot ? '<button type="button" class="btn btn-ghost" id="sClear">Wissen</button><span class="spacer"></span>' : "") + '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="sOk">Opslaan</button>' });
+    p.el.querySelector("[data-cancel]").onclick = p.close;
+    const save = async (value, btn) => {
+      K.busy(btn, true, "Opslaan…");
+      try { await S.update(o.id, { leverslot: value }); p.markClean(); p.close(); K.toast(value ? "Leveruur bewaard · " + S.slotTxt(value) : "Leveruur gewist"); if (onDone) onDone(); }
+      catch (err) { p.el.querySelector("#sErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
+    };
+    const clr = p.el.querySelector("#sClear"); if (clr) clr.onclick = () => save("", clr);
+    p.el.querySelector("#sOk").onclick = () => {
+      const van = p.el.querySelector("#sVan").value, tot = p.el.querySelector("#sTot").value;
+      K.setErr("fSVan", van ? "" : "Verplicht"); K.setErr("fSTot", tot ? "" : "Verplicht"); if (!van || !tot) return;
+      if (tot <= van) { K.setErr("fSTot", "Het einduur moet na het beginuur liggen."); return; }
+      save(van + "-" + tot, p.el.querySelector("#sOk"));
+    };
+  };
+  S.slotBtn = (o, label) => o.statut !== "Facturée" && o.statut !== "Annulée" ? '<button type="button" class="btn btn-ghost btn-sm" data-act="slot" data-id="' + o.id + '" aria-label="Leveruur ' + K.esc(o.client) + '">' + K.esc(label || "Uur") + '</button>' : "";
   // Zelfde knop overal (fiche, tabel, magazijn, leveringen) : ghost, nooit de hoofdactie.
   S.correctBtn = (o, label) => '<button type="button" class="btn btn-ghost btn-sm" data-act="correct" data-id="' + o.id + '" title="Corrigeren">' + K.esc(label || "Corrigeren") + '</button>';
 
@@ -479,10 +503,11 @@
       else if (act === "picking") S.openPicking([o], o.client);
       else if (act === "correct") S.correctPanel(o, refresh);
       else if (act === "edit") S.editPanel(o, refresh);
-      else if (act === "open") location.href = "/order.html?id=" + encodeURIComponent(o.id);
+      else if (act === "slot") S.slotPanel(o, refresh);
+      else if (act === "open") location.href = "/team/bestelling?id=" + encodeURIComponent(o.id);
     });
   };
-  S.orderCard = o => '<a class="ocard" draggable="false" data-oid="' + K.esc(o.id) + '" href="/order.html?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + (o.statut === "Annulée" ? "inv" : K.stKey(o.statut)) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Openstaand</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
+  S.orderCard = o => '<a class="ocard" draggable="false" data-oid="' + K.esc(o.id) + '" href="/team/bestelling?id=' + encodeURIComponent(o.id) + '" style="border-top-color:var(--st-' + (o.statut === "Annulée" ? "inv" : K.stKey(o.statut)) + ')"><div><div class="date">' + K.esc(K.relDay(o.day)) + '</div><div class="ref mono">' + K.esc(o.ref) + '</div></div><div class="cl">' + K.esc(o.client) + '</div><div class="ln">' + K.esc(S.lineTxt(o)) + '</div><div class="foot">' + (o.late ? '<span class="chip st-late"><i></i>Te laat</span>' : (o.statut === "Facturée" ? (o.paiement === "Payé" ? '<span class="chip st-done"><i></i>Betaald</span>' : '<span class="chip st-inv"><i></i>Openstaand</span>') : K.stChip(o.statut))) + '<b class="mono">' + K.eur(o.total) + '</b></div></a>';
   // Hors ligne (H-12) : file des confirmations de livraison, rejouée au retour du réseau.
   S.queue = global.FamoQueue ? global.FamoQueue.create(global.localStorage, "famoOfflineQueue") : null;
   S.queueBadge = () => {

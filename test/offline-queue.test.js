@@ -29,7 +29,7 @@ test("file : stockage plein → confirmation gardée sans la photo", () => {
 test("service worker : jamais /api en cache, statiques versionnés, repli hors ligne ; manifest valide", () => {
   const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
   assert.match(sw, /url\.pathname\.startsWith\("\/api\/"\)\) return;/, "les API ne passent jamais par le cache");
-  assert.match(sw, /\/offline\.html/);
+  assert.match(sw, /\/offline/);
   assert.ok(fs.existsSync(path.join(ROOT, "offline.html")));
   const m = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.webmanifest"), "utf8"));
   assert.equal(m.display, "standalone"); assert.equal(m.scope, "/");
@@ -37,7 +37,7 @@ test("service worker : jamais /api en cache, statiques versionnés, repli hors l
   const v = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf8"));
   const h = (v.headers.find(x => x.source === "/sw.js") || {}).headers || [];
   assert.ok(h.some(x => x.key === "Cache-Control" && x.value === "no-cache"), "sw.js jamais figé en cache");
-  for (const page of ["bestellingen.html", "leveringen.html", "order.html", "entrepot.html"]) {
+  for (const page of ["team/bestellingen.html", "team/leveringen.html", "team/bestelling.html", "team/magazijn.html"]) {
     const html = fs.readFileSync(path.join(ROOT, page), "utf8");
     assert.match(html, /rel="manifest"/, page); assert.match(html, /offline-queue\.js/, page);
   }

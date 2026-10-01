@@ -5,6 +5,7 @@ const __mail = require("../lib/ordermail");
 const __prices = require("../lib/prices");
 const __orderNumber = require("../lib/ordernumber");
 const __lev = require("../lib/levering");
+const __lj = require("../lib/lignesjson");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -19,7 +20,7 @@ const BASE = "appcdduLth9iGX8I0";
 
 // Même authentification que les autres endpoints client (client archivé refusé,
 // limite anti-force brute partagée) : une seule implémentation à maintenir.
-const { authClient, authUnavailable } = require("./catalogue");
+const { authRequest, authUnavailable } = require("./catalogue");
 
 function roundMoney(value){
   return Math.round((Number(value) || 0) * 100) / 100;
@@ -59,7 +60,7 @@ async function buildOrderLines(clientId, items){
     merged.set(productId, prev);
   }
 
-  const lines = [];
+  const lines = [], structured = [];
   let total = 0;
   for (const [productId, entry] of merged) {
     const quantity = entry.quantity;
@@ -71,9 +72,11 @@ async function buildOrderLines(clientId, items){
     // Keep the agreed unit price with the order. It makes a later invoice
     // reproducible even if the catalogue price changes in the meantime.
     lines.push(`${name} × ${quantity}${unit ? " " + unit : ""} [€${price.toFixed(2)}]${comment ? " (" + comment + ")" : ""}`);
+    // Même ligne, structurée (B4) : référence, nom, unité et prix du catalogue — rien du navigateur.
+    structured.push(__lj.entry(products.get(productId), { qty: quantity, unit, price, comment }));
     total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * quantity); // = le prix écrit dans la ligne (B-09)
   }
-  return { lignes: lines.join("\n"), total: roundMoney(total) };
+  return { lignes: lines.join("\n"), json: __lj.serialize(structured), total: roundMoney(total) };
 }
 
 // Prepare et envoie les deux confirmations. Ne jette jamais.
@@ -89,7 +92,7 @@ async function notifyOrderMail(ctx) {
     lignes: ctx.lignes,
     total: ctx.total,
     bron: ctx.bron,
-    orderUrl: __mail.portalUrl(ctx.req) ? __mail.portalUrl(ctx.req) + "/order.html?id=" + encodeURIComponent(ctx.recordId) : "",
+    orderUrl: __mail.portalUrl(ctx.req) ? __mail.portalUrl(ctx.req) + "/team/bestelling?id=" + encodeURIComponent(ctx.recordId) : "",
     klant: __mail.clientFrom(ctx.client),
     opsEmail: cfg.opsEmail,
     company: cfg
@@ -114,7 +117,7 @@ module.exports = async (req, res) => {
     if (!body) body = {};
 
     // Le client est identifié côté serveur : on ne fait jamais confiance au clientId envoyé.
-    const client = await authClient(body.user, body.pw, body.token);
+    const client = await authRequest(req, body, res); // cookie famo_klant (B3), jeton du corps en transition
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
     // Contrôle de forme AVANT le compteur anti-abus : une date impossible dans un
@@ -171,6 +174,7 @@ module.exports = async (req, res) => {
       "Date": today,
       "Lignes (produits / quantités)": order.lignes,
       "Lignes besteld": order.lignes,
+      [__lj.FIELD]: order.json,
       "Statut": "Reçue",
       "Statut paiement": "En attente",
       "Total": order.total,

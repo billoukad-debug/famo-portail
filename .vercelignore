@@ -1,14 +1,15 @@
 # Fichiers de développement : jamais servis par le site public.
+# Dossiers ancrés à la racine (« /docs ») : sans « / », le motif exclurait aussi assets/docs/ (module documents).
 # (lib/ reste déployé : les fonctions api/ en ont besoin ; vercel.json le bloque en HTTP.)
-.dev-data
+/.dev-data
 .env
 .env.*
-scripts
-test
-docs
-.github
+/scripts
+/test
+/docs
+/.github
 *.md
 eslint.config.js
-.claude
-.specify
-specs
+/.claude
+/.specify
+/specs

@@ -5,8 +5,8 @@ const __cn = require("../lib/creditnota");
 const { parseLines } = require("./updateorder");
 // Documenten voor de klant (leveringsbon, factuur) : de gegevens die nodig zijn om
 // het document in de browser op te bouwen, enkel voor de eigen bestellingen.
-// POST {user, pw, ref} -> {order, config}. Geen IBAN/BIC voor niet-gefactureerde bestellingen.
-const { authClient, authUnavailable } = require("./catalogue");
+// POST {user, ref} + cookie famo_klant -> {order, config}. Geen IBAN/BIC voor niet-gefactureerde bestellingen.
+const { authRequest, authUnavailable } = require("./catalogue");
 
 module.exports = async (req, res) => {
   if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
     let q = req.body;
     if (typeof q === "string") q = JSON.parse(q || "{}");
     if (!q) q = {};
-    const client = await authClient(q.user, q.pw, q.token);
+    const client = await authRequest(req, q, res); // cookie famo_klant (B3), jeton du corps en transition
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const ref = String(q.ref || "").slice(0, 40);
     if (!ref) return res.status(400).json({ error: "Referentie ontbreekt" });

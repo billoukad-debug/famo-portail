@@ -52,7 +52,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 
 | Champ | Type | Écrit par | Lu par | Remarque |
 |---|---|---|---|---|
-| `Produit` | texte | onboarding (saveProduct, renommage) | allorders, catalogue, order, staff, prices, stock | Nom ; **clé de jointure** avec `Stock.Produit` et les lignes de commande (par nom normalisé). |
+| `Produit` | texte | onboarding (saveProduct, renommage) | allorders, catalogue, order, staff, prices, stock | Nom ; **clé de jointure** avec `Stock.Produit` (par nom normalisé, la ligne de stock est renommée avec le produit). Lignes de commande : par id via `Commandes.Lignes JSON` quand il existe, sinon par nom (anciennes commandes). |
 | `Prix de base` | nombre (€ HTVA) | onboarding | catalogue, staff, prices | |
 | `Unité` | liste `kg` / `pièce` / `caisse` / `carton` | onboarding | catalogue, order, staff, updateorder | Valeur FR stockée, affichée en NL (`kg`, `stuk`, `kassa`, `doos`). |
 | `Catégorie` | texte | onboarding | catalogue, staff | |
@@ -70,7 +70,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 |---|---|---|---|---|
 | `Référence` | texte | order, staff | allorders, klantdoc, klantorder, orders, updateorder, ordernumber | `CMD-AAAA-NNNN` (max + 1, non atomique : voir `lib/ordernumber.js`). |
 | `Date` | date | order, staff | allorders, klantdoc, orders | Date de la commande. |
-| `Lignes (produits / quantités)` | texte multiligne | order, staff, updateorder, onboarding (renommage produit) | allorders, klantdoc, klantorder, orders | Une ligne : `Nom × qté unité [€prix]` ; prix figé par le serveur. |
+| `Lignes (produits / quantités)` | texte multiligne | order, staff, updateorder, onboarding (renommage produit) | allorders, klantdoc, klantorder, orders | Une ligne : `Nom × qté unité [€prix]` ; prix figé par le serveur. Affichage humain et légal (documents, e-mails) ; forme structurée à côté : `Lignes JSON`. |
 | `Statut` | liste `Reçue` / `Prête` / `Sortie en livraison` / `Facturée` / `Annulée` | order, staff, updateorder, klantorder | allorders, klantdoc, onboarding, orders | Affiché : Ontvangen / Klaar / Onderweg / Geleverd / Geannuleerd. |
 | `Statut paiement` | liste `En attente` / `Payé` | order, staff, updateorder | allorders, klantdoc, orders | Openstaand / Betaald. |
 | `Total` | nombre (€ HTVA) | order, staff, updateorder | allorders, dbadmin, klantdoc, klantorder, orders | Recalculé par le serveur. |
@@ -80,11 +80,12 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Préparation validée`, `Préparée le` | case, date-heure | updateorder | allorders | Validation article par article. |
 | `Stock afgeboekt` | case | updateorder | allorders | Stock déduit au départ (une seule fois). |
 | `Livrée le`, `Livraison confirmée`, `Réceptionné par` | date-heure, case, texte | updateorder | allorders, klantdoc, orders | Réception. |
-| `Preuve de livraison` | pièces jointes | updateorder (lien https), bewijs (signature PNG `handtekening-…`, photo JPEG `foto-…`, H-09) | allorders, klantdoc (`getekend`), order.html | Ajoutées après la confirmation, jamais remplacées ; servies par /api/foto au personnel seulement (privé, sans cache). |
+| `Preuve de livraison` | pièces jointes | updateorder (lien https), bewijs (signature PNG `handtekening-…`, photo JPEG `foto-…`, H-09) | allorders, klantdoc (`getekend`), team/bestelling.html | Ajoutées après la confirmation, jamais remplacées ; servies par /api/foto au personnel seulement (privé, sans cache). |
 | `Factuurnummer`, `Facturée le` | texte, date-heure | updateorder | allorders, klantdoc, orders, ordermail | `FA-AAAA-NNNN`, **numéro interne du portail** (pas la facture légale : `docs/adr/0005-facturation-legale.md`). Dédoublonné par `ensureUnique`. |
 | `Payé le`, `Mode de paiement` | date-heure, liste `Contant` / `Overschrijving` / `Bancontact` / `Andere` | updateorder | allorders, orders | |
 | `Uitzondering levering`, `Uitzondering nota` | liste `Afwezig` / `Geweigerd` / `Gedeeltelijk` / `Beschadigd`, texte | updateorder | allorders, orders | Exception à la réception. |
 | `Volgorde levering` | nombre 1..999 | updateorder | allorders | Ordre de tournée. |
+| `Leverslot` | texte `HH:MM-HH:MM` | updateorder (personnel, avant livraison) | allorders, orders | Heure de livraison prévue (D4), normalisée par `lib/levering.parseSlot` ; montrée au client (« tussen … en … » / « entre … et … ») jusqu'à la livraison. Pas une donnée personnelle ; dans l'export RGPD avec la commande. |
 | `Annulée le`, `Motif annulation` | date-heure, texte | updateorder, klantorder | allorders, orders | |
 | `Correcties` | texte multiligne | updateorder, klantorder | allorders | Journal : `date · action · acteur — raison` (Beheer → Journaal). |
 | `Creditnota nummer`, `Creditnota lignes`, `Creditnota montant`, `Creditnota le`, `Creditnota motif` | texte, texte, nombre, date-heure, texte | updateorder | allorders, orders, klantdoc, export, margin, reminders (via `lib/creditnota.js`) | `CN-AAAA-NNNN` interne : la **première** note de crédit de la commande, écrite une fois et jamais réécrite (sauf renumérotation d'un doublon sur Airtable). Les commandes d'avant C-08 n'ont que ces champs. |
@@ -95,8 +96,9 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Idempotentie` | texte | order | order | Clé envoyée par le panier : un renvoi réseau ne crée pas de doublon. |
 | `Lots` | texte (JSON) | updateorder (Klaarzetten) | allorders, klantdoc, lots?trace | Instantané du/des lot(s) livrés par article (traçabilité 178/2002 art. 18). |
 | `Lignes besteld` | texte | order, staff (création) | allorders, klantdoc | Lignes commandées ; les documents montrent « besteld X » si le poids livré diffère. |
-| `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, order.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
-| `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, order.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
+| `Lignes JSON` | texte (JSON) | order, staff (création), updateorder (lignes modifiées), onboarding (renommage produit, commandes ouvertes : `naam`) | updateorder (stock : départ, retour arrière, annulation, note de crédit ; lignes modifiées), orders (`items` pour « Opnieuw bestellen ») via `lib/lignesjson.js` | B4 (specs/016) : `[{productId, naam, qty, unit, prijs, comment?}]`, **écrit par le serveur seul** (référence, nom, unité, prix du catalogue ou prix figé ; rien du navigateur), à côté du texte qui reste l'affichage et le document légal. Le texte fait foi pour quantité et prix ; une ligne n'est rattachée à `productId` que si une entrée a le même `naam`. **Absent = ancienne commande** : appariement par nom, comme avant (aucun rattrapage). Jamais réécrit après `Facturée`. Hors du journal d'audit (bruit technique). Pas une donnée personnelle. |
+| `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, team/bestelling.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
+| `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, team/bestelling.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |
 
 ### `Stock` — stock par produit
@@ -206,6 +208,7 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `Correcties` | NL | Journaal | Journal des corrections d'une commande. |
 | `Uitzondering levering` / `nota` | NL | Uitzondering | Exception à la réception. |
 | `Volgorde` (Catalogue) / `Volgorde levering` (Commandes) | NL | Volgorde | Ordre d'affichage / ordre de tournée. |
+| `Leverslot` (Commandes) | NL | Leveruur · client : Verwacht leveruur / Heure de livraison prévue | Créneau `HH:MM-HH:MM` posé par le personnel. |
 | `Voorraad afboeken` (Configuratie) | NL | Voorraad automatisch afboeken | Déduire le stock au départ. |
 | `Stock afgeboekt` (Commandes) | NL | — | Stock déjà déduit pour cette commande. |
 | `Prix négocié` | FR | Uw prijs / Prijs | Prix propre au client. |

@@ -101,6 +101,8 @@ module.exports = async (req, res) => {
       // Régime de TVA (C-10) : figé sur une facture émise, sinon celui du client (documents, montants).
       btwRegime: __bill.regimeOf(r.fields, fieldsById[(r.fields["Client"] || [])[0]]),
       btwFrozen: (() => { try { return r.fields["BTW per lijn"] ? JSON.parse(r.fields["BTW per lijn"]) : null; } catch (e) { return null; } })(),
+      // Heure de livraison prévue (D4) : "HH:MM-HH:MM" ou "".
+      leverslot: r.fields["Leverslot"] || "",
       volgorde: Number.isFinite(Number(r.fields["Volgorde levering"])) && r.fields["Volgorde levering"] !== undefined ? Number(r.fields["Volgorde levering"]) : null,
       creditnota: r.fields["Creditnota nummer"] ? {
         nummer: r.fields["Creditnota nummer"], lignes: r.fields["Creditnota lignes"] || "", montant: Number(r.fields["Creditnota montant"] || 0),

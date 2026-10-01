@@ -18,6 +18,7 @@ const ca = require(path.join(ROOT, "lib", "clientauth.js"));
 const vat = require(path.join(ROOT, "assets", "vat.js"));
 
 const cookie = (role) => ({ cookie: "famo_sess=" + encodeURIComponent(auth.sign(Date.now() + 3600e3, role)) });
+const klant = (token) => ({ headers: { cookie: "famo_klant=" + encodeURIComponent(token) } }); // session client (spec 013)
 function mkRes() { return { statusCode: 200, payload: null, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.statusCode = c; return this; }, json(p) { this.payload = p; return this; } }; }
 async function call(file, body, opts) {
   const h = require(path.join(ROOT, "api", file));
@@ -79,7 +80,7 @@ test("taux figés à la facturation, lignes verrouillées ensuite (même après 
 test("document client = document personnel : taux par ligne et date de facture", async () => {
   await seed([SORTIE("recORD0002", { Statut: "Facturée", Factuurnummer: "FA-2026-0003", "Facturée le": "2026-08-03T10:00:00.000Z", "Livraison confirmée": true, "BTW per lijn": JSON.stringify({ tong: 6, saus: 21 }) })]);
   const token = ca.issueToken({ id: "recCLA", fields: (await store().get("Clients", "recCLA")).fields });
-  const r = await call("klantdoc.js", { token, ref: "CMD-2026-0002" });
+  const r = await call("klantdoc.js", { ref: "CMD-2026-0002" }, klant(token));
   assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
   assert.deepStrictEqual(r.payload.order.btwPerLine, { tong: 6, saus: 21 });
   assert.equal(r.payload.order.factureeLe, "2026-08-03T10:00:00.000Z");
@@ -87,7 +88,7 @@ test("document client = document personnel : taux par ligne et date de facture",
   assert.equal(r.payload.config.iban, "", "mode boekhouder : pas d'IBAN chez le client");
   // Un autre client ne voit pas cette commande.
   const tb = ca.issueToken({ id: "recCLB", fields: (await store().get("Clients", "recCLB")).fields });
-  assert.equal((await call("klantdoc.js", { token: tb, ref: "CMD-2026-0002" })).statusCode, 404);
+  assert.equal((await call("klantdoc.js", { ref: "CMD-2026-0002" }, klant(tb))).statusCode, 404);
 });
 
 test("livraison refusée ou client absent : pas de facture, exception au journal", async () => {
@@ -132,7 +133,8 @@ test("3 commandes du même produit partent ensemble : 3 décomptes (8 → 5)", a
 
 test("double « Vertrekt » sur deux instances : un seul décompte", async () => {
   await seedStock([PRETE("recDEP0004", 2)], 8);
-  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; return require(p); };
+  // Instance neuve : le point d'entrée ET ses modules lib/commande/ (A6, specs/010) rechargés.
+  const inst = () => { const p = path.join(ROOT, "api", "updateorder.js"); delete require.cache[require.resolve(p)]; Object.keys(require.cache).filter((k) => k.startsWith(path.join(ROOT, "lib", "commande") + path.sep)).forEach((k) => { delete require.cache[k]; }); return require(p); };
   const a = inst(), b = inst();
   const go = async (h) => { const res = mkRes(); await h({ method: "POST", body: { id: "recDEP0004", statut: "Sortie en livraison" }, headers: cookie("staff"), query: {} }, res); return res; };
   const [x, y] = await Promise.all([go(a), go(b)]);
@@ -152,14 +154,15 @@ test("stock insuffisant : rien n'est décompté, départ refusé", async () => {
 test("même clé renvoyée → même commande ; mêmes articles le même jour → confirmation", async () => {
   await seed([]);
   const token = ca.issueToken({ id: "recCLA", fields: (await store().get("Clients", "recCLA")).fields });
-  const body = (key, extra) => Object.assign({ token, items: [{ productId: "recP1", quantity: 2 }], idempotencyKey: key }, extra || {});
-  const a = await call("order.js", body("cle-panier-0001"));
+  const body = (key, extra) => Object.assign({ items: [{ productId: "recP1", quantity: 2 }], idempotencyKey: key }, extra || {});
+  const kl = klant(token); // session client : cookie famo_klant (spec 013)
+  const a = await call("order.js", body("cle-panier-0001"), kl);
   assert.equal(a.statusCode, 200, JSON.stringify(a.payload));
-  const b = await call("order.js", body("cle-panier-0001"));
+  const b = await call("order.js", body("cle-panier-0001"), kl);
   assert.equal(b.statusCode, 200); assert.equal(b.payload.id, a.payload.id); assert.equal(b.payload.duplicate, true);
-  const c = await call("order.js", body("cle-panier-0002"));
+  const c = await call("order.js", body("cle-panier-0002"), kl);
   assert.equal(c.statusCode, 409); assert.equal(c.payload.needConfirm, true);
-  const d = await call("order.js", body("cle-panier-0002", { confirm: true }));
+  const d = await call("order.js", body("cle-panier-0002", { confirm: true }), kl);
   assert.equal(d.statusCode, 200); assert.notEqual(d.payload.id, a.payload.id);
   assert.equal((await store().list("Commandes")).length, 2);
 });

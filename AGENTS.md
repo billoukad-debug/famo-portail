@@ -2,7 +2,9 @@
 
 ## Cursor Cloud specific instructions
 
-FAMO Portail is a static HTML site (repo-root `*.html`, vanilla JS) plus Vercel
+FAMO Portail is a static HTML site (client pages and `beheer.html` at the repo root, staff pages in `team/`,
+Beheer login in `beheer/`; clean URLs without `.html` via `vercel.json` `cleanUrls`, old `.html` URLs redirect;
+page scripts mirror the tree in `assets/pages/` and `assets/pages/team/`; vanilla JS) plus Vercel
 serverless functions in `api/*.js` (Node CommonJS, `module.exports = async (req, res) => {}`).
 Production data lives in Postgres (Neon, `DB_BACKEND=postgres`); Airtable is the code's
 historical default and is no longer used in production. SQLite is available for local
@@ -18,7 +20,11 @@ needs a recent Node 22.
 - Rules that every spec must respect: `.specify/memory/constitution.md` (no build, server decides, tests first
   and local-only writes, NL/FR + WCAG 2.2 AA + 44 px, schema/RGPD).
 - Done so far: 001 badges, 002 visual identity « Vismijn » (see DESIGN.md), 003 VAT regime + VIES,
-  004 multiple credit notes + correction mail, 005 personal-PIN-only, 006 tech debt (Beheer split, parseLines).
+  004 multiple credit notes + correction mail, 005 personal-PIN-only, 006 tech debt (Beheer split, parseLines),
+  007 F logo, 008 catalogue line, 009 lot A, 010 updateorder split (`lib/commande/*`) + FA/CN numbering gaps,
+  011 workflow-check split (`test/workflow/*`), 012 A4 documents + e-mail layout (`lib/maillayout.js`),
+  013 client HttpOnly cookie `famo_klant`, 014 clean Dutch URLs + tree, 015 driver mode + delivery slot (`Leverslot`),
+  016 structured order lines (`Lignes JSON`).
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 
@@ -26,6 +32,12 @@ needs a recent Node 22.
 - Test (business rules + syntax + unit tests): `node scripts/check.js`. This is the primary
   gate (mocks `fetch`, needs no external services). CI runs it on every push (all branches)
   and every pull request (`.github/workflows/check.yml`).
+- Business scenarios (mocked Airtable/Resend, real `fetch` refused): `test/workflow/*.test.js`, one
+  file per domain, shared helpers in `test/workflow/_helpers.js` (env, `call()` mock, cookies).
+  `node scripts/workflow-check.js [name]` runs them in parallel (`node --test`, one process per
+  file — required, files mutate `global.fetch`/`process.env`); `check.js` calls it. New scenario:
+  add a `test()` to the matching domain file; `test/workflow/inventaire.test.js` guards against
+  lost blocks/assertions (spec 011, audit F-10).
 - Lint: `npx -y eslint@9.39.5 .` (pinned; flat config in `eslint.config.js` with the
   `eslint:recommended` rules except `no-useless-escape` and `no-regex-spaces`; server AND
   browser code, vendor excluded).

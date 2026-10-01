@@ -37,7 +37,7 @@ Contrôles automatiques (portail de dev lancé avec `node scripts/dev.js`) :
 ```
 node scripts/ux-audit.js          # FOR-01, ACC-02/03/04, INT-01, INT-03, MEP-04 sur 27 écrans × 2 largeurs (1280, 390)
 node scripts/kbd-audit.js         # parcours clavier seul (client 390/1440, équipe, Beheer) : focus masqué, anneau, nom, piège, Entrée ; BASE local uniquement
-                                  # non couverts : order.html, beheer.html#/journaal
+                                  # non couverts : team/bestelling.html, beheer.html#/journaal
 node scripts/check.js             # règles métier + tests unitaires (dont K.eur)
 grep -nE "transition:\s*all" assets/ui.css                        # vide attendu
 grep -rnE "<(div|span|tr|li|td)[^>]*onclick" assets *.html         # vide attendu
@@ -81,6 +81,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 | CLA-08 | Raccourcis cohérents entre écrans. | `/` = recherche sur toutes les pages de l'équipe et dans le catalogue client. | ✅ ; 🔧 `/` va aussi à la recherche du catalogue client (`aria-keyshortcuts`). |
 | CLA-09 | Édition en ligne : Entrée valide, Échap annule. | `K.prompt` : Entrée valide, Échap annule. Grille des prix : saisie directe puis « Prijzen opslaan ». | ✅ |
 | CLA-10 | Quand l'élément focalisé disparaît, le focus va au suivant. | Beheer : modifier un produit, enregistrer → focus sur son « Bewerken ». | ✅ **vérifié le 27/09/2026** (`kbd-audit` et `ux-audit` : 0 écart, fusion wip/ux) — 🔧 à la fermeture d'un panneau, le focus revient au bouton qui l'a ouvert, **même si la liste a été redessinée** (retrouvé par son identifiant) ; ⚠️ carte qui quitte une colonne après une action (Entrepot) : focus non repositionné. |
+| CLA-11 | Leveringen en mode Chauffeur : « Volgende stop » place le focus sur le nom du nouveau stop ; Vertrekt puis Ontvangst bevestigen gardent le focus sur l'action principale du même stop (ensuite « Volgende stop ») ; au téléphone, un toast ne cache pas le bouton atteint au clavier. | `kbd-audit` (scénario Chauffeur, 1440 et 390 px). | ✅ **vérifié le 01/10/2026** (`ux-audit` puis `kbd-audit` : 0 écart) — spec 015. |
 
 ## 4. Formulaires & saisie (FOR)
 
@@ -155,7 +156,7 @@ Gravité : **bloquant** = empêche d'agir ou trompe ; **majeur** = on peut agir 
 |---|---|---|---|
 | CHI-01 | Chiffres tabulaires quand on compare. | `.mono` / `font-variant-numeric: tabular-nums`. | ✅ |
 | CHI-02 | Montants alignés à droite ; espace **insécable** entre € et le montant ; dates `nl-BE`. | `K.eur` → `€ 1.284,50` (test `ui.test.js`). | 🔧 (un montant ne se coupe plus en fin de ligne). |
-| CHI-03 | Toujours 2 décimales pour les montants. | `K.eur`, `documents.js`, `lib/ordermail.js` : même format (test de parité). | ✅ |
+| CHI-03 | Toujours 2 décimales pour les montants. | `K.eur`, `assets/docs/documents.js`, `lib/ordermail.js` : même format (test de parité). | ✅ |
 | CHI-04 | Jamais deux devises additionnées. | — | — une seule devise. |
 | CHI-05 | Donnée absente clairement signalée. | « — » dans les tableaux, « Adres bij Famo bekend ». | ⚠️ « — » gardé (pas de composant « MANQUANT » dans FAMO). |
 | CHI-06 | Valeur déduite vs prouvée. | — | — |

@@ -19,7 +19,7 @@
   K.api("/api/config?public=1").then(d => {
     versie = (d.config && d.config.voorwaardenVersie) || "";
     if (!versie) return;
-    document.getElementById("terms").innerHTML = '<div class="field" id="fTerms"><label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;min-height:44px"><input type="checkbox" id="akkoord" style="width:22px;height:22px;margin-top:2px;flex:none"><span>' + K.esc(K.t("Ik aanvaard de algemene verkoopsvoorwaarden")) + ' · <a class="tlink" href="/voorwaarden.html" target="_blank" rel="noopener">' + K.esc(K.t("lezen")) + '</a></span></label><span class="err" data-err role="alert"></span></div>';
+    document.getElementById("terms").innerHTML = '<div class="field" id="fTerms"><label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;min-height:44px"><input type="checkbox" id="akkoord" style="width:22px;height:22px;margin-top:2px;flex:none"><span>' + K.esc(K.t("Ik aanvaard de algemene verkoopsvoorwaarden")) + ' · <a class="tlink" href="/voorwaarden" target="_blank" rel="noopener">' + K.esc(K.t("lezen")) + '</a></span></label><span class="err" data-err role="alert"></span></div>';
   }).catch(() => {});
   K.on(app, "click", "[data-taal]", (e, t) => { taal = t.dataset.taal; K.$$("[data-taal]", app).forEach(b => { const on = b === t; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); }); });
   document.getElementById("f").addEventListener("submit", async e => {

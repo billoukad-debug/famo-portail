@@ -190,7 +190,7 @@ async function staff(b, W) {
   const ctx = await b.newContext({ viewport: { width: W, height: W < 600 ? 844 : 900 }, hasTouch: W < 600 });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "équipe " + W + " · " + e.message));
   const J = journey("équipe " + W, p, cdp);
-  await p.goto(B + "/personeel.html"); await p.waitForTimeout(700);
+  await p.goto(B + "/team/aanmelden"); await p.waitForTimeout(700);
   if (await J.tabTo("#code", "connexion")) { await p.keyboard.type("team-dev-code"); await p.keyboard.press("Enter"); }
   await p.waitForURL(/bestellingen/); await p.waitForTimeout(1500);
   // Vues Tabel / Bord : état exposé, focus gardé.
@@ -218,7 +218,7 @@ async function staff(b, W) {
     }
     // Leveringen de la même commande : Vertrekt → Ontvangst bevestigen (Entrée dans le champ = bevestigen).
     const day = await p.evaluate(id => (window.S && S.byId(id) || {}).day || "", oid);
-    await p.goto(B + "/leveringen.html?dag=" + encodeURIComponent(day)); await p.waitForTimeout(1500);
+    await p.goto(B + "/team/leveringen?dag=" + encodeURIComponent(day)); await p.waitForTimeout(1500);
     if (await J.tabTo('[data-act="depart"][data-id="' + oid + '"]', "Leveringen", { max: 120 })) {
       await p.keyboard.press("Enter"); await p.waitForTimeout(400);
       const d = await J.info(); if (!d.dialog) add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · Ronde vertrekt?");
@@ -240,7 +240,7 @@ async function staff(b, W) {
       }
     }
     // Fiche de la commande livrée → aperçu de la facture (équipe) : modale, Échap, retour du focus.
-    await p.goto(B + "/order.html?id=" + encodeURIComponent(oid)); await p.waitForTimeout(1500);
+    await p.goto(B + "/team/bestelling?id=" + encodeURIComponent(oid)); await p.waitForTimeout(1500);
     if (await J.tabTo('[data-act="invoice"][data-id="' + oid + '"]', "Fiche commande", { max: 60 })) {
       await p.keyboard.press("Enter"); await p.waitForTimeout(2500);
       const g = await J.info(); if (g.dialog !== "famoDocTitle") add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · aperçu facture");
@@ -251,14 +251,51 @@ async function staff(b, W) {
       if (!(await is(p, '[data-act="invoice"][data-id="' + oid + '"]'))) add("2.4.3 focus non rendu au déclencheur", "équipe " + W + " · aperçu facture");
     }
   }
+  // A4 (spec 015) : Leveringen en mode Chauffeur, au clavier seul. Bascule exposée (aria-pressed) ;
+  // « Volgende stop » met le focus sur le nom du stop suivant ; Vertrekt puis Ontvangst bevestigen gardent
+  // le focus sur l'action principale du même stop (ensuite « Volgende stop »). Données de démo : 3 stops aujourd'hui.
+  await p.goto(B + "/team/leveringen"); await p.waitForTimeout(1500);
+  if (await J.tabTo('[data-mode="chauffeur"]', "Leveringen", { max: 60 })) {
+    await p.keyboard.press("Enter"); await J.notLost("mode Chauffeur", 600);
+    if (await pressedOf(p, '[data-mode="chauffeur"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · mode Chauffeur sans aria-pressed=true");
+    const before = await p.evaluate(() => { const h = document.querySelector(".drv #drvTitle"); return h ? h.textContent : null; });
+    if (before === null) add("parcours incomplet", "équipe " + W + " · mode Chauffeur : aucun stop affiché");
+    if (await J.tabTo('.drv [data-drv="next"]', "Chauffeur", { max: 40 })) {
+      await p.keyboard.press("Enter"); await J.notLost("Volgende stop", 500);
+      const st = await p.evaluate(() => ({ onTitle: !!(document.activeElement && document.activeElement.id === "drvTitle"), name: (document.querySelector("#drvTitle") || {}).textContent }));
+      if (!st.onTitle) add("2.4.3 focus déplacé après action", "équipe " + W + " · Chauffeur : après « Volgende stop », le focus n'est pas sur le nom du stop (" + (await J.info()).text + ")");
+      if (st.name === before) add("parcours incomplet", "équipe " + W + " · Chauffeur : « Volgende stop » reste sur " + before);
+    }
+    if (await p.$('.drv [data-act="depart"]') && await J.tabTo('.drv [data-act="depart"]', "Chauffeur", { max: 20 })) {
+      const id = await p.evaluate(() => document.activeElement.dataset.id);
+      await p.keyboard.press("Enter"); await p.waitForTimeout(400);
+      const d = await J.info(); if (!d.dialog) add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · Chauffeur : Ronde vertrekt?");
+      await p.keyboard.press("Enter"); await J.notLost("Chauffeur : Vertrekt", 1800);
+      if (!(await is(p, '.drv [data-act="deliver"][data-id="' + id + '"]'))) add("2.4.3 focus déplacé après action", "équipe " + W + " · Chauffeur : après Vertrekt, le focus n'est pas sur « Ontvangst bevestigen » du même stop");
+    }
+    if (await is(p, '.drv [data-act="deliver"]') || await J.tabTo('.drv [data-act="deliver"]', "Chauffeur", { max: 20 })) {
+      await p.keyboard.press("Enter"); await p.waitForTimeout(700);
+      const d = await J.info(); if (!d.dialog) add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · Chauffeur : Ontvangst bevestigen");
+      if (await J.tabTo("#recipient", "Chauffeur · Ontvangst bevestigen", { max: 10 })) {
+        await p.keyboard.type("Jan (zaal)"); await p.keyboard.press("Enter"); await p.waitForTimeout(1800);
+        if (await p.isVisible(".scrim")) add("FOR-02 Entrée ne soumet pas le panneau", "équipe " + W + " · Chauffeur : Ontvangst bevestigen");
+        await J.notLost("Chauffeur : ontvangst bevestigd", 300);
+        if (!(await is(p, ".drv .drv-main"))) add("2.4.3 focus déplacé après action", "équipe " + W + " · Chauffeur : après la réception, le focus n'est pas sur « Volgende stop » (" + (await J.info()).text + ")");
+      }
+    }
+    if (await J.tabTo("#drvList", "Chauffeur", { max: 30 })) {
+      await p.keyboard.press("Enter"); await J.notLost("Chauffeur → Lijst", 600);
+      if (await pressedOf(p, '[data-mode="lijst"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · retour à la liste sans aria-pressed=true");
+    }
+  }
   // Magazijn : Vandaag / Morgen exposés, Bord sans bouton imbriqué dans un lien.
-  await p.goto(B + "/entrepot.html#/dag"); await p.waitForTimeout(1400);
+  await p.goto(B + "/team/magazijn#/dag"); await p.waitForTimeout(1400);
   if (await J.tabTo(".page-h .opt [data-day]:not(.on)", "Magazijn")) {
     await p.keyboard.press("Enter"); await J.notLost("Magazijn : autre jour", 500);
     const st = await p.evaluate(() => { const a = document.activeElement; return a && a.matches("[data-day]") ? a.getAttribute("aria-pressed") : "?"; });
     if (st !== "true") add("4.1.2 état non exposé", "équipe " + W + " · Magazijn : jour choisi sans aria-pressed=true");
   }
-  await p.goto(B + "/entrepot.html#/bord"); await p.waitForTimeout(1400);
+  await p.goto(B + "/team/magazijn#/bord"); await p.waitForTimeout(1400);
   const nested = await p.evaluate(() => document.querySelectorAll("a button, a a, button button, button a").length);
   if (nested) add("4.1.2 élément interactif imbriqué", "équipe " + W + " · Magazijn Bord : " + nested);
   await J.tabTo('[data-act]', "Magazijn Bord", { max: 60 });
@@ -280,9 +317,9 @@ async function beheer(b) {
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "beheer · " + e.message));
   const J = journey("beheer", p, cdp);
-  await p.goto(B + "/beheer-login.html"); await p.waitForTimeout(700);
+  await p.goto(B + "/beheer/aanmelden"); await p.waitForTimeout(700);
   if (await J.tabTo("#code", "connexion")) { await p.keyboard.type("beheer-dev-code"); await p.keyboard.press("Enter"); }
-  await p.waitForURL(/beheer\.html/); await p.waitForTimeout(1500);
+  await p.waitForURL(/\/beheer(?:[?#]|$)/); await p.waitForTimeout(1500);
   if (await J.tabTo('.tabs a[href="#/producten"]', "Overzicht")) {
     await p.keyboard.press("Enter"); await J.notLost("onglet Producten", 1200);
     const cur = await p.evaluate(() => document.querySelector('.tabs a[href="#/producten"]').getAttribute("aria-current"));

@@ -3,7 +3,7 @@
 Statut : acceptée le 27/09/2026 (décision du client, Famo Trading BV, BCE 0788.705.713).
 
 ## Contexte
-Le portail produit des documents « leveringsbon », « factuur » et « creditnota » (`documents.js`) numérotés `FA-` / `CN-`. Une facture légale belge B2B doit porter toutes les mentions obligatoires et, avec l'obligation de facturation électronique B2B, transiter par le réseau Peppol. Le comptable de l'entreprise émet déjà les factures via **Billtobox** (Peppol).
+Le portail produit des documents « leveringsbon », « factuur » et « creditnota » (`assets/docs/documents.js`) numérotés `FA-` / `CN-`. Une facture légale belge B2B doit porter toutes les mentions obligatoires et, avec l'obligation de facturation électronique B2B, transiter par le réseau Peppol. Le comptable de l'entreprise émet déjà les factures via **Billtobox** (Peppol).
 
 ## Décision
 - Les factures et notes de crédit **légales** sont émises par le comptable dans Billtobox.

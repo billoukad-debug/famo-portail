@@ -5,8 +5,8 @@
 // Version figée : npx -y eslint@9.39.5 . (même version en CI, voir .github/workflows/check.yml).
 //
 // Deux règles recommandées restent désactivées tant que le code ne les respecte pas :
-//   no-useless-escape (18 cas : api/, assets/ui.js, documents.js…) et
-//   no-regex-spaces (2 cas dans scripts/workflow-check.js). Les corriger puis les activer.
+//   no-useless-escape (18 cas : api/, assets/ui.js, assets/docs/documents.js…) et
+//   no-regex-spaces (2 cas dans test/workflow/corrections.test.js, bloc AN). Les corriger puis les activer.
 const common = {
   console: "readonly", Date: "readonly", Math: "readonly", JSON: "readonly", Number: "readonly", String: "readonly",
   Object: "readonly", Array: "readonly", Map: "readonly", Set: "readonly", WeakMap: "readonly", Promise: "readonly",
@@ -26,7 +26,7 @@ const browser = Object.assign({}, common, {
   getComputedStyle: "readonly", FileReader: "readonly", Blob: "readonly", Image: "readonly", HTMLElement: "readonly",
   btoa: "readonly", atob: "readonly", performance: "readonly", innerHeight: "readonly", scrollBy: "readonly",
   CSS: "readonly", CustomEvent: "readonly", global: "readonly", // global : repli des modules UMD (window ?? global)
-  // globaux du portail (déclarés par ui.js, staff-common.js, documents.js, staff-doc-preview.js, staff-company.js)
+  // globaux du portail (déclarés par ui.js, staff-common.js, assets/docs/documents.js, assets/docs/voorbeeld.js, assets/docs/bedrijf.js)
   K: "writable", S: "writable", FamoDocuments: "writable", famoDocPreview: "writable", famoCompany: "writable",
   famoNL: "writable", FAMO_NL: "writable", html2pdf: "readonly"
 });
@@ -56,7 +56,7 @@ module.exports = [
     rules: errors
   },
   {
-    files: ["assets/**/*.js", "documents.js", "staff-doc-preview.js", "staff-company.js"],
+    files: ["assets/**/*.js"],
     languageOptions: { ecmaVersion: 2023, sourceType: "script", globals: browser },
     rules: errors
   }

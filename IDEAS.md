@@ -17,10 +17,10 @@ sans transformer le portail en ERP générique.
 |---|---|---|
 | Parcours ops staff | Solide | Règles métier côté serveur (prix, stock une fois, facture une fois) |
 | UI staff | En cours (PRs) | Shell + nav 4+Meer ; documents PDF in-app |
-| Go-live | En production | Vercel + Neon (`DB_BACKEND=postgres`) ; Airtable n'est plus utilisé. `/aan-de-slag.html` n'existe plus (redirigé vers `/beheer.html`, onglet Overzicht) |
+| Go-live | En production | Vercel + Neon (`DB_BACKEND=postgres`) ; Airtable n'est plus utilisé. `/aan-de-slag.html` n'existe plus (redirigé vers `/beheer`, onglet Overzicht) |
 | Facturation légale | Hors portail (décision du 27/09/2026) | Le comptable émet les factures légales via Billtobox (Peppol) ; les documents du portail sont internes (« pas une facture »), exports CSV/UBL à prévoir (`docs/adr/0005-facturation-legale.md`) |
-| Auth | Acceptable pour démarrer | Codes partagés (modifiables et hachés depuis Beheer) + PIN personnels (`Medewerkers`) ; pas de fallback ; mots de passe clients hachés (scrypt) ; jeton client signé 12 h |
-| Portail client `/` | Fonctionnel, NL/FR, version ordinateur | Détail commande, documents téléchargeables, relevé impayés, favoris synchronisés, mot de passe oublié par e-mail ; jeton signé (pas de cookie) |
+| Auth | Acceptable pour démarrer | Codes partagés (modifiables et hachés depuis Beheer) + PIN personnels (`Medewerkers`) ; pas de fallback ; mots de passe clients hachés (scrypt) ; session client par cookie HttpOnly (jeton signé 12 h) |
+| Portail client `/` | Fonctionnel, NL/FR, version ordinateur | Détail commande, documents téléchargeables, relevé impayés, favoris synchronisés, mot de passe oublié par e-mail ; session par cookie HttpOnly |
 | Livraison & paiement | Fait | Règles configurables (deadline, jours, fermetures, minimum), exceptions de livraison, ordre de tournée, mode/date de paiement, creditnota réelle (C2) |
 
 ---
@@ -39,19 +39,19 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 ### A2. Configuratie → documents — [FAIT]
 **Fait :** les documents lisent l'identité, l'IBAN/BIC et les conditions de Configuratie (`/api/config`, `staff-common.js`, `klant.js`) ; bannière si l'IBAN manque.
 **Problème (d'origine) :** IBAN / BIC / identité saisis à l’onboarding n’apparaissaient pas sur LB / facture / creditnota.  
-**Idée :** `documents.js` (et preview Magazijn) lisent `/api/config` ; pied de page dynamique ; alerte si banque non confirmée.  
+**Idée :** `assets/docs/documents.js` (et preview Magazijn) lisent `/api/config` ; pied de page dynamique ; alerte si banque non confirmée.  
 **DoD :** changer IBAN dans Aan de slag → prochain PDF à jour.  
 **Effort :** faible · **Risque :** faible
 
 ### A3. Départ unifié (Magazijn = Order) — [FAIT]
 **Fait :** Magazijn, Bestellingen et la fiche commande passent par la même action partagée (`S.depart`, `assets/pages/staff-common.js`).
-**Problème :** Magazijn a un modal de confirmation avant déduction stock ; `order.html` peut partir sans le même garde-fou UX.  
+**Problème :** Magazijn a un modal de confirmation avant déduction stock ; `team/bestelling.html` peut partir sans le même garde-fou UX.  
 **Idée :** un seul flux `confirmAdvance` / sheet partagé pour « Sortie en livraison », avec retour clair des erreurs stock (`missing` / `insufficient`).  
 **DoD :** impossible de déduire le stock sans la même confirmation, quel que soit l’écran.  
 **Effort :** faible · **Risque :** faible (règle API déjà là)
 
-### A4. Leveringen « chauffeur d’abord » — [PARTIEL]
-**Fait :** ordre de tournée (`Volgorde levering`, glisser ou ▲▼), notes visibles. **Reste :** mode « une commande à la fois » (la preuve photo A1 est faite).
+### A4. Leveringen « chauffeur d’abord » — [FAIT]
+**Fait :** ordre de tournée (`Volgorde levering`, glisser ou ▲▼), notes visibles ; mode « Chauffeur » (01/10/2026, spec 015) : un stop à la fois dans l'ordre de la tournée, client / adresse / téléphone / nota / articles en grand, « Ontvangst bevestigen » avec preuve photo et file hors ligne, « Volgende stop », « Stop 2 van 5 » ; choix mémorisé sur l'appareil.
 **Problème :** la file existe (Maps + réception) mais reste une liste plate.  
 **Idée :** ordre de tournée simple (glisser ou numéro), CTA photo-first, adresse + client en grand, mode une commande à la fois.  
 **DoD :** un livreur termine 5 stops sans ouvrir Magazijn ni Documenten.  
@@ -86,14 +86,15 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 **Effort :** moyen–élevé · **Risque :** moyen  
 **Note :** `famo2026` retiré.
 
-### B3. Session client + hygiène mots de passe — [FAIT, sauf cookie]
-**Fait :** mots de passe hachés (scrypt, migration douce du clair à la connexion) ; après la connexion, jeton signé 12 h au lieu du mot de passe (`lib/clientauth.js`). **Reste (optionnel) :** cookie HttpOnly au lieu du jeton en `sessionStorage`.
+### B3. Session client + hygiène mots de passe — [FAIT]
+**Fait :** mots de passe hachés (scrypt, migration douce du clair à la connexion) ; après la connexion, jeton signé 12 h au lieu du mot de passe (`lib/clientauth.js`) ; depuis le 01/10/2026, ce jeton vit dans le cookie HttpOnly `famo_klant` (Secure, SameSite=Strict, `Path=/api`) posé par le serveur, plus dans `sessionStorage` (`specs/013-cookie-client-httponly`). **Suivi :** retirer le chemin de transition « jeton dans le corps » après le 31/10/2026 (il est ignoré automatiquement à partir du 01/11/2026).
 **Problème (d'origine) :** mot de passe client en clair ; renvoyé à chaque appel catalogue / commande.  
 **Idée :** hash (argon2/bcrypt) + cookie de session client (miroir du modèle staff) ; reset toujours via staff/onboarding.  
 **DoD :** plus de `pw` dans le body des requêtes après login ; Airtable ne stocke plus le clair.  
 **Effort :** élevé · **Risque :** moyen (migration clients existants)
 
-### B4. Lignes de commande structurées — [À FAIRE]
+### B4. Lignes de commande structurées — [FAIT, commandes nouvelles ou modifiées]
+**Fait (specs/016-lignes-structurees) :** champ `Lignes JSON` (productId, naam, qty, unit, prijs) écrit par le serveur à côté du texte ; stock (départ, retour, note de crédit), lignes du magasin et « Opnieuw bestellen » rattachés par id ; anciennes commandes par nom (pas de rattrapage). Restent appariés par nom : lots, marge, taux TVA d'une commande non facturée.
 **Problème :** lignes = texte avec `[€prix]` ; stock joint par **nom** normalisé → renommer un produit casse la déduction.  
 **Idée :** stocker productId + qty + prix serveur (JSON ou table Lignes) ; affichage texte dérivé pour l’humain.  
 **DoD :** renommer un produit catalogue → stock et reorder restent corrects.  
@@ -136,7 +137,7 @@ Le client `/` a été volontairement laissé hors redesign staff. Idées ciblée
 | ~~**D1. Modifier / annuler avant préparation**~~ | Fait : le client annule tant que statut = Reçue, puis recommande |
 | ~~**D2. Télécharger LB / facture**~~ | Fait : `/api/klantdoc` (le client n'ouvre que ses propres documents) |
 | ~~**D3. Favoris synchronisés**~~ | Fait : champ `Favorieten` (JSON) de `Clients`, synchronisé entre appareils |
-| **D4. Créneau / note de livraison visible** — [À FAIRE] | Transparence sans tracking GPS |
+| ~~**D4. Créneau / note de livraison visible**~~ | Fait (spec 015) : « Leveruur » posé par le personnel (fiche, Leveringen), vu par le client en NL/FR jusqu'à la livraison |
 
 ---
 

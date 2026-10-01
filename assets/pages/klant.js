@@ -17,7 +17,8 @@
   const creds = () => K.klant.creds();
   // 401 op eender welke klant-API : opgeslagen gegevens wissen en terug naar de aanmelding (met melding).
   function expire() { K.klant.clear(); K.session.del(CAT_KEY); location.replace("/?sessie=verlopen"); }
-  const api = async (url, opts) => { try { return await K.api(url, opts); } catch (err) { if (err.status === 401) expire(); throw err; } };
+  // Na een geslaagd verzoek staat de sessie in de HttpOnly-cookie : een oud token in dit tabblad (overgang) wordt gewist.
+  const api = async (url, opts) => { try { const d = await K.api(url, opts); K.klant.forgetToken(); return d; } catch (err) { if (err.status === 401) expire(); throw err; } };
 
   /* ---------- leveringsregels (company.levering, zelfde bron als lib/levering.js) ---------- */
   // Standaardregels = lib/levering DEFAULTS ; enkel gebruikt zolang company.levering ontbreekt (oude cache).
@@ -89,11 +90,10 @@
   async function loadCatalogue(force) {
     const cached = K.session.get(CAT_KEY, null);
     if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; return cat; }
-    const d = await api("/api/catalogue", { json: creds(), retry: true });
-    if (d.token) K.klant.setToken(d.token); // jeton renouvelé à chaque ouverture du catalogue
+    const d = await api("/api/catalogue", { json: creds(), retry: true }); // de server vernieuwt de sessiecookie
     cat = { at: Date.now(), products: d.products || [], client: d.client, company: d.company, voorwaarden: d.voorwaarden || null };
     K.session.set(CAT_KEY, cat);
-    K.klant.set(Object.assign({}, K.klant.get() || sess, { client: d.client, company: d.company }));
+    K.klant.set({ user: sess.user, client: d.client });
     adoptFavs(d.client);
     return cat;
   }
@@ -263,7 +263,7 @@
   }
   // Conditions générales (C-12) : nouvelle version publiée → lire et accepter avant de commander.
   async function ensureTerms(versie) {
-    const ok = await K.confirm({ title: K.t("Algemene voorwaarden"), text: K.t("Onze algemene verkoopsvoorwaarden zijn nieuw of gewijzigd. Lees en aanvaard ze om te bestellen."), html: '<a class="tlink" href="/voorwaarden.html" target="_blank" rel="noopener" style="display:inline-block;min-height:44px;line-height:44px">' + K.esc(K.t("Voorwaarden lezen")) + '</a>', yes: K.t("Ik aanvaard"), no: K.t("Later") });
+    const ok = await K.confirm({ title: K.t("Algemene voorwaarden"), text: K.t("Onze algemene verkoopsvoorwaarden zijn nieuw of gewijzigd. Lees en aanvaard ze om te bestellen."), html: '<a class="tlink" href="/voorwaarden" target="_blank" rel="noopener" style="display:inline-block;min-height:44px;line-height:44px">' + K.esc(K.t("Voorwaarden lezen")) + '</a>', yes: K.t("Ik aanvaard"), no: K.t("Later") });
     if (!ok) return false;
     await api("/api/klantorder", { json: Object.assign({}, creds(), { action: "acceptTerms", versie }) });
     if (cat) { cat.voorwaarden = { versie, aanvaard: true }; K.session.set(CAT_KEY, cat); }
@@ -320,10 +320,12 @@
   /* ---------- bestellingen ---------- */
   let ordFilter = "lopend";
   const unpaid = o => o.statut === "Facturée" && o.paiement !== "Payé";
-  // Regels van een bestelling terug in de winkelmand (op naam : de referentie van het product staat niet in de regel).
+  // Regels van een bestelling terug in de winkelmand : op productreferentie (o.items van /api/orders, B4 —
+  // een hernoemd product blijft herkend), op naam enkel zonder referentie (oude bestellingen).
   function linesToCart(o) {
     let n = 0;
-    K.parseLines(o.lignes).forEach(l => { const p = (cat.products || []).find(x => x.nom.toLowerCase() === l.name.toLowerCase()); if (!p || !(l.qty > 0)) return; const qv = capQty(p, l.qty); if (qv > 0) { cart.items[p.id] = qv; if (l.comment) cart.comments[p.id] = l.comment; n++; } });
+    const src = Array.isArray(o.items) ? o.items : K.parseLines(o.lignes).map(l => ({ productId: null, naam: l.name, qty: l.qty, comment: l.comment }));
+    src.forEach(l => { const p = l.productId ? byId(l.productId) : (cat.products || []).find(x => x.nom.toLowerCase() === String(l.naam || "").toLowerCase()); if (!p || !(l.qty > 0)) return; const qv = capQty(p, l.qty); if (qv > 0) { cart.items[p.id] = qv; if (l.comment) cart.comments[p.id] = l.comment; n++; } });
     saveCart(); return n;
   }
   function reorder(o) { const n = linesToCart(o); K.toast(n ? n + " " + K.t(n === 1 ? "artikel" : "artikelen") + " " + K.t("in de winkelmand gezet") : K.t("Deze artikelen staan niet meer in de catalogus"), { kind: n ? "" : "err" }); if (n) { closePanel(); K.go("winkelmand"); } }
@@ -339,11 +341,13 @@
   }
   const badge = o => o.statut === "Facturée" ? (o.paiement === "Payé" ? K.stCell("Facturée", K.t("Geleverd · betaald")) : '<span class="cell-st c-inv">' + K.t("Geleverd · openstaand") + '</span>') : K.isLate(o) ? '<span class="cell-st c-late">' + K.t("Te laat") + '</span>' : K.stCell(o.statut);
   const stamp = iso => iso ? K.dateLong(iso) + (String(iso).includes("T") ? " " + K.time(iso) : "") : "";
+  // Leveruur gezet door Famo (D4) : enkel tot de levering, in de taal van de klant.
+  const slotTxt = o => { const sl = o.statut !== "Facturée" && o.statut !== K.CANCELLED ? K.slot(o.leverslot) : null; return sl ? K.tt("tussen {van} en {tot}", sl) : ""; };
   function openOrder(ref) {
     const o = (orders || []).find(x => x.ref === ref); if (!o) return;
     closePanel();
     const cancelled = o.statut === K.CANCELLED, idx = K.STATUSES.indexOf(o.statut), lines = K.parseLines(o.lignes);
-    const when = { "Reçue": o.date ? K.dateLong(o.date) : "", "Sortie en livraison": o.livreeLe ? stamp(o.livreeLe) + (o.receptionnePar ? " · " + o.receptionnePar : "") : (idx < 2 && o.dateLiv ? K.date(o.dateLiv) + " " + K.t("ochtend") : ""), "Facturée": o.factureeLe ? stamp(o.factureeLe) + (o.factuurnummer ? " · " + o.factuurnummer : "") : "" };
+    const when = { "Reçue": o.date ? K.dateLong(o.date) : "", "Sortie en livraison": o.livreeLe ? stamp(o.livreeLe) + (o.receptionnePar ? " · " + o.receptionnePar : "") : (idx < 3 && o.dateLiv ? K.date(o.dateLiv) + " " + (slotTxt(o) || K.t("ochtend")) : ""), "Facturée": o.factureeLe ? stamp(o.factureeLe) + (o.factuurnummer ? " · " + o.factuurnummer : "") : "" };
     const tl = cancelled
       ? '<ol class="tl" aria-label="' + K.t("Verloop") + '"><li><i class="on" aria-hidden="true"></i><div><b>' + K.t("Ontvangen") + '</b><small>' + K.esc(when["Reçue"]) + '</small></div></li><li aria-current="step"><i class="on" style="background:var(--danger)" aria-hidden="true"></i><div><b>' + K.t("Geannuleerd") + '</b><small>' + K.esc([stamp(o.annuleeLe), o.motifAnnulation ? K.t("Reden") + ": " + K.t(o.motifAnnulation) : ""].filter(Boolean).join(" · ")) + '</small></div></li></ol>'
       // G-24 : le suivi est une liste ordonnée, l'étape atteinte porte aria-current="step".
@@ -352,7 +356,7 @@
     const body = '<div class="mcard" style="margin-bottom:10px">' + tl + '</div>' + (o.statut === "Prête" ? '<p class="quiet" style="font-size:12.5px;margin:0 0 10px">' + K.t("Wordt klaargezet · wijzigen of annuleren: bel Famo.") + '</p>' : "") +
       (o.uitzondering ? K.c.warn('<b>' + K.t("Uitzondering levering") + '</b> ' + K.esc(o.uitzondering)) + '<div style="height:10px"></div>' : "") +
       '<div class="mcard" style="margin-bottom:10px"><div class="sec mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => '<div style="display:flex;justify-content:space-between;gap:10px"><span>' + K.esc(K.qty(l.qty) + "× " + l.name + (l.unit ? " · " + K.unit(l.unit) : "") + (l.comment ? " (" + l.comment + ")" : "")) + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>').join("") + '<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--line);padding-top:6px"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div></div>' +
-      '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") +
+      '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") + row(K.t("Verwacht leveruur"), slotTxt(o)) +
       row(K.t("Factuurnummer"), o.factuurnummer) + row(K.t("Gefactureerd op"), stamp(o.factureeLe)) + row(K.t("Geleverd op"), stamp(o.livreeLe)) + row(K.t("Ontvangen door"), o.receptionnePar) +
       (o.paiement === "Payé" ? row(K.t("Betaald op"), stamp(o.payeLe) || K.t("Betaald")) : "") +
       // Alle creditnota's (C-08), elk als document in de taal van de klant (FR/NL).
@@ -417,7 +421,7 @@
     // Une ligne par commande (et plus une carte) : date, articles, statut, montant ; sur ordinateur les documents
     // et « Opnieuw bestellen » restent sur la ligne. Tout le reste (wijzigen, annuleren, détail) : clic sur la ligne.
     const quick = o => { const r = ' data-ref="' + K.esc(o.ref) + '"'; return (o.statut === "Facturée" ? '<button type="button" class="btn btn-o btn-sm" data-doc="invoice"' + r + '>' + invLabel() + '</button>' : "") + (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<button type="button" class="btn btn-o btn-sm" data-doc="delivery"' + r + '>' + K.t("Leveringsbon") + '</button>' : "") + '<button type="button" class="btn btn-ghost btn-sm" data-reorder="' + K.esc(o.ref) + '">' + K.t("Opnieuw bestellen") + '</button>'; };
-    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
+    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + (slotTxt(o) ? " · " + slotTxt(o) : "") : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
     const empty = ordFilter === "lopend" ? K.c.empty(K.t("Geen lopende bestellingen"), K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) }), '<a class="btn btn-p btn-sm" href="#/catalogus" style="margin-top:6px">' + K.t("Naar de catalogus") + '</a>') : ordFilter === "tebetalen" ? K.c.empty(K.t("Geen openstaande facturen"), K.t("Alles is betaald. Dank u wel.")) : K.c.empty(K.t("Niets in deze lijst"));
     // G-13 : la pastille de l'onglet compte les factures à payer ; la vue qui s'ouvre le dit et y mène en un geste.
     const payHint = ordFilter !== "tebetalen" && nUnpaid ? '<div class="full">' + K.c.warn('<span>' + K.esc(nUnpaid + " " + K.t(nUnpaid === 1 ? "factuur te betalen" : "facturen te betalen")) + '</span> <button type="button" class="linkbtn" data-of="tebetalen">' + K.t("Bekijken") + '</button>') + '</div>' : "";
@@ -468,9 +472,8 @@
       const btn = p.el.querySelector("#pwOk"); sending = true; K.busy(btn, true, K.t("Wijzigen…"));
       try {
         // Rechtstreeks K.api : een 401 betekent hier « huidig wachtwoord fout », niet « sessie verlopen ».
-        const changed = await K.api("/api/klantwachtwoord", { json: { user: sess.user, pw: huidig, nieuw } });
-        // L'ancien jeton ne vaut plus (il dépend du mot de passe) : le nouveau le remplace.
-        K.klant.setToken(changed.token);
+        // L'ancien cookie de session ne vaut plus (il dépend du mot de passe) : le serveur en pose un nouveau.
+        await K.api("/api/klantwachtwoord", { json: { user: sess.user, pw: huidig, nieuw } });
         p.close();
         K.toast(K.t("Wachtwoord gewijzigd. Gebruik voortaan uw nieuwe wachtwoord."));
       } catch (err) {
@@ -523,7 +526,7 @@
     K.on(app, "click", "[data-goto]", () => { ordFilter = "geleverd"; });
     K.on(app, "click", "[data-profile]", openProfilePanel);
     document.getElementById("pwChange").onclick = openPasswordPanel;
-    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { try { const c = K.klant.creds(); if (c && c.token) await K.api("/api/klantwachtwoord", { json: { action: "logout", token: c.token } }); } catch (e) { /* hors ligne : le jeton local est quand même effacé */ } K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
+    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { try { await K.api("/api/klantwachtwoord", { json: { action: "logout", token: (K.klant.creds() || {}).token } }); } catch (e) { /* hors ligne : les données locales sont quand même effacées */ } K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
   }
 
   /* ---------- router ---------- */

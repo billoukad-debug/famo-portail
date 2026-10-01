@@ -1,13 +1,14 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 const { atAll, escapeFormula } = require("../lib/airtable");
 const log = require("../lib/log");
-// Bestellingen van de aangemelde klant. POST {user, pw} -> {orders}.
+// Bestellingen van de aangemelde klant. POST {user} + cookie famo_klant -> {orders}.
 // Détail suffisant pour une fiche côté client (nota, factuur, betaling, annulation),
 // jamais rien d'interne (Correcties, boîte ops, notes préfixées d'une source restent
 // visibles telles quelles : ce sont les notes du client lui-même).
-const { authClient, authUnavailable } = require("./catalogue");
+const { authRequest, authUnavailable } = require("./catalogue");
 const __bill = require("../lib/billing");
 const __cn = require("../lib/creditnota");
+const __lj = require("../lib/lignesjson");
 const { parseLines } = require("./updateorder");
 
 // Ouvert + 365 jours d'historique (voir api/allorders.js).
@@ -38,7 +39,7 @@ module.exports = async (req, res) => {
     let q = req.body;
     if (typeof q === "string") q = JSON.parse(q || "{}");
     if (!q) q = {};
-    const client = await authClient(q.user, q.pw, q.token);
+    const client = await authRequest(req, q, res); // cookie famo_klant (B3), jeton du corps en transition
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
 
@@ -56,6 +57,9 @@ module.exports = async (req, res) => {
         date: r.fields["Date"] || "",
         dateLiv: r.fields["Date livraison souhaitée"] || "",
         lignes: r.fields["Lignes (produits / quantités)"] || "",
+        // Lignes rattachées au catalogue par référence (B4, specs/016) pour « Opnieuw bestellen » :
+        // productId null = ancienne commande, le portail apparie alors par nom (comme avant).
+        items: __lj.linked(r.fields["Lignes (produits / quantités)"], r.fields[__lj.FIELD]).map(l => ({ productId: l.productId, naam: l.nom, qty: l.qty, comment: l.comment || "" })),
         total: r.fields["Total"] || 0,
         totalIncl: tvac(r.fields),
         statut: r.fields["Statut"] || "",
@@ -69,6 +73,8 @@ module.exports = async (req, res) => {
         annuleeLe: r.fields["Annulée le"] || "",
         motifAnnulation: r.fields["Motif annulation"] || "",
         uitzondering: r.fields["Uitzondering levering"] || "",
+        // Heure de livraison prévue posée par le personnel (D4) : "HH:MM-HH:MM" ou "".
+        leverslot: r.fields["Leverslot"] || "",
         creditnota: r.fields["Creditnota nummer"] ? { nummer: r.fields["Creditnota nummer"], montant: Number(r.fields["Creditnota montant"] || 0), le: r.fields["Creditnota le"] || "" } : null,
         // Toutes les notes de crédit (C-08) ; le détail (lignes, motif) vient de /api/klantdoc.
         creditnotas: __cn.list(r.fields).map(n => ({ nummer: n.nummer, montant: n.montant, le: n.le }))
