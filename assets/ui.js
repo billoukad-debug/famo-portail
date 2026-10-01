@@ -268,7 +268,7 @@
     try { return global.matchMedia && global.matchMedia("(prefers-contrast: more)").matches ? "hoog" : "normaal"; } catch (e) { return "normaal"; }
   };
   K.applyContrast = () => {
-    const html = global.document && global.document.documentElement; if (!html) return;
+    const html = global.document && global.document.documentElement; if (!html || typeof html.removeAttribute !== "function") return;
     const hoog = K.contrast() === "hoog";
     if (hoog) html.setAttribute("data-contrast", "hoog"); else html.removeAttribute("data-contrast");
     (global.document.querySelectorAll ? Array.from(global.document.querySelectorAll("[data-contrasttoggle]")) : []).forEach(b => b.setAttribute("aria-pressed", String(hoog)));
