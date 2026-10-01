@@ -34,10 +34,7 @@
   K.FR = {
     "Catalogus": "Catalogue", "Bestellingen": "Commandes", "Favorieten": "Favoris", "Account": "Compte", "Hoofdnavigatie": "Navigation principale",
     "Verse vis en zeevruchten, Antwerpen": "Poissons et fruits de mer, Anvers", "Meer links": "Autres liens", "Vóór {t} besteld, geleverd op {d}": "Commandé avant {t}, livré le {d}", "Personeel": "Personnel", "Beheer": "Gestion",
-    "Vóór {t} besteld,": "Commandé avant {t},", "morgen in uw keuken.": "demain dans votre cuisine.", "Nog": "Encore", "Volgende levering": "Prochaine livraison",
-    "{h} u {m} min": "{h} h {m} min", "{m} min": "{m} min", "om te bestellen voor levering op {d}.": "pour commander et être livré le {d}.",
-    "De bestellingen voor morgen zijn dicht sinds {t}.": "Les commandes pour demain sont closes depuis {t}.",
-    "Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.": "Livraison {d} à Anvers et environs. Vous voyez vos prix négociés, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures.",
+    "Vóór {t} besteld,": "Commandé avant {t},", "morgen in uw keuken.": "demain dans votre cuisine.",             "Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.": "Livraison {d} à Anvers et environs. Vous voyez vos prix négociés, choisissez votre jour de livraison et retrouvez vos bons de livraison et factures.",
     "Tellers in het menu": "Pastilles du menu", "Nieuw": "Nouveau", "Uit": "Aucune", "nieuw sinds uw laatste bezoek": "nouveau depuis votre dernière visite",
     "Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.": "Nouveau : disparaît dès que vous ouvrez la page. Tout : reste tant qu'il y a quelque chose à faire. Aucune : pas de pastille.",
     "Vandaag": "Aujourd'hui", "Morgen": "Demain", "Gisteren": "Hier", "Algemeen": "Général", "Ontvangen": "Reçue", "Openstaand": "À payer",
@@ -269,7 +266,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "d163680226";
+  K.DOCS_VER = "b5d928515b";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();

@@ -202,7 +202,7 @@ window.FamoDocuments=(()=>{
     const notice=pro&&priced?'<div class="banner"><b>'+esc(credit?L.notCredit:L.notInvoice)+'</b></div>':'';
     const banners=notice+(invoice&&!pro&&COMPANY.exampleBank?'<div class="banner"><b>'+L.exampleBanner+'</b> '+(lang==="nl"&&window.famoCompany?esc(famoCompany.EXAMPLE.label):L.exampleFix)+'</div>':'');
     // Monogramme F-houle : le F de Famo dont la barre médiane est une houle — trait accent.
-    const mark='<svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M2.5 16C6.8 8.6 15 7.4 21.6 12.8L29.2 7.6 27 16l2.2 8.4-7.6-5.2C15 24.6 6.8 23.4 2.5 16Z" fill="#0B5A6C"/><path d="M12.6 10.9c1.9 3 1.9 7.2 0 10.2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="8.6" cy="14.6" r="2" fill="#E2531B"/></svg>';
+    const mark='<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0B5A6C"/><path d="M11 8h11v3.4h-7.2v3.3h6.2v3.4h-6.2V24H11z" fill="#fff"/></svg>';
     const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?L.vat+" "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");
     const lg=COMPANY.legal||{};
     const termsUrl=(typeof location!=="undefined"&&/^https?:/.test(location.protocol)?location.origin:"")+"/voorwaarden.html";

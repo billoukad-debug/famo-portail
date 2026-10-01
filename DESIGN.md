@@ -28,7 +28,7 @@ Règle absolue : l'unité Airtable `caisse` s'affiche **kassa**, jamais « caiss
 
 Remplace « Crème » (sept. 2026), qui cumulait les défauts des interfaces générées : fond crème chaud, cartes identiques partout, bleu pastel générique, lettre « F » dans un carré, trio de chiffres sur l'accueil, en-têtes en majuscules, bande colorée sur le côté (sources : skill `frontend-design` d'Anthropic, détecteur Impeccable ; voir `specs/002-identite-vismijn/`).
 
-**Le monde du produit** : la criée (vismijn), la glace, l'inox, la mer du Nord à 5 h du matin, les caisses, la bouée. **Une seule audace** : la « timonerie » bleu-noir de l'équipe (barre latérale) et la marque (poisson + œil orange bouée). Tout le reste est calme.
+**Le monde du produit** : la criée (vismijn), la glace, l'inox, la mer du Nord à 5 h du matin, les caisses, la bouée. **Une seule audace** : la « timonerie » bleu-noir de l'équipe (barre latérale). La marque est un F sobre. Tout le reste est calme.
 
 Tout vit dans **`assets/ui.css`** (feuille unique) ; les pages consomment les classes et variables. Les noms de variables (`--p`, `--ink`, `--line`, `st-*`…) sont figés : changer une valeur re-habille tout le portail sans toucher au JS.
 
@@ -43,9 +43,8 @@ Tout vit dans **`assets/ui.css`** (feuille unique) ; les pages consomment les cl
 --line:    #D3DDDF   --line-soft: #E3EAEB   --line-strong: #AAB8BB   --line-input: #788A8F
 --p:       #0B5A6C   /* Noordzee : TOUTE action (bouton principal, lien, onglet actif, sélection) */
 --p-deep:  #084453   --p-soft: #DDEBEE
---deep:    #0E2229   /* timonerie : barre latérale de l'équipe, bandeau « marée » de l'accueil, connexion équipe */
+--deep:    #0E2229   /* timonerie : barre latérale de l'équipe, connexion équipe */
 --deep-ink:#C9D8DB   --deep-ink-2: #90A7AD
---boei:    #E2531B   /* orange bouée : l'œil de la marque et le point du bandeau « marée », RIEN d'autre */
 --klei:    #B2431A   /* « uw prijs » et favori actif */
 ```
 
@@ -61,11 +60,11 @@ Rayons hiérarchisés : **6** ce qu'on touche (boutons, champs), **10** ce qui c
 
 ## Marque
 
-`assets/brand/famo-mark.svg` (fond clair) et `famo-mark-light.svg` (timonerie) : un poisson, une ouïe, un œil orange. Utilisée par `.logo` (CSS), le favicon, les icônes PWA (`assets/icons/`) et l'en-tête des documents (`documents.js`). Le nom « FAMO Seafood » est écrit à côté, jamais dans la marque.
+`assets/brand/famo-mark.svg` (fond clair : carré Noordzee, F blanc) et `famo-mark-light.svg` (timonerie : carré clair, F Diepzee) : un **F sobre**, dessiné en tracés (pas une lettre de police), coins arrondis 7/32. Choix du client le 30/09/2026 (le poisson de la spec 002 est retiré, spec 007). Utilisée par `.logo` (CSS), le favicon, les icônes PWA (`assets/icons/`) et l'en-tête des documents (`documents.js`). Le nom « FAMO Seafood » est écrit à côté.
 
 ## Accueil client
 
-Le premier écran montre ce qui compte le soir pour un chef : **combien de temps il reste pour commander, et pour quel jour** (`K.orderWindow`, même règle que `lib/levering.js`), dans le seul bloc sombre de la page. Pas de trio de chiffres, pas de slogan.
+Titre « Vóór 22:00 besteld, morgen in uw keuken. » (heure limite lue dans la configuration), texte de service, formulaire de connexion. Pas de minuteur (retiré à la demande du client, spec 007), pas de trio de chiffres, pas de slogan.
 
 ## Nom
 
