@@ -2,7 +2,7 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 const { at, escapeFormula } = require("../lib/airtable");
 const __ca = require("../lib/clientauth");
 // Actions du client sur son propre compte et ses propres commandes.
-// POST {user, pw, action, ...}. Le client vérifié par authClient ne touche jamais
+// POST {user, action, ...} + cookie famo_klant. Le client vérifié (authRequest) ne touche jamais
 // qu'à ses enregistrements (lien « Client »), jamais à un identifiant envoyé par le
 // navigateur. Actions :
 //   cancel    {ref}                  annule tant que la commande est « Reçue »
@@ -11,7 +11,7 @@ const __ca = require("../lib/clientauth");
 //   reset     (sans pw) {user, email} lien « choisir un mot de passe » (30 min, usage unique)
 //             envoyé à l'adresse connue ; l'ancien mot de passe reste valable jusque-là.
 //             Le mot de passe est ensuite posé par api/klantwachtwoord.js (setPassword).
-const { authClient, authUnavailable } = require("./catalogue");
+const { authRequest, authUnavailable } = require("./catalogue");
 const __kl = require("../lib/klantlogin");
 const __mail = require("../lib/ordermail");
 const __authmail = require("../lib/authmail");
@@ -74,7 +74,7 @@ const handler = async (req, res) => {
       return answer();
     }
 
-    const client = await authClient(q.user, q.pw, q.token);
+    const client = await authRequest(req, q, res); // cookie famo_klant (B3), jeton du corps en transition
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
 
     if (action === "cancel") {

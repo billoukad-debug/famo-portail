@@ -35,6 +35,9 @@ async function callApi(name, req) {
   return res;
 }
 const cookieOf = (res) => { const m = /famo_sess=([^;]*)/.exec(res.headers["set-cookie"] || ""); return m ? "famo_sess=" + m[1] : ""; };
+// Session client : jeton dans le cookie HttpOnly famo_klant (spec 013), plus dans le corps.
+const klantTok = (res) => { const m = /famo_klant=([^;]*)/.exec([].concat(res.headers["set-cookie"] || []).join("\n")); return m ? decodeURIComponent(m[1]) : ""; };
+const klantJar = (tok) => ({ cookie: "famo_klant=" + encodeURIComponent(tok) });
 const store = () => ds.state.store;
 async function put(tbl, fields) {
   const id = "rec" + Math.random().toString(36).slice(2, 10).padEnd(14, "x").slice(0, 14);
@@ -270,38 +273,38 @@ test("A-08 : renouvellement sans fin impossible (7 jours après la connexion)", 
   await put("Clients", { "Nom": "Duur", "Gebruikersnaam": "duur", "Wachtwoord": ca.hashPassword("goed-wachtwoord") });
   const login = await callApi("catalogue", { method: "POST", body: { user: "duur", pw: "goed-wachtwoord" } });
   assert.equal(login.statusCode, 200);
-  let tok = login.body.token;
+  let tok = klantTok(login);
   const iat = ca.readToken(tok).iat;
   // Le client rouvre le catalogue toutes les 11 h (jeton de 12 h) : renouvelé, l'iat reste celui de la connexion.
   let h = 11;
   for (; h < 7 * 24 - 11; h += 11) {
-    const r = await later(h * 3600000, () => callApi("catalogue", { method: "POST", body: { token: tok } }));
+    const r = await later(h * 3600000, () => callApi("catalogue", { method: "POST", headers: klantJar(tok), body: {} }));
     assert.equal(r.statusCode, 200, "heure " + h);
-    tok = r.body.token;
+    tok = klantTok(r);
   }
   const parts = tok.split(".");
   assert.equal(Number(parts[4]), iat, "iat conservé");
   assert.ok(Number(parts[2]) <= iat + ca.MAX_AGE_MS, "échéance jamais au-delà de 7 jours");
-  const r7 = await later(7 * 86400000 + 60000, () => callApi("catalogue", { method: "POST", body: { token: tok } }));
+  const r7 = await later(7 * 86400000 + 60000, () => callApi("catalogue", { method: "POST", headers: klantJar(tok), body: {} }));
   assert.equal(r7.statusCode, 401, "après 7 jours : nouvelle connexion obligatoire");
   assert.equal(r7.body.expired, true);
 });
 
 test("A-08 : déconnexion serveur → les jetons du client sur tous ses appareils tombent", async () => {
   const id = await put("Clients", { "Nom": "Uit", "Gebruikersnaam": "uitlog", "Wachtwoord": ca.hashPassword("goed-wachtwoord") });
-  const tablet = (await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } })).body.token;
-  const phone = (await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } })).body.token;
-  assert.equal((await callApi("catalogue", { method: "POST", body: { token: phone } })).statusCode, 200);
-  const out = await callApi("klantwachtwoord", { method: "POST", body: { action: "logout", token: tablet } });
+  const tablet = klantTok(await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } }));
+  const phone = klantTok(await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } }));
+  assert.equal((await callApi("catalogue", { method: "POST", headers: klantJar(phone), body: {} })).statusCode, 200);
+  const out = await callApi("klantwachtwoord", { method: "POST", headers: klantJar(tablet), body: { action: "logout" } });
   assert.equal(out.statusCode, 200, JSON.stringify(out.body));
   assert.equal((await store().get("Clients", id)).fields["Sessiegeneratie"], 1);
-  assert.equal((await callApi("catalogue", { method: "POST", body: { token: tablet } })).statusCode, 401);
-  assert.equal((await callApi("catalogue", { method: "POST", body: { token: phone } })).statusCode, 401, "l'autre appareil aussi");
-  assert.equal((await callApi("klantwachtwoord", { method: "POST", body: { action: "logout", token: tablet } })).statusCode, 200, "déconnexion répétée : neutre");
+  assert.equal((await callApi("catalogue", { method: "POST", headers: klantJar(tablet), body: {} })).statusCode, 401);
+  assert.equal((await callApi("catalogue", { method: "POST", headers: klantJar(phone), body: {} })).statusCode, 401, "l'autre appareil aussi");
+  assert.equal((await callApi("klantwachtwoord", { method: "POST", headers: klantJar(tablet), body: { action: "logout" } })).statusCode, 200, "déconnexion répétée : neutre");
   const again = await callApi("catalogue", { method: "POST", body: { user: "uitlog", pw: "goed-wachtwoord" } });
   assert.equal(again.statusCode, 200);
-  assert.equal(ca.readToken(again.body.token).gen, 1, "nouvelle connexion à la nouvelle génération");
-  assert.equal((await callApi("catalogue", { method: "POST", body: { token: again.body.token } })).statusCode, 200);
+  assert.equal(ca.readToken(klantTok(again)).gen, 1, "nouvelle connexion à la nouvelle génération");
+  assert.equal((await callApi("catalogue", { method: "POST", headers: klantJar(klantTok(again)), body: {} })).statusCode, 200);
 });
 
 // ---- A-05 / A-06 : lien de réinitialisation au lieu d'un mot de passe en clair ------------------
@@ -344,7 +347,7 @@ test("A-05 : reset → lien à usage unique, l'ancien mot de passe vaut jusqu'au
     const ok = await set("nieuw-wachtwoord");
     assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
     assert.equal(ok.body.user, "reset1");
-    assert.equal((await callApi("catalogue", { method: "POST", body: { token: ok.body.token } })).statusCode, 200, "connecté dans la foulée");
+    assert.equal((await callApi("catalogue", { method: "POST", headers: klantJar(klantTok(ok)), body: {} })).statusCode, 200, "connecté dans la foulée");
     assert.equal((await callApi("catalogue", { method: "POST", body: { user: "reset1", pw: "nieuw-wachtwoord" } })).statusCode, 200);
     assert.equal((await callApi("catalogue", { method: "POST", body: { user: "reset1", pw: "oud-wachtwoord" } })).statusCode, 401, "ancien mot de passe remplacé");
     const again = await set("encore-un-autre");

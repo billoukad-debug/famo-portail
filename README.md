@@ -100,7 +100,7 @@ Chiffre d'affaires facturé par mois, par client et par produit, impayés, TVA p
 
 ## Comptes clients
 
-Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Le serveur renvoie alors un jeton signé (HMAC, 12 h, `lib/clientauth.js`) que l'onglet garde en `sessionStorage` à la place du mot de passe ; chaque appel est revérifié (signature, échéance, empreinte du mot de passe : changer ou réinitialiser le mot de passe invalide les jetons existants).
+Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Le serveur pose alors un jeton signé (HMAC, 12 h, `lib/clientauth.js`) dans le cookie `famo_klant` (HttpOnly, Secure, SameSite=Strict, chemin `/api`) : ni le jeton ni le mot de passe ne sont lisibles par la page, l'onglet ne garde que l'identifiant et le nom de la zaak (`specs/013-cookie-client-httponly`) ; chaque appel est revérifié (signature, échéance, empreinte du mot de passe : changer ou réinitialiser le mot de passe invalide les jetons existants).
 
 - **Changer son mot de passe** : Klant → Account → Wachtwoord → Wijzigen (`/api/klantwachtwoord`). Le client retape son mot de passe actuel, vérifié côté serveur ; seul le compte qui vient d'être vérifié est modifié, jamais un identifiant envoyé par le navigateur. Nouveau mot de passe : 8 à 80 caractères, différent de l'actuel ; 5 essais ratés par 30 s.
 - **Mot de passe oublié** : `/wachtwoord.html` → gebruikersnaam + e-mail connu → nouveau mot de passe envoyé par e-mail (`/api/klantorder`, action `reset`, réponse neutre, 3 demandes par heure). Sans `RESEND_API_KEY`, Famo le remet depuis Beheer.
@@ -154,4 +154,4 @@ Local seulement : `FAMO_DEV_HTTP=1` retire l'attribut `Secure` du cookie staff (
 
 ## Pas dans cette version
 
-Optimisation automatique de tournée (l'ordre se règle à la main dans Leveringen), carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, envoi Peppol depuis le portail (la facture légale part du comptable via Billtobox), session client par cookie (le jeton signé vit dans l'onglet).
+Optimisation automatique de tournée (l'ordre se règle à la main dans Leveringen), carte intégrée, suivi live pour le client, rappels de paiement automatiques, import Excel, envoi Peppol depuis le portail (la facture légale part du comptable via Billtobox).

@@ -19,8 +19,8 @@ sans transformer le portail en ERP générique.
 | UI staff | En cours (PRs) | Shell + nav 4+Meer ; documents PDF in-app |
 | Go-live | En production | Vercel + Neon (`DB_BACKEND=postgres`) ; Airtable n'est plus utilisé. `/aan-de-slag.html` n'existe plus (redirigé vers `/beheer.html`, onglet Overzicht) |
 | Facturation légale | Hors portail (décision du 27/09/2026) | Le comptable émet les factures légales via Billtobox (Peppol) ; les documents du portail sont internes (« pas une facture »), exports CSV/UBL à prévoir (`docs/adr/0005-facturation-legale.md`) |
-| Auth | Acceptable pour démarrer | Codes partagés (modifiables et hachés depuis Beheer) + PIN personnels (`Medewerkers`) ; pas de fallback ; mots de passe clients hachés (scrypt) ; jeton client signé 12 h |
-| Portail client `/` | Fonctionnel, NL/FR, version ordinateur | Détail commande, documents téléchargeables, relevé impayés, favoris synchronisés, mot de passe oublié par e-mail ; jeton signé (pas de cookie) |
+| Auth | Acceptable pour démarrer | Codes partagés (modifiables et hachés depuis Beheer) + PIN personnels (`Medewerkers`) ; pas de fallback ; mots de passe clients hachés (scrypt) ; session client par cookie HttpOnly (jeton signé 12 h) |
+| Portail client `/` | Fonctionnel, NL/FR, version ordinateur | Détail commande, documents téléchargeables, relevé impayés, favoris synchronisés, mot de passe oublié par e-mail ; session par cookie HttpOnly |
 | Livraison & paiement | Fait | Règles configurables (deadline, jours, fermetures, minimum), exceptions de livraison, ordre de tournée, mode/date de paiement, creditnota réelle (C2) |
 
 ---
@@ -86,8 +86,8 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 **Effort :** moyen–élevé · **Risque :** moyen  
 **Note :** `famo2026` retiré.
 
-### B3. Session client + hygiène mots de passe — [FAIT, sauf cookie]
-**Fait :** mots de passe hachés (scrypt, migration douce du clair à la connexion) ; après la connexion, jeton signé 12 h au lieu du mot de passe (`lib/clientauth.js`). **Reste (optionnel) :** cookie HttpOnly au lieu du jeton en `sessionStorage`.
+### B3. Session client + hygiène mots de passe — [FAIT]
+**Fait :** mots de passe hachés (scrypt, migration douce du clair à la connexion) ; après la connexion, jeton signé 12 h au lieu du mot de passe (`lib/clientauth.js`) ; depuis le 01/10/2026, ce jeton vit dans le cookie HttpOnly `famo_klant` (Secure, SameSite=Strict, `Path=/api`) posé par le serveur, plus dans `sessionStorage` (`specs/013-cookie-client-httponly`). **Suivi :** retirer le chemin de transition « jeton dans le corps » après le 31/10/2026 (il est ignoré automatiquement à partir du 01/11/2026).
 **Problème (d'origine) :** mot de passe client en clair ; renvoyé à chaque appel catalogue / commande.  
 **Idée :** hash (argon2/bcrypt) + cookie de session client (miroir du modèle staff) ; reset toujours via staff/onboarding.  
 **DoD :** plus de `pw` dans le body des requêtes après login ; Airtable ne stocke plus le clair.  

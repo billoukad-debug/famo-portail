@@ -75,3 +75,25 @@ test("orderWindow : heure limite et premier jour livrable (accueil + catalogue, 
   // Règles absentes : valeurs par défaut (22:00, lun–sam).
   assert.equal(K.orderWindow(null, new Date(2026, 8, 30, 21, 0)).left, 60);
 });
+test("K.klant : l'onglet ne garde que des données d'affichage, jamais un jeton (spec 013, B3)", () => {
+  // Fenêtre séparée avec un vrai sessionStorage en mémoire.
+  const mem = new Map();
+  const ss = { getItem: k => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
+  const w = Object.assign({}, win, { sessionStorage: ss, localStorage: null });
+  vm.runInNewContext(src, Object.assign(w, { window: w, CustomEvent: class {}, fetch: async () => ({}) }));
+  const KK = w.K;
+  KK.klant.set({ user: "aloha", token: "k.recX.1.fp.1.0.sig", pw: "geheim", client: { id: "recX", nom: "Aloha", taal: "FR", email: "a@b.c", favorieten: { favorieten: ["p"] } }, company: { iban: "BE00" } });
+  assert.deepStrictEqual(JSON.parse(mem.get("famoKlant")), { user: "aloha", client: { id: "recX", nom: "Aloha", taal: "FR" } });
+  assert.ok(!/token|geheim|k\.recX|BE00|a@b\.c/.test(mem.get("famoKlant")), "ni jeton, ni mot de passe, ni données inutiles");
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(KK.klant.creds())), { user: "aloha" }, "les API reçoivent l'identifiant affiché, le cookie fait le reste");
+  // Transition : un jeton laissé par l'ancienne version part encore, puis forgetToken l'efface.
+  mem.set("famoKlant", JSON.stringify({ user: "aloha", token: "k.old", client: { nom: "Aloha" } }));
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(KK.klant.creds())), { user: "aloha", token: "k.old" });
+  KK.klant.forgetToken();
+  assert.ok(!mem.get("famoKlant").includes("k.old"), "jeton hérité oublié après un appel réussi");
+  assert.equal(JSON.parse(mem.get("famoKlant")).user, "aloha", "toujours affiché comme connecté");
+  // Sans identifiant : rien n'est gardé ; pas de session = pas de creds.
+  KK.klant.set({ token: "k.x" });
+  assert.equal(mem.has("famoKlant"), false);
+  assert.equal(KK.klant.creds(), null);
+});

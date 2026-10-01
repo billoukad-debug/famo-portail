@@ -44,8 +44,8 @@ document.addEventListener("DOMContentLoaded", function () { // na de uitgestelde
       try {
         const d = await K.api("/api/klantwachtwoord", { json: { action: "setPassword", token, nieuw: pw1 } });
         try { sessionStorage.removeItem(KEY); } catch (err) { /* niets */ }
-        // Meteen aangemeld : zelfde sessievorm als het aanmeldscherm (assets/pages/start.js).
-        if (d.token) K.klant.set({ user: d.user || "", token: d.token });
+        // Meteen aangemeld : de server zette de HttpOnly-sessiecookie ; hier enkel de gebruikersnaam (weergave).
+        if (d.ok && d.user) K.klant.set({ user: d.user });
         document.getElementById("f").innerHTML = K.c.ok(K.t("Wachtwoord opgeslagen.")) + '<a class="btn btn-p" href="/klant.html#/catalogus" style="margin-top:12px">' + K.t("Naar het bestelportaal") + '</a>';
       } catch (err) {
         if (err.payload && err.payload.expired) {

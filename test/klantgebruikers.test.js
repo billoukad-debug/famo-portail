@@ -20,6 +20,9 @@ const admin = Object.assign({ cookie: "famo_sess=" + encodeURIComponent(auth.sig
 function mkRes() { return { statusCode: 200, payload: null, headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, status(c) { this.statusCode = c; return this; }, json(p) { this.payload = p; return this; } }; }
 let ip = 0;
 async function call(file, body, opts) { const res = mkRes(); await require(path.join(ROOT, "api", file))({ method: (opts && opts.method) || "POST", body, headers: Object.assign({ "x-forwarded-for": "10.8.0." + (++ip % 250) }, (opts && opts.headers) || H), query: (opts && opts.query) || {} }, res); return res; }
+// Session client : jeton dans le cookie HttpOnly famo_klant (spec 013), plus dans le corps.
+const klantTok = (res) => { const m = /famo_klant=([^;]*)/.exec([].concat(res.headers["set-cookie"] || []).join("\n")); return m ? decodeURIComponent(m[1]) : ""; };
+const asKlant = (tok) => ({ headers: Object.assign({ cookie: "famo_klant=" + encodeURIComponent(tok) }, H) });
 const rec = (id, fields) => ({ id, createdTime: new Date().toISOString(), fields });
 const store = () => ds.state.store;
 const ob = (body) => call("onboarding.js", body, { headers: admin });
@@ -60,11 +63,11 @@ test("connexion de l'utilisateur : prix du client, commande « Besteld door », 
   assert.equal(cat.statusCode, 200, JSON.stringify(cat.payload));
   assert.equal(cat.payload.client.id, "recCLA", "les données sont celles du client");
   assert.equal(cat.payload.products.find(p => p.id === "recP1").prix, 25, "prix négocié du client");
-  const tok = cat.payload.token;
+  const tok = klantTok(cat);
   assert.match(tok, /^k\./);
-  const again = await call("catalogue.js", { token: tok });
+  const again = await call("catalogue.js", { user: credentials.user }, asKlant(tok));
   assert.equal(again.statusCode, 200, "le jeton de l'utilisateur est accepté");
-  const o = await call("order.js", { token: tok, items: [{ productId: "recP1", quantity: 2 }] });
+  const o = await call("order.js", { user: credentials.user, items: [{ productId: "recP1", quantity: 2 }] }, asKlant(tok));
   assert.equal(o.statusCode, 200, JSON.stringify(o.payload));
   const cmd = (await store().list("Commandes"))[0].fields;
   assert.deepEqual(cmd.Client, ["recCLA"]); assert.equal(cmd["Besteld door"], "Chef Marco");
@@ -77,12 +80,12 @@ test("connexion de l'utilisateur : prix du client, commande « Besteld door », 
 test("désactivation, nouveau mot de passe, déconnexion : seul cet utilisateur est touché", async () => {
   await seed();
   const { id, credentials } = await addUser();
-  const tok = (await call("catalogue.js", { user: credentials.user, pw: credentials.password })).payload.token;
-  const mainTok = (await call("catalogue.js", { user: "resto", pw: "hoofd-login-1" })).payload.token;
+  const tok = klantTok(await call("catalogue.js", { user: credentials.user, pw: credentials.password }));
+  const mainTok = klantTok(await call("catalogue.js", { user: "resto", pw: "hoofd-login-1" }));
   // Déconnexion de l'utilisateur : son jeton tombe, celui du client principal reste valable.
-  assert.equal((await call("klantwachtwoord.js", { action: "logout", token: tok })).statusCode, 200);
-  assert.equal((await call("catalogue.js", { token: tok })).statusCode, 401);
-  assert.equal((await call("catalogue.js", { token: mainTok })).statusCode, 200, "client principal pas déconnecté");
+  assert.equal((await call("klantwachtwoord.js", { action: "logout" }, asKlant(tok))).statusCode, 200);
+  assert.equal((await call("catalogue.js", {}, asKlant(tok))).statusCode, 401);
+  assert.equal((await call("catalogue.js", {}, asKlant(mainTok))).statusCode, 200, "client principal pas déconnecté");
   // Changement de son propre mot de passe (page Account).
   const ch = await call("klantwachtwoord.js", { user: credentials.user, pw: credentials.password, nieuw: "eigen-wachtwoord-9" });
   assert.equal(ch.statusCode, 200, JSON.stringify(ch.payload));
@@ -112,7 +115,7 @@ test("lien « choisir un mot de passe » (activation) pour un utilisateur", asyn
   const link = ca.issueResetToken({ id, fields: u.fields }, ca.ACTIVATION_TTL_MS);
   const set = await call("klantwachtwoord.js", { action: "setPassword", token: link, nieuw: "via-de-link-7" });
   assert.equal(set.statusCode, 200, JSON.stringify(set.payload));
-  assert.equal((await call("catalogue.js", { token: set.payload.token })).statusCode, 200, "connecté dans la foulée");
+  assert.equal((await call("catalogue.js", {}, asKlant(klantTok(set)))).statusCode, 200, "connecté dans la foulée");
   assert.equal((await call("klantwachtwoord.js", { action: "setPassword", token: link, nieuw: "tweede-keer-7" })).statusCode, 400, "usage unique");
 });
 

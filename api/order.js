@@ -19,7 +19,7 @@ const BASE = "appcdduLth9iGX8I0";
 
 // Même authentification que les autres endpoints client (client archivé refusé,
 // limite anti-force brute partagée) : une seule implémentation à maintenir.
-const { authClient, authUnavailable } = require("./catalogue");
+const { authRequest, authUnavailable } = require("./catalogue");
 
 function roundMoney(value){
   return Math.round((Number(value) || 0) * 100) / 100;
@@ -114,7 +114,7 @@ module.exports = async (req, res) => {
     if (!body) body = {};
 
     // Le client est identifié côté serveur : on ne fait jamais confiance au clientId envoyé.
-    const client = await authClient(body.user, body.pw, body.token);
+    const client = await authRequest(req, body, res); // cookie famo_klant (B3), jeton du corps en transition
     if (!client) return res.status(401).json({ error: "Ongeldige gebruikersnaam of wachtwoord" });
     const clientId = client.id;
     // Contrôle de forme AVANT le compteur anti-abus : une date impossible dans un

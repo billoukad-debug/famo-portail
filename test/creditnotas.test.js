@@ -173,12 +173,13 @@ test("portail client : toutes les notes (liste et documents), jamais celles d'un
   await credit("recORD0010", { lignes: "Tong × 1 kg" });
   await credit("recORD0010", { lignes: "Saus × 1", motif: "kapot" });
   const token = ca.issueToken({ id: "recCLA", fields: (await store().get("Clients", "recCLA")).fields });
-  const list = await call("orders.js", { token });
+  const kl = { headers: { cookie: "famo_klant=" + encodeURIComponent(token) } }; // session client : cookie (spec 013)
+  const list = await call("orders.js", {}, kl);
   assert.equal(list.statusCode, 200, JSON.stringify(list.payload));
   const o = list.payload.orders[0];
   assert.deepStrictEqual(o.creditnotas.map((n) => n.nummer), [nr(1), nr(2)]);
   assert.equal(o.creditnota.nummer, nr(1));
-  const doc = await call("klantdoc.js", { token, ref: o.ref });
+  const doc = await call("klantdoc.js", { ref: o.ref }, kl);
   assert.equal(doc.statusCode, 200, JSON.stringify(doc.payload));
   assert.deepStrictEqual(doc.payload.order.creditnotas.map((n) => [n.nummer, n.montant, n.motif]), [[nr(1), 16, "beschadigd"], [nr(2), 5, "kapot"]]);
   assert.equal(doc.payload.order.creditnotas[1].lignes, "Saus × 1 pièce [€5.00]");

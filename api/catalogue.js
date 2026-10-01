@@ -31,7 +31,7 @@ function ipOf(req){
 }
 
 // Authentifie un client. Deux façons :
-//  - jeton signé (lib/clientauth.js) : ce que le portail envoie après la connexion ;
+//  - jeton signé (lib/clientauth.js) : le cookie famo_klant après la connexion (authRequest) ;
 //  - gebruikersnaam + wachtwoord : l'écran de connexion et le changement de mot de passe.
 // Partagé par catalogue, orders, klantdoc, klantorder, order et klantwachtwoord : la limite
 // anti-force brute (5 échecs / 30 s par gebruikersnaam et par instance, puis 10 échecs
@@ -93,6 +93,37 @@ async function authClient(user, pw, token){
   r.client.login = lg;
   return r.client;
 }
+
+// Session d'une requête client (IDEAS B3, specs/013-cookie-client-httponly). Ordre :
+//  1. mot de passe dans le corps (connexion, ancienne session) → authClient(user, pw) ;
+//  2. cookie HttpOnly famo_klant ;
+//  3. transition, jusqu'au 31/10/2026 inclus : jeton dans le corps (ancienne version des pages),
+//     essayé seulement si le cookie manque ou ne vaut rien.
+// q.user sans mot de passe = l'identifiant affiché par l'onglet (non secret) : s'il ne
+// correspond pas à la session du cookie (un autre onglet a connecté un autre compte), refus
+// plutôt que d'agir au nom de ce compte. Session obtenue sans le cookie → cookie posé
+// (migration) ; opts.renew : cookie neuf dans tous les cas (ouverture du catalogue).
+// client.via = "pw" | "cookie" | "body". Panne de base → DB_UNAVAILABLE (D-06), jamais null.
+async function authRequest(req, q, res, opts) {
+  q = q || {};
+  let client = null, via = "";
+  if (q.pw) {
+    client = await authClient(q.user, q.pw);
+    via = "pw";
+  } else {
+    const fromCookie = __ca.cookieToken(req);
+    if (fromCookie) { client = await authClient(null, null, fromCookie); via = "cookie"; }
+    if (!client && q.token && typeof q.token === "string" && __ca.bodyTokenAllowed()) {
+      client = await authClient(null, null, q.token);
+      via = "body";
+    }
+    if (client && q.user && !__ca.sameUser(client.login, q.user)) return null;
+  }
+  if (!client) return null;
+  client.via = via;
+  if (res && (via !== "cookie" || (opts && opts.renew))) __ca.setSessionCookie(res, __ca.issueToken(client.login || client, client.tokenIat));
+  return client;
+}
 const __lev = require("../lib/levering");
 
 // Photo du produit : lib/photo.js (Airtable https ou /api/foto de la base Postgres).
@@ -109,9 +140,10 @@ module.exports = async (req, res) => {
     if (!q) q = {};
     // Par identifiant (5 échecs / 30 s, compté dans authClient) ET par adresse IP (30 échecs
     // / 5 min, contre l'essai d'un même mot de passe sur beaucoup d'identifiants). Seuls les
-    // échecs comptent (la tentative réservée est rendue au succès) ; un jeton ne compte pas.
+    // échecs comptent (la tentative réservée est rendue au succès) ; une session (cookie ou
+    // jeton) n'est pas un essai de mot de passe et ne compte pas.
     let releaseIp = null;
-    if (!q.token) {
+    if (q.pw) {
       releaseIp = reserve("ip:" + ipOf(req), 30, 300000);
       if (!releaseIp || blocked("auth:" + String(q.user || "").toLowerCase().trim(), AUTH_MAX_FAILS, AUTH_WINDOW_MS)) {
         if (releaseIp) releaseIp();
@@ -119,8 +151,9 @@ module.exports = async (req, res) => {
       }
     }
     let client;
-    try { client = await authClient(q.user, q.pw, q.token); } catch (e) { if (releaseIp) releaseIp(); throw e; } // panne : l'IP n'est pas pénalisée
-    if (!client) return res.status(401).json({ error: q.token && !q.pw ? "Sessie verlopen. Meld u opnieuw aan." : "Ongeldige gebruikersnaam of wachtwoord", expired: !!(q.token && !q.pw) });
+    // Le cookie de session n'est (re)posé qu'à la toute fin, avec la réponse 200.
+    try { client = await authRequest(req, q); } catch (e) { if (releaseIp) releaseIp(); throw e; } // panne : l'IP n'est pas pénalisée
+    if (!client) return res.status(401).json({ error: !q.pw ? "Sessie verlopen. Meld u opnieuw aan." : "Ongeldige gebruikersnaam of wachtwoord", expired: !q.pw });
     if (releaseIp) releaseIp();
     const clientId = client.id;
 
@@ -158,12 +191,14 @@ module.exports = async (req, res) => {
     let favorieten = { favorieten: [], standaard: {} };
     try { const j = JSON.parse(client.fields["Favorieten"] || "{}"); favorieten = { favorieten: Array.isArray(j.favorieten) ? j.favorieten : [], standaard: j.standaard && typeof j.standaard === "object" ? j.standaard : {} }; } catch (e) { /* JSON illisible : vide */ }
 
+    // Cookie de session neuf (connexion ou renouvellement, iat de la connexion conservé) : le
+    // jeton n'apparaît plus dans la réponse, JavaScript ne le voit jamais (B3).
+    __ca.setSessionCookie(res, __ca.issueToken(client.login || client, client.tokenIat));
     res.status(200).json({
       // Conditions générales (C-12) : version à accepter avant la prochaine commande.
       voorwaarden: { versie: __lev.rulesFrom(cfgFields).voorwaardenVersie, aanvaard: !require("../lib/terms").needs(client.fields, cfgFields) },
       client: { id: clientId, taal: String(client.fields["Taal"] || "").toUpperCase() === "FR" ? "FR" : "NL", nom: client.fields["Nom"], adresse: client.fields["Lieu de livraison"] || "", email: (client.fields["Email"] || "").trim(), tel: client.fields["Téléphone"] || "", klantnr: client.fields["Klantnummer"] || "", btw: client.fields["BTW-nummer"] || "", favorieten },
       products,
-      token: __ca.issueToken(client.login || client, client.tokenIat),
       // Coordonnées bancaires seulement si le portail émet les factures (mode Portaal, lib/billing.js).
       company: Object.assign(companyFrom(cfgFields), { levering: __lev.publicRules(rules), facturatie: require("../lib/billing").modeOf(cfgFields), legal: require("../lib/billing").legalOf(cfgFields) }, require("../lib/billing").modeOf(cfgFields) === "portaal" ? { iban: (cfgFields["IBAN"] || "").trim(), bic: (cfgFields["BIC"] || "").trim() } : { iban: "", bic: "" })
     });
@@ -187,6 +222,7 @@ function companyFrom(c){
   };
 }
 module.exports.authClient = authClient;
+module.exports.authRequest = authRequest;
 // Après « module.exports = handler » : sinon ces exports seraient perdus (les autres routes client
 // recevaient authUnavailable = undefined, D-06).
 module.exports.authUnavailable = authUnavailable;
