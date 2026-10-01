@@ -200,3 +200,84 @@ test("régime export en FR, autoliquidation sur la note de crédit, Normal sans 
   const n = D.build({ ...ORDER, btwRegime: "Normal" }, "invoice");
   assert.ok(!/class="regime"/.test(n)); assert.equal(row(n, "btw 6%"), "€ 6,00");
 });
+
+// ---- Mise en page A4 (spec 012, audit A10) : hiérarchie, TVA par ligne, impression, jetons ----
+const styleOf = html => (/<style>([\s\S]*?)<\/style>/.exec(html) || [])[1] || "";
+const bodyOf = html => html.slice(html.indexOf("<body>"));
+const MIXED = { ...ORDER, lignes: "Saumon frais × 2 kg [€10.00]\nScampi × 1 caisse [€50.00]", total: 70, btwPerLine: { "saumon frais": 6, scampi: 21 } };
+
+test("A10 : taux de TVA par ligne sur les documents chiffrés, jamais sur le bon de livraison", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const f = D.build(MIXED, "invoice");
+  assert.match(f, /<th class="num">BTW<\/th>/, "colonne taux (NL)");
+  assert.match(f, /Saumon frais[\s\S]*?<td class="num rate">6%<\/td>[\s\S]*?Scampi[\s\S]*?<td class="num rate">21%<\/td>/);
+  const fr = D.build({ ...MIXED, klant: { taal: "FR" }, btwRegime: "Intracommunautaire" }, "invoice");
+  assert.match(fr, /<th class="num">TVA<\/th>/, "colonne taux (FR)");
+  assert.equal((fr.match(/<td class="num rate">0%<\/td>/g) || []).length, 2, "régime 0 % : 0 % sur chaque ligne");
+  const cn = D.build({ ...MIXED, creditnota: { nummer: "CN-2026-0001", lignes: "Scampi × 1 caisse [€50.00]", montant: 50, le: "2026-03-12" } }, "credit");
+  assert.match(cn, /<td class="num rate">21%<\/td>/);
+  assert.ok(!/class="num rate"/.test(D.build(MIXED, "delivery")), "aucun taux sur le bon de livraison");
+  // Anciennes commandes sans prix de ligne : le taux appliqué au total.
+  assert.match(D.build({ ...ORDER, lignes: "Kabeljauw × 5 kg" }, "invoice"), /<td class="num rate">6%<\/td>/);
+});
+
+test("A10 : récapitulatif TVA par taux (base, TVA), NL et FR, absent du bon de livraison", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const f = D.build(MIXED, "invoice");
+  const recap = (/<table class="vatsum">([\s\S]*?)<\/table>/.exec(f) || [])[1] || "";
+  assert.match(recap, /<th>Btw-tarief<\/th><th class="num">Maatstaf<\/th><th class="num">Btw<\/th>/);
+  assert.match(recap, /<td>6%<\/td><td class="num">€ 20,00<\/td><td class="num">€ 1,20<\/td>/);
+  assert.match(recap, /<td>21%<\/td><td class="num">€ 50,00<\/td><td class="num">€ 10,50<\/td>/);
+  const fr = D.build({ ...MIXED, klant: { taal: "FR" } }, "invoice");
+  assert.match(fr, /<th>Taux TVA<\/th><th class="num">Base<\/th><th class="num">TVA<\/th>/);
+  assert.ok(!/class="vatsum"/.test(D.build(MIXED, "delivery")));
+});
+
+test("A10 : bloc de paiement complet (montant TVAC, échéance), facture portaal seulement", () => {
+  const D = load();
+  D.setCompany(CFG);
+  const f = D.build(ORDER, "invoice");
+  const bank = (/<section class="bank">([\s\S]*?)<\/section>/.exec(f) || [])[1] || "";
+  assert.match(bank, /<span>Bedrag<\/span><b class="mono">€ 106,00<\/b>/);
+  assert.match(bank, /<span>Vervaldatum<\/span><b>24\/03\/2026<\/b>/);
+  assert.match(bank, /<span>IBAN<\/span><b class="mono">BE71 0961 2345 6769<\/b>/);
+  const fr = D.build({ ...ORDER, klant: { taal: "FR" } }, "invoice");
+  assert.match(fr, /<span>Montant<\/span><b class="mono">€ 106,00<\/b>/);
+  D.setCompany(PRO);
+  assert.ok(!/class="bank"/.test(D.build(ORDER, "invoice")), "pro forma : pas de paiement");
+});
+
+test("A10 : hiérarchie — fournisseur, document, client, lignes, TVA, totaux, mentions, paiement, pied légal", () => {
+  const D = load();
+  D.setCompany({ ...PRO, facturatie: "portaal", iban: "BE71096123456769", bic: "GKCCBEBB", voorwaardenVersie: "2026-09-28 10:05" });
+  const f = bodyOf(D.build({ ...ORDER, btwRegime: "Export" }, "invoice"));
+  const order = ['class="mast"', 'class="supplier"', "<svg", "<h1>FACTUUR</h1>", 'class="party"', 'class="metaband"', '<table class="lines">', 'class="vatsum"', 'class="totals"', 'class="regime"', 'class="bank"', 'class="foot"', 'class="legal"'];
+  let at = -1;
+  for (const marker of order) {
+    const i = f.indexOf(marker);
+    assert.ok(i > at, "ordre : " + marker + " (" + i + " après " + at + ")");
+    at = i;
+  }
+  assert.match(f, /<div class="legal">Famo Trading BV · Ondernemingsnummer 0788\.705\.713/);
+  assert.match(f, /<div class="foot">[\s\S]*?Onze algemene verkoopsvoorwaarden zijn van toepassing/);
+});
+
+test("A10 : impression A4 (marges, en-tête répété, lignes non coupées), Helvetica/Arial, jetons Vismijn", () => {
+  const D = load();
+  D.setCompany(CFG);
+  for (const type of ["invoice", "delivery"]) {
+    const css = styleOf(D.build(ORDER, type));
+    assert.match(css, /@page\{size:A4;margin:[^}]+\}/, "marges A4 à l'impression");
+    assert.match(css, /thead\{display:table-header-group\}/, "en-tête de tableau répété");
+    assert.match(css, /tr\{break-inside:avoid;page-break-inside:avoid\}/, "ligne jamais coupée");
+    assert.match(css, /font-family:Helvetica,Arial,sans-serif/);
+    assert.doesNotMatch(css, /Georgia|serif"|monospace|Menlo|Consolas|@font-face|@import/, "aucune police web, serif ou chasse fixe");
+    assert.doesNotMatch(css, /text-transform:uppercase/, "aucun libellé en capitales");
+    assert.doesNotMatch(css, /rgba\(|border-left:[^;}]*#0B5A6C|gradient/i, "ni gris Crème, ni bande colorée, ni dégradé");
+    const allowed = ["#0E2229", "#475A61", "#56686E", "#D3DDDF", "#E3EAEB", "#AAB8BB", "#EFF3F3", "#E4EBEB", "#0B5A6C", "#FFFFFF", "#7A5410"];
+    for (const hex of css.match(/#[0-9A-Fa-f]{6}\b/g) || []) assert.ok(allowed.includes(hex.toUpperCase()), "couleur hors jetons : " + hex);
+    assert.doesNotMatch(css, /page-break-after:always/, "le saut de page du bundle reste le seul (test buildMany)");
+  }
+});
