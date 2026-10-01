@@ -451,6 +451,30 @@
       catch (err) { p.el.querySelector("#eErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
     };
   };
+  // Leveruur (D4) : verwachte levertijd, door de server gecontroleerd ("HH:MM-HH:MM"), zichtbaar voor de klant.
+  S.slotTxt = v => { const s = K.slot(v); return s ? "tussen " + s.van + " en " + s.tot : ""; };
+  S.slotTag = o => o.leverslot && o.statut !== "Facturée" && o.statut !== "Annulée" ? '<span class="tag tag-slot">' + K.icon("clock") + K.esc(S.slotTxt(o.leverslot)) + '</span>' : "";
+  S.slotPanel = function (o, onDone) {
+    const cur = K.slot(o.leverslot) || {};
+    const p = K.panel({ title: "Leveruur", sub: o.client + " · " + o.ref, body:
+      '<div class="slot-grid">' + K.c.field("Vanaf", '<input type="time" class="input" id="sVan" step="900" value="' + K.esc(cur.van || "") + '">', { id: "fSVan" }) + K.c.field("Tot", '<input type="time" class="input" id="sTot" step="900" value="' + K.esc(cur.tot || "") + '">', { id: "fSTot" }) + '</div>' +
+      '<p class="quiet fs-125">De klant ziet dit uur bij de bestelling in het klantportaal (NL/FR) tot de levering.</p><div id="sErr"></div>',
+      footer: (o.leverslot ? '<button type="button" class="btn btn-ghost" id="sClear">Wissen</button><span class="spacer"></span>' : "") + '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="sOk">Opslaan</button>' });
+    p.el.querySelector("[data-cancel]").onclick = p.close;
+    const save = async (value, btn) => {
+      K.busy(btn, true, "Opslaan…");
+      try { await S.update(o.id, { leverslot: value }); p.markClean(); p.close(); K.toast(value ? "Leveruur bewaard · " + S.slotTxt(value) : "Leveruur gewist"); if (onDone) onDone(); }
+      catch (err) { p.el.querySelector("#sErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
+    };
+    const clr = p.el.querySelector("#sClear"); if (clr) clr.onclick = () => save("", clr);
+    p.el.querySelector("#sOk").onclick = () => {
+      const van = p.el.querySelector("#sVan").value, tot = p.el.querySelector("#sTot").value;
+      K.setErr("fSVan", van ? "" : "Verplicht"); K.setErr("fSTot", tot ? "" : "Verplicht"); if (!van || !tot) return;
+      if (tot <= van) { K.setErr("fSTot", "Het einduur moet na het beginuur liggen."); return; }
+      save(van + "-" + tot, p.el.querySelector("#sOk"));
+    };
+  };
+  S.slotBtn = (o, label) => o.statut !== "Facturée" && o.statut !== "Annulée" ? '<button type="button" class="btn btn-ghost btn-sm" data-act="slot" data-id="' + o.id + '" aria-label="Leveruur ' + K.esc(o.client) + '">' + K.esc(label || "Uur") + '</button>' : "";
   // Zelfde knop overal (fiche, tabel, magazijn, leveringen) : ghost, nooit de hoofdactie.
   S.correctBtn = (o, label) => '<button type="button" class="btn btn-ghost btn-sm" data-act="correct" data-id="' + o.id + '" title="Corrigeren">' + K.esc(label || "Corrigeren") + '</button>';
 
@@ -479,6 +503,7 @@
       else if (act === "picking") S.openPicking([o], o.client);
       else if (act === "correct") S.correctPanel(o, refresh);
       else if (act === "edit") S.editPanel(o, refresh);
+      else if (act === "slot") S.slotPanel(o, refresh);
       else if (act === "open") location.href = "/team/bestelling?id=" + encodeURIComponent(o.id);
     });
   };

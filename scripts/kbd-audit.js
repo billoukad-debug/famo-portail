@@ -251,6 +251,43 @@ async function staff(b, W) {
       if (!(await is(p, '[data-act="invoice"][data-id="' + oid + '"]'))) add("2.4.3 focus non rendu au déclencheur", "équipe " + W + " · aperçu facture");
     }
   }
+  // A4 (spec 015) : Leveringen en mode Chauffeur, au clavier seul. Bascule exposée (aria-pressed) ;
+  // « Volgende stop » met le focus sur le nom du stop suivant ; Vertrekt puis Ontvangst bevestigen gardent
+  // le focus sur l'action principale du même stop (ensuite « Volgende stop »). Données de démo : 3 stops aujourd'hui.
+  await p.goto(B + "/team/leveringen"); await p.waitForTimeout(1500);
+  if (await J.tabTo('[data-mode="chauffeur"]', "Leveringen", { max: 60 })) {
+    await p.keyboard.press("Enter"); await J.notLost("mode Chauffeur", 600);
+    if (await pressedOf(p, '[data-mode="chauffeur"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · mode Chauffeur sans aria-pressed=true");
+    const before = await p.evaluate(() => { const h = document.querySelector(".drv #drvTitle"); return h ? h.textContent : null; });
+    if (before === null) add("parcours incomplet", "équipe " + W + " · mode Chauffeur : aucun stop affiché");
+    if (await J.tabTo('.drv [data-drv="next"]', "Chauffeur", { max: 40 })) {
+      await p.keyboard.press("Enter"); await J.notLost("Volgende stop", 500);
+      const st = await p.evaluate(() => ({ onTitle: !!(document.activeElement && document.activeElement.id === "drvTitle"), name: (document.querySelector("#drvTitle") || {}).textContent }));
+      if (!st.onTitle) add("2.4.3 focus déplacé après action", "équipe " + W + " · Chauffeur : après « Volgende stop », le focus n'est pas sur le nom du stop (" + (await J.info()).text + ")");
+      if (st.name === before) add("parcours incomplet", "équipe " + W + " · Chauffeur : « Volgende stop » reste sur " + before);
+    }
+    if (await p.$('.drv [data-act="depart"]') && await J.tabTo('.drv [data-act="depart"]', "Chauffeur", { max: 20 })) {
+      const id = await p.evaluate(() => document.activeElement.dataset.id);
+      await p.keyboard.press("Enter"); await p.waitForTimeout(400);
+      const d = await J.info(); if (!d.dialog) add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · Chauffeur : Ronde vertrekt?");
+      await p.keyboard.press("Enter"); await J.notLost("Chauffeur : Vertrekt", 1800);
+      if (!(await is(p, '.drv [data-act="deliver"][data-id="' + id + '"]'))) add("2.4.3 focus déplacé après action", "équipe " + W + " · Chauffeur : après Vertrekt, le focus n'est pas sur « Ontvangst bevestigen » du même stop");
+    }
+    if (await is(p, '.drv [data-act="deliver"]') || await J.tabTo('.drv [data-act="deliver"]', "Chauffeur", { max: 20 })) {
+      await p.keyboard.press("Enter"); await p.waitForTimeout(700);
+      const d = await J.info(); if (!d.dialog) add("2.4.3 fenêtre ouverte sans y porter le focus", "équipe " + W + " · Chauffeur : Ontvangst bevestigen");
+      if (await J.tabTo("#recipient", "Chauffeur · Ontvangst bevestigen", { max: 10 })) {
+        await p.keyboard.type("Jan (zaal)"); await p.keyboard.press("Enter"); await p.waitForTimeout(1800);
+        if (await p.isVisible(".scrim")) add("FOR-02 Entrée ne soumet pas le panneau", "équipe " + W + " · Chauffeur : Ontvangst bevestigen");
+        await J.notLost("Chauffeur : ontvangst bevestigd", 300);
+        if (!(await is(p, ".drv .drv-main"))) add("2.4.3 focus déplacé après action", "équipe " + W + " · Chauffeur : après la réception, le focus n'est pas sur « Volgende stop » (" + (await J.info()).text + ")");
+      }
+    }
+    if (await J.tabTo("#drvList", "Chauffeur", { max: 30 })) {
+      await p.keyboard.press("Enter"); await J.notLost("Chauffeur → Lijst", 600);
+      if (await pressedOf(p, '[data-mode="lijst"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · retour à la liste sans aria-pressed=true");
+    }
+  }
   // Magazijn : Vandaag / Morgen exposés, Bord sans bouton imbriqué dans un lien.
   await p.goto(B + "/team/magazijn#/dag"); await p.waitForTimeout(1400);
   if (await J.tabTo(".page-h .opt [data-day]:not(.on)", "Magazijn")) {

@@ -6,4 +6,6 @@
 - [x] T004 `vercel.json` cleanUrls + trailingSlash + redirections permanentes ; `dev-server.js` identique.
 - [x] T005 `check.js` : liens en URL propre, aucune `.html` interne ; `assets-version.js` récursif.
 - [x] T006 AGENTS.md, CONTRIBUER.md, constitution 1.0.1.
-- [ ] T007 Préversion Vercel : nouvelles adresses 200, anciennes 308 (GET).
+- [ ] T007 Préversion Vercel : nouvelles adresses 200, anciennes 308 (GET). Préversion protégée par l'authentification
+  Vercel (inaccessible sans connexion) : à vérifier en GET sur la production après fusion. Inclusion de assets/docs/
+  vérifiée par la syntaxe gitignore (test/deploy.test.js).

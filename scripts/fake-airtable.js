@@ -40,6 +40,8 @@ const SCHEMA = {
       "Payé le": "datetime", "Mode de paiement": "select",
       // Exception à la réception (absent, refusé, partiel, abîmé) + ordre de tournée.
       "Uitzondering levering": "select", "Uitzondering nota": "text", "Volgorde levering": "number",
+      // Heure de livraison prévue "HH:MM-HH:MM" (D4, lib/levering.parseSlot), visible par le client.
+      "Leverslot": "text",
       // Creditnota sur une facture : numéro CN-AAAA-NNNN, lignes créditées, montant aux prix figés.
       "Creditnota nummer": "text", "Creditnota lignes": "text", "Creditnota montant": "number", "Creditnota le": "datetime", "Creditnota motif": "text",
       // Plusieurs notes par facture (C-08) : liste JSON de TOUTES les notes ; les champs ci-dessus gardent la première.

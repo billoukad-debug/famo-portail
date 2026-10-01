@@ -17,7 +17,7 @@ Une seule peau « Vismijn » pour les trois portails (voir `DESIGN.md`) : fond f
 ## Structure
 
 L'arborescence suit les adresses : `/team/magazijn` = `team/magazijn.html` + `assets/pages/team/magazijn.js`.
-URL propres sans `.html` (`vercel.json` : `cleanUrls`) ; les anciennes adresses (`/entrepot.html`, `/order.html?id=…`
+URL propres sans `.html` (`vercel.json` : `cleanUrls`) ; les anciennes adresses (`/team/magazijn`, `/team/bestelling?id=…`
 des e-mails déjà envoyés…) redirigent en permanent vers les nouvelles.
 
 ```
@@ -31,7 +31,7 @@ assets/ui.css   une seule feuille de style (jetons, composants, responsive, prin
 assets/ui.js    couche partagée : K.api, K.staff, K.klant, K.c (composants), K.shell (navigation), K.toast/confirm/panel
 assets/pages/   un script par page client + beheer.js, aanmelden.js (connexion équipe et Beheer), staff-common.js (partagé équipe/Beheer)
 assets/pages/team/  un script par page du personnel (même nom que la page)
-assets/docs/    documents.js (leveringsbon / factuur / creditnota, NL ou FR selon le client), bedrijf.js (coordonnées), voorbeeld.js (aperçu A4, impression, PDF via vendor/html2pdf.bundle.min.js)
+assets/docs/    assets/docs/documents.js (leveringsbon / factuur / creditnota, NL ou FR selon le client), bedrijf.js (coordonnées), voorbeeld.js (aperçu A4, impression, PDF via vendor/html2pdf.bundle.min.js)
 scripts/dev.js  serveur local avec Airtable et Resend nabootsés (zéro quota) ; scripts/dev-server.js reproduit cleanUrls et les redirections de vercel.json
 scripts/check.js garde-fous (syntaxe, secrets, liens en URL propre, NL, contrastes, tests unitaires, scénarios métier)
 scripts/ux-audit.js audit navigateur (Playwright) de 27 écrans à 1280 et 390 px

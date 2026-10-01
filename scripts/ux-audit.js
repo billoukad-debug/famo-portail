@@ -9,7 +9,8 @@
 // grand texte 3:1, contour des champs 3:1 — les couleurs réelles à l'écran, opacités comprises) ·
 // ACC-06 état « choisi » (.on) exposé (aria-pressed / aria-current / aria-selected / aria-expanded).
 // États visités en plus des pages : fiche commande (team/bestelling.html), Journaal, Magazijn Bord, confirmation de
-// commande, panier rempli, panneaux ouverts (Valideren, fiche client, produit) et l'aperçu d'un document.
+// commande, panier rempli, panneaux ouverts (Valideren, Leveruur, fiche client, produit), Leveringen en mode
+// Chauffeur et l'aperçu d'un document.
 //
 //   node scripts/dev.js            (autre terminal : portail de dev + données de test)
 //   node scripts/ux-audit.js       (BASE=http://localhost:4200 par défaut ; sortie 1 s'il y a un écart)
@@ -22,8 +23,11 @@ const EXE = process.env.CHROMIUM || (require("fs").existsSync("/opt/pw-browsers/
 const firstOrder = async p => p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => { const o = (d.orders || []).find(x => x.statut === "Facturée") || (d.orders || [])[0]; return o ? o.id : ""; }));
 const clickAndWait = (sel, ms) => async p => { const el = p.locator(sel).first(); if (await el.count()) { await el.click(); await p.waitForTimeout(ms || 800); } };
 const pages = {
-  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender", "/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen", "/team/documenten",
+  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender", "/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
+    { name: "/team/leveringen (mode Chauffeur)", url: "/team/leveringen", before: async p => { await p.evaluate(() => localStorage.setItem("famoLevMode", JSON.stringify("chauffeur"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoLevMode")); } },
+    "/team/documenten",
     { name: "/team/bestelling (fiche commande)", url: async p => "/team/bestelling?id=" + encodeURIComponent(await firstOrder(p)) },
+    { name: "/team/bestelling · panneau Leveruur", url: async p => "/team/bestelling?id=" + encodeURIComponent(await p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => ((d.orders || []).find(x => x.statut === "Prête") || {}).id || ""))), after: clickAndWait('[data-act="slot"]', 700) },
     { name: "/team/bestellingen · panneau Artikelen valideren", url: "/team/bestellingen#/tabel", after: clickAndWait('[data-act="validate"]', 700) },
     { name: "/team/documenten · aperçu d'un document", url: "/team/documenten", after: clickAndWait('[data-act="invoice"], [data-act="delivery"]', 2500) }],
   admin: ["/beheer#/overzicht", "/beheer#/aanvragen", "/beheer#/klanten", "/beheer#/producten", "/beheer#/prijzen", "/beheer#/rapportage", "/beheer#/journaal", "/beheer#/bedrijf", "/beheer#/toegang", "/beheer#/status", "/team/invoeren", "/team/voorraad",
