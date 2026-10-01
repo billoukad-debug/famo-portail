@@ -87,7 +87,8 @@ describe("Portail client : profil, favoris, mot de passe oublié, compte archiv�
       assert.equal(r.res.statusCode, 200, "AW2 actieve klant");
       assert.deepEqual(r.res.payload.client.favorieten, { favorieten: ["recAAAAAAAAAAAAAA"], standaard: { recAAAAAAAAAAAAAA: 2 } }, "AW2 favorieten meegegeven");
       assert.equal(r.res.payload.products[0].voorraad, 3, "AW2 voorraad zichtbaar (op naam) wanneer afboeken aan staat");
-      assert.equal(r.res.payload.company.iban, "BE68539007547034"); assert.equal(r.res.payload.company.facturatie, "portaal"); // IBAN seulement en mode Portaal assert.deepEqual(r.res.payload.company.levering.leverdagen, ["di"]); assert.equal(r.res.payload.company.bedrijfsnaam, "Famo");
+      assert.equal(r.res.payload.company.iban, "BE68539007547034"); assert.equal(r.res.payload.company.facturatie, "portaal"); // IBAN seulement en mode Portaal
+      assert.deepEqual(r.res.payload.company.levering.leverdagen, ["di"]); assert.equal(r.res.payload.company.bedrijfsnaam, "Famo"); // réactivées (spec 011 T012) : elles étaient restées dans le commentaire
       r = await call(cat, { user: "aloha", pw: "w" }, [ACT("{{niet json"), CATZ, { records: [] }, { records: [{ fields: {} }] }, { records: [{ fields: {} }] }]);
       assert.equal(r.res.statusCode, 200, "AW3 zonder afboeken"); assert.equal(r.res.payload.products[0].voorraad, undefined, "AW3 geen voorraad getoond"); assert.equal(r.calls.filter(c => /\/Stock/.test(c.url)).length, 0, "AW3 Stock niet gelezen");
       assert.deepEqual(r.res.payload.client.favorieten, { favorieten: [], standaard: {} }, "AW3 onleesbare favorieten → leeg");

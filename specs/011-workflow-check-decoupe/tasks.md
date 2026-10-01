@@ -21,6 +21,6 @@
 - [ ] T011 (suite possible) Constitution III cite encore « un bloc de `scripts/workflow-check.js` » : correctif de
   formulation (1.0.1) → « un test de `test/workflow/` » ; `lib/ordermail.js` (commentaire « section M de
   workflow-check ») — hors périmètre de ce lot (`lib/` non modifiable ici)
-- [ ] T012 (suite possible) AW2 : deux assertions sont restées dans un commentaire depuis l'origine
+- [x] T012 (suite possible) AW2 : deux assertions sont restées dans un commentaire depuis l'origine
   (`// IBAN seulement en mode Portaal assert.deepEqual(…levering.leverdagen…); assert.equal(…bedrijfsnaam…)`) ;
   elles ne s'exécutent pas. Copiées telles quelles ici ; les réactiver dans un lot séparé
