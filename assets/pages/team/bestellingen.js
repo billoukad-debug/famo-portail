@@ -150,7 +150,11 @@
       delete MC.edits[id];
       K.toast("Bestelling " + d.ref + " aangemaakt", { action: "Openen", onAction: () => { location.href = "/team/bestelling?id=" + encodeURIComponent(d.id); } });
       await mcAfter();
-    } catch (err) { box.innerHTML = K.c.error(err.message); K.busy(t, false); }
+    } catch (err) {
+      // 409 : al behandeld of de bestelling bestond al (het bericht is dan afgesloten) → lijst opnieuw laden.
+      if (err.status === 409) { K.toast(err.message); delete MC.edits[id]; await mcAfter(); return; }
+      box.innerHTML = K.c.error(err.message); K.busy(t, false);
+    }
   });
   K.on(page, "click", "[data-mc-read]", async (e, t) => {
     const id = t.dataset.mcRead, ed = MC.edits[id], box = page.querySelector("#mcErr-" + id);
@@ -166,7 +170,7 @@
     if (reden == null) return;
     if (reden.trim().length < 3) { K.toast("Geef een reden op (minstens 3 tekens).", { kind: "err" }); return; }
     try { await K.api("/api/mailcontrole", { json: { action: "ignore", id, reden: reden.trim() } }); delete MC.edits[id]; K.toast("Bericht genegeerd"); await loadControle(); }
-    catch (err) { K.toast(err.message, { kind: "err" }); }
+    catch (err) { K.toast(err.message, { kind: "err" }); if (err.status === 409) await loadControle(); }
   });
   S.onMailIds = () => { if (view !== "controle") render(); };
   const selected = () => S.orders.filter(o => sel.has(o.id));

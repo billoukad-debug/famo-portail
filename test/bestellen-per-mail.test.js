@@ -216,6 +216,7 @@ test("idempotence : le même webhook deux fois (ou deux livraisons Svix) = une s
   assert.equal((await orders()).length, 1);
   assert.equal(net.aiCalls.length, 1, "Claude une seule fois");
   // Deux livraisons simultanées : la clé primaire de l'enregistrement tranche.
+  net.ai = aiAnswer(proposal([line({ qty: 2 })])); // autre commande (sinon : « mogelijk dubbele bestelling », #6)
   const { payload: p2 } = inbound({ text: "2 kg sole" });
   const [x, y] = await Promise.all([webhook(p2), webhook(p2)]);
   assert.deepStrictEqual([x.statusCode, y.statusCode], [200, 200]);
@@ -253,7 +254,11 @@ test("expéditeur non vérifié (DMARC fail, ou rien) et client archivé → Te 
   assert.ok(list.some((x) => x.Reden === "klant gearchiveerd"));
   assert.equal(net.aiCalls.length, 0); assert.equal(net.sent.length, 0); assert.equal((await orders()).length, 0);
   assert.equal(mailorder.senderVerified({ dmarc: "pass" }), true);
-  assert.equal(mailorder.senderVerified({ dmarc: "", spf: "pass" }), true, "sans DMARC : SPF ou DKIM");
+  assert.equal(mailorder.senderVerified({ dmarc: "", spf: "pass" }), false, "#4 sans DMARC : SPF seul ne prouve pas l'en-tête From");
+  assert.equal(mailorder.senderVerified({ dmarc: "", dkim: "pass", from: "chef@resto-a.be" }), false, "#4 DKIM sans domaine de signature connu : non");
+  assert.equal(mailorder.senderVerified({ dmarc: "", dkim: "pass", dkimDomain: "resto-a.be", from: "chef@resto-a.be" }), true, "#4 DKIM aligné sur le From");
+  assert.equal(mailorder.senderVerified({ dmarc: "", dkim: "pass", dkimDomain: "mail.resto-a.be", from: "chef@resto-a.be" }), true, "#4 alignement relâché (sous-domaine)");
+  assert.equal(mailorder.senderVerified({ dmarc: "", dkim: "pass", dkimDomain: "evil.example", from: "chef@resto-a.be" }), false, "#4 DKIM d'un autre domaine");
   assert.equal(mailorder.senderVerified({ dmarc: "none", dkim: "pass" }), false, "DMARC présent mais pas pass");
 });
 
@@ -274,18 +279,20 @@ test("réponses automatiques, listes et boucles → Genegeerd, texte non gardé,
   assert.equal(resend.autoReplyReason({ "auto-submitted": "no" }, "chef@resto-a.be", []), "", "Auto-Submitted: no = humain");
 });
 
-test("plafond par expéditeur : au-delà de 10 messages par heure → Genegeerd sans Claude", async () => {
+test("plafond par expéditeur : au-delà de 10 messages par heure → Te controleren (texte gardé) sans Claude ni accusé", async () => {
   await seed();
   net.ai = aiAnswer(proposal([line({})]));
-  await store().insert(TABLE, Array.from({ length: 10 }, (_, i) => rec("recold" + i, { "Bericht-id": "old-" + i, Status: "Aangemaakt", Van: "chef@resto-a.be" })));
+  await store().insert(TABLE, Array.from({ length: 10 }, (_, i) => rec("recold" + i, { "Bericht-id": "old-" + i, Status: "Aangemaakt", Van: "chef@resto-a.be", "Afzender geverifieerd": true })));
   await webhook(inbound().payload);
   const m = (await mails()).find((x) => !/^recold/.test(x.id));
-  assert.equal(m.fields["Status"], "Genegeerd");
+  assert.equal(m.fields["Status"], "Te controleren", "#3 jamais Genegeerd pour un client connu et vérifié");
   assert.match(m.fields["Reden"], /te veel berichten/);
+  assert.ok(m.fields["Tekst"], "#3 texte gardé");
   assert.equal(net.aiCalls.length, 0);
+  assert.equal(net.sent.length, 0, "pas d'accusé (pas de boucle)");
   // Messages plus anciens qu'une heure : ne comptent plus.
   await seed();
-  await store().insert(TABLE, Array.from({ length: 10 }, (_, i) => rec("recold" + i, { "Bericht-id": "old-" + i, Status: "Aangemaakt", Van: "chef@resto-a.be" }, new Date(Date.now() - 2 * 3600e3).toISOString())));
+  await store().insert(TABLE, Array.from({ length: 10 }, (_, i) => rec("recold" + i, { "Bericht-id": "old-" + i, Status: "Aangemaakt", Van: "chef@resto-a.be", "Afzender geverifieerd": true }, new Date(Date.now() - 2 * 3600e3).toISOString())));
   await webhook(inbound().payload);
   assert.equal((await orders()).length, 1);
 });
@@ -463,6 +470,7 @@ test("Beheer : adresse et interrupteur, booléens des clés (jamais leur valeur)
   assert.equal(saved.statusCode, 200);
   assert.deepStrictEqual([saved.payload.config.mailBestellingen.adres, saved.payload.config.mailBestellingen.automatisch], ["bestel@orders.famoseafood.be", false]);
   assert.equal((await call("onboarding.js", { body: { action: "saveMailBestellingen", automatisch: true }, headers: cookie("staff") })).statusCode, 401, "beheerder seul");
+  assert.equal((await ob({ action: "saveMailBestellingen", adres: "bestel@orders.famo.test", automatisch: true })).statusCode, 200);
   // RGPD
   net.ai = aiAnswer(proposal([line({})]));
   await webhook(inbound({ text: "persoonlijke tekst van de chef" }).payload);
@@ -497,4 +505,199 @@ test("lib/inbound/claude : proposition nettoyée (types, longueurs, ids, unités
   assert.ok(b.system[1].text.indexOf("recA") < b.system[1].text.indexOf("recB"), "catalogue trié : préfixe stable pour le cache");
   assert.match(b.messages[0].content, /2026-10-02 \(vrijdag\)/);
   assert.equal(b.fallbacks, undefined);
+});
+
+// ---- Revue de code (9c642c2) : défauts corrigés, un test par constat --------------------------------
+const linkedOrder = async (inboundId, ref) => { await store().insert("Commandes", [rec("recLINK" + Math.random().toString(36).slice(2, 8), { "Référence": ref || "CMD-2026-0999", Date: TODAY, Statut: "Reçue", Client: ["recCLA"], Bron: "E-mail", "Inkomende mail": inboundId, "Lignes (produits / quantités)": "Tong × 1 kg [€14.00]", Total: 14 })]); };
+const ago = (ms) => new Date(Date.now() - ms).toISOString();
+
+test("#1/#8 commande déjà créée pour ce message : jamais de seconde commande (mise à jour en échec, file, Aanmaken bloqué)", async () => {
+  await seed();
+  net.ai = aiAnswer(proposal([line({})]));
+  // L'écriture « Aangemaakt » échoue après la création de la commande (fonction interrompue, base indisponible).
+  const prev = global.fetch;
+  let fail = true;
+  global.fetch = async (url, init) => {
+    if (fail && init && init.method === "PATCH" && /Inkomende%20mails/.test(String(url)) && /"Aangemaakt"/.test(String(init.body))) { fail = false; return new Response(JSON.stringify({ error: { type: "SERVER_ERROR", message: "x" } }), { status: 500 }); }
+    return prev(url, init);
+  };
+  let r;
+  try { r = await webhook(inbound().payload); } finally { global.fetch = prev; }
+  assert.equal(r.statusCode, 500);
+  assert.equal((await orders()).length, 1);
+  const m = await only();
+  // Plus tard (bloqué) : visible dans la file, avec la commande déjà liée.
+  await store().update(TABLE, m.id, Object.assign({}, m.fields, { "Verwerking sinds": ago(10 * 60e3) }), (await store().get(TABLE, m.id)).version);
+  const item = (await staffGet()).payload.items.find((x) => x.id === m.id);
+  assert.ok(item, "message bloqué visible");
+  assert.ok(item.commande && /^CMD-/.test(item.commande.ref), "commande liée montrée");
+  assert.match(item.reden, /al aangemaakt/);
+  // Le personnel clique « aanmaken » : pas de doublon, message clair, enregistrement lié.
+  const c = await staff({ action: "create", id: m.id, clientId: "recCLA", lines: [{ productId: "recP1", qty: 2 }], dateLivraison: LATER });
+  assert.equal(c.statusCode, 409);
+  assert.match(c.payload.error, /bestond al/);
+  assert.equal((await orders()).length, 1, "toujours une seule commande");
+  const after = (await store().get(TABLE, m.id)).fields;
+  assert.equal(after["Status"], "Aangemaakt"); assert.deepStrictEqual(after["Commande"], [(await orders())[0].id]);
+  // Même cas, « Aanmaken » bloqué (le personnel a créé puis la fonction s'est arrêtée).
+  await seed();
+  await store().insert(TABLE, [rec("recmlSTUCK", { "Bericht-id": "stuck", Status: "Aanmaken", Van: "chef@resto-a.be", Tekst: "3 kg tong", Client: ["recCLA"], "Verwerking sinds": ago(10 * 60e3) })]);
+  await linkedOrder("recmlSTUCK", "CMD-2026-0777");
+  assert.ok((await staffGet({ count: "1" })).payload.ids.includes("recmlSTUCK"), "#8 Aanmaken bloqué revient dans la file");
+  const c2 = await staff({ action: "ignore", id: "recmlSTUCK", reden: "dubbel" });
+  assert.equal(c2.statusCode, 409); assert.match(c2.payload.error, /CMD-2026-0777/);
+  assert.equal((await store().get(TABLE, "recmlSTUCK")).fields["Status"], "Aangemaakt");
+  // Reprise d'un message sans contenu dont la commande existe déjà : rattaché, pas recréé.
+  await seed();
+  const { id, payload } = inbound();
+  const recId = mailorder.recordIdFor(id);
+  await store().insert(TABLE, [rec(recId, { "Bericht-id": id, Status: "Te controleren", "Inhoud ontbreekt": true, Van: "chef@resto-a.be" })]);
+  await linkedOrder(recId, "CMD-2026-0888");
+  const r3 = await webhook(payload);
+  assert.equal(r3.statusCode, 200);
+  assert.equal((await orders()).length, 1); assert.equal(net.aiCalls.length, 0, "pas relu");
+  assert.equal((await store().get(TABLE, recId)).fields["Referentie"], "CMD-2026-0888");
+});
+
+test("#1 budget de temps : Claude borné par l'échéance, pas de nouvel essai sans repli si le temps manque", async () => {
+  net.aiCalls.length = 0;
+  net.ai = async () => new Response(JSON.stringify({ type: "error", error: { type: "invalid_request_error", message: "fallbacks beta" } }), { status: 400 });
+  const r = await claude.parseOrder({ text: "x", subject: "", products: [], today: TODAY, deadline: Date.now() + 3000 });
+  assert.equal(r.ok, false); assert.equal(net.aiCalls.length, 1, "pas de second essai sous 5 s restantes");
+  net.aiCalls.length = 0;
+  const late = await claude.parseOrder({ text: "x", subject: "", products: [], today: TODAY, deadline: Date.now() + 500 });
+  assert.equal(late.ok, false); assert.match(late.reason, /tijd/); assert.equal(net.aiCalls.length, 0, "aucun appel si l'échéance est trop proche");
+  assert.ok(mailorder.BUDGET_MS <= 40000, "budget total bien sous maxDuration (60 s)");
+});
+
+test("#2 reprise après « Inhoud ontbreekt » : pas montrée comme bloquée pendant le traitement ; CAS avant la création", async () => {
+  await seed();
+  const { id, payload } = inbound();
+  const recId = mailorder.recordIdFor(id);
+  await store().insert(TABLE, [rec(recId, { "Bericht-id": id, Status: "Te controleren", "Inhoud ontbreekt": true, Van: "chef@resto-a.be" }, ago(30 * 60e3))]);
+  let during = null;
+  net.ai = async (body) => { during = await staffGet({ count: "1" }); return aiAnswer(proposal([line({})]))(body); };
+  const r = await webhook(payload);
+  assert.equal(r.payload.status, "Aangemaakt");
+  assert.ok(!during.payload.ids.includes(recId), "en cours de traitement : pas dans la file (createdTime ancien ignoré)");
+  assert.equal((await orders()).length, 1);
+  // Le personnel reprend un message réellement bloqué pendant que le webhook lit encore : une seule commande.
+  await seed();
+  const m2 = inbound();
+  const id2 = mailorder.recordIdFor(m2.id);
+  net.ai = async (body) => {
+    const cur = await store().get(TABLE, id2);
+    await store().update(TABLE, id2, Object.assign({}, cur.fields, { "Verwerking sinds": ago(10 * 60e3) }), cur.version);
+    const s = await staff({ action: "create", id: id2, clientId: "recCLA", lines: [{ productId: "recP1", qty: 1 }], dateLivraison: LATER });
+    assert.equal(s.statusCode, 200, JSON.stringify(s.payload));
+    return aiAnswer(proposal([line({})]))(body);
+  };
+  const r2 = await webhook(m2.payload);
+  assert.equal(r2.statusCode, 200);
+  assert.notEqual(r2.payload.status, "Aangemaakt", "le webhook n'a pas créé de seconde commande");
+  assert.equal((await orders()).length, 1);
+});
+
+test("#3 expéditeur falsifié ou inconnu au-delà du plafond → Te controleren (jamais avalé)", async () => {
+  await seed();
+  net.ai = aiAnswer(proposal([line({})]));
+  // 12 faux messages « de » chef@resto-a.be (non vérifiés) et 12 d'un inconnu dans l'heure.
+  await store().insert(TABLE, Array.from({ length: 24 }, (_, i) => rec("recold" + i, { "Bericht-id": "old-" + i, Status: "Te controleren", Van: i < 12 ? "chef@resto-a.be" : "x@unknown.example" })));
+  await webhook(inbound({ auth: { dmarc: "fail" }, text: "faux" }).payload);
+  await webhook(inbound({ from: "x@unknown.example", text: "inconnu" }).payload);
+  const fresh = (await mails()).filter((x) => !/^recold/.test(x.id)).map((x) => x.fields);
+  assert.equal(fresh.length, 2);
+  assert.ok(fresh.every((x) => x.Status === "Te controleren" && x.Tekst), JSON.stringify(fresh.map((x) => [x.Status, x.Reden])));
+  assert.equal(net.sent.length, 0); assert.equal(net.aiCalls.length, 0);
+  // Le vrai client (vérifié) n'est pas bloqué par les faux messages à son nom : seuls ses messages vérifiés comptent.
+  await webhook(inbound({ text: "3 kg sole" }).payload);
+  assert.equal((await orders()).length, 1);
+});
+
+test("#4 sans DMARC : SPF ou DKIM seul → Te controleren ; DKIM aligné exposé par Resend → commande", async () => {
+  await seed();
+  net.ai = aiAnswer(proposal([line({})]));
+  await webhook(inbound({ auth: { spf: "pass" } }).payload);
+  await webhook(inbound({ auth: { dkim: "pass" } }).payload);
+  await webhook(inbound({ auth: { dkim: { result: "pass", domain: "evil.example" } } }).payload);
+  assert.equal((await orders()).length, 0);
+  assert.ok((await mails()).every((x) => x.fields.Status === "Te controleren" && /niet geverifieerd/.test(x.fields.Reden)));
+  await webhook(inbound({ auth: { dkim: { result: "pass", domain: "resto-a.be" } } }).payload);
+  assert.equal((await orders()).length, 1);
+  assert.equal(resend.normalise({ authentication: { dkim: { result: "pass", domain: "Resto-A.be" } } }, {}).dkimDomain, "resto-a.be");
+});
+
+test("#5 seulement les messages adressés à l'adresse de commande (to, cc) ; sinon Genegeerd sans AI ni texte", async () => {
+  await seed();
+  net.ai = aiAnswer(proposal([line({})]));
+  const other = inbound({ text: "3 kg sole" });
+  net.inbound.get(other.id).to = ["info@orders.famo.test"];
+  await webhook(other.payload);
+  let m = await only();
+  assert.equal(m.fields.Status, "Genegeerd"); assert.match(m.fields.Reden, /niet aan het bestel-adres/); assert.equal(m.fields.Tekst, undefined);
+  assert.equal(net.aiCalls.length, 0); assert.equal(net.sent.length, 0);
+  await seed();
+  const cc = inbound({ text: "3 kg sole" });
+  Object.assign(net.inbound.get(cc.id), { to: ["iemand@resto-a.be"], cc: ["Bestel <Bestel@Orders.Famo.test>"] });
+  await webhook(cc.payload);
+  m = await only();
+  assert.equal(m.fields.Status, "Aangemaakt", "en copie : accepté");
+});
+
+test("#6 même client, même jour, mêmes lignes → Te controleren « mogelijk dubbele bestelling »", async () => {
+  await seed();
+  net.ai = aiAnswer(proposal([line({})]));
+  await webhook(inbound({ text: "3 kg sole" }).payload);
+  await webhook(inbound({ text: "3 kg sole graag" }).payload);
+  assert.equal((await orders()).length, 1);
+  const second = (await mails()).find((x) => x.fields.Status === "Te controleren");
+  assert.ok(second); assert.match(second.fields.Reden, /mogelijk dubbele bestelling \(CMD-/);
+});
+
+test("#7 plafond de quantité sur le total par article (lignes fusionnées)", async () => {
+  await seed();
+  net.ai = aiAnswer(proposal([line({ qty: 150 }), line({ qty: 150, naam_in_mail: "tong" })]));
+  await webhook(inbound().payload);
+  assert.equal((await orders()).length, 0);
+  assert.match((await only()).fields.Reden, /ongewoon grote hoeveelheid \(300 kg\)/);
+});
+
+test("#9 compteur quotidien d'appels Claude (date de Bruxelles, relectures comprises, sans balayage)", async () => {
+  await seed();
+  process.env.INBOUND_AI_DAILY_MAX = "2";
+  try {
+    net.ai = aiAnswer(proposal([line({ confidence: 0.5 })]));
+    await webhook(inbound({ text: "a" }).payload);
+    const first = (await mails())[0];
+    const re = await staff({ action: "analyse", id: first.id, clientId: "recCLA" });
+    assert.equal(re.statusCode, 200);
+    assert.equal(net.aiCalls.length, 2);
+    assert.equal((await staff({ action: "analyse", id: first.id, clientId: "recCLA" })).statusCode, 429, "relecture comptée");
+    await webhook(inbound({ text: "b" }).payload);
+    assert.equal(net.aiCalls.length, 2, "plafond atteint : plus d'appel");
+    assert.ok((await mails()).some((x) => /daglimiet/.test(x.fields.Reden || "")));
+    const ctr = (await store().list("Compteurs")).find((x) => x.fields.Serie === "AI-lezingen-" + TODAY);
+    assert.ok(ctr, "compteur par jour de Bruxelles"); assert.ok(ctr.fields.Waarde >= 3);
+  } finally { delete process.env.INBOUND_AI_DAILY_MAX; }
+});
+
+test("#10 corps brut : flux consommé → Buffer/texte de req.body acceptés, objet seul refusé (fail-closed) sans attente", async () => {
+  await seed();
+  net.ai = aiAnswer(proposal([line({})]));
+  const consumed = async (body) => {
+    const s = signed(inbound({ text: "3 kg sole" }).payload);
+    const r = Readable.from([Buffer.from("x")]);
+    for await (const chunk of r) void chunk; // flux déjà lu (aide Node qui ne le rejouerait pas)
+    return Object.assign(r, { method: "POST", headers: s.headers, query: {}, body: body(s) });
+  };
+  const run = async (req) => { const res = mkRes(); const t0 = Date.now(); await require(path.join(ROOT, "api", "inbound-mail.js"))(req, res); return { res, ms: Date.now() - t0 }; };
+  const a = await run(await consumed((s) => s.rawBody));
+  assert.equal(a.res.statusCode, 200, JSON.stringify(a.res.payload)); assert.ok(a.ms < 3000, "pas d'attente du flux");
+  const b = await run(await consumed((s) => s.rawBody.toString("utf8")));
+  assert.equal(b.res.statusCode, 200);
+  logs.length = 0;
+  const c = await run(await consumed((s) => JSON.parse(s.rawBody.toString("utf8"))));
+  assert.equal(c.res.statusCode, 400); assert.ok(c.ms < 3000);
+  assert.ok(logs.some((l) => /corps brut|ruwe body/i.test(l.msg)), "ligne de log claire");
+  assert.equal(require(path.join(ROOT, "api", "inbound-mail.js")).config, undefined, "pas de config bodyParser : ignorée par @vercel/node (fonctions Node simples)");
 });

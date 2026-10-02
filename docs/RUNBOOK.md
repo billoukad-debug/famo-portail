@@ -172,9 +172,12 @@ Le domaine principal `famoseafood.be` garde **sa** messagerie (et son MX nul) : 
    L'interrupteur « automatisch aanmaken » reste **coupé** pour commencer.
 7. Premier essai : depuis l'adresse e-mail d'une fiche client de test, écrire « 2 kg … pour <jour> ». Il doit
    apparaître dans **Bestellingen → Te controleren** (raison « automatisch aanmaken staat uit ») avec une
-   proposition lisible. Vérifier aussi la ligne `Verificatie` (`spf=pass dkim=pass dmarc=pass`) : si elle
-   montre `?`, Resend ne donne pas l'authentification et rien ne sera jamais automatique (spec R1 : prévenir
-   le développeur). Puis allumer l'interrupteur.
+   proposition lisible. Vérifier aussi la ligne `Verificatie` (`spf=pass dkim=pass dmarc=pass`) : seul
+   **`dmarc=pass`** (ou un DKIM aligné, si Resend en donne le domaine) permet l'automatisme ; si elle montre
+   `dmarc=?`, Resend ne donne pas DMARC et rien ne sera jamais automatique (spec R1 : prévenir le développeur).
+   Corps brut (spec R2) : dans Resend → Webhooks → l'endpoint → la tentative doit être **200** ; un **400**
+   avec, dans les logs Vercel (`"fn":"inbound-mail"`), « ruwe body onbeschikbaar » signifie que Vercel ne
+   rejoue plus le corps (prévenir le développeur) ; un 401 = secret. Puis allumer l'interrupteur.
 8. Communiquer l'adresse aux clients : ils écrivent **depuis l'adresse de leur fiche** (Beheer → Klanten →
    e-mail, plusieurs adresses séparées par une virgule possibles) ; sinon leur mail attend le personnel.
 9. `privacy.html` : ajouter Resend (réception) et Anthropic (lecture automatique) comme sous-traitants.
@@ -186,10 +189,16 @@ Le domaine principal `famoseafood.be` garde **sa** messagerie (et son MX nul) : 
   `inbound-mail` « RESEND_INBOUND_SECRET ontbreekt ») ; `401` = mauvais secret (recopier, Redeploy) ou
   horloge ; `503` = contenu non lu chez Resend (Resend réessaie seul ; vérifier `RESEND_API_KEY` en accès
   complet). DNS : `dig MX orders.famoseafood.be`.
+- **Une mail d'un client est « Genegeerd » « niet aan het bestel-adres gericht »** : elle était adressée à
+  une autre adresse du sous-domaine ; vérifier l'adresse dans Beheer (Bestel-e-mailadres) et celle utilisée
+  par le client.
+- **Une carte montre « bestelling CMD-… werd al aangemaakt »** : la fonction s'est arrêtée après la création ;
+  cliquer « Bestelling aanmaken » ferme le message sans seconde commande (409 « bestond al »).
 - **Tout va dans Te controleren** : lire la raison sur la carte. « ANTHROPIC_API_KEY ontbreekt » (clé,
   Redeploy) ; « AI-sleutel geweigerd (401) » (clé révoquée) ; « daglimiet » (plafond quotidien atteint) ;
-  « automatisch aanmaken staat uit » (Beheer) ; « niet geverifieerd » (domaine du client sans DKIM/DMARC :
-  normal, le personnel valide).
+  « automatisch aanmaken staat uit » (Beheer) ; « niet geverifieerd » (domaine du client sans DMARC pass :
+  normal, le personnel valide) ; « te veel berichten » (plus de 10 mails vérifiées en une heure) ; « mogelijk
+  dubbele bestelling » (même commande déjà passée aujourd'hui).
 - **Une mail « bloquée » en Verwerken** : après 3 min elle apparaît dans Te controleren (« verwerking
   onderbroken ») ; la traiter à la main. Logs Vercel : `"fn":"inbound-mail"` + l'id d'enregistrement.
 - **Boucle avec un répondeur** : les répondeurs sont ignorés et un expéditeur est plafonné à 10 mails/heure

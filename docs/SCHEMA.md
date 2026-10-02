@@ -179,17 +179,19 @@ dérivé du `Bericht-id` (`recml` + 24 hexa de son SHA-256) : la clé primaire r
 |---|---|---|---|---|
 | `Bericht-id`, `Message-ID` | texte | inbound-mail | mailorder | Id Resend (`email_id`) ; en-tête Message-ID. |
 | `Ontvangen op` | date-heure | inbound-mail | mailcontrole | |
-| `Van`, `Aan`, `Onderwerp` | texte | inbound-mail | mailcontrole, RGPD | `Van` = adresse en minuscules (comparée exactement à `Clients.Email` / `Klantgebruikers.Email`). |
+| `Van`, `Aan`, `Onderwerp` | texte | inbound-mail | mailcontrole, RGPD | `Van` = adresse en minuscules (comparée exactement à `Clients.Email` / `Klantgebruikers.Email`). Seul un message adressé (to, cc ou destinataire d'enveloppe) à `Configuratie.Bestel-e-mailadres` est traité ; les autres : Genegeerd, métadonnées seulement. |
 | `Tekst` | texte (≤ 20 000 car.) | inbound-mail | Claude (une fois), mailcontrole, RGPD | Pas gardé pour un répondeur, une boucle ou un expéditeur trop bavard (Genegeerd). |
 | `Client` | lien → Clients | inbound-mail, mailcontrole (choix du personnel) | mailcontrole, RGPD | Absent = expéditeur inconnu. |
-| `Status` | liste `Verwerken` / `Te controleren` / `Aanmaken` / `Aangemaakt` / `Genegeerd` | inbound-mail, mailcontrole | mailcontrole (pastille) | `Verwerken` de plus de 3 min = montré comme à contrôler (« verwerking onderbroken ») ; `Aanmaken` = réservé par un clic du personnel. |
+| `Status` | liste `Verwerken` / `Te controleren` / `Aanmaken` / `Aangemaakt` / `Genegeerd` | inbound-mail, mailcontrole | mailcontrole (pastille) | `Aanmaken` = réservé (webhook juste avant de créer, ou clic du personnel). `Verwerken` / `Aanmaken` dont le jeton a plus de 3 min = montré comme à contrôler, avec la commande déjà liée s'il y en a une. Chaque changement de statut de réservation est une écriture conditionnelle. |
+| `Verwerking sinds` | texte (`ISO#hasard`) | inbound-mail, mailcontrole | inbound-mail, mailcontrole | Jeton de la réservation en cours, renouvelé à chaque reprise (webhook réessayé, clic du personnel) ; sert à la détection « bloqué » (jamais `createdTime`) et au contrôle « toujours à moi » avant de créer la commande. |
+| `Afzender geverifieerd` | case | inbound-mail | inbound-mail (plafond 10/h) | Expéditeur connu ET prouvé (DMARC pass, ou DKIM pass aligné sur le From). Seuls ces messages comptent dans le plafond : des faux au nom d'un client ne le bloquent pas. |
 | `Reden` | texte | inbound-mail, mailcontrole | mailcontrole | Pourquoi pas automatique, ou raison de « Negeren ». |
 | `Voorstel` | texte (JSON) | inbound-mail, mailcontrole (analyse) | mailcontrole | `{lines:[{productId, naam_in_mail, qty, unit, confidence, opmerking, note}], leverdag, opmerkingen, onduidelijk, leverdagVoorstel}` (proposition de Claude, jamais crue telle quelle). |
 | `Verificatie` | texte | inbound-mail | mailcontrole | `spf=… dkim=… dmarc=…` (Resend). |
 | `Inhoud ontbreekt` | case | inbound-mail | inbound-mail (nouvel essai), mailcontrole | Contenu non lu chez Resend : repris au prochain essai du webhook. |
 | `Commande`, `Referentie` | lien → Commandes, texte | inbound-mail, mailcontrole | mailcontrole | Commande créée. |
 | `Behandeld door`, `Behandeld op` | texte, date-heure | inbound-mail (« automatisch »), mailcontrole | mailcontrole | Aussi dans le Journaal (« Mailbestelling aangemaakt / genegeerd / nagelezen »). |
-| `AI-gebruik` | texte (JSON) | inbound-mail, mailcontrole | coûts, plafond quotidien | `{model, input, output, cacheRead, cacheWrite}` (jetons) ; pas de contenu. |
+| `AI-gebruik` | texte (JSON) | inbound-mail, mailcontrole | coûts | `{model, input, output, cacheRead, cacheWrite}` (jetons) ; pas de contenu. Le plafond quotidien compte les appels réels dans `Compteurs` (série `AI-lezingen-AAAA-MM-JJ`, date de Bruxelles, relectures comprises). |
 | `Bevestiging` | texte | inbound-mail | — | `ontvangst` (accusé « We ontvingen uw bericht ») ou `bestelling` (confirmation de commande). |
 
 ### `Aanvragen` — demandes d'accès publiques

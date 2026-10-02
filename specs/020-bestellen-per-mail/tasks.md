@@ -14,5 +14,6 @@
 - [x] T012 `docs/RUNBOOK.md` § 7 (mise en place one.com / Resend / Anthropic / Vercel, incidents), `docs/COUTS.md`, `vercel.json` (`maxDuration` 60 s), `AGENTS.md`
 - [x] T013 Audits : écran Te controleren (+ e-mail dépliée) dans `ux-audit` ; captures 1280 / 390 relues
 - [x] T014 Portes : assets-version, check.js, ESLint, contrast-check, ux-audit → kbd-audit (serveur neuf, port 4370)
+- [x] T017 Revue de code 9c642c2, 10 constats, tests d'abord (11 tests en échec avant correction) : commande déjà liée rattachée (webhook, reprise, file), budget 40 s, jeton `Verwerking sinds` + écriture conditionnelle avant création, plafond après vérification (Te controleren, jamais Genegeerd), DMARC ou DKIM aligné, adresse de commande exigée, commande jumelle, plafond par total d'article, compteur quotidien atomique (Bruxelles, relectures), corps brut (Buffer/texte, objet refusé sans attente)
 - [ ] T015 (propriétaire) DNS one.com, Resend, clés Vercel, Redeploy, premier vrai message (R1, R2), puis interrupteur Beheer
 - [ ] T016 (propriétaire) Mentionner Resend et Anthropic comme sous-traitants dans `privacy.html`

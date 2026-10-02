@@ -119,7 +119,9 @@ const SCHEMA = {
   "Inkomende mails": {
     fields: { "Bericht-id": "text", "Message-ID": "text", "Ontvangen op": "datetime", "Van": "text", "Aan": "text", "Onderwerp": "text", "Tekst": "text",
       "Client": "links", "Status": "select", "Reden": "text", "Voorstel": "text", "Verificatie": "text", "Commande": "links", "Referentie": "text",
-      "Behandeld door": "text", "Behandeld op": "datetime", "AI-gebruik": "text", "Inhoud ontbreekt": "checkbox", "Bevestiging": "text" },
+      "Behandeld door": "text", "Behandeld op": "datetime", "AI-gebruik": "text", "Inhoud ontbreekt": "checkbox", "Bevestiging": "text",
+      // Jeton de la réservation en cours (ISO#hasard) et expéditeur prouvé (DMARC / DKIM aligné), spec 020 revue.
+      "Verwerking sinds": "text", "Afzender geverifieerd": "checkbox" },
     selects: { "Status": ["Verwerken", "Te controleren", "Aanmaken", "Aangemaakt", "Genegeerd"] }, primary: "Bericht-id"
   },
   // Comptes individuels du personnel (api/session : connexion par PIN, api/onboarding : gestion).

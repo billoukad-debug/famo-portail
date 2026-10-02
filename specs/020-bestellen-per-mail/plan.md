@@ -67,12 +67,13 @@ personnel : /team/bestellingen#/controle ⇄ /api/mailcontrole (create · ignore
 | Menace | Mesure |
 |---|---|
 | Faux webhook, rejeu | HMAC Svix sur le corps brut, `timingSafeEqual`, ±5 min ; secret absent → 500 |
-| Faux expéditeur (From usurpé) | adresse exacte d'une fiche + SPF/DKIM/DMARC ; échec → Te controleren, aucune réponse |
+| Faux expéditeur (From usurpé) | adresse exacte d'une fiche + DMARC pass (ou DKIM pass aligné sur le From si Resend donne le domaine) ; SPF seul ne suffit pas ; échec → Te controleren, aucune réponse |
+| Message pour une autre adresse du sous-domaine | seul `Bestel-e-mailadres` (to, cc, enveloppe) est traité ; le reste : Genegeerd sans AI |
 | Backscatter / spam | jamais de réponse à un inconnu ; pas d'appel AI pour un inconnu |
-| Boucle de répondeurs | en-têtes RFC 3834 / Precedence / X-Autoreply, `noreply@`, nos domaines ; 10/h par expéditeur |
+| Boucle de répondeurs | en-têtes RFC 3834 / Precedence / X-Autoreply, `noreply@`, nos domaines ; 10/h par client vérifié (au-delà : Te controleren sans accusé ; des faux à son nom ne comptent pas) |
 | Injection de consignes dans la mail | balise `<email>` = donnée ; le modèle n'a ni prix ni outil ; le serveur recalcule tout ; une ligne douteuse va au personnel |
-| Coût incontrôlé | 200 lectures AI par jour au plus (`INBOUND_AI_DAILY_MAX`), effort low, catalogue en cache |
-| Double commande | id d'enregistrement dérivé de l'id Resend (clé primaire), `atomic.claim` côté personnel |
+| Coût incontrôlé | 200 appels AI par jour de Bruxelles au plus (`INBOUND_AI_DAILY_MAX`, compteur atomique dans `Compteurs`, relectures comprises), effort low, catalogue en cache ; budget 40 s par webhook |
+| Double commande | id d'enregistrement dérivé de l'id Resend (clé primaire) ; jeton `Verwerking sinds` par écriture conditionnelle, revérifié juste avant de créer ; commande déjà liée (`Inkomende mail`) rattachée au lieu d'être refaite (webhook, reprise, file) ; commande jumelle du jour → Te controleren |
 | Fuite par les logs | ni texte, ni objet, ni clé : ids, statuts, raisons |
 | Données personnelles | texte gardé 90 jours (cron quotidien), inclus dans l'export RGPD, supprimé à l'anonymisation ; les répondeurs/boucles ne gardent pas le texte. Sous-traitants : Resend (réception) et Anthropic (lecture) — à mentionner dans la politique de confidentialité (`privacy.html`, non modifiée ici : **à faire par le propriétaire**) |
 

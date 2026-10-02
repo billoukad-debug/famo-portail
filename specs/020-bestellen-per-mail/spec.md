@@ -47,22 +47,39 @@ certitude va dans une file « Te controleren » que le personnel règle en un cl
 - **FR-005** Expéditeur : adresse From exacte (minuscules) = `Clients.Email` (une ou plusieurs adresses
   séparées) ou `Klantgebruikers.Email` d'un utilisateur **actif**. Inconnu → Te controleren « onbekende
   afzender », sans réponse ni appel AI ; plusieurs clients → Te controleren ; client archivé → Te controleren
-  sans réponse. SPF/DKIM/DMARC : DMARC « pass » exigé quand il est donné, sinon SPF ou DKIM « pass » ; sinon
-  Te controleren « mogelijk vervalst », sans réponse.
+  sans réponse. Preuve de l'en-tête From (revue 9c642c2, constat 4) : **DMARC « pass »**, ou, sans DMARC,
+  **DKIM « pass » avec un domaine de signature aligné** sur le domaine du From (égal ou sous-domaine) si Resend
+  l'expose (`authentication.dkim.domain` — non documenté : sans lui, DMARC est exigé). SPF seul ou DKIM d'un
+  autre domaine ne suffisent pas → Te controleren « mogelijk vervalst », sans réponse.
+- **FR-005b** Destinataire (constat 5) : seul un message adressé (to, cc ou `received_for`) à
+  `Bestel-e-mailadres` est traité ; tout autre message du sous-domaine → Genegeerd sans AI, métadonnées seules.
 - **FR-006** Boucles : `Auto-Submitted` ≠ no, `Precedence: bulk/auto_reply/junk/list`, `X-Autoreply`,
   `X-Autorespond`, expéditeurs `noreply`/`mailer-daemon`, expéditeur sur notre domaine (adresse de réception ou
-  `MAIL_FROM`) → Genegeerd, texte non gardé. Plus de 10 messages par heure du même expéditeur → Genegeerd.
+  `MAIL_FROM`) → Genegeerd, texte non gardé. Plafond de 10 messages par heure (constat 3) : appliqué **après**
+  la vérification, sur les seuls messages vérifiés de ce client ; au-delà → Te controleren (texte gardé, sans
+  AI ni accusé), jamais Genegeerd. Inconnus et non vérifiés → Te controleren quel que soit leur nombre.
 - **FR-007** Lecture : Claude (`claude-opus-5-5`, effort low, sortie JSON imposée par schéma) propose
   `lines[{productId|null, naam_in_mail, qty, unit, confidence, opmerking, note}]`, `leverdag`, `opmerkingen`,
   `onduidelijk`. Le catalogue (actifs, sans prix) est dans le système (mis en cache), le message dans le tour
   utilisateur, marqué comme donnée. Refus, réponse tronquée, 429/5xx, réseau, délai 25 s, JSON illisible,
-  clé absente, plafond quotidien (200 lectures) → Te controleren avec la raison ; rien n'est perdu.
+  clé absente, plafond quotidien (200 appels réels par jour de Bruxelles, relectures comprises, compteur
+  atomique `Compteurs` — constat 9) → Te controleren avec la raison ; rien n'est perdu. Budget total du
+  webhook 40 s (constat 1) : chaque appel Claude est borné par l'échéance, pas d'appel sous 2 s restantes, le
+  nouvel essai sans repli seulement s'il reste ≥ 5 s et que moins de 20 s sont passées.
 - **FR-008** Le serveur décide : la commande n'est créée que si **toutes** les lignes ont un article actif du
-  catalogue, une confiance ≥ 0,8, une quantité > 0 et sous un plafond par unité (kg 200, stuk 1000, kassa 50,
-  doos 50), entière hors kg, la même unité que le catalogue (si la mail en donne une) ; si le jour demandé
+  catalogue, une confiance ≥ 0,8, une quantité > 0 et un **total par article** (lignes du même article
+  additionnées, comme `buildOrderLines` — constat 7) sous un plafond par unité (kg 200, stuk 1000, kassa 50,
+  doos 50), entière hors kg, pas de commande jumelle (même client, même jour, mêmes lignes, même jour de
+  livraison, comme `api/order.js` → « mogelijk dubbele bestelling » — constat 6), la même unité que le catalogue (si la mail en donne une) ; si le jour demandé
   passe `lib/levering` (passé, fermé, non livré, > 60 jours, heure limite de la veille) — sans jour : premier
   jour livrable ; si le client a accepté les conditions générales publiées ; si le minimum est atteint ; et si
   l'interrupteur Beheer est allumé. Sinon Te controleren avec toutes les raisons et la proposition.
+- **FR-009b** Jamais deux commandes pour un message (constats 1, 2, 8) : avant toute création (webhook,
+  reprise de Resend, clic du personnel) on cherche une commande dont `Inkomende mail` = l'enregistrement ; si
+  elle existe, elle est rattachée (Aangemaakt, journal « Mailbestelling gekoppeld ») au lieu d'en créer une. Chaque
+  réservation pose un jeton `Verwerking sinds` (écriture conditionnelle) ; la détection « bloqué » (> 3 min) se
+  fonde sur ce jeton, et le webhook revérifie que le jeton est encore le sien juste avant de créer. Un
+  « Aanmaken » bloqué revient dans la file avec la commande liée ; le clic suivant le ferme (409 « bestond al »).
 - **FR-009** Commande créée exactement comme une commande du portail : `lib/bestelling.js` (prix négociés,
   texte + `Lignes JSON`), numéro `CMD-…`, statut `Reçue`, `Bron` = « E-mail », `Inkomende mail` = id de
   l'enregistrement, `Besteld door` pour un utilisateur supplémentaire, journal « Mailbestelling aangemaakt ».
@@ -96,9 +113,11 @@ certitude va dans une file « Te controleren » que le personnel règle en un cl
   liste acceptée), présence de `authentication` (absente → Te controleren « niet geverifieerd », donc aucun
   automatisme : sûr, mais à vérifier au premier message), `html_format` (« data_uri » géré). Tout est isolé
   dans `lib/inbound/resend.js`.
-- **R2 — corps brut sur Vercel** : l'aide Node de Vercel lit le corps puis le rejoue (`restoreBody` de
-  `@vercel/node`, lu le 02/10/2026) ; le handler relit le flux. Si un jour le flux n'est plus rejoué, la
-  signature échoue (401, fail-closed) : à surveiller au premier message (Resend → Webhooks → tentatives).
+- **R2 — corps brut sur Vercel** (constat 10) : l'aide Node de Vercel lit le corps puis le rejoue
+  (`restoreBody` de `@vercel/node`, lu le 02/10/2026) ; le handler relit le flux (5 s au plus). Flux consommé
+  sans rejeu : `req.body` Buffer ou texte accepté ; objet JSON seul → 400 fail-closed, log « ruwe body
+  onbeschikbaar ». `config.api.bodyParser = false` n'existe pas pour les fonctions Node simples
+  (`serverless-handler.mts` ne lit pas de `config`) : non utilisé. Vérification au premier message : RUNBOOK § 7.1.
 - **R3 — délai** : Svix attend une réponse en quelques secondes ; une lecture AI lente peut provoquer un
   nouvel essai → idempotence (FR-003) ; l'enregistrement « Verwerken » de plus de 3 minutes apparaît dans
   Te controleren (« verwerking onderbroken »).
