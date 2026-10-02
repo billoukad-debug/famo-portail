@@ -900,3 +900,13 @@ a.kp-link:hover{background:var(--row-hover)}
 .mb-keys{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink)}
 .mb-keys li{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 @media (max-width:560px){.mc-line{grid-template-columns:minmax(0,1fr) 56px 44px;grid-template-areas:"f f f" "p p p" "q u x" "c c c"}.mc-grid{grid-template-columns:1fr!important}.mc-acts .btn-p{flex:1 1 100%}}
+
+/* ---- Verpakking / verkoopeenheid (spec 023) : « − 2 doos + », prix du conditionnement, « 2 doos · 12 stuks » ---- */
+.stepper .st-u{font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;padding-right:2px;align-self:center}
+.stepper.st-pak input{width:34px}
+.kl[data-view=compact] .stepper.st-pak input{width:30px}
+.pp-k{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;font-size:12.5px;color:var(--ink-2)}.pp-k b{font-size:12.5px;font-weight:600;color:var(--ink)}
+.pak-q{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.prod.on .pp-k{color:var(--ink-2)}
+.tag.t-pak{background:var(--p-soft);color:var(--p-deep);border-color:transparent;font-weight:600}
+@media (max-width:480px){.li:has(.stepper.st-pak),.li:has(.pak-q){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n n" "s t" "c c"}.li:has(.stepper.st-pak)>.stepper,.li:has(.pak-q)>.stepper{justify-self:start}}

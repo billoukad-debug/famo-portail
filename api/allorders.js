@@ -5,6 +5,7 @@ const __auth = require("../lib/staffauth");
 const __bill = require("../lib/billing");
 const __cn = require("../lib/creditnota");
 const __corr = require("../lib/correctie");
+const __lj = require("../lib/lignesjson");
 const __test = require("../lib/testorders"); // commandes d'essai archivées : jamais listées (specs/021)
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
@@ -99,6 +100,8 @@ module.exports = async (req, res) => {
       bestelddoor: r.fields["Besteld door"] || "",
       herinneringen: [r.fields["Herinnering 1 op"] || "", r.fields["Herinnering 2 op"] || ""].filter(Boolean),
       lots: (() => { try { return r.fields["Lots"] ? JSON.parse(r.fields["Lots"]) : null; } catch (e) { return null; } })(),
+      // Conditionnement figé par ligne (specs/023) : { "nom": { per, verpakking } } — documents, Magazijn, Leveringen.
+      verpakking: __lj.pakMap(r.fields[__lj.FIELD]),
       // Régime de TVA (C-10) : figé sur une facture émise, sinon celui du client (documents, montants).
       btwRegime: __bill.regimeOf(r.fields, fieldsById[(r.fields["Client"] || [])[0]]),
       btwFrozen: (() => { try { return r.fields["BTW per lijn"] ? JSON.parse(r.fields["BTW per lijn"]) : null; } catch (e) { return null; } })(),

@@ -96,7 +96,7 @@
   const pct = c => Math.round((Number(c) || 0) * 100) + " %";
   function mcLine(it, l, i) {
     const p = mcProduct(l.productId), key = it.id + "-" + i, n = i + 1;
-    const opts = '<option value="">— Kies een artikel —</option>' + mcProducts().map(x => '<option value="' + x.id + '"' + (x.id === l.productId ? " selected" : "") + '>' + K.esc(x.nom + (x.kaliber ? " · " + x.kaliber : "") + " (" + K.unit(x.unite) + ")") + '</option>').join("");
+    const opts = '<option value="">— Kies een artikel —</option>' + mcProducts().map(x => '<option value="' + x.id + '"' + (x.id === l.productId ? " selected" : "") + '>' + K.esc(x.nom + (x.kaliber ? " · " + x.kaliber : "") + " (" + K.unit(x.unite) + (K.pakOf(x) ? ", " + K.pakOne(K.pakOf(x), x.unite, "nl") + (K.pakOf(x).only ? ", enkel per " + K.pakOf(x).label : "") : "") + ")") + '</option>').join("");
     return '<div class="mc-line">' +
       (l.from ? '<div class="mc-from">In de mail: <b>' + K.esc(l.from) + '</b>' + (l.conf != null ? ' <span class="chip ' + (l.conf >= 0.8 ? "st-done" : "st-late") + '"><i></i>' + (l.conf >= 0.8 ? "zeker " : "onzeker ") + pct(l.conf) + '</span>' : "") + (l.note ? ' <span class="quiet">' + K.esc(l.note) + '</span>' : "") + '</div>' : "") +
       '<select class="input mc-p" id="mcP-' + key + '" data-mc="productId" data-id="' + it.id + '" data-i="' + i + '" aria-label="Artikel, regel ' + n + '">' + opts + '</select>' +

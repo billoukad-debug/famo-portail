@@ -157,10 +157,18 @@
     "PDF-bibliotheek niet beschikbaar.": "Module PDF indisponible.", "PDF-bibliotheek kon niet worden geladen.": "Le module PDF n'a pas pu être chargé.", "Geen geldige PDF gegenereerd (geen HTML-hernoemd bestand).": "Aucun PDF valide n'a été créé.",
     // pastilles (aria-label) : enkelvoud / meervoud
     "factuur te betalen": "facture à payer", "facturen te betalen": "factures à payer",
-    "Opmerking bij": "Remarque pour", "Filter": "Filtre", "Bekijken": "Voir"
+    "Opmerking bij": "Remarque pour", "Filter": "Filtre", "Bekijken": "Voir",
+    // Verpakking (spec 023)
+    "Verpakking": "Conditionnement", "Enkel per verpakking": "Uniquement par conditionnement", "per stuk of per verpakking": "à la pièce ou par conditionnement",
+    "{p}: aangepast naar {q}, want enkel per {v}.": "{p} : ajusté à {q}, uniquement par {v}."
   };
+  // Verpakking (spec 023) : « Eieren: enkel per doos van 6 te bestellen (u vroeg 7 stuks). » (lib/verpakking.js).
+  const NL_FR_UNIT = { stuk: "pièce", stuks: "pièces", kg: "kg", kassa: "caisse", "kassa's": "caisses", doos: "carton", dozen: "cartons" };
+  const frUnitTxt = s => String(s || "").replace(/[^\s]+/g, w => NL_FR_UNIT[w] || w);
+  const frPakLabel = (l, n) => (global.FamoVat && global.FamoVat.pakLabel ? global.FamoVat.pakLabel(l, n, "fr") : l);
   // Servermeldingen met een getal erin : één patroon per melding, vertaald bij het tonen.
-  const FR_PAT = [[/^U plaatste vandaag al dezelfde bestelling \(([^)]*)\)\. Nogmaals bestellen\?$/, "Vous avez déjà passé cette même commande aujourd'hui ($1). Commander à nouveau ?"], [/^Na (\d{2}:\d{2}) kan niet meer voor morgen besteld worden\. Kies een latere leverdag\.$/, "Après $1, il n'est plus possible de commander pour demain. Choisissez un jour plus tard."], [/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"]];
+  const FR_PAT = [[/^U plaatste vandaag al dezelfde bestelling \(([^)]*)\)\. Nogmaals bestellen\?$/, "Vous avez déjà passé cette même commande aujourd'hui ($1). Commander à nouveau ?"], [/^Na (\d{2}:\d{2}) kan niet meer voor morgen besteld worden\. Kies een latere leverdag\.$/, "Après $1, il n'est plus possible de commander pour demain. Choisissez un jour plus tard."], [/^Kies een leverdag binnen de komende (\d+) dagen$/, "Choisissez un jour de livraison dans les $1 prochains jours"], [/^Minimum bestelling: (€ [\d.,]+) excl\. btw \(nu (€ [\d.,]+)\)$/, "Commande minimum : $1 HTVA (actuellement $2)"],
+    [/^(.+): enkel per (.+?) van ([\d.,]+)((?: [^()]+?)?) te bestellen \(u vroeg ([\d.,]+) ([^)]+)\)\.$/, (m, naam, label, per, unit, q, word) => naam + " : uniquement par " + frPakLabel(label, 1) + " de " + per + frUnitTxt(unit) + " (vous avez demandé " + q + " " + frUnitTxt(word) + ")."]];
   // K.t met plaatshouders : K.tt("Nog {n}", {n: 3}).
   K.tt = (s, vars) => Object.entries(vars || {}).reduce((out, [k, v]) => out.split("{" + k + "}").join(String(v)), K.t(s));
   K.langSwitch = () => '<div class="lang" role="group" aria-label="Taal / Langue">' + ["nl", "fr"].map(l => '<button type="button" data-lang="' + l + '"' + (K.lang === l ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l.toUpperCase() + '</button>').join("") + '</div>';
@@ -367,7 +375,23 @@
     return { name: m[1].trim(), qty: parseFloat(String(m[2]).replace(",", ".")) || 0, unit: m[3].trim(), price: price ? Number(price[1].replace(",", ".")) : null, comment: comment ? comment[1] : "" };
   });
   K.formatLine = l => `${l.name} × ${K.qty(l.qty).replace(",", ".")}${l.unit ? " " + l.unit : ""}${l.price != null ? " [€" + Number(l.price).toFixed(2) + "]" : ""}${l.comment ? " (" + l.comment + ")" : ""}`;
-  K.linesSummary = txt => K.parseLines(txt).map(l => K.qty(l.qty) + "× " + l.name).join(" · ");
+  /* ---- Verpakking (spec 023) : règle et textes dans assets/vat.js (FamoVat.pak*, aussi pour le serveur).
+     Un produit de l'API porte { per, verpakking, enkel } ; une commande { verpakking: { "nom": { per, verpakking } } }
+     (figé à la commande). Les quantités restent en unités ; lang : celle du portail client, « nl » pour le personnel. */
+  const FV = () => (global.FamoVat && global.FamoVat.pakOf ? global.FamoVat : null);
+  const pakLang = lang => lang || (K.lang === "fr" ? "fr" : "nl");
+  K.pakOf = src => (FV() ? FV().pakOf(src) : null);
+  // Conditionnement d'une ligne de commande (par nom, comme les lots et les taux de TVA).
+  K.pakIn = (map, name) => { if (!map || typeof map !== "object") return null; const k = String(name || "").trim().toLowerCase(); return Object.prototype.hasOwnProperty.call(map, k) ? K.pakOf(map[k]) : null; };
+  // Unités par pas du stepper : le conditionnement pour un article « enkel per verpakking », sinon 1.
+  K.pakStep = p => { const k = K.pakOf(p); return k && k.only ? k.per : 1; };
+  K.pakOne = (pak, unit, lang) => (FV() && pak ? FV().pakOne(pak, unit, pakLang(lang)) : "");
+  K.pakLabel = (label, n, lang) => (FV() ? FV().pakLabel(label, n, pakLang(lang)) : String(label || ""));
+  K.pakQty = (qty, unit, pak, lang) => (FV() ? FV().pakQty(qty, unit, pak, pakLang(lang)) : K.qty(qty) + " " + K.unit(unit));
+  K.pakCalc = (qty, unit, pak, lang) => (FV() && pak ? FV().pakCalc(qty, unit, pak, pakLang(lang)) : "");
+  // « 2 doos » / « 2 doos + 2 st » (sans le total en unités) ; "" sous un conditionnement.
+  K.pakCount = (qty, unit, pak, lang) => { if (!pak) return ""; const s = K.pakQty(qty, unit, pak, lang), i = s.indexOf(" · "); return i > 0 ? s.slice(0, i) : ""; };
+  K.linesSummary = (txt, map, lang) => K.parseLines(txt).map(l => { const n = K.pakCount(l.qty, l.unit, K.pakIn(map, l.name), lang); return K.qty(l.qty) + "× " + l.name + (n ? " (" + n + ")" : ""); }).join(" · ");
   // Heure de livraison prévue (D4) : "HH:MM-HH:MM" (normalisé par le serveur, lib/levering.parseSlot) → { van, tot }.
   K.slot = v => { const m = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(String(v || "")); return m ? { van: m[1], tot: m[2] } : null; };
   // Tournée du chauffeur (A4, Leveringen) : ordre de la route, stop « afgehandeld », prochain stop à faire.
@@ -419,7 +443,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "8e28e60aa8";
+  K.DOCS_VER = "d6baeafc78";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -613,7 +637,8 @@
     if (doc.body) start(); else doc.addEventListener("DOMContentLoaded", start);
   }
   // opts.name : nom du produit dans chaque libellé (« Meer: Zalmfilet ») — sinon dix « Meer » identiques (G-27).
-  c.stepper = (id, value, opts) => { const o = opts || {}, n = o.name ? ": " + o.name : ""; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.esc(K.t("Minder") + n) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.esc(K.t("Aantal") + n) + '"><button type="button" data-inc aria-label="' + K.esc(K.t("Meer") + n) + '">+</button></div>'; };
+  // opts.suffix : ce que l'on compte, visible à côté du nombre (« doos », spec 023) ; opts.label : nom accessible du champ.
+  c.stepper = (id, value, opts) => { const o = opts || {}, n = o.name ? ": " + o.name : ""; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + (o.suffix ? " st-pak" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.esc(K.t("Minder") + n) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.esc((o.label || K.t("Aantal")) + n) + '">' + (o.suffix ? '<span class="st-u" aria-hidden="true">' + K.esc(o.suffix) + '</span>' : "") + '<button type="button" data-inc aria-label="' + K.esc(K.t("Meer") + n) + '">+</button></div>'; };
   K.c = c;
 
   /* ---------- toast / dialoog / paneel ---------- */

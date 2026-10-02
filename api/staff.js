@@ -75,6 +75,7 @@ module.exports = async (req, res) => {
             dateLivraison,
             notes: notes || "",
             lignes: order.lignes,
+            verpakking: __lj.pakMap(order.json), // conditionnement figé (specs/023)
             total: order.total,
             bron: bron || "Handmatig",
             orderUrl: url ? url + "/team/bestelling?id=" + encodeURIComponent(j.records[0].id) : "",
@@ -121,7 +122,9 @@ module.exports = async (req, res) => {
       kaliber: String(r.fields["Kaliber"] || "").trim(),
       // Vignette dans Invoeren (spec 018) : la photo principale, URL sûre.
       foto: require("../lib/photo").photoUrl(r.fields["Foto"]),
-      volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
+      volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"]),
+      // Verpakking (specs/023) : stepper par conditionnement dans Invoeren ; le serveur refuse le reste.
+      ...require("../lib/verpakking").apiFields(r.fields)
     }));
     const rules = await __lev.loadRules(at);
     return res.status(200).json({ products, levering: __lev.publicRules(rules) });

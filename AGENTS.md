@@ -33,6 +33,11 @@ needs a recent Node 22.
   020 order by e-mail (Resend Receiving webhook `api/inbound-mail.js`, Svix signature on the raw body,
   `lib/inbound/*`, Claude proposes / server decides via `lib/bestelling.js`, staff queue « Te controleren »
   `api/mailcontrole.js`; local demo `node scripts/mail-inbound-test.js` against `scripts/dev.js`).
+  023 packaging « Verpakking » (Catalogue `Per verpakking` / `Verpakking` / `Enkel per verpakking`): price stays per
+  unit and order lines stay in units (`Eieren × 12 pièce [€1.00]`); the packaging is frozen in `Lignes JSON`
+  (`per`, `verpakking`) and exposed as `verpakking` by allorders / orders / klantdoc; one rule for screen, documents,
+  e-mails, UBL and server in `assets/vat.js` (`FamoVat.pak*`, `K.pak*` in `ui.js`); `lib/bestelling.js` refuses a
+  non-multiple of an « enkel » article (client, Invoeren, e-mail order); demo product « Eieren » (doos van 6, enkel).
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 
