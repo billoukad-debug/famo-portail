@@ -102,11 +102,15 @@ function seed(db, opts) {
       ["MOSSELVLEES 1KG", 9.5, "caisse", ""], ["KREEFTENSTAARTEN 150-200", 39, "kg", "150/200"], ["KREEFTENSTAARTEN 200-250", 44, "kg", "200/250"]
     ].map(([n, prix, u, k]) => ({ "Produit": n, "Prix de base": prix, "Unité": u, "Catégorie": "Algemeen", "Actif": true, ...(k ? { "Kaliber": k } : {}) })),
     ...[["VEGGIE GARNALEN 1KG", 12.5], ["ZEEWIERSALADE 1KG", 9.9], ["WAKAME 500G", 6.5], ["EDAMAME 1KG", 5.9], ["VEGAN TONIJN 500G", 8.9]].map(([n, prix]) => ({ "Produit": n, "Prix de base": prix, "Unité": "pièce", "Catégorie": "Vegetarisch", "Actif": true })),
-    ...[["SURIMI STICKS 1KG", 6.9], ["SURIMI SNOW CRAB 500G", 5.5]].map(([n, prix]) => ({ "Produit": n, "Prix de base": prix, "Unité": "pièce", "Catégorie": "Surimi", "Actif": true }))
+    ...[["SURIMI STICKS 1KG", 6.9], ["SURIMI SNOW CRAB 500G", 5.5]].map(([n, prix]) => ({ "Produit": n, "Prix de base": prix, "Unité": "pièce", "Catégorie": "Surimi", "Actif": true })),
+    // Spec 023 (verpakking) : prix par stuk, vendu par doos de 6 seulement (« 1 œuf 1 €, vendu par 6 »).
+    { "Produit": "Eieren", "Prix de base": 1, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true, "Per verpakking": 6, "Verpakking": "doos", "Enkel per verpakking": true }
   ]);
+  // Spec 023 : les huîtres (à la pièce) ont une kist de 12, sans obligation (vente à l'unité permise).
+  db.update("Catalogue", [{ id: products.find((p) => p.fields["Produit"] === "Oesters Zeeuwse creuse nr. 3").id, fields: { "Per verpakking": 12, "Verpakking": "kist" } }], false);
   if (opts && opts.fotos) addDemoFotos(db, products);
   const P = (name) => products.find((p) => p.fields["Produit"] === name);
-  db.create("Stock", products.filter((p) => p.fields["Actif"]).map((p, i) => ({ "Produit": p.fields["Produit"], "Quantité disponible": [12, 8, 6, 3, 1, 20, 14, 9, 7, 5, 200, 4][i] || 5, "Seuil bas": 4 })));
+  db.create("Stock", products.filter((p) => p.fields["Actif"]).map((p, i) => ({ "Produit": p.fields["Produit"], "Quantité disponible": p.fields["Produit"] === "Eieren" ? 120 : [12, 8, 6, 3, 1, 20, 14, 9, 7, 5, 200, 4][i] || 5, "Seuil bas": 4 })));
   const clients = db.create("Clients", [
     { "Nom": "Aloha Poke Bowls", "Email": "keuken@alohapoke.example", "Téléphone": "+32 3 000 00 01", "Lieu de livraison": "Jezusstraat 32\n2000 Antwerpen", "Gebruikersnaam": "aloha", "Wachtwoord": "welkom123", "BTW-nummer": "BE 0123.456.789", "Klantnummer": "K-001", "Infos générales": "Levering via de achterdeur, bellen bij aankomst.", "Articles habituels": "Zalm, vannamei 26-30, tonijn" },
     { "Nom": "Brasserie De Kaai", "Email": "chef@dekaai.example", "Téléphone": "+32 3 123 45 67", "Lieu de livraison": "Waalsekaai 10\n2000 Antwerpen", "Gebruikersnaam": "dekaai", "Wachtwoord": "kaai2026!", "BTW-nummer": "BE 0987.654.321", "Klantnummer": "K-002" },

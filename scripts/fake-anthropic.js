@@ -32,7 +32,9 @@ function read(body) {
     const scored = products.map((p) => ({ p, s: words(p.naam + " " + (p.kaliber || "")).filter((x) => w.some((y) => y === x || (y.length >= 4 && x.startsWith(y.slice(0, 4))))).length })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s);
     const best = scored[0], tie = best && scored[1] && scored[1].s === best.s;
     if (!best && !unit) continue; // geen artikel en geen eenheid : geen bestelregel
-    lines.push({ productId: best ? best.p.id : null, naam_in_mail: rest.trim().slice(0, 80), qty, unit, confidence: !best ? 0.2 : tie ? 0.55 : 0.92, opmerking: /gepeld|gefileerd|filets?/i.test(rest) ? (rest.match(/gepeld|gefileerd|filets?/i) || [""])[0] : "", note: tie ? "meerdere artikels mogelijk (" + scored.slice(0, 3).map((x) => x.p.naam).join(", ") + ")" : best ? "" : "niet in de catalogus" });
+    // Verpakking (specs/023) : « 2 dozen eieren » pour un article « doos van 6 » → 2 verpakkingen, 12 in de eenheid van de catalogus.
+    const per = best && best.p.verpakking && unit === "carton" && best.p.eenheid !== "carton" ? Number((/van ([\d.,]+)/.exec(best.p.verpakking) || [])[1]) : 0;
+    lines.push({ productId: best ? best.p.id : null, naam_in_mail: rest.trim().slice(0, 80), qty: per ? qty * per : qty, unit: per ? best.p.eenheid : unit, verpakkingen: per ? qty : null, confidence: !best ? 0.2 : tie ? 0.55 : 0.92, opmerking: /gepeld|gefileerd|filets?/i.test(rest) ? (rest.match(/gepeld|gefileerd|filets?/i) || [""])[0] : "", note: tie ? "meerdere artikels mogelijk (" + scored.slice(0, 3).map((x) => x.p.naam).join(", ") + ")" : best ? "" : "niet in de catalogus" });
   }
   let leverdag = null;
   const iso = /\b(\d{4}-\d{2}-\d{2})\b/.exec(mail);

@@ -18,10 +18,10 @@
   }
   function verzamel(list) {
     const agg = new Map();
-    list.forEach(o => K.parseLines(o.lignes).forEach(l => { const k = l.name.toLowerCase() + "|" + l.unit; const a = agg.get(k) || { name: l.name, unit: l.unit, qty: 0, n: 0 }; a.qty += l.qty; a.n++; agg.set(k, a); }));
+    list.forEach(o => K.parseLines(o.lignes).forEach(l => { const k = l.name.toLowerCase() + "|" + l.unit; const a = agg.get(k) || { name: l.name, unit: l.unit, qty: 0, n: 0, pak: null }; a.qty += l.qty; a.n++; a.pak = a.pak || K.pakIn(o.verpakking, l.name); agg.set(k, a); }));
     const rows = Array.from(agg.values()).sort((a, b) => a.name.localeCompare(b.name, "nl"));
     const done = K.store.get("famoPick:" + day, {});
-    return '<div class="card"><div class="card-h"><div><h2 class="h2">Verzamellijst</h2><p class="sub">Per product, alle bestellingen van de dag samen</p></div><span class="quiet fs-12" id="pickCount"></span></div>' + (rows.length ? rows.map(r => { const k = r.name.toLowerCase() + "|" + r.unit; return '<div class="gc-44-1-a line' + (done[k] ? " ok" : "") + '">' + K.c.check(!!done[k], 'data-pick="' + K.esc(k) + '"', { big: true, label: "Verzameld: " + r.name }) + '<div><b>' + K.esc(r.name) + '</b><div class="quiet fs-12">' + r.n + ' bestelling' + (r.n === 1 ? "" : "en") + '</div></div><b class="mono fs-16 nowrap">' + K.esc(K.qty(r.qty) + " " + K.unit(r.unit)) + '</b></div>'; }).join("") : '<div class="empty m-12">Geen artikelen voor deze dag.</div>') + '</div>';
+    return '<div class="card"><div class="card-h"><div><h2 class="h2">Verzamellijst</h2><p class="sub">Per product, alle bestellingen van de dag samen</p></div><span class="quiet fs-12" id="pickCount"></span></div>' + (rows.length ? rows.map(r => { const k = r.name.toLowerCase() + "|" + r.unit; return '<div class="gc-44-1-a line' + (done[k] ? " ok" : "") + '">' + K.c.check(!!done[k], 'data-pick="' + K.esc(k) + '"', { big: true, label: "Verzameld: " + r.name }) + '<div><b>' + K.esc(r.name) + '</b><div class="quiet fs-12">' + r.n + ' bestelling' + (r.n === 1 ? "" : "en") + '</div></div><b class="mono fs-16 nowrap">' + K.esc(S.qtyTxt(r.qty, r.unit, r.pak)) + '</b></div>'; }).join("") : '<div class="empty m-12">Geen artikelen voor deze dag.</div>') + '</div>';
   }
   function perOrder(list) {
     const sorted = list.slice().sort((a, b) => (a.statut === "Reçue" ? 0 : 1) - (b.statut === "Reçue" ? 0 : 1) || a.client.localeCompare(b.client, "nl"));

@@ -39,6 +39,7 @@ async function notifyOrderMail(ctx) {
     dateLivraison: ctx.dateLivraison,
     notes: ctx.notes,
     lignes: ctx.lignes,
+    verpakking: __lj.pakMap(ctx.json), // conditionnement figé (specs/023)
     total: ctx.total,
     bron: ctx.bron,
     orderUrl: __mail.portalUrl(ctx.req) ? __mail.portalUrl(ctx.req) + "/team/bestelling?id=" + encodeURIComponent(ctx.recordId) : "",
@@ -151,7 +152,7 @@ module.exports = async (req, res) => {
     // On attend l'envoi car Vercel gele l'execution des que la reponse part.
     const mail = await notifyOrderMail({
       req, ref, date: today, dateLivraison, notes,
-      lignes: order.lignes, total: order.total,
+      lignes: order.lignes, json: order.json, total: order.total,
       recordId: j.records[0].id, client, bron: "Klantportaal"
     }).catch(() => null);
 

@@ -178,6 +178,10 @@ window.FamoDocuments=(()=>{
     const ordered=(!credit&&order.besteld)?parse(order.besteld):[];
     const orderedOf=name=>{const k=String(name||"").trim().toLowerCase();const o=ordered.find(x=>String(x.name||"").trim().toLowerCase()===k);return o?o.qty:null;};
     const diffTxt=row=>{const o=orderedOf(row.name);if(o==null)return"";const a=Number(String(o).replace(",",".")),b=Number(String(row.qty).replace(",","."));return Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)>1e-9?'<small class="ordered">'+L.ordered+" "+esc(qtyTxt(o))+" "+esc(nlUnit(row.unit))+'</small>':"";};
+    // Conditionnement (spec 023) : figé à la commande (order.verpakking, par nom de ligne) ; la ligne reste en unités.
+    // « 2 doos × 6 st = 12 st » (+ « × € 1,00 = € 12,00 » sur un document chiffré), même règle que le serveur (assets/vat.js).
+    const pakIn=name=>{const m=order.verpakking&&typeof order.verpakking==="object"?order.verpakking:null;const V=typeof window!=="undefined"?window.FamoVat:null;if(!m||!V||!V.pakOf)return null;const k=String(name||"").trim().toLowerCase();return Object.prototype.hasOwnProperty.call(m,k)?V.pakOf(m[k]):null;};
+    const pakTxt=(row,qty,unitPrice)=>{const p=pakIn(row.name);if(!p)return"";const t=window.FamoVat.pakCalc(qty,row.unit,p,lang,priced?unitPrice:null,eur);return t?'<small class="pak">'+esc(t)+'</small>':"";};
     // Taux de TVA de chaque ligne (EN 16931, constitution V) : même règle que les totaux ci-dessus.
     const fmtRate=r=>esc(String(r).replace(".",","))+"%";
     const lineRate=name=>linePriced?(reg.zero?0:rateFor(name,map,pct)):groups[0].rate;
@@ -185,7 +189,7 @@ window.FamoDocuments=(()=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
       const sub=unitPrice==null?null:(window.FamoVat?window.FamoVat.r2(unitPrice*qty):unitPrice*qty);
-      return '<tr><td class="desc"><span class="item">'+esc(row.name)+'</span>'+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+'</td><td class="num">'+esc(qtyTxt(row.qty))+diffTxt(row)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num rate">'+fmtRate(lineRate(row.name))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
+      return '<tr><td class="desc"><span class="item">'+esc(row.name)+'</span>'+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+pakTxt(row,qty,unitPrice)+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+'</td><td class="num">'+esc(qtyTxt(row.qty))+diffTxt(row)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num rate">'+fmtRate(lineRate(row.name))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
     // Betaalstatus enkel wanneer betaald (met datum indien gekend).
     const paid=String(order.paiement||"")==="Payé"||/^(betaald|payé)$/i.test(String(order.paiement||""));
@@ -291,6 +295,7 @@ window.FamoDocuments=(()=>{
       '.lines th:last-child,.lines td:last-child{padding-right:0}'+
       '.item{font-weight:700}'+
       'td small{display:block;margin-top:2px;font-size:10px;line-height:1.4;color:'+muted+'}'+
+      'td small.pak{color:'+ink+';font-weight:600}'+
       '.num{text-align:right;white-space:nowrap}'+
       '.lines .num{text-align:right}'+
       '.rate{color:'+muted+'}'+

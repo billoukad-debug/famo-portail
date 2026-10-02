@@ -101,7 +101,7 @@ const handler = async (req, res) => {
         mail = await (async () => {
           const cfg = await __mail.loadMailConfig(at);
           const url = __mail.portalUrl(req);
-          return __mail.notifyCancel({ ref: f["Référence"] || "", door: "klant", reden: "Geannuleerd door klant", dateLivraison: f["Date livraison souhaitée"] || "", lignes: f["Lignes (produits / quantités)"] || "", total: f["Total"] || 0, klant: __mail.clientFrom(client), opsEmail: cfg.opsEmail, company: cfg, orderUrl: url ? url + "/team/bestelling?id=" + encodeURIComponent(rec.id) : "" });
+          return __mail.notifyCancel({ ref: f["Référence"] || "", door: "klant", reden: "Geannuleerd door klant", dateLivraison: f["Date livraison souhaitée"] || "", lignes: f["Lignes (produits / quantités)"] || "", verpakking: require("../lib/lignesjson").pakMap(f["Lignes JSON"]), total: f["Total"] || 0, klant: __mail.clientFrom(client), opsEmail: cfg.opsEmail, company: cfg, orderUrl: url ? url + "/team/bestelling?id=" + encodeURIComponent(rec.id) : "" });
         })().catch(() => null);
       }
       return res.status(200).json({ ok: true, ref: f["Référence"] || "", statut: "Annulée", mail });

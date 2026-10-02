@@ -971,3 +971,13 @@ a.kp-link:hover{background:var(--row-hover)}
 .rp-drill{min-width:24px}@media (pointer:coarse){.rp-drill{min-width:44px}} /* « Vis » : cible ≥ 24 px, 44 px au tactile */
 @media (forced-colors:active){.rp-col,.rp-bar{fill:CanvasText}.rp-col.hot,.rp-bar.hot{fill:Highlight}.rp-prev{stroke:GrayText}.rp-dot{fill:GrayText;stroke:Canvas}.rp-gl,.rp-axis{stroke:GrayText}.rp-tick,.rp-name,.rp-val{fill:CanvasText}.rp-key-col{background:CanvasText}.rp-key-line,.rp-key-line::after{background:GrayText}}
 .rp-hint{margin:0;padding:0 18px 10px}
+
+/* ---- Verpakking / verkoopeenheid (spec 023) : « − 2 doos + », prix du conditionnement, « 2 doos · 12 stuks » ---- */
+.stepper .st-u{font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;padding-right:2px;align-self:center}
+.stepper.st-pak input{width:34px}
+.kl[data-view=compact] .stepper.st-pak input{width:30px}
+.pp-k{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;font-size:12.5px;color:var(--ink-2)}.pp-k b{font-size:12.5px;font-weight:600;color:var(--ink)}
+.pak-q{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.prod.on .pp-k{color:var(--ink-2)}
+.tag.t-pak{background:var(--p-soft);color:var(--p-deep);border-color:transparent;font-weight:600}
+@media (max-width:480px){.li:has(.stepper.st-pak),.li:has(.pak-q){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n n" "s t" "c c"}.li:has(.stepper.st-pak)>.stepper,.li:has(.pak-q)>.stepper{justify-self:start}}
