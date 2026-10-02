@@ -116,6 +116,8 @@ const server = http.createServer(async (req, res) => {
     for (const [k, v] of parsed.searchParams.entries()) req.query[k] = v;
     // req.body (parsé JSON si applicable, comme Vercel)
     const raw = await readBody(req);
+    // Corps brut tel que reçu (webhook signé, api/inbound-mail.js) : sur Vercel le flux est relu, ici on le garde.
+    req.rawBody = raw;
     const ct = String(req.headers["content-type"] || "");
     if (raw && ct.includes("application/json")) {
       try { req.body = JSON.parse(raw); } catch (e) { req.body = {}; }

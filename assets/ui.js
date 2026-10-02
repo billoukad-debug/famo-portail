@@ -527,6 +527,7 @@
     orders: '<path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6"/>',
     box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
     truck: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+    mail: '<path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>',
     doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',

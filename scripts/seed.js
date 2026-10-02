@@ -73,7 +73,9 @@ function seed(db, opts) {
     "Bedrijfsnaam": "FAMO Seafood", "Adres": "Jezusstraat 34", "Postcode en plaats": "2000 Antwerpen, België", "BTW-nummer": "BE 0788.705.713",
     "Telefoon": "03 000 00 00", "E-mail": "info@famotrading.be", "IBAN": "BE68539007547034", "BIC": "GKCCBEBB", "BTW-tarief": 6,
     "Betalingsvoorwaarden": "Betaalbaar binnen 14 dagen", "Leveringsvoorwaarden": "Controleer de goederen bij ontvangst. Klachten over verse producten melden wij graag dezelfde dag.",
-    "Bestellingen e-mail": "bestellingen@famotrading.be", "Besteldeadline": "22:00", "Leverdagen": "ma,di,wo,do,vr,za"
+    "Bestellingen e-mail": "bestellingen@famotrading.be", "Besteldeadline": "22:00", "Leverdagen": "ma,di,wo,do,vr,za",
+    // Bestellen per e-mail (specs/020) : demo met automatisch aanmaken aan (scripts/mail-inbound-test.js).
+    "Bestel-e-mailadres": "bestel@orders.famoseafood.be", "Mailbestellingen automatisch": true
   }]);
   const products = db.create("Catalogue", [
     { "Produit": "Saumon frais", "Prix de base": 18.5, "Unité": "kg", "Catégorie": "Poisson", "Actif": true },
@@ -131,6 +133,22 @@ function seed(db, opts) {
   db.create("Aanvragen", [
     { "Bedrijfsnaam": "Sushi Sato", "Contactpersoon": "Yuki Sato", "Email": "yuki@sushisato.example", "Telefoon": "+32 470 11 22 33", "Adres": "Meir 12, 2000 Antwerpen", "Notities": "Wij zoeken een vaste leverancier voor sashimi-kwaliteit.", "Status": "Nieuw" },
     { "Bedrijfsnaam": "Voorbeeld BV", "Contactpersoon": "Jan Janssens", "Email": "info@voorbeeld.example", "Telefoon": "+32 3 000 00 00", "Adres": "Voorbeeldstraat 1", "Status": "Verwerkt" }
+  ]);
+  // Bestellen per e-mail (specs/020) : twee berichten in Bestellingen → Te controleren.
+  const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
+  const ahead = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); if (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+  const voorstel = { lines: [
+    { productId: P("Saumon frais").id, naam_in_mail: "zalm", qty: 4, unit: "kg", confidence: 0.93, opmerking: "", note: "" },
+    { productId: P("VANNAMEI GARNALEN GEPELD 16/20").id, naam_in_mail: "garnalen 16/20 gepeld", qty: 2, unit: "carton", confidence: 0.55, opmerking: "gepeld", note: "eenheid nagaan: catalogus per stuk" },
+    { productId: P("Oesters Zeeuwse creuse nr. 3").id, naam_in_mail: "oesters", qty: 48, unit: "pièce", confidence: 0.9, opmerking: "", note: "" }
+  ], leverdag: ahead(3), opmerkingen: "Levering langs de achterdeur", onduidelijk: false, leverdagVoorstel: ahead(3) };
+  db.create("Inkomende mails", [
+    { "Bericht-id": "demo-inbound-1", "Ontvangen op": ago(2), "Van": "keuken@alohapoke.example", "Aan": "bestel@orders.famoseafood.be", "Onderwerp": "Bestelling vrijdag",
+      "Tekst": "Hallo,\n\nVoor vrijdag graag:\n4 kg zalm\n2 dozen garnalen 16/20 gepeld\n48 oesters\n\nLevering langs de achterdeur.\n\nGroeten,\nKeuken Aloha",
+      "Client": [C("Aloha Poke Bowls").id], "Status": "Te controleren", "Verificatie": "spf=pass dkim=pass dmarc=pass", "Voorstel": JSON.stringify(voorstel),
+      "Reden": "«garnalen 16/20 gepeld» onzeker (55 %): eenheid nagaan: catalogus per stuk; «garnalen 16/20 gepeld»: eenheid in de mail (doos) verschilt van de catalogus (stuk)" },
+    { "Bericht-id": "demo-inbound-2", "Ontvangen op": ago(5), "Van": "info@sushisato.example", "Aan": "bestel@orders.famoseafood.be", "Onderwerp": "Commande",
+      "Tekst": "Bonjour,\n\nPour demain: 2 kg de thon sashimi et 1 caisse de moules.\n\nMerci,\nYuki", "Status": "Te controleren", "Verificatie": "spf=pass dkim=pass dmarc=pass", "Reden": "onbekende afzender" }
   ]);
   db.save();
   return { configId: cfg.id, products, clients };

@@ -99,6 +99,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Lignes JSON` | texte (JSON) | order, staff (création), updateorder (lignes modifiées), onboarding (renommage produit, commandes ouvertes : `naam`) | updateorder (stock : départ, retour arrière, annulation, note de crédit ; lignes modifiées), orders (`items` pour « Opnieuw bestellen ») via `lib/lignesjson.js` | B4 (specs/016) : `[{productId, naam, qty, unit, prijs, comment?}]`, **écrit par le serveur seul** (référence, nom, unité, prix du catalogue ou prix figé ; rien du navigateur), à côté du texte qui reste l'affichage et le document légal. Le texte fait foi pour quantité et prix ; une ligne n'est rattachée à `productId` que si une entrée a le même `naam`. **Absent = ancienne commande** : appariement par nom, comme avant (aucun rattrapage). Jamais réécrit après `Facturée`. Hors du journal d'audit (bruit technique). Pas une donnée personnelle. |
 | `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, team/bestelling.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
 | `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, team/bestelling.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
+| `Bron`, `Inkomende mail` | texte, texte | lib/inbound/mailorder (commande par e-mail, specs/020) | — (affichage futur) | `E-mail` + id de l'enregistrement `Inkomende mails` d'origine. Absent = commande du portail ou d'Invoeren. Pas une donnée personnelle. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |
 
 ### `Stock` — stock par produit
@@ -145,6 +146,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Besteldeadline` (HH:MM), `Leverdagen` (`ma,di,…`), `Gesloten dagen` (dates ISO, une par ligne), `Minimum bestelling` (€), `Betaaltermijn dagen`, `Voorraad afboeken` (case) | texte / nombre / case | onboarding | levering | Règles de commande, de livraison et de stock. |
 | `Voorwaarden NL`, `Voorwaarden FR`, `Voorwaarden versie` | texte, texte, texte (`AAAA-MM-JJ HH:MM:SS`) | onboarding (saveVoorwaarden ; « Publiceren » change la version) | config (?voorwaarden=1 public, version dans le bloc contact), catalogue, order, signup, klantorder, documents | Conditions générales (C-12, lib/terms.js). Version vide = rien à accepter ; version publiée = chaque client l'accepte avant sa commande suivante (order : 409 `needTerms`). |
 | `Herinneringen aan`, `Lots verplicht` | case, case | onboarding (saveConfig, Beheer → Bedrijf) | reminders-cron ; updateorder | Relances de paiement automatiques (Portaal seulement) ; lot obligatoire avant « Klaar ». |
+| `Bestel-e-mailadres`, `Mailbestellingen automatisch` | texte, case | onboarding (saveMailBestellingen, Beheer → Bedrijf) | lib/inbound/mailorder, onboarding | Specs/020. Adresse à donner aux clients (vide = `bestel@orders.famoseafood.be`) ; son domaine et celui de `MAIL_FROM` sont « les nôtres » (pas de boucle). Case **absente = coupée** : toute mail va dans Te controleren. |
 
 ### `Lots` — lots reçus (traçabilité, marge)
 
@@ -165,6 +167,32 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Wachtwoord` | texte (scrypt) | onboarding (création, reset), klantwachtwoord | catalogue | Jamais en clair ; montré une seule fois dans Beheer à la création. |
 | `Actief` | case | onboarding | lib/klantlogin.js | Décochée = champ absent = pas de connexion ; désactiver déconnecte partout. |
 | `Sessiegeneratie`, `Echecs`, `Geblokkeerd tot` | nombre, nombre, date-heure | klantwachtwoord (logout), catalogue (verrou) | catalogue | Comme sur Clients, mais propres à cet utilisateur. |
+
+### `Inkomende mails` — e-mails reçus pour commander (specs/020-bestellen-per-mail)
+
+Un enregistrement par message reçu par Resend (`POST /api/inbound-mail`). Sur le moteur SQL, l'id est
+dérivé du `Bericht-id` (`recml` + 24 hexa de son SHA-256) : la clé primaire rend le webhook idempotent.
+**Données personnelles** (adresse, texte libre) : export RGPD et anonymisation du client
+(`lib/beheer/klanten.js`), **suppression après 90 jours** (`api/reminders-cron.js` → `purge`).
+
+| Champ | Type | Écrit par | Lu par | Remarque |
+|---|---|---|---|---|
+| `Bericht-id`, `Message-ID` | texte | inbound-mail | mailorder | Id Resend (`email_id`) ; en-tête Message-ID. |
+| `Ontvangen op` | date-heure | inbound-mail | mailcontrole | |
+| `Van`, `Aan`, `Onderwerp` | texte | inbound-mail | mailcontrole, RGPD | `Van` = adresse en minuscules (comparée exactement à `Clients.Email` / `Klantgebruikers.Email`). Seul un message adressé (to, cc ou destinataire d'enveloppe) à `Configuratie.Bestel-e-mailadres` est traité ; les autres : Genegeerd, métadonnées seulement. |
+| `Tekst` | texte (≤ 20 000 car.) | inbound-mail | Claude (une fois), mailcontrole, RGPD | Pas gardé pour un répondeur, une boucle ou un expéditeur trop bavard (Genegeerd). |
+| `Client` | lien → Clients | inbound-mail, mailcontrole (choix du personnel) | mailcontrole, RGPD | Absent = expéditeur inconnu. |
+| `Status` | liste `Verwerken` / `Te controleren` / `Aanmaken` / `Aangemaakt` / `Genegeerd` | inbound-mail, mailcontrole | mailcontrole (pastille) | `Aanmaken` = réservé (webhook juste avant de créer, ou clic du personnel). `Verwerken` / `Aanmaken` dont le jeton a plus de 3 min = montré comme à contrôler, avec la commande déjà liée s'il y en a une. Chaque changement de statut de réservation est une écriture conditionnelle. |
+| `Verwerking sinds` | texte (`ISO#hasard`) | inbound-mail, mailcontrole | inbound-mail, mailcontrole | Jeton de la réservation en cours, renouvelé à chaque reprise (webhook réessayé, clic du personnel) ; sert à la détection « bloqué » (jamais `createdTime`) et au contrôle « toujours à moi » avant de créer la commande. |
+| `Afzender geverifieerd` | case | inbound-mail | inbound-mail (plafond 10/h) | Expéditeur connu ET prouvé (DMARC pass, ou DKIM pass aligné sur le From). Seuls ces messages comptent dans le plafond : des faux au nom d'un client ne le bloquent pas. |
+| `Reden` | texte | inbound-mail, mailcontrole | mailcontrole | Pourquoi pas automatique, ou raison de « Negeren ». |
+| `Voorstel` | texte (JSON) | inbound-mail, mailcontrole (analyse) | mailcontrole | `{lines:[{productId, naam_in_mail, qty, unit, confidence, opmerking, note}], leverdag, opmerkingen, onduidelijk, leverdagVoorstel}` (proposition de Claude, jamais crue telle quelle). |
+| `Verificatie` | texte | inbound-mail | mailcontrole | `spf=… dkim=… dmarc=…` (Resend). |
+| `Inhoud ontbreekt` | case | inbound-mail | inbound-mail (nouvel essai), mailcontrole | Contenu non lu chez Resend : repris au prochain essai du webhook. |
+| `Commande`, `Referentie` | lien → Commandes, texte | inbound-mail, mailcontrole | mailcontrole | Commande créée. |
+| `Behandeld door`, `Behandeld op` | texte, date-heure | inbound-mail (« automatisch »), mailcontrole | mailcontrole | Aussi dans le Journaal (« Mailbestelling aangemaakt / genegeerd / nagelezen »). |
+| `AI-gebruik` | texte (JSON) | inbound-mail, mailcontrole | coûts | `{model, input, output, cacheRead, cacheWrite}` (jetons) ; pas de contenu. Le plafond quotidien compte les appels réels dans `Compteurs` (série `AI-lezingen-AAAA-MM-JJ`, date de Bruxelles, relectures comprises). |
+| `Bevestiging` | texte | inbound-mail | — | `ontvangst` (accusé « We ontvingen uw bericht ») ou `bestelling` (confirmation de commande). |
 
 ### `Aanvragen` — demandes d'accès publiques
 
@@ -216,6 +244,7 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `Mouvements de stock` : `Sortie livraison` / `Annulation sortie` / `Retour client` / `Correction inventaire` / `Entrée stock` | FR | Vertrek levering / Vertrek ongedaan / Klantretour / Voorraadcorrectie / Voorraadontvangst (`famoNL.move`) | Type de mouvement. |
 | `Leverdagen` : `ma,di,wo,do,vr,za,zo` | NL | ma … zo | Jours livrés. |
 | `Taal` : `NL` / `FR` | — | NL / FR | Langue du client. |
+| `Inkomende mails` · `Status` : `Te controleren` / `Aangemaakt` / `Genegeerd` | NL | Te controleren / Aangemaakt / Genegeerd | E-mail de commande à vérifier / devenue commande / écartée. |
 | `Régime TVA` : `Normal` / `Intracommunautaire` / `Export` / `Cocontractant` | FR | Normaal / Intracommunautair / Uitvoer / Medecontractant (`FamoVat.regime(v).short`) | Régime de TVA du client, figé sur la facture. |
 
 Identifiants du code (JSON des API) : mélange FR/NL/EN (`dateLivraison`, `voorraadAfboeken`, `movementType`) ; suivre le nom déjà utilisé par l'endpoint plutôt que d'en inventer un.

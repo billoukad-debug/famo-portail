@@ -25,7 +25,11 @@ const clickAndWait = (sel, ms) => async p => { const el = p.locator(sel).first()
 // Catalogue client (spec 019) : weergave retenue sur l'appareil (localStorage), posée avant l'ouverture de l'écran.
 const weergave = v => async p => { await p.evaluate(v => localStorage.setItem("famoKlantWeergave", JSON.stringify(v)), v); };
 const pages = {
-  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender", "/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
+  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender",
+    // Bestellen per e-mail (specs/020) : file « Te controleren », puis le texte de la première e-mail déplié.
+    { name: "/team/bestellingen#/controle (Te controleren)", url: "/team/bestellingen#/controle", after: async p => { await p.waitForSelector(".mc-item, .state", { timeout: 5000 }).catch(() => {}); } },
+    { name: "/team/bestellingen#/controle · originele e-mail open", url: "/team/bestellingen#/controle", after: async p => { await p.waitForSelector(".mc-sum", { timeout: 5000 }).catch(() => {}); await clickAndWait(".mc-sum", 400)(p); } },
+"/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
     { name: "/team/leveringen (mode Chauffeur)", url: "/team/leveringen", before: async p => { await p.evaluate(() => localStorage.setItem("famoLevMode", JSON.stringify("chauffeur"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoLevMode")); } },
     "/team/documenten",
     { name: "/team/bestelling (fiche commande)", url: async p => "/team/bestelling?id=" + encodeURIComponent(await firstOrder(p)) },
