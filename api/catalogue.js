@@ -3,6 +3,7 @@ const __prices = require("../lib/prices");
 const __ca = require("../lib/clientauth");
 const { at, atAll } = require("../lib/airtable");
 const __kl = require("../lib/klantlogin");
+const __pak = require("../lib/verpakking");
 // Anti-abus, première ligne : mémoire d'instance (best-effort sur serverless, chaque
 // instance a sa propre table). Seconde ligne, PERSISTANTE : le verrou par compte en base
 // (Clients « Echecs » / « Geblokkeerd tot »), qui tient sur toutes les instances.
@@ -186,7 +187,9 @@ module.exports = async (req, res) => {
         foto: photoOf(r.fields["Foto"]),
         // Spec 018 : toutes les vues (URL sûres), la première = foto.
         fotos: photosOf(r.fields["Foto"]),
-        volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
+        volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"]),
+        // Verpakking (specs/023) : { per, verpakking, enkel } ; le prix reste le prix par unité.
+        ...__pak.apiFields(r.fields)
       };
       if (stockByName && stockByName.has(key)) p.voorraad = stockByName.get(key);
       return p;

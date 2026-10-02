@@ -90,5 +90,71 @@
     return Object.assign({ key }, REGIMES[key]);
   }
 
-  return { r2, num, totals, net, rateFrom, validRate, DEFAULT_RATE, regime, REGIME_KEYS };
+  // ---- Verpakking / verkoopeenheid (specs/023-verpakking) ----------------------------------------
+  // Le prix reste le prix PAR UNITÉ et la ligne reste comptée en unités (« Eieren × 12 pièce [€1.00] ») :
+  // le conditionnement n'est qu'une façon de la lire (« 2 doos × 6 st = 12 st »). Même règle à l'écran,
+  // sur les documents, dans les e-mails et sur le serveur (validation, UBL).
+  // Source : champs du catalogue (« Per verpakking », « Verpakking », « Enkel per verpakking »), entrée
+  // figée de « Lignes JSON » ({ per, verpakking }) ou produit de l'API ({ per, verpakking, enkel }).
+  const PAK_MAX = 1000;
+  const pick = (o, a, b) => (o[a] !== undefined && o[a] !== null ? o[a] : o[b]);
+  function pakOf(src) {
+    if (!src || typeof src !== "object") return null;
+    const raw = pick(src, "Per verpakking", "per");
+    const per = typeof raw === "number" ? raw : (typeof raw === "string" && /^\s*\d+([.,]\d+)?\s*$/.test(raw) ? num(raw) : NaN);
+    if (!(per > 1) || per > PAK_MAX) return null;
+    const label = String(pick(src, "Verpakking", "verpakking") || "").trim().slice(0, 30) || "doos";
+    return { per: Math.round(per * 1000) / 1000, label, only: !!pick(src, "Enkel per verpakking", "enkel") };
+  }
+  const EPS = 1e-9;
+  // Quantité = nombre entier de conditionnements (sans conditionnement : toujours vrai).
+  function pakFits(qty, p) { if (!p) return true; const n = num(qty) / p.per; return Math.abs(n - Math.round(n)) < EPS; }
+  function pakSplit(qty, p) { const q = num(qty), n = Math.floor(q / p.per + EPS); return { n, rest: Math.round((q - n * p.per) * 1000) / 1000 }; }
+  // Mots d'unité (valeur stockée en français, comme famoNL) : [singulier, pluriel, abrégé].
+  const UNIT_WORDS = {
+    nl: { "pièce": ["stuk", "stuks", "st"], kg: ["kg", "kg", "kg"], caisse: ["kassa", "kassa's", "kassa"], carton: ["doos", "dozen", "doos"] },
+    fr: { "pièce": ["pièce", "pièces", "pc"], kg: ["kg", "kg", "kg"], caisse: ["caisse", "caisses", "caisse"], carton: ["carton", "cartons", "carton"] }
+  };
+  const unitKey = (u) => { const s = String(u || "").trim().toLowerCase(); return s === "piece" || s === "stuk" ? "pièce" : s === "kassa" ? "caisse" : s === "doos" ? "carton" : s; };
+  const fmtQ = (q, lang) => { const n = Math.round(num(q) * 1000) / 1000; return lang === "fr" || lang === "nl" ? String(n).replace(".", ",") : String(n); };
+  function pakUnit(qty, unit, lang, short) {
+    const w = (UNIT_WORDS[lang === "fr" ? "fr" : "nl"])[unitKey(unit)];
+    if (!w) return String(unit || "");
+    return short ? w[2] : w[Math.abs(num(qty) - 1) < EPS ? 0 : 1];
+  }
+  // Libellé libre (Beheer, en néerlandais) ; en français, les mots courants sont traduits.
+  const LABEL_FR = { doos: ["carton", "cartons"], dozen: ["carton", "cartons"], kist: ["caisse", "caisses"], kisten: ["caisse", "caisses"], zak: ["sac", "sacs"], zakken: ["sac", "sacs"], tray: ["plateau", "plateaux"], trays: ["plateau", "plateaux"], bak: ["bac", "bacs"], bakken: ["bac", "bacs"], schaal: ["barquette", "barquettes"], schalen: ["barquette", "barquettes"], emmer: ["seau", "seaux"], net: ["filet", "filets"], pak: ["paquet", "paquets"], pakket: ["paquet", "paquets"], karton: ["carton", "cartons"], doosje: ["boîte", "boîtes"] };
+  function pakLabel(label, n, lang) {
+    const l = String(label || "doos");
+    if (lang !== "fr") return l;
+    const t = LABEL_FR[l.trim().toLowerCase()];
+    return t ? t[Math.abs(num(n)) > 1 ? 1 : 0] : l;
+  }
+  // « doos van 6 » · « kist van 5 kg » · « carton de 6 ».
+  function pakOne(p, unit, lang) {
+    if (!p) return "";
+    const k = unitKey(unit), u = k === "pièce" ? "" : " " + pakUnit(p.per, unit, lang);
+    return pakLabel(p.label, 1, lang) + (lang === "fr" ? " de " : " van ") + fmtQ(p.per, lang) + u;
+  }
+  // « 2 doos · 12 stuks » · « 2 doos + 2 st · 14 stuks » · « 4 stuks » (moins d'un conditionnement).
+  function pakQty(qty, unit, p, lang) {
+    const total = fmtQ(qty, lang) + " " + pakUnit(qty, unit, lang);
+    if (!p) return total;
+    const s = pakSplit(qty, p);
+    if (!s.n) return total;
+    return s.n + " " + pakLabel(p.label, s.n, lang) + (s.rest > 0 ? " + " + fmtQ(s.rest, lang) + " " + pakUnit(s.rest, unit, lang, true) : "") + " · " + total;
+  }
+  // Ligne de document : « 2 doos × 6 st = 12 st » (+ « × € 1,00 = € 12,00 » si price et fmt sont donnés :
+  // prix au cent, ligne arrondie au cent, comme totals()). Moins d'un conditionnement : "".
+  function pakCalc(qty, unit, p, lang, price, fmt) {
+    if (!p) return "";
+    const s = pakSplit(Math.abs(num(qty)), p);
+    if (!s.n) return "";
+    const st = (q) => fmtQ(q, lang) + " " + pakUnit(q, unit, lang, true);
+    let out = s.n + " " + pakLabel(p.label, s.n, lang) + " × " + st(p.per) + (s.rest > 0 ? " + " + st(s.rest) : "") + " = " + st(Math.abs(num(qty)));
+    if (price != null && price !== "" && typeof fmt === "function") { const pr = r2(num(price)); out += " × " + fmt(pr) + " = " + fmt(r2(num(qty) * pr)); }
+    return out;
+  }
+
+  return { r2, num, totals, net, rateFrom, validRate, DEFAULT_RATE, regime, REGIME_KEYS, pakOf, pakFits, pakSplit, pakUnit, pakLabel, pakOne, pakQty, pakCalc, PAK_MAX };
 });

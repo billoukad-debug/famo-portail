@@ -28,7 +28,9 @@ const PAIRS = [
   ["p-deep", "p-soft", 4.5, "choix .opt / catégorie sélectionnés"], ["ink-2", "p-soft", 4.5, "texte discret sur une ligne choisie"],
   ["white", "p", 4.5, "barre panier, connexion équipe (sans opacité)"], ["white", "ink", 4.5, "toast"], ["p-soft", "ink", 4.5, "action d'un toast"],
   ["p-soft", "danger", 4.5, "action d'un toast d'erreur"], ["white", "p-deep", 4.5, "bouton principal survolé"],
-  ["line-input", "card", 3, "contour de la recherche et des filtres (.search, dates van / tot)"], ["p", "card", 3, "anneau du champ quantité (stepper)"]
+  ["line-input", "card", 3, "contour de la recherche et des filtres (.search, dates van / tot)"], ["p", "card", 3, "anneau du champ quantité (stepper)"],
+  // Rapportage (spec 022) : marques des graphiques contre la carte (WCAG 1.4.11) — barres (--p) et comparaison.
+  ["p", "card", 3, "barres et colonnes des graphiques"], ["chart-prev", "card", 3, "ligne « un an plus tôt » des graphiques"], ["p-deep", "card", 3, "barre survolée ou focalisée"]
 ];
 // Le rendu réel (opacités, fonds superposés) est vérifié par scripts/ux-audit.js (ACC-05) sur chaque écran.
 let bad = 0;

@@ -14,6 +14,14 @@
   const cartTotal = () => Object.entries(cart.items).reduce((s, [id, q]) => { const p = byId(id); return s + (p ? p.prix * Number(q) : 0); }, 0);
   const isKg = p => /kg/i.test(p.unite || "");
   const unitLabel = p => K.unit(p.unite);
+  // Verpakking (spec 023) : prix par unité, winkelmand en unités (comme la commande) ; un article « enkel per
+  // verpakking » se règle par conditionnement (stepper « − 2 doos + »), le serveur refuse le reste.
+  const pakP = p => K.pakOf(p);
+  const stepUnits = p => K.pakStep(p); // unités par pas du stepper (1 sans « enkel per verpakking »)
+  const qtyTxt = (p, q) => (pakP(p) ? K.pakQty(q, p.unite, pakP(p)) : K.qty(q));
+  const fitQty = (p, q) => { const n = stepUnits(p); return n > 1 && q > 0 ? Math.max(1, Math.round(q / n)) * n : q; };
+  const stepperOf = (p, q) => { const n = stepUnits(p), k = pakP(p), v = Number(q || 0); return n > 1 ? K.c.stepper(p.id, v / n, { step: 1, name: p.nom, suffix: K.pakLabel(k.label, v / n), label: K.t("Aantal") + " (" + K.pakOne(k, p.unite) + ")" }) : K.c.stepper(p.id, v, { step: isKg(p) ? 0.5 : 1, name: p.nom }); };
+  const pakCaption = (p, q) => (pakP(p) && Number(q) > 0 ? '<div class="pak-q" data-pakq="' + p.id + '">' + K.esc(K.pakQty(q, p.unite, pakP(p))) + '</div>' : "");
   const creds = () => K.klant.creds();
   // 401 op eender welke klant-API : opgeslagen gegevens wissen en terug naar de aanmelding (met melding).
   function expire() { K.klant.clear(); K.session.del(CAT_KEY); location.replace("/?sessie=verlopen"); }
@@ -51,11 +59,11 @@
 
   /* ---------- beschikbaarheid (enkel als de server een voorraad meestuurt) ---------- */
   const stock = p => (typeof p.voorraad === "number" ? p.voorraad : null);
-  const capQty = (p, v) => { const s = stock(p); return s == null ? v : Math.min(v, Math.max(0, s)); };
+  const capQty = (p, v) => { const s = stock(p); if (s == null) return v; const n = stepUnits(p); return Math.min(v, Math.max(0, n > 1 ? Math.floor(s / n + 1e-9) * n : s)); };
   const stockTag = p => { const s = stock(p); if (s == null) return ""; return s > 0 ? '<span class="tag">' + K.esc(K.tt("Nog {n}", { n: K.qty(s) })) + '</span>' : '<span class="tag t-danger">' + K.t("Uitverkocht") + '</span>'; };
 
   /* ---------- favorieten : server (Clients.Favorieten) eerst, localStorage als cache ---------- */
-  let syncTimer = null, favWarned = false;
+  let syncTimer = null, favWarned = false, favsAdopted = false;
   function syncFavs() {
     clearTimeout(syncTimer);
     syncTimer = setTimeout(async () => {
@@ -63,8 +71,10 @@
       catch (err) { if (err.status !== 401 && !favWarned) { favWarned = true; K.toast(K.t("Favorieten bewaren mislukt. Ze blijven op dit toestel."), { kind: "err" }); } }
     }, 1200);
   }
-  const setFav = (id, on) => { if (on) favs[id] = true; else delete favs[id]; K.store.set(FAV_KEY, favs); syncFavs(); };
-  const setStd = v => { std = v; K.store.set(STD_KEY, std); syncFavs(); };
+  // Le catalogue en cache (sessionStorage, 10 min) garde la copie serveur à jour : un rechargement ne ramène pas l'ancienne liste.
+  function cacheFavs() { if (!cat || !cat.client) return; cat.client = Object.assign({}, cat.client, { favorieten: { favorieten: Object.keys(favs), standaard: std || {} } }); K.session.set(CAT_KEY, cat); }
+  const setFav = (id, on) => { if (on) favs[id] = true; else delete favs[id]; K.store.set(FAV_KEY, favs); cacheFavs(); syncFavs(); };
+  const setStd = v => { std = v; K.store.set(STD_KEY, std); cacheFavs(); syncFavs(); };
   // Bij een verse catalogus : wat op de server staat wint ; staat daar niets en hier wel (oud toestel), dan gaat dit toestel naar boven.
   function adoptFavs(client) {
     const f = client && client.favorieten; if (!f) return;
@@ -89,12 +99,13 @@
 
   async function loadCatalogue(force) {
     const cached = K.session.get(CAT_KEY, null);
-    if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; return cat; }
+    // Le cache peut venir de la page de connexion (start.js) : ses favoris serveur sont repris une fois par chargement.
+    if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; if (!favsAdopted) { favsAdopted = true; adoptFavs(cat.client); } return cat; }
     const d = await api("/api/catalogue", { json: creds(), retry: true }); // de server vernieuwt de sessiecookie
     cat = { at: Date.now(), products: d.products || [], client: d.client, company: d.company, voorwaarden: d.voorwaarden || null };
     K.session.set(CAT_KEY, cat);
     K.klant.set({ user: sess.user, client: d.client });
-    adoptFavs(d.client);
+    favsAdopted = true; adoptFavs(d.client);
     return cat;
   }
   async function loadOrders(force) {
@@ -126,14 +137,16 @@
   // Zichten van een product : fotos (spec 018), of enkel foto (oude cache in sessionStorage).
   const photosOf = p => (Array.isArray(p.fotos) && p.fotos.length ? p.fotos : p.foto ? [p.foto] : []);
   // Prijs : onderhandelde prijs groot, publieke prijs klein en doorstreept, « uw prijs » (DESIGN : het prijzenpaar).
-  const priceHtml = p => '<div class="pp"><span class="pp-m"><b class="mono">' + K.eur(p.prix) + '</b> <span class="quiet">/ ' + K.esc(unitLabel(p)) + '</span></span>' + (p.prix < p.base ? '<span class="pp-u"><s class="mono">' + K.eur(p.base) + '</s> <small>' + K.t("uw prijs") + '</small></span>' : "") + '</div>';
+  const priceHtml = p => '<div class="pp"><span class="pp-m"><b class="mono">' + K.eur(p.prix) + '</b> <span class="quiet">/ ' + K.esc(unitLabel(p)) + '</span></span>' + (p.prix < p.base ? '<span class="pp-u"><s class="mono">' + K.eur(p.base) + '</s> <small>' + K.t("uw prijs") + '</small></span>' : "") + pakPrice(p) + '</div>';
+  // « doos van 6 = € 6,00 » : prix du conditionnement, calculé du prix unitaire (le serveur facture en unités).
+  const pakPrice = p => { const k = pakP(p); return k ? '<span class="pp-k">' + K.esc(K.pakOne(k, p.unite)) + ' = <b class="mono">' + K.eur(window.FamoVat.r2(p.prix * k.per)) + '</b></span>' : ""; };
   function productRow(p) {
     const qty = Number(cart.items[p.id] || 0), tiles = view === "tegels", compact = view === "compact", open = !tiles && opened.has(p.id);
     // Metaregel : kaliber (niet herhaald als het al in de naam staat : « … 16-20 » en kaliber « 16/20 ») en voorraad ;
     // de eenheid staat bij de prijs (« / kassa »), behalve in Compact (eenheid in de metakolom). Compact op een
     // smalle lijst : ook de prijs in de metaregel (de prijskolom verschijnt pas op een brede lijst).
     const kal = p.kaliber && K.searchKey(p.nom).indexOf(K.searchKey(p.kaliber)) < 0 ? p.kaliber : "";
-    const meta = [kal, compact ? unitLabel(p) : ""].filter(Boolean).map(K.esc).join(" · ") + stockTag(p) +
+    const meta = [kal, compact ? unitLabel(p) : "", compact && pakP(p) ? K.pakOne(pakP(p), p.unite) : ""].filter(Boolean).map(K.esc).join(" · ") + stockTag(p) +
       (compact ? '<span class="pm-p"><b class="mono">' + K.eur(p.prix) + '</b>' + (p.prix < p.base ? ' <small>' + K.t("uw prijs") + '</small>' : "") + '</span>' : "");
     // Vignet in de knop : een tik erop opent de details. alt leeg : de naam staat ernaast in dezelfde knop.
     const btn = '<button type="button" class="pr-x" data-x="' + p.id + '"' + (tiles ? ' aria-haspopup="dialog"' : ' aria-expanded="' + open + '" aria-controls="pd-' + p.id + '"') + '>' +
@@ -142,7 +155,7 @@
       '<span class="pr-t"><span class="pn">' + K.esc(p.nom).replace(/\S*\d\S*/g, m => '<span class="nw">' + m + '</span>') + '</span><span class="pm">' + meta + '</span></span></button>';
     return '<div class="prod' + (qty > 0 ? " on" : "") + (open ? " open" : "") + '" data-id="' + p.id + '">' + btn + priceHtml(p) +
       '<button type="button" class="ibtn fav' + (favs[p.id] ? " on" : "") + '" data-fav="' + p.id + '" aria-label="' + K.t("Favoriet") + ': ' + K.esc(p.nom) + '" aria-pressed="' + (favs[p.id] ? "true" : "false") + '">' + K.icon("star") + '</button>' +
-      K.c.stepper(p.id, qty, { step: isKg(p) ? 0.5 : 1, name: p.nom }) +
+      stepperOf(p, qty) +
       (tiles ? "" : '<div class="pr-d" id="pd-' + p.id + '"' + (open ? "" : " hidden") + '>' + (open ? detailHtml(p) : "") + '</div>') + '</div>';
   }
   // Galerij (spec 018) : grote foto ; bij meerdere zichten een strook om te vegen (scroll-snap) en vignetknoppen
@@ -194,7 +207,8 @@
       row(K.t("Categorie"), K.esc(K.t(K.cat(p.cat)))) + row(K.t("Kaliber"), K.esc(p.kaliber)) + row(K.t("Eenheid"), K.esc(unitLabel(p))) +
       row(K.t("Prijs excl. btw"), '<span class="mono">' + K.eur(p.prix) + '</span> / ' + K.esc(unitLabel(p)) + (neg ? ' <s class="mono quiet">' + K.eur(p.base) + '</s> · ' + K.t("uw prijs") : "")) +
       row(K.t("Beschikbaar"), s == null ? "" : s > 0 ? K.esc(K.qty(s)) + " " + K.esc(unitLabel(p)) : '<span class="t-danger">' + K.t("Uitverkocht") + '</span>') +
-      (isKg(p) ? row(K.t("Bestellen per"), K.t("0,5 kg")) : "") + '</dl>' +
+      (pakP(p) ? row(K.t("Verpakking"), K.esc(K.pakOne(pakP(p), p.unite)) + ' = <span class="mono">' + K.eur(window.FamoVat.r2(p.prix * pakP(p).per)) + '</span>') : "") +
+      (pakP(p) && pakP(p).only ? row(K.t("Bestellen per"), K.esc(K.pakOne(pakP(p), p.unite))) : pakP(p) ? row(K.t("Bestellen per"), K.esc(K.t("per stuk of per verpakking"))) : isKg(p) ? row(K.t("Bestellen per"), K.t("0,5 kg")) : "") + '</dl>' +
       '<label class="pr-c"><span>' + K.t("Opmerking bij dit artikel") + '</span><input class="input" data-comment="' + p.id + '" value="' + K.esc(cart.comments[p.id] || "") + '" maxlength="120" placeholder="' + K.t("bv. dikke moot…") + '"></label></div>';
   }
   // Winkelmand naast de catalogus (computer) en balk onderaan (telefoon) : bijgewerkt zonder de lijst opnieuw te tekenen.
@@ -202,7 +216,7 @@
     const ids = Object.keys(cart.items).filter(id => byId(id) && Number(cart.items[id]) > 0), total = cartTotal(), min = minimum();
     if (!ids.length) return '<div class="kc-h"><b>' + K.t("Winkelmand") + '</b></div><p class="quiet kc-empty">' + K.t("Nog niets gekozen. Gebruik + bij een product.") + '</p><p class="quiet kc-foot">' + K.esc(K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) })) + '</p>';
     return '<div class="kc-h"><b>' + K.t("Winkelmand") + '</b><span class="quiet">' + ids.length + ' ' + K.t(ids.length === 1 ? "artikel" : "artikelen") + '</span></div>' +
-      '<ul class="kc-l">' + ids.map(id => { const p = byId(id), qv = Number(cart.items[id]); return '<li><span class="kc-n">' + K.esc(p.nom) + '<small class="quiet mono">' + K.esc(K.qty(qv)) + ' × ' + K.eur(p.prix) + '</small></span><b class="mono">' + K.eur(p.prix * qv) + '</b><button type="button" class="ibtn" data-rm="' + id + '" aria-label="' + K.t("Verwijderen") + ': ' + K.esc(p.nom) + '">' + K.icon("x") + '</button></li>'; }).join("") + '</ul>' +
+      '<ul class="kc-l">' + ids.map(id => { const p = byId(id), qv = Number(cart.items[id]); return '<li><span class="kc-n">' + K.esc(p.nom) + '<small class="quiet mono">' + K.esc(qtyTxt(p, qv)) + ' × ' + K.eur(p.prix) + '</small></span><b class="mono">' + K.eur(p.prix * qv) + '</b><button type="button" class="ibtn" data-rm="' + id + '" aria-label="' + K.t("Verwijderen") + ': ' + K.esc(p.nom) + '">' + K.icon("x") + '</button></li>'; }).join("") + '</ul>' +
       '<div class="kc-t"><span>' + K.t("Totaal excl. btw") + '</span><b class="mono">' + K.eur(total) + '</b></div>' +
       (min > 0 && total < min ? '<p class="kc-min">' + K.esc(K.tt("Minimumbestelling {m} excl. btw · nog {r} toe te voegen.", { m: K.eur(min), r: K.eur(min - total) })) + '</p>' : "") +
       '<a class="btn btn-p btn-block" href="#/winkelmand">' + K.t("Bestellen") + '</a><p class="quiet kc-foot">' + K.esc(K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) })) + '</p>';
@@ -287,7 +301,7 @@
   // Tegels : de details in een paneel (galerij, info, opmerking, aantal) ; Esc of × geeft de focus terug aan de tegel.
   function openDetail(p) {
     closePanel();
-    panel = K.panel({ title: p.nom, sub: [p.kaliber, unitLabel(p)].filter(Boolean).join(" · "), body: '<div class="pr-d pr-dp" data-no-dirty>' + detailHtml(p) + '</div>', footer: '<div class="pd-f">' + priceHtml(p) + K.c.stepper(p.id, Number(cart.items[p.id] || 0), { step: isKg(p) ? 0.5 : 1, name: p.nom }) + '</div>', onClose: () => { panel = null; } });
+    panel = K.panel({ title: p.nom, sub: [p.kaliber, unitLabel(p)].filter(Boolean).join(" · "), body: '<div class="pr-d pr-dp" data-no-dirty>' + detailHtml(p) + '</div>', footer: '<div class="pd-f">' + priceHtml(p) + stepperOf(p, cart.items[p.id]) + '</div>', onClose: () => { panel = null; } });
     fallback(panel.el); bindSteppers(panel.el, id => { syncRow(id); refreshCart(); });
     panel.el.addEventListener("input", e => { const t = e.target; if (t && t.matches && t.matches("[data-comment]")) { cart.comments[t.dataset.comment] = t.value.slice(0, 120); saveCart(); } });
   }
@@ -308,7 +322,16 @@
     ktRO = new window.ResizeObserver(() => { const h = el.offsetHeight; if (h) document.documentElement.style.setProperty("--kt-h", h + "px"); });
     ktRO.observe(el);
   }
+  // Winkelmand van vroeger (of een product dat intussen « enkel per verpakking » werd) : afgerond op hele
+  // verpakkingen, en dat gezegd. De server blijft de scheidsrechter (hij weigert een ander aantal).
+  function fitCart() {
+    const msgs = [];
+    Object.keys(cart.items).forEach(id => { const p = byId(id), q = Number(cart.items[id]); if (!p || !(q > 0) || stepUnits(p) === 1 || window.FamoVat.pakFits(q, pakP(p))) return; const v = fitQty(p, q); cart.items[id] = v; msgs.push(K.tt("{p}: aangepast naar {q}, want enkel per {v}.", { p: p.nom, q: K.pakQty(v, p.unite, pakP(p)), v: K.pakOne(pakP(p), p.unite) })); });
+    if (msgs.length) saveCart();
+    return msgs;
+  }
   function renderCatalogus() {
+    fitCart().forEach(m => K.toast(m));
     CS = catalogState();
     const top = '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div class="grow"><h1 class="ktitle">' + K.t("Catalogus") + '</h1><span class="quiet ksub">' + K.esc(K.t("Prijzen excl. btw") + " · " + K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div></div>';
     shell("catalogus", '<div class="kgrid"><nav class="kside" aria-label="' + K.t("Categorieën") + '">' + CS.cats.map(catBtn).join("") + '</nav><div class="kcat">' + toolsHtml() + famsHtml() + '<div class="kl" id="list" data-view="' + view + '">' + listHtml() + '</div></div><aside class="kcart" id="cartPanel" aria-label="' + K.t("Winkelmand") + '">' + cartPanelHtml() + '</aside></div><div id="cartbarBox">' + cartbarHtml() + '</div>', top);
@@ -346,17 +369,24 @@
   function syncRow(id) {
     const row = app.querySelector('.prod[data-id="' + CSS.escape(id) + '"]'); if (!row) return;
     const v = Number(cart.items[id] || 0), st = row.querySelector(".stepper");
-    row.classList.toggle("on", v > 0); if (st) { st.classList.toggle("on", v > 0); st.querySelector("input").value = v; }
+    row.classList.toggle("on", v > 0); if (st) { st.classList.toggle("on", v > 0); st.querySelector("input").value = v / stepUnits(byId(id) || {}); pakSuffix(st, byId(id), v); }
+  }
+  // Libellé dans le stepper (« doos » / FR « carton(s) ») et légende « 2 doos · 12 stuks » à côté, s'il y en a une.
+  function pakSuffix(st, p, v) {
+    if (!p || !pakP(p)) return;
+    const u = st.querySelector(".st-u"); if (u) u.textContent = K.pakLabel(pakP(p).label, v / stepUnits(p));
+    K.$$('[data-pakq="' + CSS.escape(p.id) + '"]', app).forEach(c => { c.textContent = v > 0 ? K.pakQty(v, p.unite, pakP(p)) : ""; });
   }
   function bindSteppers(root, after) {
     K.$$(".stepper", root).forEach(st => {
       const id = st.dataset.stepper, inp = st.querySelector("input"), p = byId(id); if (!p) return;
-      const step = isKg(p) ? 0.5 : 1;
-      const set = v => {
-        v = Math.max(0, Math.round(v * 1000) / 1000); if (!isKg(p)) v = Math.round(v);
+      // Pas du stepper : un conditionnement (« enkel per verpakking », le champ compte alors des doos), sinon 0,5 kg ou 1.
+      const n = stepUnits(p), step = n > 1 ? 1 : isKg(p) ? 0.5 : 1;
+      const set = s => {
+        let v = n > 1 ? Math.max(0, Math.round(s)) * n : Math.max(0, Math.round(s * 1000) / 1000); if (n === 1 && !isKg(p)) v = Math.round(v);
         // Voorraad begrenst het aantal (de server kan alsnog weigeren : de klant ziet dan de servermelding).
-        const capped = capQty(p, v); if (capped < v) { v = capped; K.toast(v > 0 ? K.tt("Slechts {n} beschikbaar.", { n: K.qty(v) }) : K.t("Uitverkocht"), { kind: "err" }); }
-        if (v > 0) cart.items[id] = v; else { delete cart.items[id]; delete cart.comments[id]; } saveCart(); inp.value = v; st.classList.toggle("on", v > 0); if (after) after(id, v);
+        const capped = capQty(p, v); if (capped < v) { v = capped; K.toast(v > 0 ? K.tt("Slechts {n} beschikbaar.", { n: qtyTxt(p, v) }) : K.t("Uitverkocht"), { kind: "err" }); }
+        if (v > 0) cart.items[id] = v; else { delete cart.items[id]; delete cart.comments[id]; } saveCart(); inp.value = v / n; pakSuffix(st, p, v); st.classList.toggle("on", v > 0); if (after) after(id, v);
       };
       st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step);
       st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step);
@@ -366,17 +396,19 @@
 
   /* ---------- winkelmand ---------- */
   function renderWinkelmand() {
+    const fitted = fitCart();
     const ids = Object.keys(cart.items).filter(id => byId(id) && Number(cart.items[id]) > 0);
     const days = nextDays(); if (!dayOk(cart.day)) { cart.day = days[0] || ""; saveCart(); }
     const otherDay = !days.includes(cart.day);
     const total = cartTotal(), min = minimum(), below = ids.length > 0 && min > 0 && total < min;
-    const body = ids.length ? '<div class="kcols"><div class="kc-main"><div class="mcard">' + ids.map(id => { const p = byId(id); return '<div class="li"><div class="n"><b>' + K.esc(p.nom) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + '</span>' + stockTag(p) + '</div></div>' + K.c.stepper(p.id, cart.items[id], { step: isKg(p) ? 0.5 : 1, name: p.nom }) + '<b class="mono t">' + K.eur(p.prix * cart.items[id]) + '</b><input class="input c mh-44 fs-12" placeholder="' + K.t("Opmerking (bv. dikke moot)") + '" aria-label="' + K.esc(K.t("Opmerking bij") + " " + p.nom) + '" data-comment="' + p.id + '" value="' + K.esc(cart.comments[id] || "") + '" maxlength="120"></div>'; }).join("") + '</div></div><div class="kc-side">' +
+    const body = ids.length ? '<div class="kcols"><div class="kc-main"><div class="mcard">' + ids.map(id => { const p = byId(id); return '<div class="li"><div class="n"><b>' + K.esc(p.nom) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + (pakP(p) ? " · " + K.esc(K.pakOne(pakP(p), p.unite)) : "") + '</span>' + stockTag(p) + '</div>' + pakCaption(p, cart.items[id]) + '</div>' + stepperOf(p, cart.items[id]) + '<b class="mono t">' + K.eur(p.prix * cart.items[id]) + '</b><input class="input c mh-44 fs-12" placeholder="' + K.t("Opmerking (bv. dikke moot)") + '" aria-label="' + K.esc(K.t("Opmerking bij") + " " + p.nom) + '" data-comment="' + p.id + '" value="' + K.esc(cart.comments[id] || "") + '" maxlength="120"></div>'; }).join("") + '</div></div><div class="kc-side">' +
       '<div class="mcard stack-10"><div class="field"><label id="lDay">' + K.t("Leverdag") + '</label><div class="opt" role="group" aria-labelledby="lDay">' + days.map(d => '<button type="button" data-day="' + d + '"' + (d === cart.day ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.date(d)) + '</button>').join("") + '</div>' +
       '<div class="d-flex ai-c gap-10 mt-8 f-wrap"><label for="otherDay" class="fs-13 m-0">' + K.t("Andere dag") + '</label><input type="date" class="input flex-1 minw-160" id="otherDay"' + (otherDay ? ' style="border-color:var(--p);color:var(--p)"' : "") + ' min="' + firstDay() + '" max="' + lastDay() + '" value="' + (otherDay ? cart.day : "") + '"></div><div id="dayErr" role="alert"></div><span class="quiet fs-12">' + K.esc(K.tt("Levering op {d}. Vóór {t} besteld = geleverd op de eerstvolgende leverdag.", { d: daysLabel(), t: deadline() })) + '</span></div>' +
       '<div class="field" role="group" aria-labelledby="lAdr"><span class="flabel" id="lAdr">' + K.t("Leveradres") + '</span><div class="input d-flex ai-c ws-pre mh-44 p-8-12 fs-13">' + K.esc(cat.client.adresse || K.t("Adres bij Famo bekend")) + '</div><span class="quiet fs-12">' + K.t("Ander adres? Zet het in de opmerking.") + '</span></div>' +
       '<div class="field"><label for="note">' + K.t("Opmerking voor Famo") + '</label><textarea class="input" id="note" rows="2" placeholder="' + K.t("bv. graag achteraan bellen…") + '">' + K.esc(cart.note || "") + '</textarea></div></div>' +
       '<div class="mcard stack-6 fs-13"><div class="spread"><span>' + K.t("Totaal excl. btw") + '</span><b class="mono">' + K.eur(total) + '</b></div><div class="quiet fs-12">' + K.esc(K.tt("De btw wordt op de factuur toegevoegd. Levering gratis · bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) })) + (min > 0 ? ' · ' + K.esc(K.tt("Minimumbestelling {m} excl. btw", { m: K.eur(min) })) : "") + '</div></div>' +
       (below ? K.c.warn(K.esc(K.tt("Minimumbestelling {m} excl. btw · nog {r} toe te voegen.", { m: K.eur(min), r: K.eur(min - total) }))) : "") +
+      (fitted.length ? K.c.warn(fitted.map(K.esc).join("<br>")) : "") +
       '<div id="orderErr"></div>' +
       '<button type="button" class="btn btn-p btn-block btn-tall" id="placeOrder"' + (below ? " disabled" : "") + '>' + K.t("Bestelling plaatsen") + ' · ' + K.eur(total) + '</button></div></div>'
       : K.c.empty(K.t("Uw winkelmand is leeg"), K.t("Kies producten in de catalogus."), '<a class="btn btn-p btn-sm mt-6" href="#/catalogus">' + K.t("Naar de catalogus") + '</a>');
@@ -417,7 +449,7 @@
       // perdue (réseau mobile) retrouve la même commande au lieu d'en créer une deuxième (B-19).
       if (!cart.key) { cart.key = (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); saveCart(); }
       const d = await api("/api/order", { json: Object.assign({}, creds(), { items, notes: cart.note || "", dateLivraison: cart.day, idempotencyKey: cart.key }) });
-      lastOrder = { ref: d.ref, total: d.total, day: cart.day, items: items.map(i => ({ nom: byId(i.productId).nom, qty: i.quantity, prix: byId(i.productId).prix })), at: Date.now(), mail: d.mail, email: (cat.client && cat.client.email) || "" };
+      lastOrder = { ref: d.ref, total: d.total, day: cart.day, items: items.map(i => ({ nom: byId(i.productId).nom, qty: i.quantity, prix: byId(i.productId).prix, unite: byId(i.productId).unite, pak: pakP(byId(i.productId)) })), at: Date.now(), mail: d.mail, email: (cat.client && cat.client.email) || "" };
       K.session.set("famoLastOrder", lastOrder);
       cart = { items: {}, comments: {}, note: "", day: "" }; saveCart(); orders = null;
       K.go("bevestigd");
@@ -445,7 +477,7 @@
     if (!o) { K.go("bestellingen"); return; }
     shell("bestellingen", '<div class="ok-head"><div class="ok-ring">' + K.icon("check", "") + '</div><h1 class="h1">' + K.t("Bestelling ontvangen") + '</h1><p class="sub ws-normal fs-14">' + K.t("Dank u wel. We zetten alles klaar voor") + ' <b>' + K.esc(K.dateLong(o.day)) + '</b>.</p><span class="tag mono">' + K.esc(o.ref) + '</span></div>' +
       '<div class="mlist pt-0"><div class="mcard"><ol class="tl" aria-label="' + K.t("Verloop") + '"><li aria-current="step"><i class="on" aria-hidden="true"></i><div><b>' + K.t("Ontvangen") + '</b><small>' + K.esc(K.date(K.isoDay(new Date(o.at).toISOString())) + " " + K.time(new Date(o.at).toISOString())) + '</small></div></li><li><i aria-hidden="true"></i><div>' + K.t("Wordt klaargezet") + '<small>' + K.t("de dag vóór levering") + '</small></div></li><li><i aria-hidden="true"></i><div>' + K.t("Onderweg") + '<small>' + K.esc(K.date(o.day)) + ' ' + K.t("ochtend") + '</small></div></li><li><i aria-hidden="true"></i><div>' + K.t("Geleverd → leveringsbon en factuur bij uw bestellingen") + '</div></li></ol></div>' +
-      '<div class="mcard stack-6 fs-13">' + o.items.map(i => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(K.qty(i.qty) + "× " + i.nom) + '</span><span class="mono">' + K.eur(i.prix * i.qty) + '</span></div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div>' +
+      '<div class="mcard stack-6 fs-13">' + o.items.map(i => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(K.qty(i.qty) + "× " + i.nom + (K.pakCount(i.qty, i.unite, i.pak || null) ? " (" + K.pakCount(i.qty, i.unite, i.pak) + ")" : "")) + '</span><span class="mono">' + K.eur(i.prix * i.qty) + '</span></div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div>' +
       mailNote(o) +
       '<a class="btn btn-p btn-block" href="#/bestellingen">' + K.t("Naar mijn bestellingen") + '</a><a class="btn btn-o btn-block" href="#/catalogus">' + K.t("Verder bestellen") + '</a></div>');
     const ic = app.querySelector(".ico"); if (ic) { ic.style.width = "34px"; ic.style.height = "34px"; ic.style.stroke = "var(--st-done)"; ic.style.strokeWidth = "2.2"; }
@@ -459,7 +491,7 @@
   function linesToCart(o) {
     let n = 0;
     const src = Array.isArray(o.items) ? o.items : K.parseLines(o.lignes).map(l => ({ productId: null, naam: l.name, qty: l.qty, comment: l.comment }));
-    src.forEach(l => { const p = l.productId ? byId(l.productId) : (cat.products || []).find(x => x.nom.toLowerCase() === String(l.naam || "").toLowerCase()); if (!p || !(l.qty > 0)) return; const qv = capQty(p, l.qty); if (qv > 0) { cart.items[p.id] = qv; if (l.comment) cart.comments[p.id] = l.comment; n++; } });
+    src.forEach(l => { const p = l.productId ? byId(l.productId) : (cat.products || []).find(x => x.nom.toLowerCase() === String(l.naam || "").toLowerCase()); if (!p || !(l.qty > 0)) return; const qv = capQty(p, fitQty(p, l.qty)); if (qv > 0) { cart.items[p.id] = qv; if (l.comment) cart.comments[p.id] = l.comment; n++; } });
     saveCart(); return n;
   }
   function reorder(o) { const n = linesToCart(o); K.toast(n ? n + " " + K.t(n === 1 ? "artikel" : "artikelen") + " " + K.t("in de winkelmand gezet") : K.t("Deze artikelen staan niet meer in de catalogus"), { kind: n ? "" : "err" }); if (n) { closePanel(); K.go("winkelmand"); } }
@@ -489,7 +521,7 @@
     const row = (label, value) => value ? '<div class="row"><div>' + K.esc(label) + '<small class="ws-pre">' + K.esc(value) + '</small></div></div>' : "";
     const body = '<div class="mcard mb-10">' + tl + '</div>' + (o.statut === "Prête" ? '<p class="quiet fs-125 m-0 mb-10">' + K.t("Wordt klaargezet · wijzigen of annuleren: bel Famo.") + '</p>' : "") +
       (o.uitzondering ? K.c.warn('<b>' + K.t("Uitzondering levering") + '</b> ' + K.esc(o.uitzondering)) + '<div class="h-10"></div>' : "") +
-      '<div class="mcard mb-10"><div class="sec m-0 mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(K.qty(l.qty) + "× " + l.name + (l.unit ? " · " + K.unit(l.unit) : "") + (l.comment ? " (" + l.comment + ")" : "")) + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div></div>' +
+      '<div class="mcard mb-10"><div class="sec m-0 mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(K.qty(l.qty) + "× " + l.name + (l.unit ? " · " + K.unit(l.unit) : "") + (K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) ? " · " + K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) : "") + (l.comment ? " (" + l.comment + ")" : "")) + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div></div>' +
       '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") + row(K.t("Verwacht leveruur"), slotTxt(o)) +
       row(K.t("Factuurnummer"), o.factuurnummer) + row(K.t("Gefactureerd op"), stamp(o.factureeLe)) + row(K.t("Geleverd op"), stamp(o.livreeLe)) + row(K.t("Ontvangen door"), o.receptionnePar) +
       (o.paiement === "Payé" ? row(K.t("Betaald op"), stamp(o.payeLe) || K.t("Betaald")) : "") +
@@ -555,7 +587,7 @@
     // Une ligne par commande (et plus une carte) : date, articles, statut, montant ; sur ordinateur les documents
     // et « Opnieuw bestellen » restent sur la ligne. Tout le reste (wijzigen, annuleren, détail) : clic sur la ligne.
     const quick = o => { const r = ' data-ref="' + K.esc(o.ref) + '"'; return (o.statut === "Facturée" ? '<button type="button" class="btn btn-o btn-sm" data-doc="invoice"' + r + '>' + invLabel() + '</button>' : "") + (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<button type="button" class="btn btn-o btn-sm" data-doc="delivery"' + r + '>' + K.t("Leveringsbon") + '</button>' : "") + '<button type="button" class="btn btn-ghost btn-sm" data-reorder="' + K.esc(o.ref) + '">' + K.t("Opnieuw bestellen") + '</button>'; };
-    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + (slotTxt(o) ? " · " + slotTxt(o) : "") : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
+    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + (slotTxt(o) ? " · " + slotTxt(o) : "") : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes, o.verpakking)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
     const empty = ordFilter === "lopend" ? K.c.empty(K.t("Geen lopende bestellingen"), K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) }), '<a class="btn btn-p btn-sm mt-6" href="#/catalogus">' + K.t("Naar de catalogus") + '</a>') : ordFilter === "tebetalen" ? K.c.empty(K.t("Geen openstaande facturen"), K.t("Alles is betaald. Dank u wel.")) : K.c.empty(K.t("Niets in deze lijst"));
     // G-13 : la pastille de l'onglet compte les factures à payer ; la vue qui s'ouvre le dit et y mène en un geste.
     const payHint = ordFilter !== "tebetalen" && nUnpaid ? '<div class="full">' + K.c.warn('<span>' + K.esc(nUnpaid + " " + K.t(nUnpaid === 1 ? "factuur te betalen" : "facturen te betalen")) + '</span> <button type="button" class="linkbtn" data-of="tebetalen">' + K.t("Bekijken") + '</button>') + '</div>' : "";
@@ -571,13 +603,13 @@
     const stdList = std ? Object.entries(std).map(([id, qv]) => ({ p: byId(id), qty: qv })).filter(x => x.p) : [];
     const stdTotal = stdList.reduce((s, x) => s + x.p.prix * x.qty, 0);
     const stdCard = '<div class="mcard card-tint"><div class="spread-c"><div><b>' + K.t("Mijn standaardbestelling") + '</b><div class="quiet fs-12">' + (stdList.length ? stdList.length + " " + K.t("artikelen") + " · " + K.eur(stdTotal) : K.t("Nog niet ingesteld")) + '</div></div></div>' +
-      (stdList.length ? '<div class="mt-8 fs-125 t-ink2">' + stdList.map(x => K.qty(x.qty) + "× " + K.esc(x.p.nom)).join(" · ") + '</div><div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdToCart">' + K.t("In winkelmand zetten") + '</button><button type="button" class="btn btn-o btn-sm" id="stdSave">' + K.t("Vervang door winkelmand") + '</button></div>' : '<div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdSave">' + K.t("Huidige winkelmand opslaan als standaard") + '</button></div>') + '</div>';
-    const body = '<div class="kcols"><div class="kc-main"><h2 class="sec mt-0">' + K.t("Favorieten") + '</h2>' + (favList.length ? '<div class="mcard">' + favList.map(p => '<div class="li"><div class="n"><b>' + K.esc(p.nom) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + '</span>' + stockTag(p) + '</div></div>' + K.c.stepper(p.id, cart.items[p.id] || 0, { step: isKg(p) ? 0.5 : 1, name: p.nom }) + '<button type="button" class="ibtn fav on" data-fav="' + p.id + '" aria-label="' + K.esc(K.t("Uit favorieten") + ": " + p.nom) + '">' + K.icon("star") + '</button></div>').join("") + '</div>' : K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product in de catalogus."))) + '</div><div class="kc-side">' + stdCard + '</div></div>';
+      (stdList.length ? '<div class="mt-8 fs-125 t-ink2">' + stdList.map(x => K.qty(x.qty) + "× " + K.esc(x.p.nom) + (K.pakCount(x.qty, x.p.unite, pakP(x.p)) ? " (" + K.esc(K.pakCount(x.qty, x.p.unite, pakP(x.p))) + ")" : "")).join(" · ") + '</div><div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdToCart">' + K.t("In winkelmand zetten") + '</button><button type="button" class="btn btn-o btn-sm" id="stdSave">' + K.t("Vervang door winkelmand") + '</button></div>' : '<div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdSave">' + K.t("Huidige winkelmand opslaan als standaard") + '</button></div>') + '</div>';
+    const body = '<div class="kcols"><div class="kc-main"><h2 class="sec mt-0">' + K.t("Favorieten") + '</h2>' + (favList.length ? '<div class="mcard">' + favList.map(p => '<div class="li"><div class="n"><b>' + K.esc(p.nom) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + '</span>' + stockTag(p) + '</div>' + pakCaption(p, cart.items[p.id]) + '</div>' + stepperOf(p, cart.items[p.id]) + '<button type="button" class="ibtn fav on" data-fav="' + p.id + '" aria-label="' + K.esc(K.t("Uit favorieten") + ": " + p.nom) + '">' + K.icon("star") + '</button></div>').join("") + '</div>' : K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product in de catalogus."))) + '</div><div class="kc-side">' + stdCard + '</div></div>';
     shell("favorieten", '<div class="mlist">' + body + '</div>', topbar(K.t("Favorieten"), K.t("Snel opnieuw bestellen")));
     bindSteppers(app);
     K.on(app, "click", "[data-fav]", (e, t) => { setFav(t.dataset.fav, false); K.keep(app, renderFavorieten); });
     const s = document.getElementById("stdSave"); if (s) s.onclick = () => { const items = Object.fromEntries(Object.entries(cart.items).filter(([id, qv]) => byId(id) && Number(qv) > 0)); if (!Object.keys(items).length) { K.toast(K.t("Zet eerst artikelen in de winkelmand."), { kind: "err" }); return; } setStd(items); K.toast(K.t("Standaardbestelling opgeslagen")); renderFavorieten(); };
-    const c2 = document.getElementById("stdToCart"); if (c2) c2.onclick = () => { Object.entries(std).forEach(([id, qv]) => { const p = byId(id); if (p) { const v = capQty(p, Number(qv)); if (v > 0) cart.items[id] = v; } }); saveCart(); K.go("winkelmand"); };
+    const c2 = document.getElementById("stdToCart"); if (c2) c2.onclick = () => { Object.entries(std).forEach(([id, qv]) => { const p = byId(id); if (p) { const v = capQty(p, fitQty(p, Number(qv))); if (v > 0) cart.items[id] = v; } }); saveCart(); K.go("winkelmand"); };
   }
 
   /* ---------- account ---------- */

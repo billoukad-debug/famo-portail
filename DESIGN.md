@@ -93,7 +93,7 @@ Chaque page HTML charge `assets/ui.css`, `assets/ui.js` puis son script `assets/
 Menu (figé par les tests, bloc I de `test/workflow/interface.test.js`) :
 
 - **Dagelijks** : Bestellingen · Magazijn · Leveringen (`NAV_DAILY`)
-- **Meer** (personnel) : Invoeren · Documenten (`NAV_STAFF_MORE`) ; **Beheer** (beheerder) : Invoeren · Documenten · Beheer (`NAV_ADMIN`)
+- **Meer** (personnel) : Invoeren · Documenten (`NAV_STAFF_MORE`) ; **Beheer** (beheerder) : Invoeren · Documenten · Rapportage · Beheer (`NAV_ADMIN`, Rapportage = `/beheer/rapportage`, spec 022)
 - **Voorraad** pour tous ; pied : Klantportaal, nom de la personne connectée, Uitloggen. Systeemstatus : beheerder seulement.
 
 Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone, en haut ≥ 720 px) mais la même feuille de style.
@@ -110,6 +110,7 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 | Toast, dialogue, panneau latéral | `K.toast`, `K.confirm`, `K.prompt`, `K.panel` |
 | Icônes : SVG en ligne, trait 1,7, `currentColor` | `K.icon(name)` |
 | Tijdlijn `.tl`, stepper `.stepper`, cases `.check`, barre d'actions `.bulk`, barre panier `.cartbar` | `ui.css` |
+| Graphiques de la Rapportage (spec 022) : SVG en ligne `role="img"` (titre + description), une couleur par graphique (`--p`), comparaison « un an plus tôt » en ligne grise avec points (`--chart-prev`, redéfini en hoog contrast), barres ≤ 24 px à bout arrondi, boutons transparents superposés (≥ 44 px au tactile) avec info-bulle `.rp-tip` au survol et au focus, tableau équivalent sur la page | `.rp-*` dans `ui.css`, `assets/pages/beheer/rapportage.js` |
 
 ---
 

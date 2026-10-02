@@ -1,0 +1,13 @@
+# Tasks: Rapportage
+- [x] T001 Spec, plan (Constitution Check), tâches
+- [x] T002 Tests d'abord : `test/rapportage.test.js` — périodes et comparaison ; totaux sur un jeu connu (creditnota à sa date, deux taux de TVA, régime à 0 %, facture sans ligne chiffrée) ; filtres klant / product / categorie / betaling / q ; période précédente et même période l'an passé ; mois avec zéros ; tri numérique, textes, vides en dernier ; CSV (BOM, `;`, virgule, injection) ; API : 401 sans session, 403 personnel (code et PIN), 405, champs, commandes test exclues ; marge `klant` ; « Betaald » avec le payload de la page (beheerder 200 + journal, personnel 403) ; navigation, page, redirection — en échec avant le code
+- [x] T003 `assets/rapport.js` (module pur)
+- [x] T004 `api/rapportage.js` ; `lib/margin.js` + `api/marge.js` (`klant`)
+- [x] T005 Page `beheer/rapportage.html` + `assets/pages/beheer/rapportage.js` : filtres et URL, KPIs, graphiques SVG, tableaux triables, factures, Betaald, CSV
+- [x] T006 Navigation (`assets/ui.js` `NAV_ADMIN`, icône) ; Beheer : onglet → lien, `#/rapportage` → redirection, ancien code retiré
+- [x] T007 Style `assets/ui.css` (`--chart-prev`, `.rp-*`, hoog contrast, forced-colors) ; `scripts/contrast-check.js`
+- [x] T008 `scripts/check.js` : `assets/pages/beheer/` dans les listes
+- [x] T009 Démo : historique facturé (`scripts/seed.js` option `historie`, `scripts/dev.js`)
+- [x] T010 Audits : `scripts/ux-audit.js` (base, filtre, téléphone), `scripts/kbd-audit.js` (lien, filtre, tri, drill-down)
+- [x] T011 Docs : `AGENTS.md` (022), `README.md`, `DESIGN.md` (menu), `docs/SCHEMA.md`
+- [x] T012 Portes : assets-version, check.js, ESLint 9.39.5, contrast-check, ux-audit puis kbd-audit (serveur reseedé, port 4393) ; captures 1280 / 390 relues

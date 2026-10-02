@@ -33,6 +33,18 @@ needs a recent Node 22.
   020 order by e-mail (Resend Receiving webhook `api/inbound-mail.js`, Svix signature on the raw body,
   `lib/inbound/*`, Claude proposes / server decides via `lib/bestelling.js`, staff queue « Te controleren »
   `api/mailcontrole.js`; local demo `node scripts/mail-inbound-test.js` against `scripts/dev.js`).
+  022 Rapportage as its own page `/beheer/rapportage` (`beheer/rapportage.html`, `assets/pages/beheer/rapportage.js`),
+  in the sidebar for the beheerder only (`NAV_ADMIN`); old `beheer#/rapportage` redirects. Data: `GET /api/rapportage`
+  (admin only: 401 / 403 for staff, test orders excluded) + `/api/marge` (`&klant=`); aggregation in the pure module
+  `assets/rapport.js` (`window.FamoRapport`, tested in Node by `test/rapportage.test.js`, same rules as before: invoice
+  date else delivery date, credit notes at their own date, VAT via `FamoVat`). Inline SVG charts (no library), filters
+  in the URL, sortable tables, drill-down, CSV per view, « Betaald » through the existing `updateorder` action.
+  `scripts/dev.js` seeds 15 months of invoiced history (`seed(db, { historie: true })`; tests unchanged).
+  023 packaging « Verpakking » (Catalogue `Per verpakking` / `Verpakking` / `Enkel per verpakking`): price stays per
+  unit and order lines stay in units (`Eieren × 12 pièce [€1.00]`); the packaging is frozen in `Lignes JSON`
+  (`per`, `verpakking`) and exposed as `verpakking` by allorders / orders / klantdoc; one rule for screen, documents,
+  e-mails, UBL and server in `assets/vat.js` (`FamoVat.pak*`, `K.pak*` in `ui.js`); `lib/bestelling.js` refuses a
+  non-multiple of an « enkel » article (client, Invoeren, e-mail order); demo product « Eieren » (doos van 6, enkel).
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 
@@ -49,7 +61,7 @@ needs a recent Node 22.
 - Lint: `npx -y eslint@9.39.5 .` (pinned; flat config in `eslint.config.js` with the
   `eslint:recommended` rules except `no-useless-escape` and `no-regex-spaces`; server AND
   browser code, vendor excluded).
-- Browser audit: `node scripts/ux-audit.js` against `node scripts/dev.js` (needs Playwright;
+- Browser audit: `node scripts/ux-audit.js` (and `node scripts/parcours-check.js`, client journeys such as favourites across devices) against `node scripts/dev.js` (needs Playwright;
   CI job « Navigateur » installs `playwright@1.56.1` outside the repo and sets `NODE_PATH`).
 - Build: none — nothing is compiled or bundled.
 - Pre-push (from `CONTRIBUER.md`): `node scripts/assets-version.js && node scripts/check.js && npx -y eslint@9.39.5 .`.

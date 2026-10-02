@@ -58,7 +58,7 @@
         state +
         '<div class="drv-adr"><p class="ws-pre">' + K.esc(adr || "Adres onbekend") + '</p>' + (adr ? '<a class="btn btn-o" target="_blank" rel="noopener" href="https://maps.google.com/?q=' + encodeURIComponent(adr.replace(/\n/g, ", ")) + '">' + K.icon("map") + 'Kaart</a>' : "") + S.telLink(kl.tel, kl.tel) + '</div>' +
         (o.notes ? '<div class="drv-note"><b>Nota</b> ' + K.esc(o.notes) + '</div>' : "") +
-        '<h3 class="sec">Af te geven</h3><ul class="drv-lines">' + lines.map(l => '<li><b class="mono">' + K.esc(K.qty(l.qty) + (l.unit ? " " + K.unit(l.unit) : "")) + '</b><span>' + K.esc(l.name) + (l.comment ? ' <span class="quiet">(' + K.esc(l.comment) + ')</span>' : "") + '</span></li>').join("") + '</ul>' +
+        '<h3 class="sec">Af te geven</h3><ul class="drv-lines">' + lines.map(l => '<li><b class="mono">' + K.esc(S.qtyTxt(l.qty, l.unit, K.pakIn(o.verpakking, l.name))) + '</b><span>' + K.esc(l.name) + (l.comment ? ' <span class="quiet">(' + K.esc(l.comment) + ')</span>' : "") + '</span></li>').join("") + '</ul>' +
       '</div>' +
       '<div class="drv-acts">' + main + (!done && nextId ? '<button type="button" class="btn btn-o" id="drvSkip" data-drv="next">Volgende stop</button>' : "") + '</div>' +
       '<div class="drv-nav">' + (i > 0 ? '<button type="button" class="btn btn-ghost" id="drvPrev" data-drv="prev">Vorige stop</button>' : "") + '<button type="button" class="btn btn-ghost" data-act="delivery" data-id="' + o.id + '">' + K.icon("print") + 'Leveringsbon</button>' + (o.statut !== "Facturée" ? S.slotBtn(o, "Leveruur") : "") + '<span class="spacer"></span><button type="button" class="btn btn-ghost" id="drvList" data-mode="lijst">Naar de lijst</button></div>' +
