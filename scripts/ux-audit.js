@@ -10,7 +10,8 @@
 // ACC-06 état « choisi » (.on) exposé (aria-pressed / aria-current / aria-selected / aria-expanded).
 // États visités en plus des pages : fiche commande (team/bestelling.html), Journaal, Magazijn Bord, confirmation de
 // commande, panier rempli, panneaux ouverts (Valideren, Leveruur, fiche client, produit), Leveringen en mode
-// Chauffeur, l'aperçu d'un document, la galerie photo d'un produit (client) et la gestion des photos (Beheer, spec 018).
+// Chauffeur, l'aperçu d'un document, la galerie photo d'un produit (client), la gestion des photos (Beheer, spec 018) et
+// l'aperçu de « Testperiode afsluiten » (Beheer → Systeemstatus, spec 021).
 //
 //   node scripts/dev.js            (autre terminal : portail de dev + données de test)
 //   node scripts/ux-audit.js       (BASE=http://localhost:4200 par défaut ; sortie 1 s'il y a un écart)
@@ -33,7 +34,8 @@ const pages = {
   admin: ["/beheer#/overzicht", "/beheer#/aanvragen", "/beheer#/klanten", "/beheer#/producten", "/beheer#/prijzen", "/beheer#/rapportage", "/beheer#/journaal", "/beheer#/bedrijf", "/beheer#/toegang", "/beheer#/status", "/team/invoeren", "/team/voorraad",
     { name: "/beheer#/klanten · panneau klant", url: "/beheer#/klanten", after: clickAndWait("[data-edit]", 700) },
     { name: "/beheer#/producten · panneau product", url: "/beheer#/producten", after: clickAndWait("[data-new-product]", 700) },
-    { name: "/beheer#/producten · foto's van een product", url: "/beheer#/producten", after: clickAndWait("tr[data-p]:has(img.pthumb)", 900) }],
+    { name: "/beheer#/producten · foto's van een product", url: "/beheer#/producten", after: clickAndWait("tr[data-p]:has(img.pthumb)", 900) },
+    { name: "/beheer#/status · Testperiode afsluiten (voorbeeld)", url: "/beheer#/status", after: clickAndWait("#tpVoorbeeld", 1500) }],
   klant: ["/klant#/catalogus",
     { name: "/klant#/catalogus · galerij van een product", url: "/klant#/catalogus", after: clickAndWait(".prod:has(img.pthumb) .pr-x", 900) }, "/klant#/winkelmand", "/klant#/bestellingen", "/klant#/favorieten", "/klant#/account",
     { name: "/klant#/winkelmand (rempli)", url: "/klant#/winkelmand", before: async p => { await p.evaluate(() => { const c = JSON.parse(sessionStorage.getItem("famoKlantCatalogus") || "{}"); const items = {}; (c.products || []).slice(0, 3).forEach(x => { items[x.id] = 2; }); localStorage.setItem("famoCart:aloha", JSON.stringify({ items, comments: {}, note: "", day: "" })); }); } },

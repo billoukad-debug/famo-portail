@@ -65,7 +65,9 @@ const SCHEMA = {
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
       "Lots": "text",
       // Régime de TVA du client figé au passage en « Facturée » (C-10) ; absent = Normal.
-      "Régime TVA": "select"
+      "Régime TVA": "select",
+      // Commande d'essai archivée (specs/021, lib/testorders.js) : invisible partout, réversible.
+      "Test": "checkbox", "Test gemarkeerd op": "datetime"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],

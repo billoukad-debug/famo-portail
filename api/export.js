@@ -25,6 +25,7 @@ module.exports = async (req, res) => {
     const orderRec = await at(`Commandes/${id}`);
     if (!orderRec || orderRec.error) return res.status(404).json({ error: "Bestelling niet gevonden" });
     const f = orderRec.fields || {};
+    if (require("../lib/testorders").isTest(f)) return res.status(409).json({ error: require("../lib/testorders").REFUS }); // essai archivé : jamais exporté (specs/021)
     if (f["Statut"] !== "Facturée" || !f["Factuurnummer"]) return res.status(409).json({ error: "Enkel een gefactureerde bestelling" });
     // Plusieurs notes par facture (C-08) : &cn=<numéro> choisit la note ; sans numéro, la première (comme avant).
     const notes = __cn.list(f);

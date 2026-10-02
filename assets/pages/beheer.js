@@ -609,7 +609,7 @@
   /* ---------- status ---------- */
   async function status() {
     const st = D.status, c = D.config;
-    page.innerHTML = head("Alles wat het portaal nodig heeft om te draaien", '<button type="button" class="btn btn-o btn-sm" id="recheck">' + K.icon("refresh") + 'Nu controleren</button>') + '<div class="content pt-16"><div class="kpis" id="cards">' + K.c.skeleton(1) + '</div><div id="health"></div><div id="dbcard"></div></div>';
+    page.innerHTML = head("Alles wat het portaal nodig heeft om te draaien", '<button type="button" class="btn btn-o btn-sm" id="recheck">' + K.icon("refresh") + 'Nu controleren</button>') + '<div class="content pt-16"><div class="kpis" id="cards">' + K.c.skeleton(1) + '</div><div id="health"></div><div id="dbcard"></div><div id="testcard"></div></div>';
     const t0 = Date.now(); let api = null, apiMs = 0; try { api = await K.api("/api/config?status=1"); apiMs = Date.now() - t0; } catch (e) { api = { error: e.message }; }
     // Echte toestand (D-03) : /api/health, dezelfde controle als de externe sonde. 503 = niet gezond, maar het antwoord blijft leesbaar.
     let hl = null; try { const r = await fetch("/api/health", { cache: "no-store" }); hl = await r.json().catch(() => null); } catch (e) { hl = null; }
@@ -627,6 +627,7 @@
     page.querySelector("#recheck").onclick = () => render(true);
     secCard();
     dbCard();
+    testCard();
   }
 
   // Beveiliging (A-04, A-14) : wachtwoorden nog in klare tekst en SESSION_SECRET op Vercel.
@@ -646,6 +647,14 @@
   function dbReport(rep) {
     return '<div class="tblwrap"><table class="tbl"><thead><tr><th>Tabel</th><th class="num">Airtable</th><th class="num">Nieuwe database</th><th>Resultaat</th></tr></thead><tbody>' + rep.map(r => '<tr><td>' + K.esc(r.table) + '</td><td class="num mono">' + r.airtable + '</td><td class="num mono">' + r.postgres + '</td><td>' + (r.ok ? '<span class="cell-st c-done">OK</span>' : '<span class="cell-st c-late">Verschil</span>') + (r.onlyAirtable || r.onlyPostgres ? ' <small class="quiet">' + (r.onlyAirtable || 0) + ' enkel Airtable · ' + (r.onlyPostgres || 0) + ' enkel nieuw</small>' : "") + (r.changed ? ' <small class="quiet">' + r.changed + ' gewijzigd (bv. ' + K.esc((r.changedIds || [])[0] || "") + ')</small>' : "") + (r.totalAirtable !== undefined ? ' <small class="quiet">totaal ' + K.eur(r.totalAirtable) + ' / ' + K.eur(r.totalPostgres) + '</small>' : "") + '</td></tr>').join("") + '</tbody></table></div>';
   }
+  // Back-up : de server bewaart het gzip-bestand in delen (max. 4,5 MB per antwoord) ; hier worden ze aan elkaar gezet.
+  // Gedeeld door de kaart Database en « Testperiode afsluiten » (specs/021).
+  const saveBlob = (bytes, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([bytes], { type: "application/gzip" })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+  const b64bytes = b64 => { const bin = atob(b64), out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; };
+  const bytesB64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode.apply(null, u8.subarray(i, i + 32768)); return btoa(s); };
+  const downloadSnap = async (id) => { const chunks = []; let parts = 1, name = "famo-backup.json.gz"; for (let n = 0; n < parts; n++) { const r = await K.api("/api/dbadmin", { json: { action: "download", id, part: n } }); parts = r.parts; name = r.filename || name; chunks.push(b64bytes(r.data)); } saveBlob(new Blob(chunks), name); };
+  // Volledige back-up maken en meteen downloaden (SQL : ook bewaard in de database ; Airtable : rechtstreeks).
+  const backupNow = async () => { const r = await K.api("/api/dbadmin", { json: { action: "export" } }); if (r.inline) saveBlob(b64bytes(r.inline), "famo-backup-airtable-" + new Date().toISOString().slice(0, 10) + ".json.gz"); else await downloadSnap(r.snapshot.id); return r; };
   async function dbCard(withAirtable) {
     const box = page.querySelector("#dbcard"); if (!box) return;
     box.innerHTML = '<div class="card mt-16"><div class="card-h"><h2 class="h2">Database</h2></div><div class="card-b">' + K.c.skeleton(1) + '</div></div>';
@@ -672,11 +681,6 @@
     box.querySelector("#dbCount").onclick = () => dbCard(true);
     const v = box.querySelector("#dbVerify");
     if (v) v.onclick = async () => { K.busy(v, true, "Vergelijken…"); try { const r = await K.api("/api/dbadmin", { json: { action: "verify" } }); out.innerHTML = (r.ok ? K.c.ok("Airtable en de nieuwe database zijn gelijk.") : K.c.warn("Er zijn verschillen: zie de tabel.")) + dbReport(r.report); } catch (e) { out.innerHTML = K.c.error(e.message); } K.busy(v, false); };
-    // Back-up : de server bewaart het gzip-bestand in delen (max. 4,5 MB per antwoord) ; hier worden ze aan elkaar gezet.
-    const saveBlob = (bytes, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([bytes], { type: "application/gzip" })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
-    const b64bytes = b64 => { const bin = atob(b64), out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; };
-    const bytesB64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode.apply(null, u8.subarray(i, i + 32768)); return btoa(s); };
-    const downloadSnap = async (id) => { const chunks = []; let parts = 1, name = "famo-backup.json.gz"; for (let n = 0; n < parts; n++) { const r = await K.api("/api/dbadmin", { json: { action: "download", id, part: n } }); parts = r.parts; name = r.filename || name; chunks.push(b64bytes(r.data)); } saveBlob(new Blob(chunks), name); };
     const restoreSnap = async (id, summary) => {
       const what = summary ? Object.entries(summary.tables || {}).map(([t, n]) => t + " " + n).join(" · ") + " · foto's " + (summary.files || 0) : "deze back-up";
       const typed = await K.prompt({ title: "Database vervangen door de back-up?", text: "ALLES in de database wordt vervangen door: " + what + ". Eerst wordt automatisch een back-up van de huidige inhoud gemaakt. Typ RESTORE om te bevestigen.", placeholder: "RESTORE", yes: "Terugzetten" });
@@ -685,7 +689,7 @@
       catch (e) { out.innerHTML = K.c.error(e.message); }
     };
     const ex = box.querySelector("#dbExport");
-    ex.onclick = async () => { K.busy(ex, true, "Back-up maken…"); try { const r = await K.api("/api/dbadmin", { json: { action: "export" } }); if (r.inline) saveBlob(b64bytes(r.inline), "famo-backup-airtable-" + new Date().toISOString().slice(0, 10) + ".json.gz"); else { await downloadSnap(r.snapshot.id); await dbCard(); } K.toast("Back-up gedownload (" + r.summary.records + " records, " + r.summary.files + " foto's)"); } catch (e) { out.innerHTML = K.c.error(e.message); } K.busy(ex, false); };
+    ex.onclick = async () => { K.busy(ex, true, "Back-up maken…"); try { const r = await backupNow(); if (!r.inline) await dbCard(); K.toast("Back-up gedownload (" + r.summary.records + " records, " + r.summary.files + " foto's)"); } catch (e) { out.innerHTML = K.c.error(e.message); } K.busy(ex, false); };
     // onclick per knop (niet K.on op #dbcard) : dbCard hertekent de kaart, een gedelegeerde listener zou zich opstapelen.
     box.querySelectorAll("[data-snap-dl]").forEach(t => { t.onclick = async () => { K.busy(t, true, "Downloaden…"); try { await downloadSnap(t.dataset.snapDl); } catch (err) { out.innerHTML = K.c.error(err.message); } K.busy(t, false); }; });
     box.querySelectorAll("[data-snap-restore]").forEach(t => { t.onclick = () => restoreSnap(t.dataset.snapRestore, null); });
@@ -710,6 +714,108 @@
       K.busy(cp, true, "Kopiëren…");
       try { const r = await K.api("/api/dbadmin", { json: { action: "copy" } }); K.toast(r.ok ? "Kopie klaar" : "Kopie met verschillen"); await dbCard(); box.querySelector("#dbout").innerHTML = (r.ok ? K.c.ok("Kopie klaar: alle tabellen hebben evenveel regels.") : K.c.warn("Kopie klaar, maar met verschillen.")) + dbReport(r.report); }
       catch (e) { out.innerHTML = K.c.error(e.message); K.busy(cp, false); }
+    };
+  }
+
+  /* ---------- Testperiode afsluiten (specs/021) : lib/beheer/testperiode.js ---------- */
+  // Volgorde : selectie + voorbeeld (niets geschreven) → archiveren als test (omkeerbaar) → back-up → definitief
+  // verwijderen → nummering herstarten. De server rekent de selectie zelf na en controleert back-up en bevestiging.
+  const ST_NL = { "Reçue": "Ontvangen", "Prête": "Klaar", "Sortie en livraison": "Onderweg", "Facturée": "Geleverd", "Annulée": "Geannuleerd" };
+  let tp = { voor: null, behalve: "", data: null, backupAt: 0 };
+  const two = n => String(n).padStart(2, "0");
+  const nrList = l => !l.length ? "geen" : l.length <= 6 ? l.join(", ") : l[0] + " … " + l[l.length - 1] + " (" + l.length + ")";
+  async function testCard() {
+    const box = page.querySelector("#testcard"); if (!box) return;
+    // Standaard « nu », afgerond naar de volgende minuut (het veld kent geen seconden) : ook wat net gemaakt is, telt mee.
+    const d0 = tp.voor ? new Date(tp.voor) : new Date(Math.ceil(Date.now() / 60000) * 60000);
+    const day = d0.getFullYear() + "-" + two(d0.getMonth() + 1) + "-" + two(d0.getDate()), hm = two(d0.getHours()) + ":" + two(d0.getMinutes());
+    box.innerHTML = '<div class="card mt-16"><div class="card-h"><div><h2 class="h2" id="tpTitle">Testperiode afsluiten</h2><p class="sub ws-normal">Bestellingen en documenten uit de testperiode opruimen, zodat het personeel, de klanten en de boekhouding enkel nog echte gegevens zien. Producten, prijzen, voorraadaantallen, klanten, instellingen en medewerkers blijven onaangeroerd.</p></div></div><div class="card-b stack-10">' +
+      '<h3 class="fs-14 m-0">1. Welke bestellingen waren een test?</h3>' +
+      '<div class="d-flex gap-8 f-wrap ai-end">' + K.c.field("Aangemaakt vóór (datum)", K.c.input("tpDag", { type: "date", value: day }), { id: "f_tpDag" }).replace('class="field"', 'class="field fx-150"') +
+      K.c.field("Uur", K.c.input("tpUur", { type: "time", value: hm }), { id: "f_tpUur" }).replace('class="field"', 'class="field fx-130"') +
+      K.c.field("Behalve (referenties, gescheiden door een komma)", K.c.input("tpBehalve", { value: tp.behalve, placeholder: "bv. CMD-2026-0031" }), { id: "f_tpBehalve" }).replace('class="field"', 'class="field fx2-180"') + '</div>' +
+      '<div class="d-flex gap-8 f-wrap"><button type="button" class="btn btn-p btn-sm" id="tpVoorbeeld">Voorbeeld tonen</button></div>' +
+      '<p class="quiet fs-12 m-0">Het voorbeeld verandert niets. Elke stap daarna vraagt nog een bevestiging.</p>' +
+      '<div id="tpOut" aria-live="polite"></div></div></div>';
+    const out = box.querySelector("#tpOut");
+    const voorIso = () => { const dv = box.querySelector("#tpDag").value, tv = box.querySelector("#tpUur").value || "00:00"; const t = new Date(dv + "T" + tv); return dv && !isNaN(t) ? t.toISOString() : ""; };
+    const run = async () => {
+      const iso = voorIso(); K.setErr("f_tpDag", iso ? "" : "Kies een datum."); if (!iso) return;
+      tp.voor = iso; tp.behalve = box.querySelector("#tpBehalve").value;
+      const b = box.querySelector("#tpVoorbeeld"); K.busy(b, true, "Tellen…");
+      try { tp.data = await K.api("/api/onboarding", { json: { action: "testVoorbeeld", voor: iso, behalve: tp.behalve } }); drawTp(out); }
+      catch (e) { out.innerHTML = K.c.error(e.message); }
+      K.busy(b, false);
+    };
+    box.querySelector("#tpVoorbeeld").onclick = run;
+    if (tp.data) await run();
+  }
+  function drawTp(out) {
+    const d = tp.data, s = d.scope, g = d.gearchiveerd, bk = d.backup;
+    const fresh = bk.serverCheck ? bk.vers : Date.now() - tp.backupAt < 30 * 60000;
+    const rows = c => [
+      ["Bestellingen", c.bestellingen ? c.bestellingen + " · " + Object.entries(c.perStatus).map(([k, n]) => (ST_NL[k] || k) + " " + n).join(" · ") + (c.referenties ? " · " + c.referenties.eerste + " … " + c.referenties.laatste : "") : "geen"],
+      ["Facturen (FA)", nrList(c.facturen)], ["Creditnota's (CN)", nrList(c.creditnotas)], ["Leveringsbonnen", String(c.leveringsbonnen)],
+      ["Foto's en handtekeningen", String(c.bestanden)], ["Voorraadbewegingen van deze bestellingen", String(c.voorraadbewegingen)],
+      ["Per klant", c.klanten.length ? c.klanten.map(k => k.naam + " " + k.bestellingen).join(" · ") : "—"],
+      ["Regels in het auditlogboek", c.journaal == null ? "—" : c.journaal + " (blijven bewaard)"]];
+    // Label boven waarde (.kv : twee kolommen, één kolom op de telefoon) : lange nummerlijsten lopen niet buiten beeld.
+    const table = (c, cap) => '<div class="kv" role="group" aria-label="' + K.esc(cap) + '">' + rows(c).map(([k, v]) => '<div><small>' + K.esc(k) + '</small>' + K.esc(v) + '</div>').join("") + '</div>';
+    const nodig = d.nummering.filter(n => n.nodig), blocked = d.nummering.filter(n => !n.magHerstarten);
+    const why = (id, txt) => txt ? '<p class="quiet fs-12 m-0" id="' + id + '">' + K.esc(txt) + '</p>' : "";
+    const purgeWhy = !g.bestellingen ? "Eerst archiveren als test (stap 2)." : !fresh ? "Eerst een back-up maken (stap 3)." : "";
+    const numWhy = !nodig.length ? (blocked.length ? blocked.map(n => n.reden).join(" ") : "Niets te herstarten.") : !fresh ? "Eerst een back-up maken (stap 3)." : "";
+    out.innerHTML =
+      '<h3 class="fs-14 mt-10 mb-6">Voorbeeld: ' + K.plural(s.bestellingen, "bestelling", "bestellingen") + ' in de selectie</h3>' + table(s, "Wat gearchiveerd zou worden") +
+      '<p class="sub m-0 mt-6">Buiten de selectie (blijft zichtbaar): ' + K.plural(d.buiten.bestellingen, "bestelling", "bestellingen") + '.</p>' +
+      '<h3 class="fs-14 mt-14 mb-6">2. Archiveren als test</h3><p class="sub m-0 mb-6">Omkeerbaar. Gearchiveerde bestellingen verdwijnen uit alle lijsten, rapporten, documenten, de klantenportal, herinneringen en exports. Hun nummers blijven bezet tot ze definitief verwijderd zijn.</p>' +
+      '<div class="d-flex gap-8 f-wrap"><button type="button" class="btn btn-p btn-sm" id="tpArch"' + (s.bestellingen ? "" : " disabled aria-describedby=\"tpArchWhy\"") + '>' + (s.bestellingen ? K.plural(s.bestellingen, "bestelling", "bestellingen") + " archiveren als test" : "Archiveren als test") + '</button>' +
+      (g.bestellingen ? '<button type="button" class="btn btn-o btn-sm" id="tpBack">' + K.plural(g.bestellingen, "testbestelling", "testbestellingen") + ' terugzetten</button>' : "") + '</div>' + why("tpArchWhy", s.bestellingen ? "" : "Geen bestellingen in deze selectie.") +
+      (g.bestellingen ? '<p class="sub m-0 mt-6"><b>Nu gearchiveerd als test:</b></p>' + table(g, "Gearchiveerde testbestellingen") : "") +
+      '<h3 class="fs-14 mt-14 mb-6">3. Back-up</h3>' +
+      (fresh ? K.c.ok("Back-up gemaakt" + (bk.laatste ? " om " + K.esc(K.time(bk.laatste)) : "") + ". Bewaar het bestand buiten het portaal.") : K.c.warn("<b>Verplicht vóór verwijderen of nummering herstarten:</b> een back-up van minder dan 30 minuten oud" + (bk.laatste ? " (laatste: " + K.esc(dateTime(bk.laatste)) + ")" : "") + ".")) +
+      '<div class="d-flex gap-8 f-wrap mt-6"><button type="button" class="btn btn-o btn-sm" id="tpBackup">Back-up maken</button></div>' +
+      '<h3 class="fs-14 mt-14 mb-6">4. Definitief verwijderen</h3><p class="sub m-0 mb-6">Onomkeerbaar. Enkel de bestellingen die als test gearchiveerd zijn, met hun foto\'s, handtekeningen en voorraadbewegingen. <b>De voorraadaantallen veranderen niet</b>: de voorraad is opnieuw geteld. Het auditlogboek blijft bewaard en krijgt één samenvattende regel.</p>' +
+      '<div class="d-flex gap-8 f-wrap"><button type="button" class="btn btn-danger btn-sm" id="tpPurge"' + (purgeWhy ? ' disabled aria-describedby="tpPurgeWhy"' : "") + '>' + (g.bestellingen ? K.plural(g.bestellingen, "testbestelling", "testbestellingen") + " definitief verwijderen" : "Definitief verwijderen") + '</button></div>' + why("tpPurgeWhy", purgeWhy) +
+      '<h3 class="fs-14 mt-14 mb-6">5. Nummering herstarten</h3>' +
+      K.c.warn("<b>Alleen als geen enkele van deze testfacturen of creditnota's ooit naar een klant of naar de boekhouder is gegaan.</b> Facturen moeten doorlopend genummerd zijn; een verstuurde factuur annuleer je met een creditnota, je wist ze niet. Vraag het na bij je boekhouder." + (d.facturatie === "portaal" ? " <b>Let op:</b> het portaal maakt hier zelf de facturen (modus Portaal)." : "")) +
+      '<div class="tblwrap mt-6"><table class="tbl"><thead><tr><th scope="col">Reeks</th><th scope="col" class="num">Als test</th><th scope="col" class="num">Andere</th><th scope="col">Volgende</th></tr></thead><tbody>' + d.nummering.map(n => '<tr><td class="mono">' + K.esc(n.serie) + '</td><td class="num mono">' + n.test + '</td><td class="num mono">' + n.echt + '</td><td>' + (n.magHerstarten ? (n.nodig ? '<span class="cell-st c-new">kan terug naar 0001</span>' : '<span class="cell-st c-done">0001</span>') : '<span class="cell-st c-late">loopt door</span>') + '</td></tr>').join("") + '</tbody></table></div>' +
+      '<div class="d-flex gap-8 f-wrap mt-6"><button type="button" class="btn btn-o btn-sm" id="tpNum"' + (numWhy ? ' disabled aria-describedby="tpNumWhy"' : "") + '>Nummering herstarten' + (nodig.length ? " (" + nodig.map(n => n.serie).join(", ") + ")" : "") + '</button></div>' + why("tpNumWhy", numWhy) + '<div id="tpRes" class="mt-6"></div>';
+    const res = out.querySelector("#tpRes");
+    const again = async (msg) => { await testCard(); const r = page.querySelector("#tpRes"); if (r && msg) { r.innerHTML = msg; } const h = page.querySelector("#tpOut h3"); if (h) { h.tabIndex = -1; h.focus(); } };
+    const fail = (b, e) => { res.innerHTML = K.c.error(e.message); K.busy(b, false); };
+    const ar = out.querySelector("#tpArch");
+    if (ar && s.bestellingen) ar.onclick = async () => {
+      if (!(await K.confirm({ title: K.plural(s.bestellingen, "bestelling", "bestellingen") + " archiveren als test?", text: "Ze verdwijnen overal uit beeld (personeel, klanten, documenten, rapporten). Met « Terugzetten » komen ze ongewijzigd terug.", yes: "Archiveren" }))) return;
+      K.busy(ar, true, "Archiveren…");
+      try { const r = await K.api("/api/onboarding", { json: { action: "testArchiveren", voor: d.voor, behalve: d.behalve, verwacht: s.bestellingen } }); K.toast(r.gearchiveerd + " gearchiveerd als test"); await again(K.c.ok(K.plural(r.gearchiveerd, "bestelling", "bestellingen") + " gearchiveerd als test. Controleer Bestellingen en Documenten; daarna kan u ze definitief verwijderen.")); }
+      catch (e) { fail(ar, e); }
+    };
+    const bb = out.querySelector("#tpBack");
+    if (bb) bb.onclick = async () => {
+      if (!(await K.confirm({ title: K.plural(g.bestellingen, "testbestelling", "testbestellingen") + " terugzetten?", text: "Ze worden weer overal zichtbaar, precies zoals voor het archiveren.", yes: "Terugzetten" }))) return;
+      K.busy(bb, true, "Terugzetten…");
+      try { const r = await K.api("/api/onboarding", { json: { action: "testTerugzetten" } }); K.toast(r.teruggezet + " teruggezet"); await again(K.c.ok(K.plural(r.teruggezet, "bestelling", "bestellingen") + " weer zichtbaar.")); }
+      catch (e) { fail(bb, e); }
+    };
+    const bk2 = out.querySelector("#tpBackup");
+    bk2.onclick = async () => { K.busy(bk2, true, "Back-up maken…"); try { const r = await backupNow(); tp.backupAt = Date.now(); K.toast("Back-up gedownload (" + r.summary.records + " records, " + r.summary.files + " foto's)"); await again(K.c.ok("Back-up gemaakt en gedownload. Bewaar het bestand buiten het portaal.")); } catch (e) { fail(bk2, e); } };
+    const pg = out.querySelector("#tpPurge");
+    if (pg && !purgeWhy) pg.onclick = async () => {
+      const typed = await K.prompt({ title: K.plural(g.bestellingen, "testbestelling", "testbestellingen") + " definitief verwijderen?", text: "Dit kan niet ongedaan gemaakt worden (enkel met de back-up). Facturen " + nrList(g.facturen) + ", creditnota's " + nrList(g.creditnotas) + ", " + g.bestanden + " bestand(en) en " + g.voorraadbewegingen + " voorraadbeweging(en) verdwijnen; de voorraadaantallen blijven. Typ " + d.bevestig.verwijderen + " om te bevestigen.", placeholder: d.bevestig.verwijderen, yes: "Definitief verwijderen" });
+      if (typed === null) return;
+      K.busy(pg, true, "Verwijderen…");
+      try { const r = await K.api("/api/onboarding", { json: { action: "testVerwijderen", confirm: typed.trim(), verwacht: g.bestellingen } }); K.toast(r.verwijderd.bestellingen + " testbestellingen verwijderd"); await again(K.c.ok(K.plural(r.verwijderd.bestellingen, "testbestelling", "testbestellingen") + " en " + K.plural(r.verwijderd.voorraadbewegingen, "voorraadbeweging", "voorraadbewegingen") + " verwijderd. De voorraadaantallen zijn niet veranderd.")); }
+      catch (e) { fail(pg, e); }
+    };
+    const nm = out.querySelector("#tpNum");
+    if (nm && !numWhy) nm.onclick = async () => {
+      const list = nodig.map(n => n.serie).join(", ");
+      const typed = await K.prompt({ title: "Nummering herstarten (" + list + ")?", text: "De volgende factuur, creditnota of bestelling van deze reeks krijgt opnieuw nummer 0001. Alleen als geen enkel testdocument ooit naar een klant of de boekhouder is gegaan — vraag het na bij je boekhouder. Typ " + d.bevestig.nummering + " om te bevestigen.", placeholder: d.bevestig.nummering, yes: "Herstarten" });
+      if (typed === null) return;
+      K.busy(nm, true, "Herstarten…");
+      try { const r = await K.api("/api/onboarding", { json: { action: "testNummering", series: nodig.map(n => n.serie), confirm: typed.trim() } }); K.toast("Nummering herstart"); await again(K.c.ok("Herstart: " + r.herstart.map(h => K.esc(h.serie) + " → volgende " + K.esc(h.serie) + "-0001").join(" · ") + ".")); }
+      catch (e) { fail(nm, e); }
     };
   }
 

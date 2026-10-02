@@ -20,7 +20,8 @@ module.exports = async (req, res) => {
     const ref = String(q.ref || "").slice(0, 40);
     if (!ref) return res.status(400).json({ error: "Referentie ontbreekt" });
     const found = await at(`Commandes?filterByFormula=${encodeURIComponent(`{Référence}='${escapeFormula(ref)}'`)}&maxRecords=10`);
-    const rec = ((found && found.records) || []).find(r => (r.fields["Client"] || []).includes(client.id));
+    // Commande d'essai archivée (specs/021) : introuvable pour le client.
+    const rec = require("../lib/testorders").real(found && found.records).find(r => (r.fields["Client"] || []).includes(client.id));
     if (!rec) return res.status(404).json({ error: "Bestelling niet gevonden" });
     const f = rec.fields || {};
     if (f["Statut"] === "Annulée") return res.status(409).json({ error: "Deze bestelling is geannuleerd: er zijn geen documenten." });

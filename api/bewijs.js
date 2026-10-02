@@ -49,6 +49,7 @@ async function handler(req, res) {
     return res.status(nf ? 404 : 500).json({ error: nf ? "Bestelling niet gevonden" : "Bestelling onleesbaar" });
   }
   const f = cur.fields || {};
+  if (require("../lib/testorders").isTest(f)) return res.status(409).json({ error: require("../lib/testorders").REFUS }); // essai archivé (specs/021)
   const uitz = String(f["Uitzondering levering"] || "");
   // Livrée (confirmée) ou non livrée avec une exception à la porte (absent, refusé) : la preuve documente les deux.
   if (!f["Livraison confirmée"] && uitz !== "Geweigerd" && uitz !== "Afwezig") {

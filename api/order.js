@@ -160,7 +160,8 @@ module.exports = async (req, res) => {
       const today0 = __lev.brusselsToday();
       const f = encodeURIComponent(`AND({Date}='${today0}',{Statut}!='Annulée')`);
       const recent = await at(`Commandes?filterByFormula=${f}`);
-      const mine = ((recent && recent.records) || []).filter(r => (r.fields["Client"] || []).includes(clientId));
+      // Une commande d'essai archivée (specs/021) n'est ni un doublon ni une réponse idempotente.
+      const mine = require("../lib/testorders").real(recent && recent.records).filter(r => (r.fields["Client"] || []).includes(clientId));
       const same = mine.find(r => r.fields["Idempotentie"] === key);
       if (same) return res.status(200).json({ ref: same.fields["Référence"], id: same.id, total: same.fields["Total"], duplicate: true });
       const twin = mine.find(r => r.fields["Lignes (produits / quantités)"] === order.lignes && (r.fields["Date livraison souhaitée"] || "") === dateLivraison);
