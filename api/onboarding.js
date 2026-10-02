@@ -53,7 +53,7 @@ const handler = async (req, res) => {
 // Journal d'audit (lib/journal.js, moteur SQL) : chaque action Beheer réussie, avec l'état de
 // l'enregistrement avant → après (prix de base, IBAN, taux de TVA, archivage, suppressions…).
 // Codes, PIN et mots de passe : jamais la valeur, seulement « gewijzigd ».
-const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", saveClient: "Clients", checkVies: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
+const TARGET = { saveProduct: "Catalogue", deleteProduct: "Catalogue", uploadFoto: "Catalogue", setFotos: "Catalogue", saveClient: "Clients", checkVies: "Clients", archiveClient: "Clients", unarchiveClient: "Clients",
   resetPassword: "Clients", revokeAccess: "Clients", saveMedewerker: "Medewerkers", deleteMedewerker: "Medewerkers", closeAanvraag: "Aanvragen", deletePrice: "Prix négociés",
   saveKlantgebruiker: "Klantgebruikers", resetKlantgebruiker: "Klantgebruikers", deleteKlantgebruiker: "Klantgebruikers" };
 module.exports = async (req, res) => {

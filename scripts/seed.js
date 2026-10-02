@@ -1,8 +1,55 @@
 "use strict";
 // Testgegevens voor de lokale nabootsing: dezelfde vorm als de echte base.
+const zlib = require("zlib");
 function isoDaysAgo(n) { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); }
 
-function seed(db) {
+// ---- Photos de démo (spec 018) : PNG dessinés ici (zlib intégré), sans fichier ni dépendance ----
+const CRC = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+function crc32(buf) { let c = 0xffffffff; for (const b of buf) c = CRC[(c ^ b) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+function chunk(type, data) {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const td = Buffer.concat([Buffer.from(type, "latin1"), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td));
+  return Buffer.concat([len, td, crc]);
+}
+// px(x, y) -> [r, g, b] ; renvoie le PNG en base64.
+function png(w, h, px) {
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) { raw[y * (w * 3 + 1)] = 0; for (let x = 0; x < w; x++) { const [r, g, b] = px(x, y); const o = y * (w * 3 + 1) + 1 + x * 3; raw[o] = r; raw[o + 1] = g; raw[o + 2] = b; } }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(raw, { level: 9 })), chunk("IEND", Buffer.alloc(0))]).toString("base64");
+}
+const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+// Een « vis » (ellips + staart) op ijs ; view 0 = heel, 1 = close-up, 2 = drie stuks op een rij.
+function demoFoto(body, view) {
+  const S = 320, ice = [228, 235, 235], ice2 = [205, 218, 220], dark = mix(body, [14, 34, 41], 0.45);
+  const fish = (x, y, cx, cy, s) => {
+    const dx = (x - cx) / s, dy = (y - cy) / s;
+    if (dx * dx / 1.0 + dy * dy / 0.16 <= 1) return (dx - 0.55) ** 2 + (dy + 0.08) ** 2 < 0.004 ? [14, 34, 41] : dy > 0.12 ? mix(body, [255, 255, 255], 0.35) : body;
+    if (dx < -0.9 && dx > -1.45 && Math.abs(dy) < (-0.9 - dx) * 0.9) return dark;
+    return null;
+  };
+  return png(S, S, (x, y) => {
+    const bg = mix(ice, ice2, (x + y) / (2 * S)), shade = ((x * 7 + y * 13) % 29 === 0) ? mix(bg, [255, 255, 255], 0.5) : bg;
+    if (view === 0) return fish(x, y, 190, 165, 110) || shade;
+    if (view === 1) return fish(x, y, 120, 175, 260) || shade;
+    return fish(x, y, 170, 80, 70) || fish(x, y, 170, 165, 70) || fish(x, y, 170, 250, 70) || shade;
+  });
+}
+const DEMO_FOTOS = { "Saumon frais": [[240, 128, 96], 3], "Cabillaud": [[214, 206, 190], 2], "Zeebaars heel 400-600": [[150, 164, 170], 1], "VANNAMEI GARNALEN GEPELD 16/20": [[238, 150, 110], 3], "VANNAMEI GARNALEN GEPELD 26/30": [[236, 160, 120], 2], "Tonijn sashimi blok": [[176, 48, 56], 1] };
+function addDemoFotos(db, products) {
+  const patch = [];
+  for (const p of products) {
+    const d = DEMO_FOTOS[p.fields["Produit"]]; if (!d) continue;
+    const slug = p.fields["Produit"].toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    patch.push({ id: p.id, fields: { "Foto": Array.from({ length: d[1] }, (_, v) => db.addFile(p.id, "image/png", slug + "-" + (v + 1) + ".png", demoFoto(d[0], v))) } });
+  }
+  db.update("Catalogue", patch, false);
+}
+
+// opts.fotos : photos de démo (scripts/dev.js). Les tests n'en ont pas : ils recopient data vers
+// SQLite sans les fichiers.
+function seed(db, opts) {
   db.reset();
   const [cfg] = db.create("Configuratie", [{
     "Bedrijfsnaam": "FAMO Seafood", "Adres": "Jezusstraat 34", "Postcode en plaats": "2000 Antwerpen, België", "BTW-nummer": "BE 0788.705.713",
@@ -16,15 +63,16 @@ function seed(db) {
     { "Produit": "Zeebaars heel 400-600", "Prix de base": 14.9, "Unité": "kg", "Catégorie": "Poisson", "Actif": true },
     { "Produit": "Moules (caisse)", "Prix de base": 28, "Unité": "caisse", "Catégorie": "Coquillages", "Actif": true },
     { "Produit": "Crevettes grises", "Prix de base": 35, "Unité": "kg", "Catégorie": "Crustacés", "Actif": true },
-    { "Produit": "VANNAMEI GARNALEN 26-30", "Prix de base": 12.9, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true },
-    { "Produit": "VANNAMEI GARNALEN 16-20 EP", "Prix de base": 13.9, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true },
+    { "Produit": "VANNAMEI GARNALEN 26-30", "Prix de base": 12.9, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true, "Kaliber": "26/30" },
+    { "Produit": "VANNAMEI GARNALEN 16-20 EP", "Prix de base": 13.9, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true, "Kaliber": "16/20" },
     { "Produit": "VANNAMEI GARNALEN GEPELD 16/20", "Prix de base": 12.9, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true, "Kaliber": "16/20" },
-    { "Produit": "VANNAMEI GARNALEN GEPELD 26/30", "Prix de base": 11, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true },
+    { "Produit": "VANNAMEI GARNALEN GEPELD 26/30", "Prix de base": 11, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true, "Kaliber": "26/30" },
     { "Produit": "Scampi", "Prix de base": 15, "Unité": "caisse", "Catégorie": "Algemeen", "Actif": true },
     { "Produit": "Oesters Zeeuwse creuse nr. 3", "Prix de base": 0.85, "Unité": "pièce", "Catégorie": "Coquillages", "Actif": true },
     { "Produit": "Tonijn sashimi blok", "Prix de base": 29.9, "Unité": "kg", "Catégorie": "Poisson", "Actif": true },
     { "Produit": "Vis (oud artikel)", "Prix de base": 3, "Unité": "caisse", "Catégorie": "Algemeen", "Actif": false }
   ]);
+  if (opts && opts.fotos) addDemoFotos(db, products);
   const P = (name) => products.find((p) => p.fields["Produit"] === name);
   db.create("Stock", products.filter((p) => p.fields["Actif"]).map((p, i) => ({ "Produit": p.fields["Produit"], "Quantité disponible": [12, 8, 6, 3, 1, 20, 14, 9, 7, 5, 200, 4][i] || 5, "Seuil bas": 4 })));
   const clients = db.create("Clients", [

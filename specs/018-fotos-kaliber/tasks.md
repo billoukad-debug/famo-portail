@@ -1,0 +1,12 @@
+# Tasks: Foto's (meerdere zichten) en volgorde per kaliber
+- [x] T001 Spec, plan (Constitution Check), tâches
+- [x] T002 Tests d'abord : `test/fotos.test.js` (uploadFoto add / plafond 6 / type ; setFotos ordre, suppression des fichiers, ids inconnus ignorés, personnel et sans session refusés, garde ; moteur `[{id}]` ; réponses Beheer, catalogue, stock, Invoeren) et `test/kaliber.test.js` (`K.kaliberKey`, `K.byNameKaliber`, `K.kaliberOrder`) — en échec avant le code
+- [x] T003 Serveur : `lib/photo.js` (`photoUrls`, `photoList`), `lib/beheer/producten.js` (`add`, `setFotos`), `lib/at-engine.js` (ajout, `[{id}]`), journal (`api/onboarding.js` TARGET, `lib/journal.js` pièces jointes lisibles)
+- [x] T004 Lecture : `lib/beheer/common.js` (`fotos`), `api/catalogue.js` (`fotos`), `api/stock.js` (`foto`, `kaliber`), `api/staff.js` (`foto`)
+- [x] T005 Données : `docs/SCHEMA.md`, `scripts/fake-airtable.js` (ajout, `[{id}]`, fichiers), `scripts/dev.js` + `scripts/dev-server.js` (fichiers de démo servis), `scripts/seed.js` (2–3 vues sur quelques produits)
+- [x] T006 `assets/ui.js` : `K.kaliberKey`, `K.byNameKaliber`, `K.kaliberOrder`, `K.thumb` ; FR : « Foto {i} van {n} », « Foto's van {p} »
+- [x] T007 Client : vignette en tête de ligne (téléphone et ordinateur), galerie du détail (scroll-snap, ← →, `aria-current`, image cassée masquée)
+- [x] T008 Personnel : Voorraad (vignette, colonne Kaliber, tri nom → kaliber), Invoeren (vignette)
+- [x] T009 Beheer : gestion des 6 photos dans la fiche produit, « Sorteer op kaliber » (confirmation, `reorderProducts`)
+- [x] T010 Audits : galerie ouverte dans `ux-audit` ; captures 1280 / 390 relues
+- [x] T011 Portes : assets-version, check.js, ESLint, contrast-check, ux-audit → kbd-audit (données neuves)

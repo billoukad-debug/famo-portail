@@ -75,10 +75,12 @@ function vercelRedirect(pathname, search) {
 // cleanUrls : /team/magazijn sert team/magazijn.html, /team/magazijn.html redirige vers /team/magazijn.
 function serveStatic(res, urlPath, search) {
   let rel = decodeURIComponent(urlPath);
-  const r = vercelRedirect(rel, search || "");
-  if (r) return redirect(res, r.to, r.code);
+  // Même ordre que Vercel : trailingSlash et cleanUrls (x.html → x) d'abord, puis les redirections de vercel.json.
+  // Une source « /x.html » n'y est donc jamais atteinte : les anciennes adresses se redirigent par « /x ».
   if (rel.length > 1 && rel.endsWith("/")) return redirect(res, rel.replace(/\/+$/, "") + (search || ""), 308);
   if (VERCEL.cleanUrls && rel.endsWith(".html")) return redirect(res, (rel.replace(/(\/index)?\.html$/, "") || "/") + (search || ""), 308);
+  const r = vercelRedirect(rel, search || "");
+  if (r) return redirect(res, r.to, r.code);
   if (rel === "/" || rel === "") rel = "/index.html";
   else if (VERCEL.cleanUrls && !path.extname(rel)) rel = fs.existsSync(path.join(root, rel + ".html")) ? rel + ".html" : rel + "/index.html";
   // Empêche la traversée de répertoire.
@@ -123,6 +125,9 @@ const server = http.createServer(async (req, res) => {
       req.body = undefined;
     }
     try {
+      // node scripts/dev.js sur le faux Airtable : ses fichiers de pièces jointes (spec 018).
+      const dev = globalThis.__famoDev;
+      if (name === "foto" && dev && dev.serveFile && /^(GET|HEAD)$/.test(req.method) && (await dev.serveFile(req, res, req.query.id))) return;
       const handler = require(handlerPath);
       await handler(req, res);
     } catch (e) {

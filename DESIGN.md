@@ -72,7 +72,7 @@ Titre « Vóór 22:00 besteld, morgen in uw keuken. » (heure limite lue dans la
 
 ## Appareils
 
-- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Les lignes produit affichent la photo (`Foto`, envoyée depuis Beheer) au dépliage, une vignette neutre sinon.
+- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Chaque ligne produit commence par une vignette carrée de 44 px (photo principale, icône neutre sans photo ; `K.thumb`, aussi dans Voorraad, Invoeren et Beheer) ; le dépliage montre la galerie de toutes les vues (jusqu'à 6, `Foto`, envoyées depuis Beheer) : grande image qu'on fait glisser (scroll-snap), vignettes-boutons « Foto 2 van 3 », ← → au clavier, pas d'animation au survol (spec 018).
 - **Personnel** : tablette au magasin (820), téléphone en tournée (390), ordinateur au bureau (1280). Barre latérale 240px → rail 88px (≤ 1180px) → bandeau horizontal (≤ 720px). Cibles ≥ 44px, y compris les cases à cocher (zone 44px, case visible 22px).
 - **Bestellingen** : un appui sur une commande la déplie, un second ouvre sa page.
 
@@ -133,7 +133,7 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 2. **Documents A4** : redessinés (spec 012) — fournisseur et client à gauche, titre et faits à droite, taux de TVA par ligne, récapitulatif par taux, paiement, mentions, pied légal ; `@page` A4 et en-tête de tableau répété à l'impression. Reste : le PDF (html2pdf, capture) ne répète pas l'en-tête de tableau ; numéros de page absents.
 3. **E-mails** : gabarit commun (spec 012). Reste : pas de thème sombre dédié (il faudrait un `<style>`, refusé par Gmail replié et par les tests) ; vérifier sur de vrais clients (Litmus ou boîtes de test) — seul un rendu Chromium a été relu.
 4. **Logo** : le F sobre (spec 007) sert de marque, favicon, icône d'app et en-tête de document. Reste à décider : un mot-symbole « FAMO Seafood » dessiné, ou le nom en texte comme aujourd'hui.
-5. **Styles en ligne** : 264 `style="` dans le JavaScript des pages au 01/10/2026 (234 déjà migrés vers les utilitaires I-12 de `ui.css`), une quinzaine dans les pages HTML et le bloc `<style>` de `klant.html` : à déplacer dans `ui.css`.
+5. **Styles en ligne** : migrés (spec 017, 307 → 13 `style="`, rendu vérifié identique au pixel) ; restent 6 valeurs calculées, 3 états pilotés par `el.style` et la verzamellijst autonome ; plafond surveillé par `check.js`. Reste le bloc `<style>` de `klant.html` à déplacer dans `ui.css`.
 6. **Design system sur claude.ai** (« FAMO Portail Design System ») : il porte encore « Famo Trading » et les valeurs d'avant Crème. À resynchroniser sur ce dépôt.
 
 # Ce qu'il ne faut pas faire

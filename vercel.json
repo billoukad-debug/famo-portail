@@ -136,17 +136,17 @@
       "permanent": false
     },
     {
-      "source": "/aan-de-slag.html",
+      "source": "/aan-de-slag",
       "destination": "/beheer",
       "permanent": true
     },
     {
-      "source": "/dagprep.html",
+      "source": "/dagprep",
       "destination": "/team/magazijn?view=dag",
       "permanent": true
     },
     {
-      "source": "/overzicht.html",
+      "source": "/overzicht",
       "destination": "/team/bestellingen",
       "permanent": true
     },
@@ -197,56 +197,6 @@
     },
     {
       "source": "/beheer-login",
-      "destination": "/beheer/aanmelden",
-      "permanent": true
-    },
-    {
-      "source": "/personeel.html",
-      "destination": "/team/aanmelden",
-      "permanent": true
-    },
-    {
-      "source": "/bestellingen.html",
-      "destination": "/team/bestellingen",
-      "permanent": true
-    },
-    {
-      "source": "/entrepot.html",
-      "destination": "/team/magazijn",
-      "permanent": true
-    },
-    {
-      "source": "/leveringen.html",
-      "destination": "/team/leveringen",
-      "permanent": true
-    },
-    {
-      "source": "/invoer.html",
-      "destination": "/team/invoeren",
-      "permanent": true
-    },
-    {
-      "source": "/documenten.html",
-      "destination": "/team/documenten",
-      "permanent": true
-    },
-    {
-      "source": "/stock.html",
-      "destination": "/team/voorraad",
-      "permanent": true
-    },
-    {
-      "source": "/lots.html",
-      "destination": "/team/lots",
-      "permanent": true
-    },
-    {
-      "source": "/order.html",
-      "destination": "/team/bestelling",
-      "permanent": true
-    },
-    {
-      "source": "/beheer-login.html",
       "destination": "/beheer/aanmelden",
       "permanent": true
     }

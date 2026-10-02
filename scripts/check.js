@@ -67,6 +67,18 @@ if (!fr) ok("Néerlandais : unités traduites (caisse → kassa)");
 const pagesStart = errors.length;
 for (const f of htmlPages) { const html = read(f); if (/<meta http-equiv="refresh"/i.test(html)) continue; if (!html.includes("/assets/ui.css") || !html.includes("/assets/ui.js")) fail(f + " ne charge pas assets/ui.css + assets/ui.js"); if (!/viewport/.test(html)) fail(f + " sans meta viewport"); }
 if (!failsSince(pagesStart)) ok("Pages : couche partagée + viewport");
+// 6b. Styles en ligne (constitution I, spec 017) : un style="…" statique va dans assets/ui.css (utilitaires I-12).
+// Restent permis : les valeurs calculées (concaténation ' + / " + : couleur, largeur…) et le plafond ci-dessous
+// (verzamellijst = document autonome sans ui.css ; #fUitzNota / #vAdd et #otherDay pilotés par el.style dans le JS).
+{
+  const CEILING = 7, found = [];
+  for (const f of [...htmlPages, "assets/ui.js", ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/)]) {
+    const re = /style=\\?"([^"\\]*)/g; let m; const s = read(f);
+    while ((m = re.exec(s))) if (!/['"] \+/.test(m[1])) found.push(f + " : style=\"" + m[1] + "\"");
+  }
+  if (found.length > CEILING) fail("Styles en ligne statiques : " + found.length + " (plafond " + CEILING + ") — utiliser une classe de assets/ui.css :\n  " + found.join("\n  "));
+  else ok("Styles en ligne statiques : " + found.length + " (plafond " + CEILING + ", valeurs calculées exclues)");
+}
 
 // 7. Tests unitaires (Node --test) s'il y en a.
 { const r = require("child_process").spawnSync(process.execPath, [path.join(ROOT, "scripts", "assets-version.js"), "--check"], { cwd: ROOT, encoding: "utf8" }); if (r.status !== 0) fail("Versions des fichiers statiques périmées : lancer node scripts/assets-version.js\n" + (r.stderr || "")); else ok("Versions des fichiers statiques (cache) à jour"); }

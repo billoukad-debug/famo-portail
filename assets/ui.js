@@ -56,7 +56,7 @@
     "Niets gevonden voor": "Aucun résultat pour", "Nog geen favorieten": "Pas encore de favoris", "Probeer een ander woord of kies een categorie.": "Essayez un autre mot ou choisissez une catégorie.",
     "Tik op de ster bij een product om het hier te zien.": "Touchez l'étoile d'un produit pour le voir ici.", "Tik op de ster bij een product in de catalogus.": "Touchez l'étoile d'un produit dans le catalogue.",
     // winkelmand
-    "Categorieën": "Catégories", "Product": "Produit", "Kaliber": "Calibre", "Eenheid": "Unité", "Prijs excl. btw": "Prix HTVA", "Categorie": "Catégorie", "Beschikbaar": "Disponible", "Bestellen per": "Commander par", "0,5 kg": "0,5 kg", "Opmerking bij dit artikel": "Remarque pour cet article", "bv. dikke moot…": "ex. tranche épaisse…", "Nog niets gekozen. Gebruik + bij een product.": "Rien choisi pour l’instant. Utilisez + sur un produit.", "{p} verwijderd": "{p} retiré", "Ongedaan maken": "Annuler", "Verwijderen": "Retirer",
+    "Categorieën": "Catégories", "Product": "Produit", "Kaliber": "Calibre", "Eenheid": "Unité", "Prijs excl. btw": "Prix HTVA", "Categorie": "Catégorie", "Beschikbaar": "Disponible", "Bestellen per": "Commander par", "0,5 kg": "0,5 kg", "Opmerking bij dit artikel": "Remarque pour cet article", "Foto {i} van {n}": "Photo {i} sur {n}", "Foto's van {p}": "Photos de {p}", "bv. dikke moot…": "ex. tranche épaisse…", "Nog niets gekozen. Gebruik + bij een product.": "Rien choisi pour l’instant. Utilisez + sur un produit.", "{p} verwijderd": "{p} retiré", "Ongedaan maken": "Annuler", "Verwijderen": "Retirer",
     "Winkelmand": "Panier", "Leegmaken": "Vider", "Opmerking (bv. dikke moot)": "Remarque (ex. tranche épaisse)", "Leverdag": "Jour de livraison", "Andere dag": "Autre jour",
     "Geen levering op zondag. Vóór 22:00 besteld = morgen geleverd.": "Pas de livraison le dimanche. Commandé avant 22 h = livré demain.",
     "Leveradres": "Adresse de livraison", "Adres bij Famo bekend": "Adresse connue de Famo", "Ander adres? Zet het in de opmerking.": "Autre adresse ? Indiquez-la dans la remarque.",
@@ -231,6 +231,44 @@
   K.byVolgorde = (a, b) => VO(a) - VO(b) || String(a.nom || "").localeCompare(String(b.nom || ""), "nl");
   K.catOrder = (products, keyOf) => { const m = new Map(); (products || []).forEach(p => { const k = keyOf(p); m.set(k, Math.min(m.has(k) ? m.get(k) : 1e9, VO(p))); }); return (a, b) => (m.has(a) ? m.get(a) : 1e9) - (m.has(b) ? m.get(b) : 1e9) || String(a).localeCompare(String(b), "nl"); };
   K.cat = v => { const k = String(v || "").trim().toLowerCase(); return dict().cat[k] || String(v || "").trim() || K.t("Algemeen"); };
+  /* ---- Kaliber (spec 018) : « 8/12 » < « 13/15 » < « 16/20 » < « 21/25 » ; « U10 » / « U/10 » (onder 10)
+     eerst ; « 1-2 kg » volgens het eerste getal ; zonder getal na de getallen (alfabetisch) ; leeg laatst. */
+  const NUMC = typeof Intl !== "undefined" && Intl.Collator ? new Intl.Collator("nl", { numeric: true, sensitivity: "base" }) : null;
+  const cmpText = (a, b) => (NUMC ? NUMC.compare(String(a || ""), String(b || "")) : String(a || "").localeCompare(String(b || ""), "nl"));
+  const kNum = s => Number(String(s).replace(",", "."));
+  K.kaliberKey = s => {
+    const t = String(s == null ? "" : s).trim().toLowerCase();
+    if (!t) return { rank: 3, n1: 0, n2: 0, text: "" };
+    const u = /^u\s*\/?\s*(\d+(?:[.,]\d+)?)/.exec(t);
+    if (u) return { rank: 0, n1: kNum(u[1]), n2: 0, text: t };
+    const m = /(\d+(?:[.,]\d+)?)(?:\s*[/-]\s*(\d+(?:[.,]\d+)?))?/.exec(t);
+    if (m) return { rank: 1, n1: kNum(m[1]), n2: m[2] ? kNum(m[2]) : kNum(m[1]), text: t };
+    return { rank: 2, n1: 0, n2: 0, text: t };
+  };
+  K.cmpKaliber = (a, b) => { const x = K.kaliberKey(a), y = K.kaliberKey(b); return x.rank - y.rank || x.n1 - y.n1 || x.n2 - y.n2 || (x.rank === 2 ? cmpText(x.text, y.text) : 0); };
+  // Kaliber in de naam (« Scampi 16/20 », « Zeebaars heel 400-600 », « Scampi U10 ») : voor de groepering weggelaten.
+  const KAL_IN_NAME = /(^|[\s(])(u\s*\/?\s*\d+|\d+(?:[.,]\d+)?\s*[/-]\s*\d+(?:[.,]\d+)?)(?=$|[\s)])/gi;
+  const baseName = n => String(n || "").toLowerCase().replace(KAL_IN_NAME, "$1").replace(/\s+/g, " ").trim();
+  const nameKal = n => { const m = new RegExp(KAL_IN_NAME.source, "i").exec(String(n || "")); return m ? m[2] : ""; };
+  const kalOf = p => (p && p.kaliber) || nameKal(p && (p.nom != null ? p.nom : p.product));
+  const nameOf = p => String((p && (p.nom != null ? p.nom : p.product)) || "");
+  // Naam (zonder hoofdletters, getallen numeriek), dan kaliber : voor producten ({nom}) en voorraadregels ({product}).
+  K.byNameKaliber = (a, b) => cmpText(baseName(nameOf(a)), baseName(nameOf(b))) || K.cmpKaliber(kalOf(a), kalOf(b)) || cmpText(nameOf(a), nameOf(b));
+  // « Sorteer op kaliber » (Beheer) : per categorie (huidige volgorde) blijven de namen in de volgorde van hun
+  // eerste verschijning ; producten met dezelfde naam komen naast elkaar, kaliber oplopend, dan de naam
+  // numeriek. Geeft de volledige lijst van ids (voor reorderProducts).
+  K.kaliberOrder = products => {
+    const all = (products || []).slice().sort(K.byVolgorde), catKey = p => K.cat(p.cat);
+    const cats = Array.from(new Set(all.map(catKey))).sort(K.catOrder(all, catKey)), out = [];
+    cats.forEach(c => {
+      const list = all.filter(p => catKey(p) === c), first = new Map();
+      list.forEach((p, i) => { const k = baseName(p.nom); if (!first.has(k)) first.set(k, i); });
+      list.map((p, i) => ({ p, i, g: first.get(baseName(p.nom)) }))
+        .sort((a, b) => a.g - b.g || K.cmpKaliber(kalOf(a.p), kalOf(b.p)) || cmpText(a.p.nom, b.p.nom) || a.i - b.i)
+        .forEach(x => out.push(x.p.id));
+    });
+    return out;
+  };
   K.STATUSES = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
   K.CANCELLED = "Annulée";
   // Une bestelling « afgesloten » n'est plus à préparer ni à livrer : gefactureerd of geannuleerd.
@@ -442,16 +480,22 @@
     refresh: '<path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-4M4 14a8 8 0 0014 4"/>'
   };
   K.icon = (name, cls) => '<svg class="ico' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true">' + (I[name] || I.doc) + '</svg>';
+  // Vignette produit (spec 018) : la photo principale, ou une icône neutre. Légère pour des listes de
+  // centaines de produits (lazy, décodage asynchrone, taille posée). alt : vide par défaut (le nom du
+  // produit est écrit à côté) ; une photo cassée ou expirée devient l'icône (écouteur plus bas).
+  K.thumbPh = cls => '<span class="pthumb pthumb-ph' + (cls ? " " + cls : "") + '" aria-hidden="true">' + K.icon("fish") + '</span>';
+  K.thumb = (url, alt, cls) => url ? '<img class="pthumb' + (cls ? " " + cls : "") + '" src="' + K.esc(url) + '" alt="' + K.esc(alt || "") + '" width="44" height="44" loading="lazy" decoding="async" data-thumb>' : K.thumbPh(cls);
+  if (document.addEventListener) document.addEventListener("error", e => { const t = e.target; if (t && t.tagName === "IMG" && t.hasAttribute("data-thumb")) { t.removeAttribute("data-thumb"); t.outerHTML = K.thumbPh(t.className.replace(/\bpthumb\b/, "").trim()); } }, true);
 
   /* ---------- componenten ---------- */
   const c = {};
-  c.field = (label, inputHtml, opts) => { const o = Object.assign({}, opts); if (!o.for) { const m = /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"/.exec(inputHtml || ""); if (m) o.for = m[1]; } return '<div class="field"' + (o.id ? ' id="' + o.id + '"' : "") + '><label' + (o.for ? ' for="' + o.for + '"' : "") + '>' + K.esc(label) + (o.req ? ' <span style="color:var(--danger)">*</span>' : "") + '</label>' + inputHtml + (o.hint ? '<span class="quiet" style="font-size:12px">' + K.esc(o.hint) + '</span>' : "") + '<span class="err" data-err></span></div>'; };
-  c.input = (id, opts) => { const o = opts || {}; return '<input class="input" id="' + id + '" type="' + (o.type || "text") + '"' + (o.value != null ? ' value="' + K.esc(o.value) + '"' : "") + (o.placeholder ? ' placeholder="' + K.esc(o.placeholder) + '"' : "") + (o.attrs || "") + '>'; };
-  c.empty = (title, text, action) => '<div class="state"><div class="ic">' + K.icon("orders") + '</div><b>' + K.esc(title) + '</b>' + (text ? '<p class="sub" style="max-width:320px;white-space:normal">' + K.esc(text) + '</p>' : "") + (action || "") + '</div>';
+  c.field = (label, inputHtml, opts) => { const o = Object.assign({}, opts); if (!o.for) { const m = /<(?:input|select|textarea)\b[^>]*\bid="([^"]+)"/.exec(inputHtml || ""); if (m) o.for = m[1]; } return '<div class="field"' + (o.id ? ' id="' + o.id + '"' : "") + '><label' + (o.for ? ' for="' + o.for + '"' : "") + '>' + K.esc(label) + (o.req ? ' <span class="t-danger">*</span>' : "") + '</label>' + inputHtml + (o.hint ? '<span class="quiet fs-12">' + K.esc(o.hint) + '</span>' : "") + '<span class="err" data-err></span></div>'; };
+  c.input = (id, opts) => { const o = opts || {}; return '<input class="input' + (o.cls ? " " + o.cls : "") + '" id="' + id + '" type="' + (o.type || "text") + '"' + (o.value != null ? ' value="' + K.esc(o.value) + '"' : "") + (o.placeholder ? ' placeholder="' + K.esc(o.placeholder) + '"' : "") + (o.attrs || "") + '>'; };
+  c.empty = (title, text, action) => '<div class="state"><div class="ic">' + K.icon("orders") + '</div><b>' + K.esc(title) + '</b>' + (text ? '<p class="sub maxw-320 ws-normal">' + K.esc(text) + '</p>' : "") + (action || "") + '</div>';
   c.error = (text, retry) => '<div class="notice err" role="alert"><i>!</i><div><b>' + K.t("Er ging iets mis.") + '</b> ' + K.esc(text) + (retry ? ' <button type="button" class="linkbtn" data-retry>' + K.t("Opnieuw proberen") + '</button>' : "") + '</div></div>';
   c.warn = html => '<div class="notice warn"><i>!</i><div>' + html + '</div></div>';
   c.ok = html => '<div class="notice ok"><i>✓</i><div>' + html + '</div></div>';
-  c.skeleton = n => '<div style="display:flex;flex-direction:column;gap:10px">' + Array.from({ length: n || 3 }, () => '<div class="card card-b" style="display:flex;flex-direction:column;gap:8px"><div class="sk" style="width:40%"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:55%"></div></div>').join("") + '</div>';
+  c.skeleton = n => '<div class="d-flex f-col gap-10">' + Array.from({ length: n || 3 }, () => '<div class="card card-b d-flex f-col gap-8"><div class="sk w-40p"></div><div class="sk w-70p"></div><div class="sk w-55p"></div></div>').join("") + '</div>';
   // INT-12 : un chiffre avec « href » est un lien vers sa source.
   c.kpi = (n, label, warn, href) => '<' + (href ? 'a href="' + K.esc(href) + '"' : "span") + ' class="kpi' + (warn ? " warn" : "") + (href ? " kpi-link" : "") + '"><b>' + K.esc(n) + '</b> ' + K.esc(label) + '</' + (href ? "a" : "span") + '>';
   c.avatar = name => '<span class="avatar">' + K.esc(K.initials(name)) + '</span>';
@@ -607,7 +651,7 @@
     const o = typeof opts === "string" ? { text: opts } : (opts || {});
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", o.danger ? "alertdialog" : "dialog"); d.setAttribute("aria-modal", "true");
     d.setAttribute("aria-labelledby", "kDialogTitle"); d.setAttribute("aria-describedby", "kDialogText");
-    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kDialogTitle">' + K.esc(o.title || K.t("Bevestigen")) + '</b><span class="muted" id="kDialogText">' + K.esc(o.text || "") + '</span>' + (o.html || "") + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || K.t("Annuleren")) + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
+    d.innerHTML = '<div class="box"><b class="fs-15" id="kDialogTitle">' + K.esc(o.title || K.t("Bevestigen")) + '</b><span class="muted" id="kDialogText">' + K.esc(o.text || "") + '</span>' + (o.html || "") + '<div class="d-flex gap-8 jc-end mt-4"><button type="button" class="btn btn-o btn-sm" data-no>' + K.esc(o.no || K.t("Annuleren")) + '</button><button type="button" class="btn btn-sm ' + (o.danger ? "btn-danger" : "btn-p") + '" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
     let release = null;
     const done = v => { d.remove(); if (release) release(); resolve(v); };
     d.querySelector("[data-no]").onclick = () => done(false); d.querySelector("[data-yes]").onclick = () => done(true); d.onclick = e => { if (e.target === d) done(false); };
@@ -619,7 +663,7 @@
     const o = opts || {};
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true");
     d.setAttribute("aria-labelledby", "kPromptTitle");
-    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kPromptTitle">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" aria-labelledby="kPromptTitle" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Annuleren") + '</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
+    d.innerHTML = '<div class="box"><b class="fs-15" id="kPromptTitle">' + K.esc(o.title || "") + '</b>' + (o.text ? '<span class="muted">' + K.esc(o.text) + '</span>' : "") + '<input class="input" id="kPrompt" aria-labelledby="kPromptTitle" value="' + K.esc(o.value || "") + '" placeholder="' + K.esc(o.placeholder || "") + '"><div class="d-flex gap-8 jc-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Annuleren") + '</button><button type="button" class="btn btn-p btn-sm" data-yes>' + K.esc(o.yes || K.t("Bevestigen")) + '</button></div></div>';
     const inp = d.querySelector("#kPrompt");
     let release = null;
     const done = v => { d.remove(); if (release) release(); resolve(v); };
@@ -683,7 +727,7 @@
   K.shortcuts = [["/", "Zoeken"], ["?", "Sneltoetsen tonen"], ["Esc", "Venster sluiten"], ["⌘/Ctrl + Enter", "Bewaren vanuit een tekstvak"], ["Tab / Shift + Tab", "Volgende / vorige knop"]];
   K.shortcutsHelp = () => {
     const d = document.createElement("div"); d.className = "dialog"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "kKeysTitle");
-    d.innerHTML = '<div class="box"><b style="font-size:15px" id="kKeysTitle">' + K.t("Sneltoetsen") + '</b><dl class="keys">' + K.shortcuts.map(([k, l]) => '<div><dt><kbd>' + K.esc(k) + '</kbd></dt><dd>' + K.esc(K.t(l)) + '</dd></div>').join("") + '</dl><div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Sluiten") + '</button></div></div>';
+    d.innerHTML = '<div class="box"><b class="fs-15" id="kKeysTitle">' + K.t("Sneltoetsen") + '</b><dl class="keys">' + K.shortcuts.map(([k, l]) => '<div><dt><kbd>' + K.esc(k) + '</kbd></dt><dd>' + K.esc(K.t(l)) + '</dd></div>').join("") + '</dl><div class="d-flex jc-end"><button type="button" class="btn btn-o btn-sm" data-no>' + K.t("Sluiten") + '</button></div></div>';
     let release = null; const done = () => { d.remove(); if (release) release(); };
     d.querySelector("[data-no]").onclick = done; d.onclick = e => { if (e.target === d) done(); };
     release = modal(d, done); document.body.appendChild(d); d.querySelector("[data-no]").focus();
@@ -789,7 +833,7 @@
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       link(["stock.html", "/team/voorraad", "Voorraad", "stock"]) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
-      '<div class="user">' + c.avatar(who) + '<div class="utxt" style="font-size:12.5px;min-width:0"><b style="font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet" style="font-size:11px;display:block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn" data-logout  style="font-size:11px">Uitloggen</button></div></div></div></nav>';
+      '<div class="user">' + c.avatar(who) + '<div class="utxt fs-125 minw-0"><b class="ellipsis fw-500 d-block">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet fs-11 d-block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn fs-11" data-logout>Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
     // Systeemstatus (beheer.html#status) enkel voor de beheerder : het personeel mag die pagina niet openen.
     const top = '<div class="topbar"><label class="search">' + K.icon("search") + '<input id="globalSearch" aria-label="Zoeken" placeholder="' + K.esc(o.searchPlaceholder || "Zoek bestelling, klant of artikel…") + '" autocomplete="off"></label><span class="spacer"></span>' + (o.topRight || "") + '<button type="button" class="ibtn" data-contrasttoggle aria-pressed="' + (K.contrast() === "hoog") + '" title="Hoog contrast" aria-label="Hoog contrast">' + K.icon("contrast") + '</button><button type="button" class="ibtn" data-badgesettings title="Tellers in het menu" aria-label="Tellers in het menu">' + K.icon("bell") + '</button>' + (admin ? '<a class="ibtn" href="/beheer#status" title="Systeemstatus" aria-label="Systeemstatus">' + K.icon("help") + '</a>' : "") + '<span title="' + K.esc(who + (K.staff.name ? " · " + role : "")) + '">' + c.avatar(who) + '</span><button type="button" class="ibtn" data-logout title="Uitloggen" aria-label="Uitloggen">' + K.icon("logout") + '</button></div>';

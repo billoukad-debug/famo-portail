@@ -55,12 +55,15 @@ test("signature puis photo : ajoutées, rejeu sans doublon, fichiers privés", a
   assert.ok((await store().list("Journaal")).some(r => r.fields.Actie === "Leveringsbewijs: handtekening"));
 });
 
-test("photo produit : toujours remplacée (une par produit) et publique", async () => {
+// Spec 018 : le moteur AJOUTE comme Airtable (plusieurs vues) ; le remplacement d'une photo est fait par
+// l'API (uploadFoto sans « add » vide le champ d'abord : test/datastore.test.js, test/fotos.test.js).
+test("photo produit : ajoutée au champ (comme Airtable) et publique", async () => {
   await seed(true);
   const up = async () => (await fetch("https://content.airtable.com/v0/appcdduLth9iGX8I0/recP1/Foto/uploadAttachment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contentType: "image/png", filename: "tong.png", file: PNG }) })).json();
   await up(); await up();
   const foto = (await store().get("Catalogue", "recP1")).fields.Foto;
-  assert.equal(foto.length, 1, "remplacée, pas ajoutée");
+  assert.equal(foto.length, 2, "ajoutée, pas remplacée");
+  assert.notEqual(foto[0].id, foto[1].id);
   const pub = await call("foto.js", null, { method: "GET", query: { id: foto[0].id }, headers: {} });
   assert.equal(pub.statusCode, 200); assert.match(pub.headers["cache-control"], /public/);
 });

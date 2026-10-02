@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/brand/famo-mark.svg?v=7bfd5fe3fc" type="image/svg+xml">
 <link rel="preload" href="/assets/fonts/atkinson-hyperlegible-next-latin.woff2?v=18b2a1a39a" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/ui.css?v=48b1bc627a">
+<link rel="stylesheet" href="/assets/ui.css?v=ae62c94c1b">
 <script src="/assets/vat.js?v=bb7009abbd" defer></script>
-<script src="/assets/ui.js?v=3949e137a4" defer></script>
+<script src="/assets/ui.js?v=6f4d27a9ee" defer></script>
 </head>
 <body class="portal-klant">
 <div id="app"></div>
@@ -52,10 +52,10 @@
   .pm{display:none}.pr-x{align-items:center;padding:6px 0 6px 6px}
   .pr-k,.pr-u{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2);min-width:0}
   .pr-k{grid-area:k}.pr-u{grid-area:u}
-  .prod>.pp{padding-left:0;justify-content:flex-end;flex-wrap:nowrap}
+  .prod>.pp{padding-left:0;justify-content:flex-end;flex-wrap:wrap;row-gap:0}
   .prod>.pp .quiet{font-size:12px}
   .prod:hover{background:var(--soft)}.prod.on:hover{background:var(--soft)}
-  .pr-d{padding:8px 0 14px 30px}.pr-ph{width:160px;height:160px}
+  .pr-d{padding:8px 0 14px 30px}.gal{width:260px}
   .kcart{display:flex;flex-direction:column;gap:10px;position:sticky;top:80px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;max-height:calc(100vh - 96px);overflow:auto}
   .kc-h{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}.kc-h .quiet{font-size:12.5px}
   .kc-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
@@ -73,7 +73,7 @@
     .prod{grid-template-areas:"x pp fav st" "d d d d"}
     .prhead>span:nth-child(2),.prhead>span:nth-child(3),.pr-k,.pr-u{display:none}
     .prhead>span:nth-child(4){text-align:right}
-    .pm{display:flex}.pr-x{align-items:flex-start}
+    .pm{display:flex}
   }
   /* andere schermen : breed maar leesbaar, twee kolommen */
   .kcols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:start}.kcols>.kc-side{position:sticky;top:80px;gap:12px;order:0}
@@ -90,6 +90,6 @@
   .orow-a{display:flex}
 }
 </style>
-<script src="/assets/pages/klant.js?v=f248f5a4e6" defer></script>
+<script src="/assets/pages/klant.js?v=8e7fe04bd3" defer></script>
 </body>
 </html>
