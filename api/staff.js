@@ -6,51 +6,16 @@ const __prices = require("../lib/prices");
 const __orderNumber = require("../lib/ordernumber");
 const __lev = require("../lib/levering");
 const __lj = require("../lib/lignesjson");
+const __bestelling = require("../lib/bestelling");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
   return false;
 }
 
-function numberOf(value){
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function cleanComment(value){
-  return String(value || "").replace(/[\r\n]+/g, " ").replace(/[()\[\]]/g, "").trim().slice(0, 200);
-}
-
-async function buildOrderLines(clientId, items){
-  if (!Array.isArray(items) || !items.length) throw new Error("Klant en artikelen vereist");
-  const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
-  const negotiated = await atAll(`${encodeURIComponent("Prix négociés")}`);
-  const prices = __prices.negotiatedFor(negotiated.records, clientId);
-  const products = new Map((cat.records || []).map(record => [record.id, record]));
-  const merged = new Map();
-  for (const item of items) {
-    const productId = String(item && item.productId || "");
-    const quantity = numberOf(item && item.quantity);
-    if (!productId || quantity <= 0 || quantity > 1000 || !products.has(productId)) throw new Error("Ongeldig artikel of aantal");
-    if (!/kg/i.test(String(products.get(productId).fields["Unité"] || "")) && !Number.isInteger(quantity)) {
-      throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
-    }
-    const old = merged.get(productId) || { quantity: 0, comment: "" };
-    old.quantity += quantity;
-    old.comment = cleanComment(item.comment) || old.comment;
-    merged.set(productId, old);
-  }
-  let total = 0;
-  const lines = [], structured = [];
-  for (const [productId, item] of merged) {
-    const fields = products.get(productId).fields;
-    const price = __prices.unitPrice(products.get(productId), prices);
-    total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * item.quantity); // = le prix écrit dans la ligne (B-09)
-    lines.push(`${fields["Produit"] || "Artikel"} × ${item.quantity}${fields["Unité"] ? " " + fields["Unité"] : ""} [€${price.toFixed(2)}]${item.comment ? " (" + item.comment + ")" : ""}`);
-    // Même ligne, structurée (B4) : référence, nom, unité et prix du catalogue — rien du navigateur.
-    structured.push(__lj.entry(products.get(productId), { qty: item.quantity, unit: fields["Unité"] || "", price, comment: item.comment }));
-  }
-  return { lignes: lines.join("\n"), json: __lj.serialize(structured), total: Math.round(total * 100) / 100 };
+// Lignes décidées par le serveur (lib/bestelling.js, partagé avec api/order.js et la commande par e-mail).
+function buildOrderLines(clientId, items){
+  return __bestelling.buildOrderLines(clientId, items, __bestelling.MSG_PERSONEEL);
 }
 
 module.exports = async (req, res) => {

@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
   const action = clean(body.action, 40);
   if (!action || action === "previewCredentials") return handler(req, res);
   let table = TARGET[action] || "", id = table && REC.test(String(body.id || "")) ? String(body.id) : "";
-  if (action === "saveConfig" || action === "saveVoorwaarden" || action === "saveEnkelPin") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
+  if (action === "saveConfig" || action === "saveVoorwaarden" || action === "saveEnkelPin" || action === "saveMailBestellingen") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
   const before = id ? await __journal.get(table, id) : null;
   await handler(req, res);
   if (res.statusCode !== 200) return;

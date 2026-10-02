@@ -109,6 +109,8 @@ Symptôme : les clients ou la boîte interne ne reçoivent plus rien. Un échec 
 | `RESEND_API_KEY` | Resend → API Keys → créer la nouvelle, la poser dans Vercel, Redeploy, **puis** révoquer l'ancienne | Pas d'interruption si l'ordre est respecté. |
 | `AIRTABLE_TOKEN` | Airtable → Developer hub → révoquer (plus utilisé en production) | Si `SESSION_SECRET` est absente, déconnecte tout le monde. |
 | `CRON_SECRET` | à remplir | Obligatoire pour la sauvegarde nocturne et les relances (sinon 500). |
+| `RESEND_INBOUND_SECRET` | Resend → Webhooks → nouveau secret → Vercel → Redeploy | Bestellen per e-mail (§ 7) ; absent = toute mail refusée (500). |
+| `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys → Vercel → Redeploy → révoquer l'ancienne | Lecture des mails (§ 7) ; absente = tout en Te controleren. |
 | Mot de passe d'un client | Beheer → Klanten → Nieuw wachtwoord / Toegang blokkeren | Invalide aussi ses jetons. |
 
 Après une rotation : vérifier la connexion Beheer, une commande test, un e-mail test.
@@ -138,3 +140,68 @@ Après une rotation : vérifier la connexion Beheer, une commande test, un e-mai
   3. **Rollback** (§ 2) : l'ancien code ignore `Lignes JSON` ; rien à nettoyer. Retour à Airtable (`DB_BACKEND=airtable`, plus utilisé) : créer d'abord le champ texte long `Lignes JSON` dans la table `Commandes`, sinon Airtable refuse les nouvelles commandes (champ inconnu). Après un retour à la nouvelle version, une ligne dont le `naam` n'a pas suivi un renommage fait pendant le rollback retombe simplement sur le nom (le texte fait foi).
   4. **« Catalogus onleesbaar: voorraad niet bijgewerkt »** au départ, au retour arrière ou sur une note de crédit avec retour : la commande a des références produit et le catalogue n'a pas pu être lu ; rien n'a bougé (ni stock ni numéro). Réessayer ; si ça persiste, voir § 3.1.
   5. Vérifier une commande (Neon, SQL Editor, lecture seule) : `SELECT fields::json->>'Lignes (produits / quantités)', fields::json->>'Lignes JSON' FROM famo_records WHERE tbl = 'Commandes' AND id = 'rec…'`. Le texte fait foi pour quantités et prix ; chaque entrée JSON porte `productId` (id `Catalogue`) et le `naam` de la ligne correspondante. **Ne jamais modifier à la main** le JSON d'une commande facturée.
+
+## 7. Bestellen per e-mail (specs/020)
+
+Les clients écrivent à `bestel@orders.famoseafood.be` ; Resend reçoit, appelle le portail, Claude lit, le
+serveur décide. Sans les réglages ci-dessous, rien ne se passe (fail-closed) : aucun risque à déployer avant.
+
+### 7.1 Mise en place (propriétaire, une fois)
+
+Le domaine principal `famoseafood.be` garde **sa** messagerie (et son MX nul) : on n'ajoute un MX que sur le
+**sous-domaine** `orders`. Ne jamais toucher aux MX du domaine principal.
+
+1. **Resend → Domains → Add domain** : `orders.famoseafood.be`, région UE si proposée ; activer **Receiving**
+   (réception). Resend affiche les enregistrements à créer, dont un **MX** pour `orders` (valeur et priorité
+   exactes données par Resend, ne pas les recopier d'ici) et les TXT de vérification.
+2. **one.com → DNS de famoseafood.be** : créer **exactement** les enregistrements affichés par Resend, avec
+   l'hôte `orders` (ou `xxx.orders` selon Resend). Rien sur `@`. Attendre « Verified » dans Resend (quelques
+   minutes à quelques heures).
+3. **Resend → Webhooks → Add endpoint** : URL `https://www.famoseafood.be/api/inbound-mail`, événement
+   **`email.received`** seulement. Copier le **Signing secret** (`whsec_…`).
+4. **Vercel → Settings → Environment Variables** (Production) :
+   - `RESEND_INBOUND_SECRET` = le signing secret (étape 3) ;
+   - `RESEND_API_KEY` : déjà en place (envois) ; elle sert aussi à lire le contenu des mails reçus — la clé
+     doit avoir l'accès complet (« Full access »), une clé « Sending access » ne lit pas les mails reçus ;
+   - `ANTHROPIC_API_KEY` : console.anthropic.com → API Keys → Create Key (un workspace dédié « FAMO portail »
+     permet de plafonner la dépense : Limits → spend limit) ;
+   - facultatif : `INBOUND_AI_DAILY_MAX` (défaut 200 lectures/jour), `ANTHROPIC_FALLBACKS=0` (couper le
+     repli de modèle), `ANTHROPIC_TIMEOUT_MS` (défaut 25 000).
+5. **Redeploy** (Deployments → ⋮ → Redeploy) : les variables ne s'appliquent qu'aux nouveaux déploiements.
+6. **Beheer → Bedrijfsgegevens → Bestellen per e-mail** : les trois clés « Ingesteld » ; vérifier l'adresse.
+   L'interrupteur « automatisch aanmaken » reste **coupé** pour commencer.
+7. Premier essai : depuis l'adresse e-mail d'une fiche client de test, écrire « 2 kg … pour <jour> ». Il doit
+   apparaître dans **Bestellingen → Te controleren** (raison « automatisch aanmaken staat uit ») avec une
+   proposition lisible. Vérifier aussi la ligne `Verificatie` (`spf=pass dkim=pass dmarc=pass`) : si elle
+   montre `?`, Resend ne donne pas l'authentification et rien ne sera jamais automatique (spec R1 : prévenir
+   le développeur). Puis allumer l'interrupteur.
+8. Communiquer l'adresse aux clients : ils écrivent **depuis l'adresse de leur fiche** (Beheer → Klanten →
+   e-mail, plusieurs adresses séparées par une virgule possibles) ; sinon leur mail attend le personnel.
+9. `privacy.html` : ajouter Resend (réception) et Anthropic (lecture automatique) comme sous-traitants.
+
+### 7.2 Incidents
+
+- **Aucune mail n'arrive dans Te controleren** : Resend → Emails → Receiving (la mail est-elle reçue ?) ;
+  Resend → Webhooks → l'endpoint → tentatives : `500` = `RESEND_INBOUND_SECRET` absent (logs Vercel
+  `inbound-mail` « RESEND_INBOUND_SECRET ontbreekt ») ; `401` = mauvais secret (recopier, Redeploy) ou
+  horloge ; `503` = contenu non lu chez Resend (Resend réessaie seul ; vérifier `RESEND_API_KEY` en accès
+  complet). DNS : `dig MX orders.famoseafood.be`.
+- **Tout va dans Te controleren** : lire la raison sur la carte. « ANTHROPIC_API_KEY ontbreekt » (clé,
+  Redeploy) ; « AI-sleutel geweigerd (401) » (clé révoquée) ; « daglimiet » (plafond quotidien atteint) ;
+  « automatisch aanmaken staat uit » (Beheer) ; « niet geverifieerd » (domaine du client sans DKIM/DMARC :
+  normal, le personnel valide).
+- **Une mail « bloquée » en Verwerken** : après 3 min elle apparaît dans Te controleren (« verwerking
+  onderbroken ») ; la traiter à la main. Logs Vercel : `"fn":"inbound-mail"` + l'id d'enregistrement.
+- **Boucle avec un répondeur** : les répondeurs sont ignorés et un expéditeur est plafonné à 10 mails/heure
+  (Genegeerd). Si besoin, couper l'endpoint dans Resend → Webhooks (Disable), rien d'autre n'est touché.
+- **Coût AI inattendu** : console Anthropic → Usage ; champ `AI-gebruik` des messages ; baisser
+  `INBOUND_AI_DAILY_MAX` ou retirer `ANTHROPIC_API_KEY` (tout passe alors par le personnel).
+- **Rotation** : `RESEND_INBOUND_SECRET` → Resend → Webhooks → l'endpoint → nouveau secret (rotation, ou
+  supprimer puis recréer l'endpoint), coller la nouvelle valeur dans Vercel, Redeploy ; entre les deux, les
+  webhooks refusés (401) sont réessayés par Resend. Le portail accepte plusieurs signatures `v1` dans l'en-tête ; `ANTHROPIC_API_KEY` → nouvelle clé,
+  Vercel, Redeploy, puis révoquer l'ancienne.
+- **Données** : chaque message est supprimé après 90 jours par le cron quotidien (`/api/reminders-cron`,
+  `inkomendeMailsVerwijderd` dans la réponse) ; l'export RGPD d'un client les contient ; l'anonymisation les
+  supprime.
+- **Test local** : `node scripts/dev.js` puis `node scripts/mail-inbound-test.js --help` (Resend et Claude
+  simulés, jamais la production).

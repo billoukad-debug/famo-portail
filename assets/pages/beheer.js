@@ -503,10 +503,12 @@
       '<label class="row-10 fs-13">' + K.c.check(!!c.voorraadAfboeken, 'id="afboeken" aria-label="Voorraad automatisch afboeken bij vertrek"') + '<span>Voorraad automatisch afboeken bij vertrek<span class="quiet fs-12 d-block">Enkel aanzetten als de telling in Voorraad klopt.</span></span></label>' +
       '<label class="row-10 fs-13">' + K.c.check(!!c.lotsVerplicht, 'id="lotsVerplicht" aria-label="Lot verplicht bij klaarzetten"') + '<span>Lot verplicht bij klaarzetten<span class="quiet fs-12 d-block">Elk artikel krijgt een lot (traceerbaarheid) vóór „Klaar”. Loten beheert u in Voorraad → Loten.</span></span></label></div>' +
       '<div class="card card-b stack-12"><h2 class="h2">E-mail</h2>' + f("Interne postbus (melding bij elke bestelling)", "bestellingenEmail", c.bestellingenEmail, { type: "email" }) + '<div class="notice fs-125"><div>' + (D.status.mailEnabled ? "E-mail is actief. " : "<b>E-mail is niet actief</b> (RESEND_API_KEY ontbreekt op Vercel). ") + (c.mailFromConfigured ? "Afzender (MAIL_FROM) is ingesteld op Vercel." : "<b>Afzender (MAIL_FROM) ontbreekt op Vercel</b>: mails vertrekken enkel naar de eigenaar van het Resend-account.") + '</div></div></div>' +
+      mailCard(c, f) +
       termsCard(c) +
       '<div id="bErr" class="span-all"></div></div>';
     if (window.innerWidth < 900) page.querySelector("#two").style.gridTemplateColumns = "1fr";
     termsWire();
+    mailWire();
     K.on(page, "click", "[data-dag]", (e, t) => { const on = !t.classList.contains("on"); t.classList.toggle("on", on); t.setAttribute("aria-pressed", on ? "true" : "false"); });
     const af = page.querySelector("#afboeken"); af.onclick = () => K.setOn(af, !af.classList.contains("on"));
     ["lotsVerplicht", "herinneringen"].forEach(id => { const el = page.querySelector("#" + id); el.onclick = () => K.setOn(el, !el.classList.contains("on")); });
@@ -527,6 +529,29 @@
       K.busy(b, true, "Opslaan…");
       try { await post(Object.assign({ action: "saveConfig" }, cfg)); S.config = null; K.toast("Bedrijfsgegevens opgeslagen"); render(); }
       catch (err) { const hit = FIELD_ERR.find(([re]) => re.test(err.message)); if (hit) K.setErr(hit[1], err.message); page.querySelector("#bErr").innerHTML = K.c.error(err.message); K.busy(b, false); }
+    };
+  }
+
+  // Bestellen per e-mail (specs/020) : adres voor de klanten, sleutels aanwezig (ja/nee, nooit de waarde),
+  // schakelaar « automatisch aanmaken » (uit = alles naar Bestellingen → Te controleren). Eigen knop.
+  function mailCard(c, f) {
+    const m = c.mailBestellingen || {};
+    const keys = [[m.webhookGeheim, "Webhook-geheim (RESEND_INBOUND_SECRET)"], [m.resendSleutel, "Resend-sleutel (RESEND_API_KEY)"], [m.aiSleutel, "AI-sleutel (ANTHROPIC_API_KEY)"]];
+    return '<div class="card card-b stack-12"><h2 class="h2">Bestellen per e-mail</h2><p class="sub ws-normal">Klanten mailen hun bestelling naar dit adres. Het portaal leest de mail en maakt de bestelling aan als alles zeker is; anders komt ze in Bestellingen → Te controleren.</p>' +
+      f("Adres voor bestellingen", "mbAdres", m.adres, { type: "email", attrs: ' autocomplete="off"' }, { hint: "Geef dit adres aan uw klanten. Enkel mails van e-mailadressen uit de klantfiches worden verwerkt." }) +
+      '<ul class="mb-keys">' + keys.map(([ok, l]) => '<li>' + (ok ? '<span class="chip st-done"><i></i>Ingesteld</span>' : '<span class="chip st-late"><i></i>Ontbreekt</span>') + '<span>' + K.esc(l) + '</span></li>').join("") + '</ul>' +
+      (!m.webhookGeheim ? K.c.warn("<b>Zonder RESEND_INBOUND_SECRET weigert het portaal elke inkomende mail.</b> Instellen: zie de handleiding (RUNBOOK, bestellen per e-mail).") : !m.aiSleutel ? K.c.warn("Zonder ANTHROPIC_API_KEY komt elke mail in Te controleren (niets gaat verloren).") : "") +
+      '<label class="row-10 fs-13">' + K.c.check(!!m.automatisch, 'id="mbAuto" aria-label="Bestellingen per e-mail automatisch aanmaken"') + '<span>Bestellingen per e-mail automatisch aanmaken<span class="quiet fs-12 d-block">Uit: elke mail komt eerst in Te controleren. Aan: enkel zekere bestellingen van gekende klanten worden meteen aangemaakt (Ontvangen) en de klant krijgt een bevestiging; u zet ze klaar zoals altijd.</span></span></label>' +
+      '<div><button type="button" class="btn btn-o btn-sm" id="mbSave">E-mailbestellingen bewaren</button></div></div>';
+  }
+  function mailWire() {
+    const auto = page.querySelector("#mbAuto"), save = page.querySelector("#mbSave");
+    if (!auto || !save) return;
+    auto.onclick = () => K.setOn(auto, !auto.classList.contains("on"));
+    save.onclick = async () => {
+      K.setErr("f_mbAdres", ""); K.busy(save, true, "Bewaren…");
+      try { await post({ action: "saveMailBestellingen", adres: page.querySelector("#mbAdres").value.trim(), automatisch: auto.classList.contains("on") }); K.toast("E-mailbestellingen bewaard"); render(); }
+      catch (err) { K.setErr("f_mbAdres", err.message); K.busy(save, false); }
     };
   }
 

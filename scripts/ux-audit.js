@@ -23,7 +23,11 @@ const EXE = process.env.CHROMIUM || (require("fs").existsSync("/opt/pw-browsers/
 const firstOrder = async p => p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => { const o = (d.orders || []).find(x => x.statut === "Facturée") || (d.orders || [])[0]; return o ? o.id : ""; }));
 const clickAndWait = (sel, ms) => async p => { const el = p.locator(sel).first(); if (await el.count()) { await el.click(); await p.waitForTimeout(ms || 800); } };
 const pages = {
-  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender", "/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
+  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender",
+    // Bestellen per e-mail (specs/020) : file « Te controleren », puis le texte de la première e-mail déplié.
+    { name: "/team/bestellingen#/controle (Te controleren)", url: "/team/bestellingen#/controle", after: async p => { await p.waitForSelector(".mc-item, .state", { timeout: 5000 }).catch(() => {}); } },
+    { name: "/team/bestellingen#/controle · originele e-mail open", url: "/team/bestellingen#/controle", after: async p => { await p.waitForSelector(".mc-sum", { timeout: 5000 }).catch(() => {}); await clickAndWait(".mc-sum", 400)(p); } },
+"/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
     { name: "/team/leveringen (mode Chauffeur)", url: "/team/leveringen", before: async p => { await p.evaluate(() => localStorage.setItem("famoLevMode", JSON.stringify("chauffeur"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoLevMode")); } },
     "/team/documenten",
     { name: "/team/bestelling (fiche commande)", url: async p => "/team/bestelling?id=" + encodeURIComponent(await firstOrder(p)) },

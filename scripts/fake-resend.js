@@ -1,5 +1,7 @@
 "use strict";
 // Lokale nabootsing van de Resend API: vangt e-mails op en toont ze op /inbox.
+// Ontvangen (specs/020) : POST /__receive bewaart een « inkomende » mail (enkel lokaal, door
+// scripts/mail-inbound-test.js), GET /emails/receiving/:id geeft ze terug zoals Resend Receiving.
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -12,6 +14,7 @@ class FakeResend {
     this.file = file || null;
     this.mails = [];
     this.failNext = 0;
+    this.inbound = new Map();
     if (this.file && fs.existsSync(this.file)) { try { this.mails = JSON.parse(fs.readFileSync(this.file, "utf8")); } catch (_) { this.mails = []; } }
   }
   save() { if (this.file) { fs.mkdirSync(path.dirname(this.file), { recursive: true }); fs.writeFileSync(this.file, JSON.stringify(this.mails, null, 1)); } }
@@ -31,6 +34,25 @@ function startServer(box, { port = 0, key = "dev-resend" } = {}) {
       const rows = box.mails.slice().reverse().map((m) => `<li><a href="/inbox/${m.id}" target="f"><b>${esc(m.subject)}</b></a><br><small>aan ${esc((m.to || []).join(", "))} · van ${esc(m.from)}${m.reply_to ? " · antwoord aan " + esc(m.reply_to) : ""} · ${esc(m.receivedAt)}</small></li>`).join("");
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       return res.end(`<!doctype html><meta charset="utf-8"><title>Postvak (lokaal)</title><style>body{font:14px system-ui;margin:0;display:grid;grid-template-columns:380px 1fr;height:100vh}ul{list-style:none;margin:0;padding:12px;overflow:auto;border-right:1px solid #ddd}li{padding:8px 0;border-bottom:1px solid #eee}iframe{width:100%;height:100%;border:0}</style><ul>${rows || "<li>Nog geen e-mails.</li>"}</ul><iframe name="f"></iframe>`);
+    }
+    if (req.method === "POST" && url.pathname === "/__receive") {
+      const chunks = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => {
+        let b = {};
+        try { b = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch (_) { res.writeHead(400); return res.end("{}"); }
+        const id = crypto.randomUUID(), now = new Date().toISOString();
+        const m = { object: "email", id, to: [].concat(b.to || "bestel@orders.famoseafood.be"), from: b.from || "", created_at: now, subject: b.subject || "", html: b.html || null, html_format: b.html ? "raw" : undefined, text: b.text == null ? null : String(b.text), headers: b.headers || {}, bcc: [], cc: [], reply_to: [], received_for: [], authentication: b.authentication || { spf: "pass", dkim: "pass", dmarc: "pass" }, message_id: "<" + id + "@dev.local>", attachments: [] };
+        box.inbound.set(id, m);
+        res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ id, created_at: now, message_id: m.message_id }));
+      });
+      return;
+    }
+    if (req.method === "GET" && url.pathname.startsWith("/emails/receiving/")) {
+      if (String(req.headers.authorization || "") !== "Bearer " + key) { res.writeHead(401, { "Content-Type": "application/json" }); return res.end(JSON.stringify({ statusCode: 401, message: "Missing API key" })); }
+      const m = box.inbound.get(decodeURIComponent(url.pathname.slice("/emails/receiving/".length)));
+      if (!m) { res.writeHead(404, { "Content-Type": "application/json" }); return res.end(JSON.stringify({ statusCode: 404, message: "Email not found" })); }
+      res.writeHead(200, { "Content-Type": "application/json" }); return res.end(JSON.stringify(m));
     }
     if (req.method === "POST" && url.pathname === "/emails") {
       const chunks = [];

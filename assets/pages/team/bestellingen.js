@@ -13,10 +13,17 @@
   const th = (key, label, cls) => '<th' + (cls ? ' class="' + cls + '"' : "") + ' aria-sort="' + (sort.key === key ? (sort.dir > 0 ? "ascending" : "descending") : "none") + '"><button type="button" class="th-sort" data-sort="' + key + '">' + label + (sort.key === key ? (sort.dir > 0 ? " ▲" : " ▼") : "") + '</button></th>';
   const sel = new Set();
   const clientName = id => { const o = S.orders.find(x => x.clientId === id); return o ? o.client : id; };
-  function header() {
+  // Weergaven : tabel, bord, kalender en « Te controleren » (bestellingen per e-mail, specs/020) met teller.
+  function viewsNav() {
+    const n = (S.mailIds || []).length;
+    return '<nav class="views" aria-label="Weergave">' + [["tabel", "Tabel", "table"], ["bord", "Bord", "board"], ["kalender", "Kalender", "cal"], ["controle", "Te controleren", "mail"]].map(([k, l, i]) => '<a href="#/' + k + '"' + (view === k ? ' class="on" aria-current="page"' : "") + '>' + K.icon(i) + l + (k === "controle" && n ? '<b class="nbadge mc-count" aria-label="' + K.esc(K.plural(n, "bericht", "berichten")) + ' te controleren">' + n + '</b>' : "") + '</a>').join("") + '</nav>';
+  }
+  function top() {
     const c = S.counts();
-    return '<div class="page-h"><div><h1 class="h1">Bestellingen</h1><p class="sub">' + K.esc(K.dateLong(K.today())) + '</p></div><span class="spacer"></span>' + K.c.kpi(c.today, "vandaag") + K.c.kpi(c.prep, "te bereiden") + (c.late ? K.c.kpi(c.late, "te laat", true, "#/tabel?status=late") : "") + (K.staff.isAdmin() ? '<a class="btn btn-p btn-sm" href="/team/invoeren">' + K.icon("plus") + 'Nieuwe bestelling</a>' : "") + '</div>' +
-      '<nav class="views" aria-label="Weergave">' + [["tabel", "Tabel", "table"], ["bord", "Bord", "board"], ["kalender", "Kalender", "cal"]].map(([k, l, i]) => '<a href="#/' + k + '"' + (view === k ? ' class="on"' : "") + '>' + K.icon(i) + l + '</a>').join("") + '</nav>' +
+    return '<div class="page-h"><div><h1 class="h1">Bestellingen</h1><p class="sub">' + K.esc(K.dateLong(K.today())) + '</p></div><span class="spacer"></span>' + K.c.kpi(c.today, "vandaag") + K.c.kpi(c.prep, "te bereiden") + (c.late ? K.c.kpi(c.late, "te laat", true, "#/tabel?status=late") : "") + (K.staff.isAdmin() ? '<a class="btn btn-p btn-sm" href="/team/invoeren">' + K.icon("plus") + 'Nieuwe bestelling</a>' : "") + '</div>';
+  }
+  function header() {
+    return top() + viewsNav() +
       '<div class="tools"><label class="search maxw-280">' + K.icon("search") + '<input id="q" aria-label="Zoeken" placeholder="Zoek klant, referentie, artikel…" value="' + K.esc(filter.q) + '"></label>' +
       '<select class="input tool w-auto px-8" id="fStatus" aria-label="Status"><option value="open"' + (filter.status === "open" ? " selected" : "") + '>Open bestellingen</option><option value="all"' + (filter.status === "all" ? " selected" : "") + '>Alle</option><option value="Reçue"' + (filter.status === "Reçue" ? " selected" : "") + '>Ontvangen</option><option value="Prête"' + (filter.status === "Prête" ? " selected" : "") + '>Klaar</option><option value="Sortie en livraison"' + (filter.status === "Sortie en livraison" ? " selected" : "") + '>Onderweg</option><option value="Facturée"' + (filter.status === "Facturée" ? " selected" : "") + '>Geleverd</option><option value="unpaid"' + (filter.status === "unpaid" ? " selected" : "") + '>Openstaande betaling</option><option value="late"' + (filter.status === "late" ? " selected" : "") + '>Te laat</option><option value="Annulée"' + (filter.status === "Annulée" ? " selected" : "") + '>Geannuleerd</option></select>' +
       (filter.clientId ? '<span class="tag d-iflex ai-c gap-6 mh-36 px-4 pl-10">Klant: <b>' + K.esc(clientName(filter.clientId)) + '</b><button type="button" class="ibtn w-32 h-32" id="clearKlant" aria-label="Klantfilter wissen">' + K.icon("x") + '</button></span>' :
@@ -60,6 +67,108 @@
     const d0 = K.parseDate(week0); const mon = new Date(d0); mon.setDate(d0.getDate() - ((d0.getDay() + 6) % 7)); const days = Array.from({ length: 7 }, (_, i) => K.isoDay(new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i)));
     return '<div class="tools p-0 pb-10"><button type="button" class="btn btn-o btn-sm" id="wPrev">‹ Vorige week</button><button type="button" class="btn btn-o btn-sm" id="wToday">Vandaag</button><button type="button" class="btn btn-o btn-sm" id="wNext">Volgende week ›</button><span class="muted ml-6">Week van ' + K.esc(K.dateLong(days[0])) + '</span></div><div class="cal">' + days.map(d => { const rows = list.filter(o => o.day === d); const dt = K.parseDate(d); return '<div class="day' + (d === K.today() ? " today" : "") + (dt.getDay() === 0 || dt.getDay() === 6 ? " wk" : "") + '"><div class="dn">' + K.esc(K.date(d)) + (rows.length ? ' · ' + rows.length : "") + '</div>' + rows.map(o => '<a class="ev" href="/team/bestelling?id=' + encodeURIComponent(o.id) + '" style="border-left-color:var(--st-' + K.stKey(o.statut) + ')"><b>' + K.esc(o.client) + '</b><span>' + K.esc(S.lineTxt(o)) + '</span></a>').join("") + '</div>'; }).join("") + '</div>';
   }
+  // ---------- Te controleren : bestellingen per e-mail die het team eerst bekijkt (specs/020) ----------
+  // Elke kaart : afzender, klant, originele tekst (ingeklapt), voorstel als bewerkbare regels. « Bestelling
+  // aanmaken » stuurt enkel artikel-id's en hoeveelheden : de server controleert alles opnieuw en rekent de prijzen.
+  const MC = { data: null, loading: false, err: "", edits: {}, open: new Set() };
+  async function loadControle() {
+    if (MC.loading) return;
+    MC.loading = true;
+    try { MC.data = await K.api("/api/mailcontrole"); MC.err = ""; S.setMailIds((MC.data.items || []).map(x => x.id)); }
+    catch (e) { if (e.status !== 401) MC.err = e.message; }
+    MC.loading = false;
+    if (view === "controle") render();
+  }
+  const mcProducts = () => ((MC.data && MC.data.products) || []).slice().sort(K.byNameKaliber);
+  const mcProduct = id => ((MC.data && MC.data.products) || []).find(p => p.id === id);
+  const mcBlank = () => ({ productId: "", qty: "", comment: "" });
+  function mcEdit(it) {
+    if (!MC.edits[it.id]) {
+      const v = it.voorstel || {};
+      MC.edits[it.id] = {
+        clientId: it.client && !it.client.gearchiveerd ? it.client.id : "", day: v.leverdagVoorstel || v.leverdag || "", notes: v.opmerkingen || "",
+        lines: (v.lines || []).map(l => ({ productId: l.productId && mcProduct(l.productId) ? l.productId : "", qty: l.qty > 0 ? K.num(l.qty) : "", comment: l.opmerking || "", from: l.naam_in_mail || "", conf: l.confidence, note: l.note || "" }))
+      };
+      if (!MC.edits[it.id].lines.length) MC.edits[it.id].lines.push(mcBlank());
+    }
+    return MC.edits[it.id];
+  }
+  const pct = c => Math.round((Number(c) || 0) * 100) + " %";
+  function mcLine(it, l, i) {
+    const p = mcProduct(l.productId), key = it.id + "-" + i, n = i + 1;
+    const opts = '<option value="">— Kies een artikel —</option>' + mcProducts().map(x => '<option value="' + x.id + '"' + (x.id === l.productId ? " selected" : "") + '>' + K.esc(x.nom + (x.kaliber ? " · " + x.kaliber : "") + " (" + K.unit(x.unite) + ")") + '</option>').join("");
+    return '<div class="mc-line">' +
+      (l.from ? '<div class="mc-from">In de mail: <b>' + K.esc(l.from) + '</b>' + (l.conf != null ? ' <span class="chip ' + (l.conf >= 0.8 ? "st-done" : "st-late") + '"><i></i>' + (l.conf >= 0.8 ? "zeker " : "onzeker ") + pct(l.conf) + '</span>' : "") + (l.note ? ' <span class="quiet">' + K.esc(l.note) + '</span>' : "") + '</div>' : "") +
+      '<select class="input mc-p" id="mcP-' + key + '" data-mc="productId" data-id="' + it.id + '" data-i="' + i + '" aria-label="Artikel, regel ' + n + '">' + opts + '</select>' +
+      '<input class="input mc-q" id="mcQ-' + key + '" data-mc="qty" data-id="' + it.id + '" data-i="' + i + '" inputmode="decimal" autocomplete="off" value="' + K.esc(l.qty) + '" aria-label="Hoeveelheid, regel ' + n + '">' +
+      '<span class="mc-u">' + K.esc(p ? K.unit(p.unite) : "") + '</span>' +
+      '<button type="button" class="ibtn" data-mc-del="' + it.id + '" data-i="' + i + '" aria-label="Regel ' + n + ' verwijderen">' + K.icon("x") + '</button>' +
+      '<input class="input mc-c" id="mcC-' + key + '" data-mc="comment" data-id="' + it.id + '" data-i="' + i + '" autocomplete="off" value="' + K.esc(l.comment) + '" placeholder="bv. gepeld, gefileerd" aria-label="Opmerking bij regel ' + n + ' (optioneel)">' +
+      '</div>';
+  }
+  function mcItem(it) {
+    const e = mcEdit(it), clients = (MC.data && MC.data.clients) || [];
+    return '<article class="card mc-item" data-mcitem="' + it.id + '"><div class="card-h"><div class="minw-0"><h2 class="h2">' + K.esc(it.client ? it.client.nom : "Onbekende afzender") + '</h2><p class="sub ws-normal">' + K.esc(it.van) + ' · ontvangen ' + K.esc(K.date(it.ontvangen) + " " + K.time(it.ontvangen)) + (it.onderwerp ? ' · „' + K.esc(it.onderwerp) + '”' : "") + '</p></div><span class="chip st-late"><i></i>Te controleren</span></div>' +
+      '<div class="card-b stack-12">' + K.c.warn("<b>Niet automatisch aangemaakt:</b> " + K.esc(it.reden || "onbekende reden")) +
+      (it.inhoudOntbreekt ? K.c.warn("De inhoud kon niet opgehaald worden. Bekijk het bericht in Resend (Emails → Receiving) of vraag de klant om het opnieuw te sturen.") : "") +
+      (it.tekst ? '<details class="mc-mail" data-mcopen="' + it.id + '"' + (MC.open.has(it.id) ? " open" : "") + '><summary class="mc-sum">' + K.icon("chev") + 'Originele e-mail</summary><div class="mc-text">' + K.esc(it.tekst) + '</div></details>' : "") +
+      K.c.field("Klant", '<select class="input" id="mcK-' + it.id + '" data-mc="clientId" data-id="' + it.id + '"><option value="">— Kies de klant —</option>' + clients.map(c => '<option value="' + c.id + '"' + (c.id === e.clientId ? " selected" : "") + '>' + K.esc(c.nom) + '</option>').join("") + '</select>', { for: "mcK-" + it.id, hint: it.client ? "Herkend aan het e-mailadres." : "Afzender niet herkend: kies de klant enkel als u zeker bent." }) +
+      '<div class="stack-6"><b class="fs-13">Artikelen</b>' + e.lines.map((l, i) => mcLine(it, l, i)).join("") + '<div><button type="button" class="btn btn-o btn-sm" data-mc-add="' + it.id + '">' + K.icon("plus") + 'Artikel toevoegen</button></div></div>' +
+      '<div class="grid-2 mc-grid">' + K.c.field("Leverdag", '<input type="date" class="input" id="mcD-' + it.id + '" data-mc="day" data-id="' + it.id + '" value="' + K.esc(e.day) + '" min="' + K.today() + '">', { for: "mcD-" + it.id, hint: "Leverdagen en gesloten dagen controleert de server." }) +
+      K.c.field("Opmerking voor magazijn / chauffeur", '<input class="input" id="mcN-' + it.id + '" data-mc="notes" data-id="' + it.id + '" autocomplete="off" value="' + K.esc(e.notes) + '">', { for: "mcN-" + it.id }) + '</div>' +
+      '<div id="mcErr-' + it.id + '"></div></div>' +
+      '<div class="mc-acts"><button type="button" class="btn btn-p" data-mc-create="' + it.id + '">Bestelling aanmaken</button>' + (it.tekst ? '<button type="button" class="btn btn-o" data-mc-read="' + it.id + '">Opnieuw laten lezen</button>' : "") + '<span class="spacer"></span><button type="button" class="btn btn-ghost" data-mc-ignore="' + it.id + '">Negeren</button></div></article>';
+  }
+  function mcDone(done) {
+    if (!done.length) return "";
+    return '<details class="grp mt-14 mc-done"><summary class="grp-h c-pointer ls-none blc-line">' + K.icon("chev") + 'Afgehandeld (laatste 14 dagen) <small>' + done.length + '</small></summary><div class="tblwrap"><table class="tbl"><thead><tr><th>Ontvangen</th><th>Van</th><th>Status</th><th>Bestelling</th></tr></thead><tbody>' +
+      done.map(x => '<tr><td class="muted">' + K.esc(K.date(x.ontvangen) + " " + K.time(x.ontvangen)) + '</td><td class="wrap"><b>' + K.esc(x.client ? x.client.nom : x.van) + '</b><div class="quiet fs-12">' + K.esc(x.van) + '</div></td><td class="wrap">' + K.esc(x.status) + (x.reden ? '<div class="quiet fs-12">' + K.esc(x.reden) + '</div>' : "") + (x.behandeldDoor ? '<div class="quiet fs-12">door ' + K.esc(x.behandeldDoor) + '</div>' : "") + '</td><td>' + (x.commande ? '<a href="/team/bestelling?id=' + encodeURIComponent(x.commande.id) + '">' + K.esc(x.commande.ref || "Openen") + '</a>' : "—") + '</td></tr>').join("") +
+      '</tbody></table></div></details>';
+  }
+  function drawControle() {
+    const d = MC.data, items = (d && d.items) || [];
+    page.innerHTML = top() + viewsNav() + '<div class="tools"><span class="quiet fs-13 ws-normal">Bestellingen per e-mail die het systeem niet zelf mocht aanmaken. Prijzen en leverregels berekent de server.</span><span class="spacer"></span><button type="button" class="tool" id="mcReload">' + K.icon("refresh") + 'Vernieuwen</button></div>' +
+      '<div class="content pt-4 stack-14">' + (MC.err ? K.c.error(MC.err) : !d ? K.c.skeleton(2) : items.length ? items.map(mcItem).join("") : K.c.empty("Niets te controleren", "Bestellingen per e-mail die het systeem niet zeker kon lezen, verschijnen hier.")) + mcDone((d && d.afgehandeld) || []) + '</div>';
+    page.querySelector("#mcReload").onclick = () => { MC.edits = {}; MC.data = null; render(); loadControle(); };
+  }
+  const mcSet = t => { const ed = MC.edits[t.dataset.id]; if (!ed) return; const f = t.dataset.mc; if (t.dataset.i != null) { const l = ed.lines[Number(t.dataset.i)]; if (l) l[f] = t.value; } else ed[f] = t.value; };
+  K.on(page, "input", "[data-mc]", (e, t) => mcSet(t));
+  K.on(page, "change", "[data-mc]", (e, t) => { mcSet(t); if (t.dataset.mc === "productId") render(); });
+  page.addEventListener("toggle", e => { const el = e.target; if (el && el.dataset && el.dataset.mcopen) { if (el.open) MC.open.add(el.dataset.mcopen); else MC.open.delete(el.dataset.mcopen); } }, true);
+  K.on(page, "click", "[data-mc-add]", (e, t) => { const id = t.dataset.mcAdd, ed = MC.edits[id]; ed.lines.push(mcBlank()); render(); const n = page.querySelector("#mcP-" + id + "-" + (ed.lines.length - 1)); if (n) n.focus(); });
+  K.on(page, "click", "[data-mc-del]", (e, t) => { const id = t.dataset.mcDel, ed = MC.edits[id]; ed.lines.splice(Number(t.dataset.i), 1); if (!ed.lines.length) ed.lines.push(mcBlank()); render(); const n = page.querySelector("#mcP-" + id + "-0"); if (n) n.focus(); });
+  const mcAfter = async () => { S.dirty = true; try { await S.load(true); } catch (err) { /* lijst volgt later */ } await loadControle(); };
+  K.on(page, "click", "[data-mc-create]", async (e, t) => {
+    const id = t.dataset.mcCreate, ed = MC.edits[id], box = page.querySelector("#mcErr-" + id);
+    box.innerHTML = "";
+    const lines = ed.lines.filter(l => l.productId || String(l.qty).trim()).map(l => ({ productId: l.productId, qty: K.parseNum(l.qty), comment: l.comment }));
+    const local = !ed.clientId ? "Kies eerst de klant." : !lines.length ? "Voeg minstens één artikel toe." : lines.some(l => !l.productId) ? "Kies voor elke regel een artikel." : lines.some(l => !(l.qty > 0)) ? "Vul voor elke regel een hoeveelheid in." : "";
+    if (local) { box.innerHTML = K.c.error(local); return; }
+    K.busy(t, true, "Aanmaken…");
+    try {
+      const d = await K.api("/api/mailcontrole", { json: { action: "create", id, clientId: ed.clientId, lines, dateLivraison: ed.day, notes: ed.notes } });
+      delete MC.edits[id];
+      K.toast("Bestelling " + d.ref + " aangemaakt", { action: "Openen", onAction: () => { location.href = "/team/bestelling?id=" + encodeURIComponent(d.id); } });
+      await mcAfter();
+    } catch (err) { box.innerHTML = K.c.error(err.message); K.busy(t, false); }
+  });
+  K.on(page, "click", "[data-mc-read]", async (e, t) => {
+    const id = t.dataset.mcRead, ed = MC.edits[id], box = page.querySelector("#mcErr-" + id);
+    box.innerHTML = "";
+    if (!ed.clientId) { box.innerHTML = K.c.error("Kies eerst de klant: het voorstel gebruikt zijn catalogus."); return; }
+    K.busy(t, true, "Lezen…");
+    try { await K.api("/api/mailcontrole", { json: { action: "analyse", id, clientId: ed.clientId } }); delete MC.edits[id]; K.toast("Opnieuw gelezen: controleer het voorstel"); await loadControle(); }
+    catch (err) { box.innerHTML = K.c.error(err.message); K.busy(t, false); }
+  });
+  K.on(page, "click", "[data-mc-ignore]", async (e, t) => {
+    const id = t.dataset.mcIgnore;
+    const reden = await K.prompt({ title: "Bericht negeren?", text: "Er komt geen bestelling en de klant krijgt geen bericht. Waarom? (komt in het journaal)", placeholder: "bv. reclame, dubbel, al telefonisch ingevoerd", yes: "Negeren" });
+    if (reden == null) return;
+    if (reden.trim().length < 3) { K.toast("Geef een reden op (minstens 3 tekens).", { kind: "err" }); return; }
+    try { await K.api("/api/mailcontrole", { json: { action: "ignore", id, reden: reden.trim() } }); delete MC.edits[id]; K.toast("Bericht genegeerd"); await loadControle(); }
+    catch (err) { K.toast(err.message, { kind: "err" }); }
+  });
+  S.onMailIds = () => { if (view !== "controle") render(); };
   const selected = () => S.orders.filter(o => sel.has(o.id));
   function bulkBar() {
     if (!sel.size) return "";
@@ -69,6 +178,7 @@
   // G-03 / CLA-10 : chaque re-rendu garde le focus (filtre, case, tri, action) ; K.keep le retrouve par ses clés.
   function render() { return K.keep(page, draw); }
   function draw() {
+    if (view === "controle") return drawControle();
     saveFilter();
     const list = filtered();
     page.innerHTML = header() + '<div class="content pt-4">' + (view === "bord" ? bord(list) : view === "kalender" ? kalender(list) : tabel(list)) + '</div>' + bulkBar();
@@ -122,14 +232,14 @@
   } });
   window.addEventListener("hashchange", () => {
     const h = K.hashParams(); let again = false;
-    if (h.path && h.path !== view) { view = h.path; K.store.set("famoOrdersView", view); again = true; }
+    if (h.path && h.path !== view) { view = h.path; if (view !== "controle") K.store.set("famoOrdersView", view); again = true; }
     if (h.params.status && h.params.status !== filter.status) { filter.status = h.params.status; again = true; } // lien d'un chiffre (INT-12)
-    if (again) render();
+    if (again) { render(); if (view === "controle") loadControle(); }
   });
   async function load(force, all) {
     try { await S.load(force, all); render(); }
     catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content pt-20">' + K.c.error(err.message, true) + '</div>'; K.on(page, "click", "[data-retry]", e => { e.preventDefault(); load(true); }); }
   }
   page.innerHTML = '<div class="page-h"><h1 class="h1">Bestellingen</h1></div><div class="content">' + K.c.skeleton(4) + '</div>';
-  load(false, qs.get("all") === "1").then(() => { if (S.orders.length || S.loadedAt) S.autoRefresh(render); });
+  load(false, qs.get("all") === "1").then(() => { if (S.orders.length || S.loadedAt) S.autoRefresh(render); if (view === "controle") loadControle(); });
 })();

@@ -10,6 +10,8 @@ const path = require("path");
 const fs = require("fs");
 const ROOT = path.join(__dirname, "..");
 const PORT = Number(process.env.PORT) || 4200;
+// Geheim van de nagebootste webhook (lokaal, publiek bekend, nooit in productie).
+const DEV_INBOUND_SECRET = "whsec_" + Buffer.from("famo-dev-inbound-secret-0123456789").toString("base64");
 
 function loadDotEnv() {
   const p = path.join(ROOT, ".env");
@@ -50,17 +52,25 @@ async function main() {
     const box = new FakeResend({ file: path.join(ROOT, ".dev-data", "mails.json") });
     const at = await startAt(db, { port: 0 });
     const rs = await startRs(box, { port: 0 });
+    // Bestellen per e-mail (specs/020) : nagebootste Claude, en de adressen voor scripts/mail-inbound-test.js.
+    const ai = await require("./fake-anthropic").startServer({ port: 0 });
+    fs.mkdirSync(path.join(ROOT, ".dev-data"), { recursive: true });
+    fs.writeFileSync(path.join(ROOT, ".dev-data", "dev-ports.json"), JSON.stringify({ portal: "http://localhost:" + PORT, resend: rs.url, anthropic: ai.url }, null, 1));
     const realFetch = globalThis.fetch;
     globalThis.fetch = (input, init) => {
       let url = typeof input === "string" ? input : (input && input.url) || String(input);
       if (url.startsWith("https://api.airtable.com/v0")) url = at.url + url.slice("https://api.airtable.com/v0".length);
       else if (url.startsWith("https://content.airtable.com/v0")) url = at.url + url.slice("https://content.airtable.com/v0".length);
       else if (url.startsWith("https://api.resend.com")) url = rs.url + url.slice("https://api.resend.com".length);
+      else if (url.startsWith("https://api.anthropic.com")) url = ai.url + url.slice("https://api.anthropic.com".length);
       return realFetch(url, init);
     };
     process.env.AIRTABLE_TOKEN = "dev-token";
     process.env.RESEND_API_KEY = "dev-resend";
     process.env.MAIL_FROM = process.env.MAIL_FROM || "FAMO Seafood <bestellingen@famotrading.be>";
+    // Webhook-geheim en AI-sleutel van de ontwikkelomgeving (nooit echte waarden) : zie scripts/mail-inbound-test.js.
+    process.env.RESEND_INBOUND_SECRET = process.env.RESEND_INBOUND_SECRET || DEV_INBOUND_SECRET;
+    process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "dev-anthropic";
     process.env.ADMIN_CODE = process.env.ADMIN_CODE || "beheer-dev-code";
     process.env.STAFF_CODE = process.env.STAFF_CODE || "team-dev-code";
     // Photos de démo (spec 018) : quelques produits ont 2–3 vues, générées par seed.js.
@@ -78,6 +88,7 @@ async function main() {
       console.log("Database: SQLite (" + (process.env.DB_SQLITE_FILE || ":memory:") + ") via lib/at-engine.js");
     }
     console.log("Codes: personeel = team-dev-code · beheer = beheer-dev-code · klant: aloha / welkom123");
+    console.log("Bestelling per e-mail nabootsen: node scripts/mail-inbound-test.js (zie --help)");
   }
   process.env.PORTAL_URL = process.env.PORTAL_URL || `http://localhost:${PORT}`;
   process.env.PORT = String(PORT);

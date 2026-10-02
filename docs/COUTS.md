@@ -48,6 +48,15 @@ Consommation du portail : une commande complète envoie 4 e-mails (nouvelle comm
 
 Source : https://resend.com/pricing — consulté le 27/09/2026.
 
+## Anthropic (bestellen per e-mail, specs/020)
+
+Claude Opus 5.5 : 4 $ / M jetons d'entrée, 20 $ / M de sortie, lecture de cache 0,20 $ / M (prix du
+02/10/2026, à revérifier sur https://www.anthropic.com/pricing). Estimation ≈ **0,02 à 0,04 $ par mail lue**
+(détail : `specs/020-bestellen-per-mail/plan.md` § Coûts) ; 20 mails par jour ≈ 15–20 $ par mois. Plafond
+technique : 200 lectures par jour (`INBOUND_AI_DAILY_MAX`). Mails d'inconnus, répondeurs et boucles ne sont
+jamais lus par l'AI. Chaque message garde sa consommation (`AI-gebruik`). Conseil : plafond de dépense dans
+la console Anthropic (workspace dédié).
+
 ## one.com (domaine)
 
 Le domaine et ses DNS sont chez one.com. Le prix de renouvellement d'un `.be` n'a pas pu être relevé sur le site public le 27/09/2026 (page de prix sans tarif lisible) : **reprendre le montant de la dernière facture one.com** et noter ici la date d'échéance. Une messagerie ou un hébergement one.com éventuels sont facturés à part.
