@@ -49,7 +49,7 @@ needs a recent Node 22.
 - Lint: `npx -y eslint@9.39.5 .` (pinned; flat config in `eslint.config.js` with the
   `eslint:recommended` rules except `no-useless-escape` and `no-regex-spaces`; server AND
   browser code, vendor excluded).
-- Browser audit: `node scripts/ux-audit.js` against `node scripts/dev.js` (needs Playwright;
+- Browser audit: `node scripts/ux-audit.js` (and `node scripts/parcours-check.js`, client journeys such as favourites across devices) against `node scripts/dev.js` (needs Playwright;
   CI job « Navigateur » installs `playwright@1.56.1` outside the repo and sets `NODE_PATH`).
 - Build: none — nothing is compiled or bundled.
 - Pre-push (from `CONTRIBUER.md`): `node scripts/assets-version.js && node scripts/check.js && npx -y eslint@9.39.5 .`.

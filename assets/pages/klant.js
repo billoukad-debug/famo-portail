@@ -55,7 +55,7 @@
   const stockTag = p => { const s = stock(p); if (s == null) return ""; return s > 0 ? '<span class="tag">' + K.esc(K.tt("Nog {n}", { n: K.qty(s) })) + '</span>' : '<span class="tag t-danger">' + K.t("Uitverkocht") + '</span>'; };
 
   /* ---------- favorieten : server (Clients.Favorieten) eerst, localStorage als cache ---------- */
-  let syncTimer = null, favWarned = false;
+  let syncTimer = null, favWarned = false, favsAdopted = false;
   function syncFavs() {
     clearTimeout(syncTimer);
     syncTimer = setTimeout(async () => {
@@ -63,8 +63,10 @@
       catch (err) { if (err.status !== 401 && !favWarned) { favWarned = true; K.toast(K.t("Favorieten bewaren mislukt. Ze blijven op dit toestel."), { kind: "err" }); } }
     }, 1200);
   }
-  const setFav = (id, on) => { if (on) favs[id] = true; else delete favs[id]; K.store.set(FAV_KEY, favs); syncFavs(); };
-  const setStd = v => { std = v; K.store.set(STD_KEY, std); syncFavs(); };
+  // Le catalogue en cache (sessionStorage, 10 min) garde la copie serveur à jour : un rechargement ne ramène pas l'ancienne liste.
+  function cacheFavs() { if (!cat || !cat.client) return; cat.client = Object.assign({}, cat.client, { favorieten: { favorieten: Object.keys(favs), standaard: std || {} } }); K.session.set(CAT_KEY, cat); }
+  const setFav = (id, on) => { if (on) favs[id] = true; else delete favs[id]; K.store.set(FAV_KEY, favs); cacheFavs(); syncFavs(); };
+  const setStd = v => { std = v; K.store.set(STD_KEY, std); cacheFavs(); syncFavs(); };
   // Bij een verse catalogus : wat op de server staat wint ; staat daar niets en hier wel (oud toestel), dan gaat dit toestel naar boven.
   function adoptFavs(client) {
     const f = client && client.favorieten; if (!f) return;
@@ -89,12 +91,13 @@
 
   async function loadCatalogue(force) {
     const cached = K.session.get(CAT_KEY, null);
-    if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; return cat; }
+    // Le cache peut venir de la page de connexion (start.js) : ses favoris serveur sont repris une fois par chargement.
+    if (!force && cached && Date.now() - cached.at < 10 * 60 * 1000) { cat = cached; if (!favsAdopted) { favsAdopted = true; adoptFavs(cat.client); } return cat; }
     const d = await api("/api/catalogue", { json: creds(), retry: true }); // de server vernieuwt de sessiecookie
     cat = { at: Date.now(), products: d.products || [], client: d.client, company: d.company, voorwaarden: d.voorwaarden || null };
     K.session.set(CAT_KEY, cat);
     K.klant.set({ user: sess.user, client: d.client });
-    adoptFavs(d.client);
+    favsAdopted = true; adoptFavs(d.client);
     return cat;
   }
   async function loadOrders(force) {
