@@ -57,9 +57,9 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Unité` | liste `kg` / `pièce` / `caisse` / `carton` | onboarding | catalogue, order, staff, updateorder | Valeur FR stockée, affichée en NL (`kg`, `stuk`, `kassa`, `doos`). |
 | `Catégorie` | texte | onboarding | catalogue, staff | |
 | `Actif` | case | onboarding | catalogue, config, order, staff, stock | Inactif = absent du catalogue client. |
-| `Kaliber` | texte | onboarding | catalogue, staff | |
+| `Kaliber` | texte | onboarding | catalogue, staff, stock | Texte libre (« 16/20 », « U10 », « 400-600 », « 1-2 kg ») ; trié numériquement par `K.kaliberKey` (spec 018 : U10 d'abord, puis par premier nombre, texte à la fin). |
 | `Omschrijving` | texte | onboarding | catalogue | |
-| `Foto` | pièces jointes | onboarding (upload) | catalogue, foto | En production : fichier dans `famo_files`. |
+| `Foto` | pièces jointes | onboarding (uploadFoto, `add` = une vue de plus ; setFotos = ordre / suppression) | catalogue, foto, staff, stock, onboarding | Spec 018 : **jusqu'à 6 images, la première = photo principale** (vignettes des listes) ; les autres = vues supplémentaires de la galerie client. `setFotos` ne garde que des pièces jointes déjà présentes (`[{id}]`, ordre du beheerder). Comme Airtable, l'upload **ajoute** au champ (moteur SQL et faux Airtable compris) ; uploadFoto sans `add` vide d'abord le champ (remplace). En production : fichiers dans `famo_files`, effacés quand ils quittent le champ. |
 | `BTW-tarief` | nombre (%) | onboarding | allorders, config, klantdoc | Vide = taux de Configuratie. |
 | `Volgorde` | nombre | onboarding (reorderProducts) | catalogue, staff | Ordre d'affichage. |
 | `Stock`, `Prix négociés` | lien inverse | Airtable | — | Non utilisés. |

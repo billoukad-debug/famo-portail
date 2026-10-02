@@ -128,6 +128,7 @@ const __lev = require("../lib/levering");
 
 // Photo du produit : lib/photo.js (Airtable https ou /api/foto de la base Postgres).
 const photoOf = require("../lib/photo").photoUrl;
+const photosOf = require("../lib/photo").photoUrls;
 
 module.exports = async (req, res) => {
   if (require("../lib/guard").blocked(req, res)) return; // A-10 : Origin + JSON sur les requêtes qui modifient
@@ -183,6 +184,8 @@ module.exports = async (req, res) => {
         kaliber: String(r.fields["Kaliber"] || "").trim(),
         omschrijving: String(r.fields["Omschrijving"] || "").trim(),
         foto: photoOf(r.fields["Foto"]),
+        // Spec 018 : toutes les vues (URL sûres), la première = foto.
+        fotos: photosOf(r.fields["Foto"]),
         volgorde: r.fields["Volgorde"] == null || r.fields["Volgorde"] === "" ? null : Number(r.fields["Volgorde"])
       };
       if (stockByName && stockByName.has(key)) p.voorraad = stockByName.get(key);

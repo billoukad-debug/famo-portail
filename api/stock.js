@@ -2,6 +2,7 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 const { at, atAll, REC } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const log = require("../lib/log");
+const { photoUrl } = require("../lib/photo");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -89,7 +90,10 @@ module.exports = async (req, res) => {
           inCatalogue: cat.error ? true : !!prod,
           productId: prod ? prod.id : "",
           // Un produit inactif reste dans Beheer → Producten mais plus dans la catalogue client.
-          actif: prod ? !!prod.fields["Actif"] : false
+          actif: prod ? !!prod.fields["Actif"] : false,
+          // Spec 018 : vignette et kaliber du produit apparié (tri nom → kaliber dans Voorraad).
+          foto: prod ? photoUrl(prod.fields["Foto"]) : "",
+          kaliber: prod ? String(prod.fields["Kaliber"] || "").trim() : ""
         };
       }) });
     }

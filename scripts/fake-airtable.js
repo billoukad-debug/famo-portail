@@ -143,6 +143,11 @@ function newId(prefix) {
 class FakeAirtable {
   constructor({ file } = {}) {
     this.file = file || null;
+    // Fichiers des pièces jointes envoyées (photos produit, preuves) : à part, servis sur
+    // /api/foto?id=att… par scripts/dev-server.js, comme le moteur SQL (spec 018). data ne
+    // garde que les tables (dev.js le recopie tel quel vers SQLite).
+    this.filesFile = this.file ? this.file.replace(/\.json$/, "") + "-files.json" : null;
+    this.files = {};
     this.data = {};
     Object.keys(SCHEMA).forEach((t) => { this.data[t] = []; });
     this.log = [];
@@ -151,10 +156,40 @@ class FakeAirtable {
       Object.keys(SCHEMA).forEach((t) => { if (!this.data[t]) this.data[t] = []; });
       // Fichier .dev-data d'avant la table Medewerkers : on l'ajoute sans tout reseeder.
       if (this.data.Configuratie.length && !this.data.Medewerkers.length) this.ensureMedewerkers();
+      try { if (fs.existsSync(this.filesFile)) this.files = JSON.parse(fs.readFileSync(this.filesFile, "utf8")) || {}; } catch (_) { this.files = {}; }
     }
   }
-  save() { if (this.file) { fs.mkdirSync(path.dirname(this.file), { recursive: true }); fs.writeFileSync(this.file, JSON.stringify(this.data, null, 1)); } }
-  reset() { Object.keys(SCHEMA).forEach((t) => { this.data[t] = []; }); this.ensureMedewerkers(); this.save(); }
+  save() {
+    if (!this.file) return;
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    fs.writeFileSync(this.file, JSON.stringify(this.data, null, 1));
+    const files = JSON.stringify(this.files);
+    if (files !== this.savedFiles) { fs.writeFileSync(this.filesFile, files); this.savedFiles = files; }
+  }
+  reset() { Object.keys(SCHEMA).forEach((t) => { this.data[t] = []; }); this.files = {}; this.ensureMedewerkers(); this.save(); }
+  // Pièce jointe hébergée ici (comme le moteur SQL : /api/foto?id=att…) ; renvoie l'objet du champ.
+  addFile(recordId, contentType, filename, base64) {
+    const id = newId("att"), url = "/api/foto?id=" + id, size = Math.floor(String(base64 || "").length * 3 / 4);
+    this.files[id] = { recordId, contentType, filename, size, data: String(base64 || "") };
+    return { id, url, filename, size, type: contentType, thumbnails: { small: { url }, large: { url } } };
+  }
+  fileById(id) { return Object.prototype.hasOwnProperty.call(this.files, id) ? this.files[id] : null; }
+  // Fichiers d'un enregistrement qui ne sont plus cités par aucun de ses champs : effacés.
+  gcFiles(rec) {
+    const used = new Set();
+    for (const v of Object.values(rec.fields || {})) if (Array.isArray(v)) v.forEach((a) => { if (a && typeof a === "object" && a.id) used.add(a.id); });
+    for (const [id, f] of Object.entries(this.files)) if (f.recordId === rec.id && !used.has(id)) delete this.files[id];
+  }
+  // Comme Airtable : {id} seul = pièce jointe existante du champ, gardée telle quelle ; id inconnu = 422.
+  keepAttachments(v, before) {
+    if (!Array.isArray(v)) throw err(422, "INVALID_ATTACHMENT_OBJECT", "Attachments must be an array");
+    const known = new Map((Array.isArray(before) ? before : []).filter((a) => a && a.id).map((a) => [a.id, a]));
+    return v.map((a) => {
+      if (a && typeof a === "object" && "url" in a) return Object.assign({ id: a.id || newId("att"), filename: a.filename || String(a.url).split("/").pop().split("?")[0] || "bestand" }, a);
+      if (a && typeof a === "object" && known.has(a.id)) return known.get(a.id);
+      throw err(422, "INVALID_ATTACHMENT_OBJECT", "Unknown attachment id " + String(a && a.id).slice(0, 40));
+    });
+  }
   ensureMedewerkers() { if (!this.data.Medewerkers.length) this.create("Medewerkers", demoMedewerkers(), false); }
 
   table(name) {
@@ -201,8 +236,9 @@ class FakeAirtable {
       const validated = this.validate(table, r.fields, typecast);
       for (const [k, v] of Object.entries(r.fields || {})) {
         if (v === "" || v === null || v === undefined || v === false || (Array.isArray(v) && !v.length)) delete rec.fields[k];
-        else rec.fields[k] = validated[k];
+        else rec.fields[k] = SCHEMA[table].fields[k] === "attachments" ? this.keepAttachments(validated[k], rec.fields[k]) : validated[k];
       }
+      this.gcFiles(rec);
       return rec;
     });
   }
@@ -211,6 +247,7 @@ class FakeAirtable {
       const i = this.data[table].findIndex((x) => x.id === id);
       if (i < 0) throw err(404, "NOT_FOUND", "Record not found");
       this.data[table].splice(i, 1);
+      this.gcFiles({ id, fields: {} });
       return { id, deleted: true };
     });
   }
@@ -255,7 +292,9 @@ class FakeAirtable {
       if (!rec) continue;
       const bytes = Math.floor(String(body.file || "").length * 3 / 4);
       if (bytes > 5 * 1024 * 1024) throw err(422, "INVALID_ATTACHMENT", "Attachment too large");
-      const att = { id: newId("att"), url: `data:${body.contentType};base64,${body.file}`, filename: body.filename, size: bytes, type: body.contentType };
+      if (!/^image\/(jpeg|png|webp)$/.test(String(body.contentType || ""))) throw err(422, "INVALID_ATTACHMENT", "Unsupported attachment type");
+      // Comme Airtable : AJOUTÉ au champ. Le fichier est servi sur /api/foto (scripts/dev-server.js).
+      const att = this.addFile(rec.id, body.contentType, body.filename, body.file);
       rec.fields[fieldName] = (rec.fields[fieldName] || []).concat([att]);
       return { id: rec.id, createdTime: rec.createdTime, fields: { [fieldName]: rec.fields[fieldName] } };
     }

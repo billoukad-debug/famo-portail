@@ -125,6 +125,9 @@ const server = http.createServer(async (req, res) => {
       req.body = undefined;
     }
     try {
+      // node scripts/dev.js sur le faux Airtable : ses fichiers de pièces jointes (spec 018).
+      const dev = globalThis.__famoDev;
+      if (name === "foto" && dev && dev.serveFile && /^(GET|HEAD)$/.test(req.method) && (await dev.serveFile(req, res, req.query.id))) return;
       const handler = require(handlerPath);
       await handler(req, res);
     } catch (e) {

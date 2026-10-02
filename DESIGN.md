@@ -72,7 +72,7 @@ Titre « Vóór 22:00 besteld, morgen in uw keuken. » (heure limite lue dans la
 
 ## Appareils
 
-- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Les lignes produit affichent la photo (`Foto`, envoyée depuis Beheer) au dépliage, une vignette neutre sinon.
+- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Chaque ligne produit commence par une vignette carrée de 44 px (photo principale, icône neutre sans photo ; `K.thumb`, aussi dans Voorraad, Invoeren et Beheer) ; le dépliage montre la galerie de toutes les vues (jusqu'à 6, `Foto`, envoyées depuis Beheer) : grande image qu'on fait glisser (scroll-snap), vignettes-boutons « Foto 2 van 3 », ← → au clavier, pas d'animation au survol (spec 018).
 - **Personnel** : tablette au magasin (820), téléphone en tournée (390), ordinateur au bureau (1280). Barre latérale 240px → rail 88px (≤ 1180px) → bandeau horizontal (≤ 720px). Cibles ≥ 44px, y compris les cases à cocher (zone 44px, case visible 22px).
 - **Bestellingen** : un appui sur une commande la déplie, un second ouvre sa page.
 

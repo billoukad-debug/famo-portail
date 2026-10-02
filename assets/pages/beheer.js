@@ -209,10 +209,6 @@
   }
 
   /* ---------- producten ---------- */
-  function productPanel(p) {
-    const v = Object.assign({ nom: "", cat: "", unite: "caisse", base: "", kaliber: "", btwTarief: null, foto: "", actif: true }, p || {});
-    const stockRow = (D.stock || []).find(s => s.product.toLowerCase() === String(v.nom).toLowerCase());
-
   // Lit un fichier image et le renvoie en base64, réduit à 1600 px de côté max (JPEG 85 %)
   // s'il dépasse 600 kB ; sinon tel quel. Repli : fichier d'origine si le canvas échoue.
   function shrinkFoto(file) {
@@ -235,7 +231,70 @@
       img.src = url;
     });
   }
-    const fotoHtml = f => (f ? '<img src="' + K.esc(f) + '" alt="" class="thumb-56">' : '<span class="avatar avatar-56">' + K.icon("camera") + '</span>');
+  // Foto's van een product (spec 018) : tot 6, de eerste = hoofdfoto (vignet in alle lijsten). De server
+  // beslist : uploadFoto {add:true} weigert een 7e, setFotos houdt enkel bestaande foto's in de gekozen volgorde.
+  const MAX_FOTOS = 6;
+  function fotoManager(pn, p) {
+    const box = pn.el.querySelector("#pFotoBox"), err = () => pn.el.querySelector("#pErr");
+    let fotos = (p.fotos || []).slice(), busy = false;
+    const draw = (focusSel) => {
+      const n = fotos.length, lbl = i => "Foto " + (i + 1) + " van " + n;
+      box.innerHTML = '<div class="d-flex jc-sb ai-c gap-8"><b>Foto\'s</b><span class="quiet fs-12" id="pFotoN" aria-live="polite">' + n + " van " + MAX_FOTOS + '</span></div>' +
+        '<p class="quiet fs-12 m-0">De eerste foto is de hoofdfoto: die staat in de catalogus, bij Invoeren en in Voorraad. De klant ziet alle foto\'s in de details. JPEG, PNG of WebP; grote foto\'s worden automatisch verkleind.</p>' +
+        (n ? '<ul class="fgrid" aria-label="Foto\'s van ' + K.esc(p.nom) + '">' + fotos.map((f, i) => '<li class="fcell" data-fid="' + K.esc(f.id) + '"><div class="fcell-img"><img src="' + K.esc(f.url) + '" alt="' + K.esc(lbl(i)) + '" loading="lazy" decoding="async">' + (i ? "" : '<span class="tag fcell-main">Hoofdfoto</span>') + '</div>' +
+          '<div class="fcell-a"><button type="button" class="ibtn" data-fmv="-1" aria-label="' + K.esc(lbl(i)) + ' naar links"' + (i ? "" : " disabled") + '>◀</button><button type="button" class="ibtn" data-fmv="1" aria-label="' + K.esc(lbl(i)) + ' naar rechts"' + (i < n - 1 ? "" : " disabled") + '>▶</button></div>' +
+          (i ? '<button type="button" class="btn btn-o btn-sm" data-fmain aria-label="' + K.esc(lbl(i)) + ' als hoofdfoto">Hoofdfoto</button>' : "") +
+          '<button type="button" class="btn btn-ghost btn-sm t-danger" data-fdel aria-label="' + K.esc(lbl(i)) + ' verwijderen">Verwijderen</button></li>').join("") + '</ul>' : '<p class="m-0 fs-13">Nog geen foto. De catalogus toont dan een neutraal icoon.</p>') +
+        '<div class="d-flex ai-c gap-10 f-wrap"><button type="button" class="btn btn-o btn-sm" id="pFotoAdd"' + (n >= MAX_FOTOS || busy ? " disabled" : "") + '>' + K.icon("camera") + 'Foto toevoegen</button><input type="file" id="pFoto" accept="image/jpeg,image/png,image/webp" multiple hidden><span class="quiet fs-12" id="pFotoSt" role="status">' + (n >= MAX_FOTOS ? "Maximum bereikt: verwijder eerst een foto." : "U kunt meerdere foto's tegelijk kiezen.") + '</span></div>';
+      const f = focusSel && box.querySelector(focusSel); if (f && !f.disabled) f.focus(); else if (focusSel) { const a = box.querySelector("#pFotoAdd"); if (a) a.focus(); }
+    };
+    const fromServer = d => { const np = (d.products || []).find(x => x.id === p.id); fotos = np ? (np.fotos || []).slice() : fotos; p.fotos = fotos; p.foto = fotos[0] ? fotos[0].url : ""; };
+    const save = async (order, focusSel, msg) => {
+      if (busy) return; busy = true; err().innerHTML = "";
+      try { fromServer(await post({ action: "setFotos", id: p.id, order })); busy = false; draw(focusSel); if (msg) K.toast(msg); }
+      catch (e) { busy = false; err().innerHTML = K.c.error(e.message); draw(); }
+    };
+    box.addEventListener("click", async (e) => {
+      const t = e.target.closest("button"); if (!t || t.disabled || busy) return;
+      if (t.id === "pFotoAdd") { box.querySelector("#pFoto").click(); return; }
+      const cell = t.closest(".fcell"); if (!cell) return;
+      const id = cell.dataset.fid, i = fotos.findIndex(f => f.id === id), ids = fotos.map(f => f.id);
+      if (t.hasAttribute("data-fmv")) { const j = i + Number(t.dataset.fmv); if (j < 0 || j >= ids.length) return; ids.splice(j, 0, ids.splice(i, 1)[0]); await save(ids, '[data-fid="' + CSS.escape(id) + '"] [data-fmv="' + t.dataset.fmv + '"]'); }
+      else if (t.hasAttribute("data-fmain")) { ids.splice(0, 0, ids.splice(i, 1)[0]); await save(ids, '[data-fid="' + CSS.escape(id) + '"] [data-fmv="1"]', "Hoofdfoto gewijzigd"); }
+      else if (t.hasAttribute("data-fdel")) {
+        if (!(await K.confirm({ title: "Foto " + (i + 1) + " verwijderen?", text: (i === 0 && ids.length > 1 ? "Dit is de hoofdfoto: de volgende foto wordt de hoofdfoto. " : "") + "De foto verdwijnt meteen uit de catalogus. Dit kan niet ongedaan gemaakt worden.", yes: "Verwijderen", danger: true }))) return;
+        ids.splice(i, 1); await save(ids, '.fcell:nth-child(' + Math.min(i + 1, ids.length) + ') [data-fdel]', "Foto verwijderd");
+      }
+    });
+    box.addEventListener("change", async (e) => {
+      const fi = e.target; if (fi.id !== "pFoto") return;
+      const room = MAX_FOTOS - fotos.length, picked = Array.from(fi.files || []); fi.value = "";
+      if (!picked.length) return; err().innerHTML = "";
+      const bad = picked.filter(f => !/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 12 * 1024 * 1024);
+      const files = picked.filter(f => !bad.includes(f)).slice(0, Math.max(0, room));
+      const notes = [];
+      if (bad.length) notes.push(bad.length + " bestand" + (bad.length === 1 ? "" : "en") + " overgeslagen (enkel JPEG, PNG of WebP tot 12 MB)");
+      if (picked.length - bad.length > files.length) notes.push("maximaal " + MAX_FOTOS + " foto's: " + (picked.length - bad.length - files.length) + " niet toegevoegd");
+      busy = true; draw(); let ok = 0;
+      for (let k = 0; k < files.length; k++) {
+        const st = box.querySelector("#pFotoSt"); if (st) st.textContent = "Foto " + (k + 1) + " van " + files.length + " uploaden…";
+        try {
+          // Verkleind in de browser (max 1600 px, JPEG 85 %) : een gsm-foto van 5 MB wordt ~300 kB.
+          const s = await shrinkFoto(files[k]);
+          if (s.base64.length > 4200000) throw new Error(files[k].name + ": te groot, ook na verkleinen (max 3 MB).");
+          fromServer(await post({ action: "uploadFoto", id: p.id, add: true, contentType: s.type, filename: s.name, base64: s.base64 })); ok++;
+        } catch (x) { notes.push(x.message || "Foto kon niet gelezen worden."); if (x.status === 400 && /Maximaal/.test(x.message || "")) break; }
+      }
+      busy = false; draw("#pFotoAdd");
+      if (ok) K.toast(ok === 1 ? "Foto toegevoegd" : ok + " foto's toegevoegd");
+      if (notes.length) err().innerHTML = K.c.warn(K.esc(notes.join(" · ")));
+    });
+    draw();
+  }
+  function productPanel(p) {
+    const v = Object.assign({ nom: "", cat: "", unite: "caisse", base: "", kaliber: "", btwTarief: null, foto: "", actif: true }, p || {});
+    const stockRow = (D.stock || []).find(s => s.product.toLowerCase() === String(v.nom).toLowerCase());
+
     const pn = editPanel(p ? "product:" + p.id : "", { title: p ? p.nom : "Nieuw product", sub: p ? "Product bewerken" : "Verschijnt in de klantcatalogus zodra actief", body:
       K.c.field("Naam (zoals de klant het ziet)", K.c.input("pNom", { value: v.nom }), { id: "fPNom", req: true, hint: p ? "Hernoemen? Voorraad en open bestellingen worden mee hernoemd; geleverde bestellingen houden de oude naam." : undefined }) +
       '<div class="d-grid gc-3 gap-10">' + K.c.field("Kaliber", K.c.input("pKal", { value: v.kaliber, placeholder: "bv. 16/20…" }), {}) + K.c.field("Eenheid", '<select class="input" id="pUnit">' + [["caisse", "kassa"], ["pièce", "stuk"], ["kg", "kg"], ["carton", "doos"]].map(([val, l]) => '<option value="' + val + '"' + (v.unite === val ? " selected" : "") + '>' + l + '</option>').join("") + '</select>', {}) + K.c.field("Basisprijs excl. btw", K.c.input("pBase", { value: v.base === "" ? "" : String(v.base).replace(".", ","), attrs: ' inputmode="decimal"' }), { id: "fPBase", req: true }) + '</div>' +
@@ -243,23 +302,11 @@
       '<div class="grid-2">' + K.c.field("Voorraad (optioneel)", K.c.input("pStock", { value: stockRow ? stockRow.quantity : "", attrs: ' inputmode="decimal"' }), { hint: D.config.voorraadAfboeken ? "Wordt bij vertrek automatisch afgeboekt." : "Wordt niet automatisch afgetrokken (instelbaar in Bedrijfsgegevens)." }) + K.c.field("Drempel", K.c.input("pLow", { value: stockRow ? stockRow.lowThreshold : "", attrs: ' inputmode="decimal"' }), {}) + '</div>' +
       K.c.field("Omschrijving voor de klant (optioneel)", '<textarea class="input" id="pDesc" rows="2" maxlength="400" placeholder="bv. Wilde zeebaars uit de Noordzee, gevangen met de lijn…">' + K.esc(v.omschrijving || "") + '</textarea>', { for: "pDesc", hint: "Verschijnt wanneer de klant het product openklapt." }) +
       '<label class="row-10 fs-13"><button type="button" class="toggle' + (v.actif ? " on" : "") + '" id="pActif" aria-pressed="' + (v.actif ? "true" : "false") + '"></button>Actief in de catalogus</label>' +
-      '<div class="notice fs-125 ai-c" id="pFotoBox">' + fotoHtml(v.foto) + '<div class="grow"><b>Foto</b><div class="quiet fs-12">' + (p ? "JPEG, PNG of WebP. Grote foto's worden automatisch verkleind. Verschijnt meteen in de catalogus." : "Sla het product eerst op, daarna kunt u een foto toevoegen.") + '</div>' + (p ? '<input type="file" id="pFoto" accept="image/jpeg,image/png,image/webp" class="fs-12 mt-6 maxw-100p">' : "") + '</div></div><div id="pErr"></div>',
+      '<div class="fbox" id="pFotoBox">' + (p ? "" : '<b>Foto\'s</b><p class="quiet fs-12 m-0">Sla het product eerst op, daarna kunt u tot ' + MAX_FOTOS + ' foto\'s toevoegen.</p>') + '</div>' + '<div id="pErr"></div>',
       footer: (p ? '<button type="button" class="btn btn-ghost t-danger mr-auto" id="pDel">Verwijderen</button>' : "") + '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="pOk">Opslaan</button>' });
     let actif = !!v.actif; const tg = pn.el.querySelector("#pActif"); tg.onclick = () => { actif = !actif; K.setOn(tg, actif); };
     pn.el.querySelector("[data-cancel]").onclick = pn.close;
-    const fi = pn.el.querySelector("#pFoto"); if (fi) fi.onchange = () => {
-      const f = fi.files && fi.files[0]; if (!f) return; const err = pn.el.querySelector("#pErr"); err.innerHTML = "";
-      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { err.innerHTML = K.c.error("Enkel JPEG, PNG of WebP."); fi.value = ""; return; }
-      if (f.size > 12 * 1024 * 1024) { err.innerHTML = K.c.error("Foto te groot (max 12 MB)."); fi.value = ""; return; }
-      fi.disabled = true;
-      // Verkleind in de browser (max 1600 px, JPEG 85 %) : een gsm-foto van 5 MB wordt ~300 kB,
-      // zodat de catalogus snel laadt op 4G. Kleine bestanden blijven zoals ze zijn.
-      shrinkFoto(f).then(async (s) => {
-        if (s.base64.length > 4200000) throw new Error("Foto te groot, ook na verkleinen (max 3 MB).");
-        const d = await post({ action: "uploadFoto", id: p.id, contentType: s.type, filename: s.name, base64: s.base64 });
-        const np = (d.products || []).find(x => x.id === p.id); const img = pn.el.querySelector("#pFotoBox").firstElementChild; img.outerHTML = fotoHtml(np && np.foto ? np.foto : "data:" + s.type + ";base64," + s.base64); K.toast("Foto opgeslagen");
-      }).catch(e => { err.innerHTML = K.c.error(e.message || "Foto kon niet gelezen worden."); }).then(() => { fi.disabled = false; fi.value = ""; });
-    };
+    if (p) fotoManager(pn, p);
     const del = pn.el.querySelector("#pDel"); if (del) del.onclick = async () => {
       if (!(await K.confirm({ title: "„" + p.nom + "” verwijderen?", text: "Het product verdwijnt uit de catalogus, samen met zijn prijsafspraken en voorraadregel. Geleverde bestellingen blijven leesbaar. Enkel tijdelijk uit de catalogus? Zet het op inactief.", yes: "Verwijderen", danger: true }))) return;
       K.busy(del, true, "Verwijderen…");
@@ -288,7 +335,7 @@
     page.innerHTML = head("Volgorde van de catalogus", '<button type="button" class="btn btn-ghost btn-sm" id="orderCancel">Annuleren</button><button type="button" class="btn btn-p btn-sm" id="orderSave">Volgorde bewaren</button>') +
       '<div class="content pt-16"><p class="sub ws-normal m-0 mb-4">Sleep aan <span class="d-iflex va-m">' + K.icon("grip") + '</span> of gebruik ▲▼ om categorieën en producten te verplaatsen. Dit is ook de volgorde in de klantcatalogus en bij Invoeren.</p>' +
       '<div data-cat-list class="stack-12">' + cats.map(g => '<div class="grp ccat" data-cat="' + K.esc(g) + '"><div class="grp-h gap-6"><span class="grip cgrip" title="Categorie verslepen">' + K.icon("grip") + '</span>' + K.esc(g) + ' <small>' + groups[g].length + '</small>' + '<span class="mvbtns"><button type="button" class="ibtn" data-mvc="-1" aria-label="' + K.esc("Categorie " + g) + ' omhoog">▲</button><button type="button" class="ibtn" data-mvc="1" aria-label="' + K.esc("Categorie " + g) + ' omlaag">▼</button></span>' + '</div><div data-plist>' +
-        groups[g].map(p => '<div class="prow" data-pid="' + K.esc(p.id) + '"><span class="grip pgrip" title="Product verslepen">' + K.icon("grip") + '</span>' + (p.foto ? '<img src="' + K.esc(p.foto) + '" alt="" class="thumb-28">' : "") + '<b class="ellipsis minw-0">' + K.esc(p.nom) + '</b><span class="quiet fs-125 nowrap">' + K.esc([p.kaliber, K.unit(p.unite)].filter(Boolean).join(" · ")) + '</span>' + (p.actif ? "" : '<span class="tag">inactief</span>') + '<span class="mvbtns"><button type="button" class="ibtn" data-mvp="-1" aria-label="' + K.esc(p.nom) + ' omhoog">▲</button><button type="button" class="ibtn" data-mvp="1" aria-label="' + K.esc(p.nom) + ' omlaag">▼</button></span>' + '</div>').join("") + '</div></div>').join("") + '</div></div>';
+        groups[g].map(p => '<div class="prow" data-pid="' + K.esc(p.id) + '"><span class="grip pgrip" title="Product verslepen">' + K.icon("grip") + '</span>' + K.thumb(p.foto, "", "pthumb-28") + '<b class="ellipsis minw-0">' + K.esc(p.nom) + '</b><span class="quiet fs-125 nowrap">' + K.esc([p.kaliber, K.unit(p.unite)].filter(Boolean).join(" · ")) + '</span>' + (p.actif ? "" : '<span class="tag">inactief</span>') + '<span class="mvbtns"><button type="button" class="ibtn" data-mvp="-1" aria-label="' + K.esc(p.nom) + ' omhoog">▲</button><button type="button" class="ibtn" data-mvp="1" aria-label="' + K.esc(p.nom) + ' omlaag">▼</button></span>' + '</div>').join("") + '</div></div>').join("") + '</div></div>';
     // ▲▼ : même résultat que le glisser, au clic ou au clavier (WCAG 2.5.7) ; le focus reste sur le bouton.
     const shift = (el, dir, sel) => { const sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling; if (!sib || !sib.matches(sel)) return; el.parentNode.insertBefore(dir < 0 ? el : sib, dir < 0 ? sib : el); };
     K.on(page, "click", "[data-mvc]", (e, t) => { shift(t.closest(".ccat"), Number(t.dataset.mvc), ".ccat"); t.focus(); });
@@ -305,9 +352,19 @@
     if (orderMode) return productOrder();
     const all = (D.products || []).slice().sort(K.byVolgorde); const groups = {}; all.forEach(p => { const g = K.cat(p.cat); (groups[g] = groups[g] || []).push(p); });
     const nAfsp = pid => (D.prices || []).filter(x => x.productId === pid && x.prix != null).length;
-    page.innerHTML = head(all.filter(p => p.actif).length + " actief · " + all.filter(p => !p.actif).length + " inactief", '<button type="button" class="btn btn-o btn-sm" id="orderMode">' + K.icon("grip") + 'Volgorde</button><button type="button" class="btn btn-p btn-sm" data-new-product>' + K.icon("plus") + 'Nieuw product</button>') +
-      '<div class="content pt-16">' + Object.keys(groups).sort(K.catOrder(all, p => K.cat(p.cat))).map(g => '<div class="grp"><div class="grp-h blc-p">' + K.esc(g) + ' <small>' + groups[g].length + '</small></div><div class="tblwrap"><table class="tbl"><thead><tr><th>Product</th><th>Kaliber</th><th>Eenheid</th><th class="num">Basisprijs</th><th class="num">Btw</th><th>Afspraken</th><th>Actief</th><th></th></tr></thead><tbody>' + groups[g].map(p => '<tr class="row" data-p="' + p.id + '"><td><div class="row-10">' + (p.foto ? '<img src="' + K.esc(p.foto) + '" alt="" class="thumb-28">' : "") + '<b>' + K.esc(p.nom) + '</b></div></td><td>' + K.esc(p.kaliber || "—") + '</td><td>' + K.esc(K.unit(p.unite)) + '</td><td class="num mono">' + K.eur(p.base) + '</td><td class="num mono' + (p.btwTarief == null ? " muted" : "") + '">' + K.num(p.btwTarief == null ? D.config.btwTarief : p.btwTarief) + ' %</td><td class="muted">' + (nAfsp(p.id) ? nAfsp(p.id) + " klant" + (nAfsp(p.id) === 1 ? "" : "en") : "—") + '</td><td class="w-110">' + (p.actif ? '<span class="cell-st c-done">Actief</span>' : '<span class="cell-st c-inv">Inactief</span>') + '</td><td class="ta-r"><button type="button" class="btn btn-o btn-sm" data-p-edit="' + p.id + '">Bewerken</button></td></tr>').join("") + '</tbody></table></div></div>').join("") + (all.length ? "" : K.c.empty("Nog geen producten", "Maak het eerste product aan.")) + '</div>';
+    page.innerHTML = head(all.filter(p => p.actif).length + " actief · " + all.filter(p => !p.actif).length + " inactief", '<button type="button" class="btn btn-o btn-sm" id="kalSort">Sorteer op kaliber</button><button type="button" class="btn btn-o btn-sm" id="orderMode">' + K.icon("grip") + 'Volgorde</button><button type="button" class="btn btn-p btn-sm" data-new-product>' + K.icon("plus") + 'Nieuw product</button>') +
+      '<div class="content pt-16">' + Object.keys(groups).sort(K.catOrder(all, p => K.cat(p.cat))).map(g => '<div class="grp"><div class="grp-h blc-p">' + K.esc(g) + ' <small>' + groups[g].length + '</small></div><div class="tblwrap"><table class="tbl"><thead><tr><th>Product</th><th>Kaliber</th><th>Eenheid</th><th class="num">Basisprijs</th><th class="num">Btw</th><th>Afspraken</th><th>Actief</th><th></th></tr></thead><tbody>' + groups[g].map(p => '<tr class="row" data-p="' + p.id + '"><td class="wrap minw-200"><div class="row-10">' + K.thumb(p.foto, "", "pthumb-40") + '<div class="minw-0"><b>' + K.esc(p.nom) + '</b>' + ((p.fotos || []).length > 1 ? '<div class="quiet fs-12">' + p.fotos.length + ' foto\'s</div>' : "") + '</div></div></td><td>' + K.esc(p.kaliber || "—") + '</td><td>' + K.esc(K.unit(p.unite)) + '</td><td class="num mono">' + K.eur(p.base) + '</td><td class="num mono' + (p.btwTarief == null ? " muted" : "") + '">' + K.num(p.btwTarief == null ? D.config.btwTarief : p.btwTarief) + ' %</td><td class="muted">' + (nAfsp(p.id) ? nAfsp(p.id) + " klant" + (nAfsp(p.id) === 1 ? "" : "en") : "—") + '</td><td class="w-110">' + (p.actif ? '<span class="cell-st c-done">Actief</span>' : '<span class="cell-st c-inv">Inactief</span>') + '</td><td class="ta-r"><button type="button" class="btn btn-o btn-sm" data-p-edit="' + p.id + '">Bewerken</button></td></tr>').join("") + '</tbody></table></div></div>').join("") + (all.length ? "" : K.c.empty("Nog geen producten", "Maak het eerste product aan.")) + '</div>';
     page.querySelector("#orderMode").onclick = () => { orderMode = true; render(); };
+    // Spec 018 : per categorie dezelfde namen naast elkaar, kaliber oplopend (K.kaliberOrder) ; bewaard via reorderProducts.
+    page.querySelector("#kalSort").onclick = async (e) => {
+      const btn = e.currentTarget, cur = Object.keys(groups).sort(K.catOrder(all, p => K.cat(p.cat))).flatMap(g => groups[g].map(p => p.id)), order = K.kaliberOrder(all);
+      const moved = order.filter((id, i) => cur[i] !== id).length;
+      if (!moved) { K.toast("De producten staan al op kaliber."); return; }
+      if (!(await K.confirm({ title: "Sorteren op kaliber?", text: "Binnen elke categorie komen producten met dezelfde naam naast elkaar, van klein naar groot kaliber (U10, 8/12, 13/15, 16/20, 21/25…). Een kaliber in de naam telt ook (\u201eScampi 16/20\u201d). De volgorde van de categorie\u00ebn en van de verschillende namen blijft. Dit wordt ook de volgorde in de klantcatalogus en bij Invoeren. " + moved + " product" + (moved === 1 ? " verschuift" : "en verschuiven") + ".", yes: "Sorteren" }))) return;
+      K.busy(btn, true, "Sorteren…");
+      try { const d = await post({ action: "reorderProducts", order }); render(); K.toast("Gesorteerd op kaliber (" + d.changed + " product" + (d.changed === 1 ? "" : "en") + " bewaard)"); }
+      catch (err) { K.toast(err.message, { kind: "err" }); K.busy(btn, false); }
+    };
     K.on(page, "click", "[data-p-edit]", (e, t) => { e.stopPropagation(); productPanel(all.find(p => p.id === t.dataset.pEdit)); });
     K.on(page, "click", "tr[data-p]", (e, t) => { if (e.target.closest("button")) return; productPanel(all.find(p => p.id === t.dataset.p)); });
   }

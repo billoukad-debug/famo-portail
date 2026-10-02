@@ -20,6 +20,24 @@ function loadDotEnv() {
   });
 }
 
+// /api/foto?id=att… sur le faux Airtable (sans base SQL, api/foto.js n'a rien à servir) : mêmes
+// règles que api/foto.js — photo produit publique, tout autre fichier (preuve de livraison) réservé
+// au personnel. true = réponse envoyée ; false = api/foto.js répond (404).
+async function serveFakeFile(db, req, res, id) {
+  const f = /^att[A-Za-z0-9]{14}$/.test(String(id || "")) ? db.fileById(id) : null;
+  if (!f || !/^image\/(jpeg|png|webp)$/.test(f.contentType)) return false;
+  const isProduct = db.data.Catalogue.some((r) => r.id === f.recordId);
+  if (!isProduct && !(await require("../lib/staffauth").staffSession(req))) return false;
+  const buf = Buffer.from(f.data, "base64");
+  res.setHeader("Content-Type", f.contentType);
+  res.setHeader("Content-Length", String(buf.length));
+  res.setHeader("Cache-Control", isProduct ? "public, max-age=3600" : "private, no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.statusCode = 200;
+  res.end(req.method === "HEAD" ? undefined : buf);
+  return true;
+}
+
 async function main() {
   const real = process.env.FAMO_REAL === "1";
   if (real) loadDotEnv();
@@ -28,7 +46,7 @@ async function main() {
     const { FakeResend, startServer: startRs } = require("./fake-resend");
     const { seed } = require("./seed");
     const db = new FakeAirtable({ file: path.join(ROOT, ".dev-data", "airtable.json") });
-    if (!db.data.Configuratie.length || process.env.FAMO_RESEED === "1") seed(db);
+    if (!db.data.Configuratie.length || process.env.FAMO_RESEED === "1") seed(db, { fotos: true });
     const box = new FakeResend({ file: path.join(ROOT, ".dev-data", "mails.json") });
     const at = await startAt(db, { port: 0 });
     const rs = await startRs(box, { port: 0 });
@@ -45,13 +63,18 @@ async function main() {
     process.env.MAIL_FROM = process.env.MAIL_FROM || "FAMO Seafood <bestellingen@famotrading.be>";
     process.env.ADMIN_CODE = process.env.ADMIN_CODE || "beheer-dev-code";
     process.env.STAFF_CODE = process.env.STAFF_CODE || "team-dev-code";
-    globalThis.__famoDev = { db, box, at, rs, seed: () => { seed(db); box.reset(); } };
+    // Photos de démo (spec 018) : quelques produits ont 2–3 vues, générées par seed.js.
+    globalThis.__famoDev = { db, box, at, rs, seed: () => { seed(db, { fotos: true }); box.reset(); }, serveFile: (req, res, id) => serveFakeFile(db, req, res, id) };
     console.log("Nagebootste Airtable op " + at.url + " · postvak " + rs.url + "/inbox");
     // DB_BACKEND=sqlite : le portail tourne sur le moteur Postgres/SQL (lib/at-engine.js),
     // amorcé avec les mêmes données de démo. C'est la répétition générale de la bascule.
     if (String(process.env.DB_BACKEND || "").toLowerCase() === "sqlite") {
       const ds = require("../lib/datastore");
       for (const [tbl, recs] of Object.entries(db.data)) await ds.state.store.replaceAll(tbl, recs);
+      // Fichiers des pièces jointes (photos de démo) : dans famo_files, servis par api/foto.js.
+      await ds.state.store.clearFiles();
+      for (const [id, f] of Object.entries(db.files)) await ds.state.store.putFile({ id, recordId: f.recordId, contentType: f.contentType, filename: f.filename, size: f.size, data: f.data });
+      globalThis.__famoDev.serveFile = null;
       console.log("Database: SQLite (" + (process.env.DB_SQLITE_FILE || ":memory:") + ") via lib/at-engine.js");
     }
     console.log("Codes: personeel = team-dev-code · beheer = beheer-dev-code · klant: aloha / welkom123");

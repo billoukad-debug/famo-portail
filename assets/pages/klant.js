@@ -114,23 +114,68 @@
 
   /* ---------- catalogus ---------- */
   let q = "", catFilter = "Alles";
-  // Eén compacte regel per product ; foto en extra info pas na het openklappen (lijsten van honderden producten blijven overzichtelijk).
+  // Eén compacte regel per product, met de hoofdfoto als kleine vignet (spec 018 : foto's altijd zichtbaar) ;
+  // alle zichten en extra info na het openklappen (lijsten van honderden producten blijven licht : lazy).
   const opened = new Set();
+  // Zichten van een product : fotos (spec 018), of enkel foto (oude cache in sessionStorage).
+  const photosOf = p => (Array.isArray(p.fotos) && p.fotos.length ? p.fotos : p.foto ? [p.foto] : []);
   function productRow(p) {
     const qty = Number(cart.items[p.id] || 0), neg = p.prix < p.base, open = opened.has(p.id), u = unitLabel(p);
     const meta = [p.kaliber, u].filter(Boolean).map(K.esc).join(" · ");
+    // Vignet in de knop : een tik erop opent de details. alt leeg : de naam staat ernaast in dezelfde knop.
     return '<div class="prod' + (qty > 0 ? " on" : "") + (open ? " open" : "") + '" data-id="' + p.id + '">' +
-      '<button type="button" class="pr-x" data-x="' + p.id + '" aria-expanded="' + open + '" aria-controls="pd-' + p.id + '">' + K.icon("chev", "pr-chev") + '<span class="pr-t"><span class="pn">' + K.esc(p.nom) + '</span><span class="pm">' + meta + stockTag(p) + '</span></span></button>' +
+      '<button type="button" class="pr-x" data-x="' + p.id + '" aria-expanded="' + open + '" aria-controls="pd-' + p.id + '">' + K.icon("chev", "pr-chev") + K.thumb(photosOf(p)[0], "", "pr-th") + '<span class="pr-t"><span class="pn">' + K.esc(p.nom) + '</span><span class="pm">' + meta + stockTag(p) + '</span></span></button>' +
       '<span class="pr-k">' + K.esc(p.kaliber || "") + '</span><span class="pr-u">' + K.esc(u) + stockTag(p) + '</span>' +
       '<div class="pp"><b class="mono">' + K.eur(p.prix) + '</b>' + (neg ? '<s class="mono">' + K.eur(p.base) + '</s><small>' + K.t("uw prijs") + '</small>' : '<span class="quiet">/ ' + K.esc(u) + '</span>') + '</div>' +
       '<button type="button" class="ibtn fav' + (favs[p.id] ? " on" : "") + '" data-fav="' + p.id + '" aria-label="' + K.t("Favoriet") + ': ' + K.esc(p.nom) + '" aria-pressed="' + (favs[p.id] ? "true" : "false") + '">' + K.icon("star") + '</button>' +
       K.c.stepper(p.id, qty, { step: isKg(p) ? 0.5 : 1, name: p.nom }) +
       '<div class="pr-d" id="pd-' + p.id + '"' + (open ? "" : " hidden") + '>' + (open ? detailHtml(p) : "") + '</div></div>';
   }
+  // Galerij (spec 018) : grote foto ; bij meerdere zichten een strook om te vegen (scroll-snap) en vignetknoppen
+  // « Foto 2 van 3 » (aria-current op het getoonde zicht) ; ← → wisselen. Zonder foto : niets (de regel toont het icoon).
+  function galleryHtml(p) {
+    const ph = photosOf(p), n = ph.length; if (!n) return "";
+    const lbl = i => K.tt("Foto {i} van {n}", { i: i + 1, n });
+    const slides = ph.map((u, i) => '<div class="gal-s"><img src="' + K.esc(u) + '" alt="' + K.esc(n > 1 ? p.nom + " · " + lbl(i) : p.nom) + '"' + (i ? ' loading="lazy"' : "") + ' decoding="async" data-gimg></div>').join("");
+    if (n === 1) return '<div class="gal"><div class="gal-track">' + slides + '</div></div>';
+    return '<div class="gal" data-gal><div class="gal-track" tabindex="0" role="group" aria-label="' + K.esc(K.tt("Foto's van {p}", { p: p.nom })) + '" aria-keyshortcuts="ArrowLeft ArrowRight">' + slides + '</div>' +
+      '<div class="gal-th">' + ph.map((u, i) => '<button type="button" class="gal-b" aria-label="' + K.esc(lbl(i)) + '"' + (i ? "" : ' aria-current="true"') + '><img src="' + K.esc(u) + '" alt="" width="44" height="44" loading="lazy" decoding="async"></button>').join("") + '</div></div>';
+  }
+  const reduceMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+  // Een kapotte of verlopen foto verdwijnt met haar vignetknop ; de nummering volgt ; geen enkele meer : geen galerij.
+  function dropSlide(img) {
+    const g = img.closest(".gal"), s = img.closest(".gal-s"); if (!g || !s) return;
+    const i = Array.prototype.indexOf.call(s.parentNode.children, s), btns = K.$$(".gal-b", g);
+    s.remove(); if (btns[i]) btns[i].remove();
+    const left = K.$$(".gal-b", g), n = left.length;
+    if (!g.querySelector(".gal-s")) { g.remove(); return; }
+    if (n <= 1) { const th = g.querySelector(".gal-th"), tr = g.querySelector(".gal-track"); if (th) th.remove(); ["tabindex", "role", "aria-label", "aria-keyshortcuts"].forEach(a => tr.removeAttribute(a)); return; }
+    left.forEach((b, k) => b.setAttribute("aria-label", K.tt("Foto {i} van {n}", { i: k + 1, n })));
+    if (!g.querySelector('.gal-b[aria-current="true"]')) left[0].setAttribute("aria-current", "true");
+  }
+  function bindGallery(root) {
+    K.$$("img[data-gimg]", root).forEach(img => { img.removeAttribute("data-gimg"); img.onerror = () => dropSlide(img); if (img.complete && img.naturalWidth === 0 && img.getAttribute("src")) dropSlide(img); });
+    K.$$("[data-gal]", root).forEach(g => {
+      g.removeAttribute("data-gal");
+      const track = g.querySelector(".gal-track");
+      const cur = () => Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+      const mark = i => K.$$(".gal-b", g).forEach((b, k) => { if (k === i) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current"); });
+      const go = i => { i = Math.max(0, Math.min(track.children.length - 1, i)); track.scrollTo({ left: i * track.clientWidth, behavior: reduceMotion() ? "auto" : "smooth" }); mark(i); return i; };
+      track.addEventListener("scroll", K.debounce(() => mark(cur()), 90), { passive: true });
+      g.addEventListener("click", e => { const b = e.target.closest(".gal-b"); if (b) go(K.$$(".gal-b", g).indexOf(b)); });
+      g.addEventListener("keydown", e => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault();
+        const onThumb = e.target.closest && e.target.closest(".gal-b"), from = onThumb ? K.$$(".gal-b", g).indexOf(onThumb) : cur();
+        const i = go(from + (e.key === "ArrowRight" ? 1 : -1));
+        if (onThumb) { const b = K.$$(".gal-b", g)[i]; if (b) b.focus(); }
+      });
+    });
+  }
   function detailHtml(p) {
     const s = stock(p), neg = p.prix < p.base;
     const row = (k, v) => v ? '<div><dt>' + K.esc(k) + '</dt><dd>' + v + '</dd></div>' : "";
-    return (p.foto ? '<div class="pr-ph"><img src="' + K.esc(p.foto) + '" alt="' + K.esc(p.nom) + '" data-fallback></div>' : "") +
+    return galleryHtml(p) +
       '<div class="pr-info">' + (p.omschrijving ? '<p class="pr-desc">' + K.esc(p.omschrijving) + '</p>' : "") + '<dl>' +
       row(K.t("Categorie"), K.esc(K.t(K.cat(p.cat)))) + row(K.t("Kaliber"), K.esc(p.kaliber)) + row(K.t("Eenheid"), K.esc(unitLabel(p))) +
       row(K.t("Prijs excl. btw"), '<span class="mono">' + K.eur(p.prix) + '</span> / ' + K.esc(unitLabel(p)) + (neg ? ' <s class="mono quiet">' + K.eur(p.base) + '</s> · ' + K.t("uw prijs") : "")) +
@@ -208,7 +253,7 @@
     bindSteppers(app, id => { syncRow(id); refreshCart(); });
   }
   // Foto's van Airtable verlopen na een tijd : een kapotte afbeelding verdwijnt (de details blijven).
-  function fallback(root) { K.$$("img[data-fallback]", root).forEach(img => { img.onerror = () => { img.parentNode.remove(); }; }); }
+  function fallback(root) { K.$$("img[data-fallback]", root).forEach(img => { img.onerror = () => { img.parentNode.remove(); }; }); bindGallery(root); }
   function syncRow(id) {
     const row = app.querySelector('.prod[data-id="' + CSS.escape(id) + '"]'); if (!row) return;
     const v = Number(cart.items[id] || 0), st = row.querySelector(".stepper");
