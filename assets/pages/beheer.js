@@ -746,7 +746,7 @@
   // Volgorde : selectie + voorbeeld (niets geschreven) → archiveren als test (omkeerbaar) → back-up → definitief
   // verwijderen → nummering herstarten. De server rekent de selectie zelf na en controleert back-up en bevestiging.
   const ST_NL = { "Reçue": "Ontvangen", "Prête": "Klaar", "Sortie en livraison": "Onderweg", "Facturée": "Geleverd", "Annulée": "Geannuleerd" };
-  let tp = { voor: null, behalve: "", data: null, backupAt: 0 };
+  let tp = { voor: null, behalve: "", behoud: [], data: null, backupAt: 0 };
   const two = n => String(n).padStart(2, "0");
   const nrList = l => !l.length ? "geen" : l.length <= 6 ? l.join(", ") : l[0] + " … " + l[l.length - 1] + " (" + l.length + ")";
   async function testCard() {
@@ -768,7 +768,7 @@
       const iso = voorIso(); K.setErr("f_tpDag", iso ? "" : "Kies een datum."); if (!iso) return;
       tp.voor = iso; tp.behalve = box.querySelector("#tpBehalve").value;
       const b = box.querySelector("#tpVoorbeeld"); K.busy(b, true, "Tellen…");
-      try { tp.data = await K.api("/api/onboarding", { json: { action: "testVoorbeeld", voor: iso, behalve: tp.behalve } }); drawTp(out); }
+      try { tp.data = await K.api("/api/onboarding", { json: { action: "testVoorbeeld", voor: iso, behalve: tp.behalve, behoudKlanten: tp.behoud } }); drawTp(out); }
       catch (e) { out.innerHTML = K.c.error(e.message); }
       K.busy(b, false);
     };
@@ -791,6 +791,9 @@
     const purgeWhy = !g.bestellingen ? "Eerst archiveren als test (stap 2)." : !fresh ? "Eerst een back-up maken (stap 3)." : "";
     const numWhy = !nodig.length ? (blocked.length ? blocked.map(n => n.reden).join(" ") : "Niets te herstarten.") : !fresh ? "Eerst een back-up maken (stap 3)." : "";
     out.innerHTML =
+      // Echte klanten : aangevinkt = al hun bestellingen blijven buiten de selectie (server rekent na).
+      (d.kandidaten.length ? '<div class="stack-6 mt-10" role="group" aria-labelledby="tpKeepH"><h3 class="fs-14 m-0" id="tpKeepH">Echte klanten: hun bestellingen behouden</h3><p class="quiet fs-12 m-0">Vink de klanten aan wiens bestellingen echt zijn. Die bestellingen worden niet gearchiveerd.</p>' +
+        d.kandidaten.map(k => '<label class="row-10 fs-13">' + K.c.check(k.behouden, 'data-behoud="' + K.esc(k.id) + '"', { big: true, label: "Bestellingen van " + k.naam + " behouden" }) + '<span><b>' + K.esc(k.naam) + '</b> <span class="quiet">· ' + K.plural(k.bestellingen, "bestelling", "bestellingen") + (k.behouden ? " · behouden" : "") + '</span></span></label>').join("") + '</div>' : "") +
       '<h3 class="fs-14 mt-10 mb-6">Voorbeeld: ' + K.plural(s.bestellingen, "bestelling", "bestellingen") + ' in de selectie</h3>' + table(s, "Wat gearchiveerd zou worden") +
       '<p class="sub m-0 mt-6">Buiten de selectie (blijft zichtbaar): ' + K.plural(d.buiten.bestellingen, "bestelling", "bestellingen") + '.</p>' +
       '<h3 class="fs-14 mt-14 mb-6">2. Archiveren als test</h3><p class="sub m-0 mb-6">Omkeerbaar. Gearchiveerde bestellingen verdwijnen uit alle lijsten, rapporten, documenten, de klantenportal, herinneringen en exports. Hun nummers blijven bezet tot ze definitief verwijderd zijn.</p>' +
@@ -807,13 +810,20 @@
       '<div class="tblwrap mt-6"><table class="tbl"><thead><tr><th scope="col">Reeks</th><th scope="col" class="num">Als test</th><th scope="col" class="num">Andere</th><th scope="col">Volgende</th></tr></thead><tbody>' + d.nummering.map(n => '<tr><td class="mono">' + K.esc(n.serie) + '</td><td class="num mono">' + n.test + '</td><td class="num mono">' + n.echt + '</td><td>' + (n.magHerstarten ? (n.nodig ? '<span class="cell-st c-new">kan terug naar 0001</span>' : '<span class="cell-st c-done">0001</span>') : '<span class="cell-st c-late">loopt door</span>') + '</td></tr>').join("") + '</tbody></table></div>' +
       '<div class="d-flex gap-8 f-wrap mt-6"><button type="button" class="btn btn-o btn-sm" id="tpNum"' + (numWhy ? ' disabled aria-describedby="tpNumWhy"' : "") + '>Nummering herstarten' + (nodig.length ? " (" + nodig.map(n => n.serie).join(", ") + ")" : "") + '</button></div>' + why("tpNumWhy", numWhy) + '<div id="tpRes" class="mt-6"></div>';
     const res = out.querySelector("#tpRes");
+    out.querySelectorAll("[data-behoud]").forEach(b => b.onclick = async () => {
+      const id = b.dataset.behoud, on = !b.classList.contains("on");
+      tp.behoud = on ? tp.behoud.concat(id) : tp.behoud.filter(x => x !== id);
+      K.setOn(b, on); b.disabled = true;
+      await testCard();
+      const again2 = page.querySelector('[data-behoud="' + id + '"]'); if (again2) again2.focus();
+    });
     const again = async (msg) => { await testCard(); const r = page.querySelector("#tpRes"); if (r && msg) { r.innerHTML = msg; } const h = page.querySelector("#tpOut h3"); if (h) { h.tabIndex = -1; h.focus(); } };
     const fail = (b, e) => { res.innerHTML = K.c.error(e.message); K.busy(b, false); };
     const ar = out.querySelector("#tpArch");
     if (ar && s.bestellingen) ar.onclick = async () => {
       if (!(await K.confirm({ title: K.plural(s.bestellingen, "bestelling", "bestellingen") + " archiveren als test?", text: "Ze verdwijnen overal uit beeld (personeel, klanten, documenten, rapporten). Met « Terugzetten » komen ze ongewijzigd terug.", yes: "Archiveren" }))) return;
       K.busy(ar, true, "Archiveren…");
-      try { const r = await K.api("/api/onboarding", { json: { action: "testArchiveren", voor: d.voor, behalve: d.behalve, verwacht: s.bestellingen } }); K.toast(r.gearchiveerd + " gearchiveerd als test"); await again(K.c.ok(K.plural(r.gearchiveerd, "bestelling", "bestellingen") + " gearchiveerd als test. Controleer Bestellingen en Documenten; daarna kan u ze definitief verwijderen.")); }
+      try { const r = await K.api("/api/onboarding", { json: { action: "testArchiveren", voor: d.voor, behalve: d.behalve, behoudKlanten: d.behoudKlanten, verwacht: s.bestellingen } }); K.toast(r.gearchiveerd + " gearchiveerd als test"); await again(K.c.ok(K.plural(r.gearchiveerd, "bestelling", "bestellingen") + " gearchiveerd als test. Controleer Bestellingen en Documenten; daarna kan u ze definitief verwijderen.")); }
       catch (e) { fail(ar, e); }
     };
     const bb = out.querySelector("#tpBack");

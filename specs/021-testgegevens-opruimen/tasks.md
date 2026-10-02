@@ -9,3 +9,4 @@
 - [x] T008 `docs/RUNBOOK.md` § 8 « Testperiode afsluiten » pas à pas
 - [x] T009 Audits : carte avec aperçu ouvert dans `ux-audit` ; captures 1280 / 390 relues
 - [x] T010 Portes : assets-version, check.js, ESLint 9.39.5, contrast-check, ux-audit → kbd-audit (données neuves, port 4381 : 4380 était occupé par un autre serveur de dev, non touché) ; `test/engine.test.js` : une lecture filtrée de plus attendue pour `/api/config?status=1` (commandes test, `{Test}=1` pré-filtré en SQL)
+- [x] T011 FR-012 « Echte klanten behouden » : test d'abord (`test/testperiode.test.js`, aperçu + archivage + 409 + journal), puis serveur (`behoudKlanten`, `kandidaten`), interface (cases 44 px), `docs/RUNBOOK.md` § 8 étape 3

@@ -159,6 +159,41 @@ test("voorbeeld : comptes exacts, périmètre du serveur, et rien n'est écrit (
   assert.equal(await everything(), before, "aucune écriture, pas même au journal");
 });
 
+test("behoud klanten : les commandes des vrais clients cochés restent hors du périmètre (aperçu et archivage)", async () => {
+  const before = await everything();
+  const v = await voorbeeld();
+  assert.equal(v.statusCode, 200, JSON.stringify(v.body));
+  // Liste des clients du périmètre, avec leur id (cases à cocher dans Beheer), aucun coché par défaut.
+  const ks = v.body.kandidaten;
+  assert.ok(Array.isArray(ks) && ks.length >= 2, JSON.stringify(ks));
+  assert.ok(ks.every((k) => /^rec/.test(k.id) && k.naam && k.bestellingen > 0 && k.behouden === false));
+  assert.equal(ks.reduce((n, k) => n + k.bestellingen, 0), 7);
+  const keep = ks[0];
+  // Un id inconnu ou mal formé est ignoré ; le client coché sort du périmètre et reste coché dans la liste.
+  const b = await voorbeeld({ behoudKlanten: [keep.id, "recNOPE0000000000", "x\"<y", 42] });
+  assert.equal(b.statusCode, 200, JSON.stringify(b.body));
+  assert.equal(b.body.scope.bestellingen, 7 - keep.bestellingen);
+  assert.equal(b.body.buiten.bestellingen, 1 + keep.bestellingen);
+  assert.deepStrictEqual(b.body.behoudKlanten, [keep.id]);
+  assert.ok(!b.body.scope.klanten.some((k) => k.naam === keep.naam), "plus aucune commande de ce client dans le périmètre");
+  assert.equal(b.body.kandidaten.find((k) => k.id === keep.id).behouden, true);
+  assert.equal(b.body.kandidaten.reduce((n, k) => n + k.bestellingen, 0), 7, "la liste garde tous les clients pour décocher");
+  assert.equal(await everything(), before, "l'aperçu n'écrit toujours rien");
+  // Archivage avec le même choix : seules les commandes des autres clients sont marquées Test.
+  const r = await archiveer({ behoudKlanten: [keep.id] });
+  assert.equal(r.gearchiveerd, 7 - keep.bestellingen);
+  const all = await orders();
+  const kept = all.filter((o) => (o.fields["Client"] || [])[0] === keep.id);
+  assert.ok(kept.length >= keep.bestellingen && kept.every((o) => !o.fields["Test"]), "commandes du client gardé jamais marquées");
+  assert.equal(all.filter((o) => o.fields["Test"]).length, 7 - keep.bestellingen);
+  const j = (await store().list("Journaal")).map((x) => x.fields).find((f) => /gearchiveerd/.test(f.Actie || ""));
+  assert.ok(j && /behalve 1 klant/.test(j.Reden || ""), JSON.stringify(j));
+  // Le nombre attendu tient compte du choix : sans lui, 409.
+  await beheer({ action: "testTerugzetten" });
+  const bad = await beheer({ action: "testArchiveren", voor: CUTOFF(), verwacht: 7, behoudKlanten: [keep.id] });
+  assert.equal(bad.statusCode, 409, JSON.stringify(bad.body));
+});
+
 test("personnel et sans session refusés, garde A-10 d'abord ; rien n'est écrit", async () => {
   const before = await everything();
   for (const action of ["testVoorbeeld", "testArchiveren", "testTerugzetten", "testVerwijderen", "testNummering"]) {

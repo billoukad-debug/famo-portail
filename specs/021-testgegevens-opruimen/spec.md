@@ -70,6 +70,12 @@ depuis Beheer.
   numéroté de cette série existe encore (test ou réel), avec la raison. Moteur SQL : le compteur `Compteurs`
   (`lib/billing.js reserve`) est remis au plus grand numéro restant (0) par écriture conditionnelle ; Airtable :
   rien à remettre (max + 1 sur les données restantes). Journalisé « Testperiode: nummering herstart ».
+- **FR-012** (ajout 2026-10-02, retour du propriétaire : « les 3 vrais clients ont aussi commandé ») : `behoudKlanten`
+  (ids de fiches `Clients` existantes, format `rec…`, 200 max ; inconnus et mal formés ignorés) sur `testVoorbeeld`
+  et `testArchiveren` : toutes les commandes de ces clients sortent du périmètre. L'aperçu renvoie `kandidaten`
+  (chaque client du périmètre avant ce choix : id, nom, nombre de commandes, `behouden`) et `behoudKlanten` retenus ;
+  l'interface affiche une case par client (« Echte klanten: hun bestellingen behouden », 44 px) et refait l'aperçu à
+  chaque changement. `verwacht` tient compte du choix (409 sinon). La ligne de journal dit « behalve N klant(en) ».
 - **FR-011** Interface (Beheer → Systeemstatus) en néerlandais, WCAG 2.2 AA, cibles ≥ 44 px, dialogues `K.confirm`,
   aucun style en ligne. Le bouton « Definitief verwijderen » et « Nummering herstarten » restent désactivés tant
   qu'il n'y a pas de back-up fraîche (contrôle serveur ; sur Airtable : back-up faite dans cette session) ; le
