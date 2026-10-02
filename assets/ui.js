@@ -532,6 +532,7 @@
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     stock: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+    chart: '<path d="M4 4v16h16"/><path d="M7.5 15l4-5 3 3 5-6"/>',
     ext: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v6H4V6h6"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     grip: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
@@ -900,7 +901,8 @@
     K.$$("[data-badgemode]").forEach(x => { const on = x.dataset.badgemode === b.dataset.badgemode; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
     K.setBadges({});
   });
-  const NAV_ADMIN = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"], ["beheer.html", "/beheer", "Beheer", "settings"]];
+  // Rapportage (spec 022) : chiffres de direction, beheerder seul (api/rapportage, api/marge refusent le personnel).
+  const NAV_ADMIN = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"], ["rapportage.html", "/beheer/rapportage", "Rapportage", "chart"], ["beheer.html", "/beheer", "Beheer", "settings"]];
   const NAV_STAFF_MORE = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"]];
   K.shell = function (opts) {
     const o = opts || {};

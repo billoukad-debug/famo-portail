@@ -15,7 +15,7 @@ const list = (dir, re) => fs.existsSync(path.join(ROOT, dir)) ? fs.readdirSync(p
 
 // Pages : racine (client, Beheer) + team/ (personnel) + beheer/ (connexion Beheer). URL propres (vercel.json cleanUrls).
 const htmlPages = [...fs.readdirSync(ROOT).filter(f => f.endsWith(".html")), ...list("team", /\.html$/), ...list("beheer", /\.html$/)];
-const jsFiles = [...list("api", /\.js$/), ...list("lib", /\.js$/), ...list("lib/beheer", /\.js$/), ...list("lib/commande", /\.js$/), ...list("lib/inbound", /\.js$/), ...list("assets", /\.js$/), ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("assets/docs", /\.js$/), ...list("scripts", /\.js$/)];
+const jsFiles = [...list("api", /\.js$/), ...list("lib", /\.js$/), ...list("lib/beheer", /\.js$/), ...list("lib/commande", /\.js$/), ...list("lib/inbound", /\.js$/), ...list("assets", /\.js$/), ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("assets/pages/beheer", /\.js$/), ...list("assets/docs", /\.js$/), ...list("scripts", /\.js$/)];
 
 // 1. Syntaxe de tout le JS et des <script> inline.
 let synErr = 0;
@@ -45,7 +45,7 @@ const linksStart = errors.length;
 // Liens de page en URL propre (/team/magazijn) : la page existe (x.html ou x/index.html) et aucun lien interne
 // ne garde l'extension .html (les anciennes adresses ne vivent plus que dans les redirections de vercel.json).
 const pageOf = (u) => { const p = u.slice(1); return p === "" || fs.existsSync(path.join(ROOT, p + ".html")) || fs.existsSync(path.join(ROOT, p, "index.html")); };
-const linkSources = [...htmlPages, "assets/ui.js", ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("api", /\.js$/), ...list("lib", /\.js$/).filter(f => f !== "lib/sql.js" /* « /sql » = API Neon, pas une page */), ...list("lib/beheer", /\.js$/), ...list("lib/commande", /\.js$/), ...list("lib/inbound", /\.js$/), "sw.js", "manifest.webmanifest"].filter(f => fs.existsSync(path.join(ROOT, f)));
+const linkSources = [...htmlPages, "assets/ui.js", ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("assets/pages/beheer", /\.js$/), ...list("api", /\.js$/), ...list("lib", /\.js$/).filter(f => f !== "lib/sql.js" /* « /sql » = API Neon, pas une page */), ...list("lib/beheer", /\.js$/), ...list("lib/commande", /\.js$/), ...list("lib/inbound", /\.js$/), "sw.js", "manifest.webmanifest"].filter(f => fs.existsSync(path.join(ROOT, f)));
 let pageLinks = 0;
 for (const f of linkSources) {
   const s = read(f), re = /(?:href="|["'`])(\/(?!api\/|assets\/|vendor\/)(?:[a-z0-9-]+\/)*[a-z0-9-]*(\.html)?)(?=[?#"'`])/g; let m;
@@ -55,12 +55,12 @@ if (!failsSince(linksStart)) ok("Liens internes : " + pageLinks + " liens en URL
 
 // 4. Interface : pas d'alert/confirm/prompt natifs, pas de code staff en storage ni en URL.
 let ui = 0;
-for (const f of [...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), "assets/ui.js", ...htmlPages]) { const s = read(f); if (/(^|[^.\w])(alert|confirm|prompt)\(/.test(s.replace(/K\.(confirm|prompt)\(/g, ""))) { ui++; fail("Dialogue natif dans " + f); } if (/localStorage\.setItem\(["'][^"']*[Cc]ode/.test(s) || /[?&]code=/.test(s)) { ui++; fail("Code personnel en storage ou en URL dans " + f); } }
+for (const f of [...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("assets/pages/beheer", /\.js$/), "assets/ui.js", ...htmlPages]) { const s = read(f); if (/(^|[^.\w])(alert|confirm|prompt)\(/.test(s.replace(/K\.(confirm|prompt)\(/g, ""))) { ui++; fail("Dialogue natif dans " + f); } if (/localStorage\.setItem\(["'][^"']*[Cc]ode/.test(s) || /[?&]code=/.test(s)) { ui++; fail("Code personnel en storage ou en URL dans " + f); } }
 if (!ui) ok("Interface : dialogues maison, aucun code en storage/URL");
 
 // 5. Néerlandais : aucune unité française affichée sans passer par K.unit.
 let fr = 0;
-for (const f of [...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), "assets/ui.js", ...htmlPages]) { const s = read(f); if (/>\s*caisse\s*</i.test(s) || /"caisse"\s*\+/.test(s)) { fr++; fail("« caisse » affiché tel quel dans " + f); } }
+for (const f of [...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("assets/pages/beheer", /\.js$/), "assets/ui.js", ...htmlPages]) { const s = read(f); if (/>\s*caisse\s*</i.test(s) || /"caisse"\s*\+/.test(s)) { fr++; fail("« caisse » affiché tel quel dans " + f); } }
 if (!fr) ok("Néerlandais : unités traduites (caisse → kassa)");
 
 // 6. Chaque page charge la couche partagée et une police avec repli.
@@ -72,7 +72,7 @@ if (!failsSince(pagesStart)) ok("Pages : couche partagée + viewport");
 // (verzamellijst = document autonome sans ui.css ; #fUitzNota / #vAdd et #otherDay pilotés par el.style dans le JS).
 {
   const CEILING = 7, found = [];
-  for (const f of [...htmlPages, "assets/ui.js", ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/)]) {
+  for (const f of [...htmlPages, "assets/ui.js", ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("assets/pages/beheer", /\.js$/)]) {
     const re = /style=\\?"([^"\\]*)/g; let m; const s = read(f);
     while ((m = re.exec(s))) if (!/['"] \+/.test(m[1])) found.push(f + " : style=\"" + m[1] + "\"");
   }

@@ -150,8 +150,53 @@ function seed(db, opts) {
     { "Bericht-id": "demo-inbound-2", "Ontvangen op": ago(5), "Van": "info@sushisato.example", "Aan": "bestel@orders.famoseafood.be", "Onderwerp": "Commande",
       "Tekst": "Bonjour,\n\nPour demain: 2 kg de thon sashimi et 1 caisse de moules.\n\nMerci,\nYuki", "Status": "Te controleren", "Verificatie": "spf=pass dkim=pass dmarc=pass", "Reden": "onbekende afzender" }
   ]);
+  if (opts && opts.historie) addHistorie(db, products, clients);
   db.save();
   return { configId: cfg.id, products, clients };
+}
+
+// Historique facturé (Rapportage, specs/022) : 15 mois de factures pour le portail de dev (scripts/dev.js) — trois
+// clients, une creditnota par an, un produit à 21 %, quelques factures ouvertes dont deux vervallen, des lots
+// inactifs avec prix d'achat (marge). Déterministe (même graine) et relatif à aujourd'hui. Les tests appellent seed()
+// sans cette option : leurs données ne changent pas.
+function addHistorie(db, products, clients) {
+  let s = 20261002; const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+  const P = (name) => products.find((p) => p.fields["Produit"] === name);
+  const C = (name) => clients.find((c) => c.fields["Nom"] === name);
+  db.update("Catalogue", [{ id: P("ZEEWIERSALADE 1KG").id, fields: { "BTW-tarief": 21 } }]);
+  db.create("Lots", [["Saumon frais", 11.2], ["Cabillaud", 14.5], ["Tonijn sashimi blok", 19.8], ["Moules (caisse)", 17], ["Crevettes grises", 24], ["VANNAMEI GARNALEN 26-30", 6.9], ["Zeebaars heel 400-600", 9.4]]
+    .map(([n, prijs], i) => ({ "Lotnummer": "H-" + (100 + i), "Produit": n, "Leverancier": "Demo", "Ontvangen op": isoDaysAgo(400 - i * 40), "Aankoopprijs": prijs, "Actief": false })));
+  const menu = {
+    "Aloha Poke Bowls": [["Saumon frais", 16, "kg", 2, 6], ["Tonijn sashimi blok", 27.5, "kg", 1, 4], ["VANNAMEI GARNALEN 26-30", 10, "pièce", 3, 8], ["ZEEWIERSALADE 1KG", 9.9, "pièce", 1, 4]],
+    "Brasserie De Kaai": [["Moules (caisse)", 26, "caisse", 2, 6], ["Cabillaud", 22, "kg", 2, 5], ["Crevettes grises", 35, "kg", 1, 3], ["Zeebaars heel 400-600", 14.9, "kg", 2, 6]],
+    "Vishandel Nora": [["Cabillaud", 21, "kg", 3, 8], ["Saumon frais", 17.5, "kg", 2, 6], ["Oesters Zeeuwse creuse nr. 3", 0.85, "pièce", 24, 72]]
+  };
+  const nr = {}, num = (k) => { nr[k] = (nr[k] || (k.startsWith("FA-") ? 100 : k.startsWith("CN-") ? 50 : 500)) + 1; return k + "-" + String(nr[k]).padStart(4, "0"); };
+  const fmt = (n) => (Math.round(n * 1000) / 1000).toString();
+  const out = [];
+  for (let ago = 455; ago >= 8; ago -= 3 + Math.floor(rnd() * 5)) {
+    const klant = Object.keys(menu)[Math.floor(rnd() * 3)], items = menu[klant].filter(() => rnd() < 0.7);
+    if (!items.length) items.push(menu[klant][0]);
+    const lines = items.map(([n, prijs, u, lo, hi]) => ({ n, prijs, u, q: u === "kg" ? Math.round((lo + rnd() * (hi - lo)) * 2) / 2 : Math.round(lo + rnd() * (hi - lo)) }));
+    const total = Math.round(lines.reduce((t, l) => t + Math.round(l.q * l.prijs * 100) / 100, 0) * 100) / 100;
+    const day = isoDaysAgo(ago), year = day.slice(0, 4), open = ago < 30 ? rnd() < 0.5 : ago > 60 && ago < 75;
+    const f = {
+      "Référence": num("CMD-" + year), "Date": isoDaysAgo(ago + 1), "Date livraison souhaitée": day, "Client": [C(klant).id],
+      "Lignes (produits / quantités)": lines.map((l) => l.n + " × " + fmt(l.q) + " " + l.u + " [€" + l.prijs.toFixed(2) + "]").join("\n"),
+      "Total": total, "Statut": "Facturée", "Statut paiement": open ? "En attente" : "Payé", "Factuurnummer": num("FA-" + year),
+      "Facturée le": day + "T09:30:00.000Z", "Livrée le": day + "T08:15:00.000Z", "Livraison confirmée": true, "Préparation validée": true,
+      "BTW per lijn": JSON.stringify(Object.fromEntries(lines.map((l) => [l.n.toLowerCase(), l.n === "ZEEWIERSALADE 1KG" ? 21 : 6])))
+    };
+    if (!open) f["Payé le"] = isoDaysAgo(Math.max(0, ago - 10)) + "T10:00:00.000Z";
+    out.push(f);
+  }
+  // Une creditnota par an : la première ligne de la facture, entièrement, datée deux jours plus tard.
+  [out[6], out[out.length - 12]].forEach((f) => {
+    const l = f["Lignes (produits / quantités)"].split("\n")[0], m = /×\s*([\d.]+).*\[€([\d.]+)\]/.exec(l), d = f["Date livraison souhaitée"];
+    const le = new Date(Date.parse(d + "T09:00:00Z") + 2 * 864e5).toISOString();
+    Object.assign(f, { "Creditnota nummer": num("CN-" + le.slice(0, 4)), "Creditnota lignes": l, "Creditnota montant": Math.round(Number(m[1]) * Number(m[2]) * 100) / 100, "Creditnota le": le, "Creditnota motif": "Kwaliteit (demo)" });
+  });
+  db.create("Commandes", out);
 }
 
 module.exports = { seed };

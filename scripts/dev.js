@@ -48,7 +48,7 @@ async function main() {
     const { FakeResend, startServer: startRs } = require("./fake-resend");
     const { seed } = require("./seed");
     const db = new FakeAirtable({ file: path.join(ROOT, ".dev-data", "airtable.json") });
-    if (!db.data.Configuratie.length || process.env.FAMO_RESEED === "1") seed(db, { fotos: true });
+    if (!db.data.Configuratie.length || process.env.FAMO_RESEED === "1") seed(db, { fotos: true, historie: true });
     const box = new FakeResend({ file: path.join(ROOT, ".dev-data", "mails.json") });
     const at = await startAt(db, { port: 0 });
     const rs = await startRs(box, { port: 0 });
@@ -74,7 +74,7 @@ async function main() {
     process.env.ADMIN_CODE = process.env.ADMIN_CODE || "beheer-dev-code";
     process.env.STAFF_CODE = process.env.STAFF_CODE || "team-dev-code";
     // Photos de démo (spec 018) : quelques produits ont 2–3 vues, générées par seed.js.
-    globalThis.__famoDev = { db, box, at, rs, seed: () => { seed(db, { fotos: true }); box.reset(); }, serveFile: (req, res, id) => serveFakeFile(db, req, res, id) };
+    globalThis.__famoDev = { db, box, at, rs, seed: () => { seed(db, { fotos: true, historie: true }); box.reset(); }, serveFile: (req, res, id) => serveFakeFile(db, req, res, id) };
     console.log("Nagebootste Airtable op " + at.url + " · postvak " + rs.url + "/inbox");
     // DB_BACKEND=sqlite : le portail tourne sur le moteur Postgres/SQL (lib/at-engine.js),
     // amorcé avec les mêmes données de démo. C'est la répétition générale de la bascule.

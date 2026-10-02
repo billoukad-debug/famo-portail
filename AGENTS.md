@@ -33,6 +33,13 @@ needs a recent Node 22.
   020 order by e-mail (Resend Receiving webhook `api/inbound-mail.js`, Svix signature on the raw body,
   `lib/inbound/*`, Claude proposes / server decides via `lib/bestelling.js`, staff queue « Te controleren »
   `api/mailcontrole.js`; local demo `node scripts/mail-inbound-test.js` against `scripts/dev.js`).
+  022 Rapportage as its own page `/beheer/rapportage` (`beheer/rapportage.html`, `assets/pages/beheer/rapportage.js`),
+  in the sidebar for the beheerder only (`NAV_ADMIN`); old `beheer#/rapportage` redirects. Data: `GET /api/rapportage`
+  (admin only: 401 / 403 for staff, test orders excluded) + `/api/marge` (`&klant=`); aggregation in the pure module
+  `assets/rapport.js` (`window.FamoRapport`, tested in Node by `test/rapportage.test.js`, same rules as before: invoice
+  date else delivery date, credit notes at their own date, VAT via `FamoVat`). Inline SVG charts (no library), filters
+  in the URL, sortable tables, drill-down, CSV per view, « Betaald » through the existing `updateorder` action.
+  `scripts/dev.js` seeds 15 months of invoiced history (`seed(db, { historie: true })`; tests unchanged).
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 

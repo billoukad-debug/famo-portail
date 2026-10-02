@@ -1,6 +1,7 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 // Marge brute par produit et valeur du stock (audit H-05, H-06, H-11) — beheerder seul.
 //   GET /api/marge?van=JJJJ-MM-DD&tot=JJJJ-MM-DD   (défaut : année en cours)
+//   &klant=rec…   (facultatif : un seul client, Rapportage spec 022 ; un identifiant illisible est ignoré)
 const { atAll } = require("../lib/airtable");
 const __auth = require("../lib/staffauth");
 const margin = require("../lib/margin");
@@ -13,9 +14,10 @@ module.exports = async (req, res) => {
     const q = req.query || {}, year = new Date().getFullYear();
     const van = iso(q.van) || year + "-01-01", tot = iso(q.tot) || year + "-12-31";
     if (tot < van) return res.status(400).json({ error: "„Tot” ligt vóór „van”" });
+    const klant = /^rec[A-Za-z0-9]{1,40}$/.test(String(q.klant || "")) ? String(q.klant) : "";
     const [orders, lots, cat, stock] = await Promise.all([atAll("Commandes"), atAll("Lots"), atAll("Catalogue"), atAll("Stock")]);
     if (orders.error || lots.error) return res.status(500).json({ error: "Gegevens onleesbaar. Probeer opnieuw." });
-    return res.status(200).json(margin.compute({ van, tot, orders: require("../lib/testorders").real(orders.records), lots: lots.records, catalogue: (cat && cat.records) || [], stock: (stock && stock.records) || [] }));
+    return res.status(200).json(margin.compute({ van, tot, klant, orders: require("../lib/testorders").real(orders.records), lots: lots.records, catalogue: (cat && cat.records) || [], stock: (stock && stock.records) || [] }));
   } catch (e) {
     console.error("[marge]", e && e.message || e);
     return res.status(500).json({ error: "Serverfout. Probeer opnieuw." });

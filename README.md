@@ -10,7 +10,7 @@ Les documents FA-/CN- du portail sont des documents internes : la facture légal
 |---|---|---|
 | **Klant** | `/` (accueil + connexion), `/klant` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag`, `/wachtwoord` | gebruikersnaam + wachtwoord |
 | **Personeel** | `/team/aanmelden` (connexion), `/team/bestellingen` (tabel · bord · kalender), `/team/bestelling`, `/team/magazijn` (dag · bord), `/team/leveringen`, `/team/documenten`, `/team/invoeren`, `/team/voorraad` | `STAFF_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN personnel (cookie 8 h) |
-| **Beheer** | `/beheer/aanmelden`, `/beheer` (overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status) + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
+| **Beheer** | `/beheer/aanmelden`, `/beheer` (overzicht, aanvragen, klanten, producten, prijzen, journaal, bedrijf, toegang, status), `/beheer/rapportage` + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
 
 Une seule peau « Vismijn » pour les trois portails (voir `DESIGN.md`) : fond froid, une couleur d'action (Noordzee), la barre de l'équipe en bleu-noir, un F sobre comme marque, la police Atkinson Hyperlegible Next. Les couleurs de statut sont identiques partout : ambre ontvangen, Noordzee klaar, bleu onderweg, vert geleverd, gris gefactureerd, rouge te laat.
 
@@ -102,9 +102,9 @@ Beheer → Producten → Bewerken → **Verwijderen** supprime le produit, ses p
 
 En plus des deux codes partagés, chaque personne peut avoir un **PIN personnel** (haché, ≥ 4 chiffres, rôle personeel ou beheerder, activable). Une session ouverte par PIN porte le prénom : le journal `Correcties`, les paiements, annulations et creditnotas indiquent qui a agi au lieu de « personeel ».
 
-### Rapportage (Beheer)
+### Rapportage (`/beheer/rapportage`, spec 022)
 
-Chiffre d'affaires facturé par mois, par client et par produit, impayés, TVA par taux ; calculé dans le navigateur depuis `/api/allorders?all=1` (par défaut les listes ne chargent que l'ouvert + 365 jours). Export CSV, cellules protégées contre l'injection de formule.
+Page à part dans la barre latérale, **beheerder seul** (l'ancien `/beheer#/rapportage` y renvoie). Chiffres clés (omzet excl. btw après creditnota's, facturen, gemiddelde factuur, brutomarge, openstaand, actieve klanten) avec l'écart par rapport à la période précédente ou à la même période l'an passé ; graphiques SVG sans librairie (omzet per maand avec l'année précédente, top klanten, top producten, categorie / familie, marge per product) ; période (jaar, kwartaal, maand, vrij) et filtres (klant, categorie, product, betaling, btw-regime, zoekterm) dans l'URL ; clic sur un mois, un client ou un produit = filtre ; tableaux triables ; CSV par vue avec les filtres ; « Betaald » sur une facture ouverte (action existante de `/api/updateorder`). Données : `GET /api/rapportage` (beheerder : 401 sans session, 403 pour le personnel ; commandes test exclues) et `/api/marge` (`&klant=`) ; calcul dans `assets/rapport.js` (module pur, `test/rapportage.test.js`) : date = factuurdatum sinon leverdatum, creditnota's à leur date, btw par taux comme les documents (`assets/vat.js`).
 
 ## Comptes clients
 
