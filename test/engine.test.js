@@ -196,7 +196,8 @@ test("api/config : comptes en COUNT SQL, cache CDN seulement sur la réponse pub
     const st = await callApi("config", { headers: { cookie: cookie() }, query: { status: "1" } });
     assert.equal(st.statusCode, 200, JSON.stringify(st.body));
     assert.deepEqual([st.body.status.orders, st.body.status.clients, st.body.status.catalogue, st.body.status.aanvragen], [40, 2, 1, 1]);
-    assert.equal(reads, 3, "Configuratie + 2 comptes filtrés ; les 4 autres en COUNT(*)");
+    // specs/021 : + les commandes test archivées ({Test}=1, pré-filtré en SQL : jamais toute la table), soustraites du COUNT(*).
+    assert.equal(reads, 4, "Configuratie + 3 comptes filtrés ; les 4 autres en COUNT(*)");
     assert.equal(st.headers["cache-control"], undefined, "réponse beheer jamais en cache");
   } finally { ds.state.store.list = realList; }
   const pub = await callApi("config", { query: { public: "1" } });

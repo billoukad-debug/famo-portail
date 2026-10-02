@@ -1,0 +1,11 @@
+# Tasks: Testperiode afsluiten
+- [x] T001 Spec, plan (Constitution Check, volet légal et comptable), tâches
+- [x] T002 Tests d'abord : `test/testperiode.test.js` (SQLite en mémoire, données de `scripts/seed.js`) — voorbeeld sans aucune écriture ; périmètre (date, behalve, futur refusé) ; archiver masque partout (allorders, orders client, klantdoc, klantorder, doublon d'`/api/order`, relances, marge, traçabilité, comptes Beheer) ; écritures refusées sur une commande test (updateorder, bewijs, export) ; terugzetten ; verwijderen seulement les archivées, fichiers et mouvements liés effacés, `Stock` identique, ligne de journal ; confirmations tapées et back-up fraîche exigées par le serveur ; `verwacht` ; nummering refusée puis autorisée, FA suivante = 0001 (SQL et Airtable `maxNumber`) ; personnel et sans session refusés ; garde A-10 — en échec avant le code
+- [x] T003 `lib/testorders.js` ; `lib/at-engine.js` `filesOfRecords`
+- [x] T004 `lib/beheer/testperiode.js` + aiguillage `api/onboarding.js` (require statique, journal propre, voorbeeld sans journal) + `test/beheer-routes.test.js`
+- [x] T005 Lecteurs : allorders, orders, klantdoc, klantorder, order (doublon / idempotence), lots (trace), marge, config (status), reminders, Beheer statusPayload, deleteProduct ; refus 409 : updateorder, bewijs, export
+- [x] T006 Données : `docs/SCHEMA.md`, `scripts/fake-airtable.js`
+- [x] T007 Interface : carte « Testperiode afsluiten » (Systeemstatus) — périmètre, Voorbeeld, Back-up maken, Archiveren / Terugzetten, Definitief verwijderen (VERWIJDER TESTS), Nummering herstarten (HERSTART NUMMERING), raisons des boutons désactivés
+- [x] T008 `docs/RUNBOOK.md` § 8 « Testperiode afsluiten » pas à pas
+- [x] T009 Audits : carte avec aperçu ouvert dans `ux-audit` ; captures 1280 / 390 relues
+- [x] T010 Portes : assets-version, check.js, ESLint 9.39.5, contrast-check, ux-audit → kbd-audit (données neuves, port 4381 : 4380 était occupé par un autre serveur de dev, non touché) ; `test/engine.test.js` : une lecture filtrée de plus attendue pour `/api/config?status=1` (commandes test, `{Test}=1` pré-filtré en SQL)

@@ -207,18 +207,18 @@ select.input.tool,input.input.tool{border-color:var(--line-input);background:var
 .cats{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}.cats::-webkit-scrollbar{display:none}
 .cats button{min-height:44px;padding:0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;font-size:14px;font-weight:500;color:var(--ink-2);display:flex;align-items:center;white-space:nowrap;cursor:pointer;flex:none}
 .cats button:hover{color:var(--ink)}.cats button.on{color:var(--p);border-bottom-color:var(--p);font-weight:600;background:transparent}
-/* ---------- productregel (klantcatalogus) : compact, openklappen voor foto en details ---------- */
-.prod{background:var(--card);border-bottom:1px solid var(--line-soft);display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"x x x" "pp fav st" "d d d";column-gap:6px;align-items:center;padding:6px 0 8px 4px;min-width:0;content-visibility:auto;contain-intrinsic-size:auto 104px}
+/* ---------- productregel (klantcatalogus) : één regel, drie weergaven (spec 019, .kl[data-view] in het klantblok onderaan) ---------- */
+.prod{display:grid;align-items:center;column-gap:10px;min-width:0;border-bottom:1px solid var(--line-soft);content-visibility:auto;contain-intrinsic-size:auto 104px}
 .prod.on{background:var(--p-soft)}.prod.on .pn{color:var(--p-deep)}
-.pr-x{grid-area:x;display:flex;align-items:center;gap:6px;min-width:0;border:0;background:transparent;padding:4px 0;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:44px}
+.pr-x{grid-area:x;display:flex;align-items:center;gap:8px;min-width:0;border:0;background:transparent;padding:4px 0;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:44px}
 .pr-x:focus-visible{outline:2px solid var(--p);outline-offset:2px;border-radius:var(--r-xs)}
-.pr-chev{width:18px;height:18px;flex:none;margin-top:1px;stroke:var(--ink-3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform:rotate(-90deg);transition:transform .16s cubic-bezier(.23,1,.32,1)}
+.pr-chev{width:16px;height:16px;flex:none;margin-top:1px;stroke:var(--ink-3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform:rotate(-90deg);transition:transform .16s cubic-bezier(.23,1,.32,1)}
 .prod.open .pr-chev{transform:none;stroke:var(--p)}
 .pr-t{display:flex;flex-direction:column;gap:2px;min-width:0}
-.pn{font-weight:600;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
-.pm{font-size:12.5px;color:var(--ink-2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.pr-k,.pr-u,.prhead{display:none}
-.prod>.pp{grid-area:pp;padding-left:24px}
+.pn{font-weight:600;font-size:14.5px;line-height:1.25;overflow-wrap:anywhere}
+.pm{font-size:12.5px;color:var(--ink-2);display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
+.prod>.pp{grid-area:pp;min-width:0}
+.pp-m,.pp-u{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}.pp-m .quiet{font-size:12.5px}.pm:empty{display:none}
 .prod>.fav{grid-area:fav;width:44px;height:44px}
 .prod>.stepper{grid-area:st}
 .pr-d{grid-area:d;display:flex;gap:14px;padding:8px 8px 6px 24px;min-width:0}.pr-d[hidden]{display:none}
@@ -236,12 +236,12 @@ select.input.tool,input.input.tool{border-color:var(--line-input);background:var
 .fcell-a{display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0}.fcell>.btn{width:100%}
 .fcell-a .ibtn:disabled{opacity:.35;cursor:default}
 .pr-x .pr-th{margin-top:-2px;margin-bottom:-2px}
-.gal{flex:none;width:200px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.gal{flex:none;width:200px;display:flex;flex-direction:column;gap:8px;min-width:0;align-self:flex-start}
 .gal-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;border-radius:var(--r);background:var(--soft);aspect-ratio:1/1}
 .gal-track::-webkit-scrollbar{display:none}
 .gal-track:focus-visible{outline:2px solid var(--p);outline-offset:2px}
 .gal-s{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always}
-.gal-s img{width:100%;height:100%;object-fit:cover;display:block}
+.gal-s img{width:100%;height:100%;object-fit:contain;display:block} /* spec 019 : verpakkingen, de hele foto */
 .gal-th{display:flex;gap:6px;flex-wrap:wrap}
 .gal-b{width:44px;height:44px;padding:0;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--soft);overflow:hidden;cursor:pointer;flex:none}
 .gal-b img{width:100%;height:100%;object-fit:cover;display:block}
@@ -431,7 +431,7 @@ a.kpi-link{color:inherit;text-decoration:none}a.kpi-link:hover b{text-decoration
 .nav{position:relative}.tabs a .nbadge,.mtab .nbadge,.kcartlink .nbadge{margin-left:6px}
 @media (max-width:1180px){.side .nav .nbadge{position:absolute;top:4px;right:calc(50% - 22px);margin:0;height:18px;min-width:18px;line-height:18px;font-size:10.5px;padding:0 5px}}
 .mtab{position:relative}.mtab .nbadge{position:absolute;top:6px;left:calc(50% + 6px);margin:0;height:18px;min-width:18px;line-height:18px;font-size:10.5px;padding:0 5px}
-@media (min-width:1024px){.khead .mtab .nbadge{position:static;margin-left:4px}}
+@media (min-width:720px){.khead .mtab .nbadge{position:static;margin-left:4px}}
 /* Commandes client : une ligne par commande */
 .olist{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
 .orow{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"m";align-items:center;border-bottom:1px solid var(--line-soft);padding-right:12px;column-gap:12px}.orow:last-child{border-bottom:0}
@@ -464,8 +464,8 @@ h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus{outline:0}
 /* ---------- audit UX / WCAG 2.2 (evidence G) ---------- */
 /* G-01 · 2.4.11 : au téléphone, la barre panier et les onglets du bas ne cachent jamais l'élément focalisé ;
    en haut, l'en-tête collant du catalogue (titre, recherche, catégories) non plus. */
-@media (max-width:1023px){html:has(body.portal-klant){scroll-padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}html:has(.kv-catalogus){scroll-padding-top:196px}}
-@media (min-width:1024px){html:has(.kv-catalogus){scroll-padding-top:120px}}
+@media (max-width:719px){html:has(body.portal-klant){scroll-padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}html:has(.kv-catalogus){scroll-padding-top:156px}}
+@media (min-width:720px){html:has(.kv-catalogus){scroll-padding-top:calc(64px + var(--kt-h,112px) + 48px)}}@media (min-width:720px) and (max-width:1099px){html:has(.kv-catalogus){scroll-padding-bottom:100px}} /* spec 019 : en-tête 64 px + barre d’outils mesurée (--kt-h) + titre de groupe collant ; barre panier en bas sous 1100 px */
 /* G-07 · 1.4.3 : texte discret sur une ligne choisie (fond bleu pâle) → ink-2 (4,57:1 au lieu de 4,38) */
 .prod.on .quiet,.prod.on .pm,.prod.on .pp s{color:var(--ink-2)}
 /* G-07 : pages de connexion de l'équipe — texte blanc plein sur le bleu (4,79:1), sans opacité */
@@ -678,3 +678,225 @@ a.kp-link:hover{background:var(--row-hover)}
 /* Leveruur (D4) : tag in de lijst, twee tijdvelden in het paneel */
 .tag-slot{gap:4px}.tag-slot .ico{width:14px;height:14px}
 .slot-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+/* =====================================================================================================
+   Klantportaal (spec 019) — ex-<style> de klant.html, placé en fin de feuille (même place dans la cascade
+   qu'avant ; seul .row, aussi utilisé par le personnel, est préfixé .portal-klant).
+   < 720 téléphone (onglets en bas) · ≥ 720 en-tête en haut · catalogue : ≥ 1100 colonne panier,
+   ≥ 1240 catégories à gauche. Les lignes produit suivent la largeur de LA LISTE (container queries).
+   ===================================================================================================== */
+.kwrap{max-width:560px;margin:0 auto;min-height:100vh;background:var(--canvas);position:relative}
+.kwrap.kv-catalogus{max-width:none}
+@media (min-width:600px) and (max-width:719px){.kwrap:not(.kv-catalogus){border-left:1px solid var(--line-soft);border-right:1px solid var(--line-soft)}.kwrap:not(.kv-catalogus) .mtabs{left:50%;transform:translateX(-50%);width:min(560px,100%)}}
+.portal-klant .row{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:14px;gap:12px;flex-wrap:wrap}.portal-klant .row>div{min-width:0}.portal-klant .row:last-child{border-bottom:0}.portal-klant .row small{display:block;color:var(--ink-2);font-size:12.5px}
+/* telefoon : de kop is enkel de tabbalk onderaan ; merk, zijbalk en winkelmandpaneel verschijnen met de breedte */
+.khead{display:contents}.kbrand,.kcartlink,.kside,.kcart{display:none}
+.kcols{display:flex;flex-direction:column;gap:10px}.kc-main,.kc-side{display:flex;flex-direction:column;gap:10px;min-width:0}.kv-favorieten .kc-side{order:-1}
+.kcl-t{white-space:nowrap}
+
+/* ---------- catalogus : werkbalk (zoeken, aantal, sorteren, weergave, categorieën), families, lijst ---------- */
+.kv-catalogus .mtop{position:static;border-bottom:0;padding-bottom:6px}
+.kcat{min-width:0}
+.ktools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--canvas)}
+.kt-s{flex:1 1 220px;display:flex;align-items:center;gap:8px;min-width:0}
+.kt-o{display:flex;align-items:center;gap:8px;margin-left:auto;min-width:0;order:1}
+.kt-c{order:2;flex:1 1 100%;min-width:0}
+.kt-n{font-size:13px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums;margin-right:4px}
+.ksearch{flex:1 1 auto;max-width:none;padding:0;gap:0;min-height:44px;overflow:hidden}
+.ks-l{display:flex;align-items:center;gap:8px;flex:1;min-width:0;align-self:stretch;padding:0 4px 0 12px;cursor:text}
+.ks-l .ico{width:18px;height:18px;flex:none}
+.ksearch input{min-height:42px}
+@media (pointer:coarse){.ksearch{min-height:46px}.ksearch input{min-height:44px}} /* le label (cible) fait 44 px dans le cadre */
+.ksearch input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.ks-x{flex:none;width:44px;align-self:stretch;border:0;background:transparent;color:var(--ink-2);display:grid;place-items:center;cursor:pointer;padding:0}
+.ks-x[hidden],.totop[hidden]{display:none}
+.ks-x:hover{color:var(--ink);background:var(--soft)}.ks-x .ico{width:18px;height:18px}
+.ks-x:focus-visible{outline:2px solid var(--p);outline-offset:-4px;border-radius:var(--r-sm)}
+.totop{flex:none;min-width:44px;padding:0 10px}.totop .ico{width:20px;height:20px}
+.ksort{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);white-space:nowrap;margin:0}
+.ksort select.input{width:auto;min-width:0;padding:0 28px 0 10px;font-size:13.5px}
+/* Weergave : gesegmenteerde knop (aria-pressed) ; de rand is een outline, zodat elke knop 44 px hoog blijft */
+.seg{display:inline-flex;flex:none;background:var(--card);border-radius:var(--r-sm);outline:1px solid var(--line-input);outline-offset:-1px}
+.seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;min-width:44px;padding:0 12px;border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap}
+.seg button:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm)}.seg button:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
+.seg button+button{box-shadow:inset 1px 0 0 var(--line)}
+.seg button:hover{background:var(--soft);color:var(--ink)}
+.seg button.on{background:var(--p-soft);color:var(--p-deep);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--p)}
+.seg button:focus-visible{outline:2px solid var(--p);outline-offset:2px;position:relative;z-index:1}
+.seg .ico{width:18px;height:18px}
+/* Families : filterknoppen (rechthoekig, rayon 6 : wat men aanraakt — geen pillen) */
+.fams{display:flex;flex-wrap:wrap;gap:6px 8px;padding:4px 0 14px}
+.fams button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--card);font:inherit;font-size:13.5px;font-weight:500;color:var(--ink);cursor:pointer;white-space:nowrap}
+.fams button:hover{background:var(--soft)}
+.fams button.on{border-color:var(--p);background:var(--p-soft);color:var(--p-deep);font-weight:600}.fams button.on .kcount{color:var(--p-deep)}
+.fams button:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.fams .kcount{margin-left:0}
+@media (pointer:coarse){.fams button{min-height:44px}}
+/* Lijst en Compact : één kaart met regels ; groepstitels kleven onder de werkbalk */
+.kl{container:kl / inline-size;min-width:0}
+.kl[data-view=lijst],.kl[data-view=compact]{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:0 12px}
+.kl>.sec{position:sticky;top:107px;z-index:4;display:flex;align-items:baseline;gap:6px;margin:0 -12px;padding:12px 12px 6px;background:var(--card);border-bottom:1px solid var(--line-soft);font-size:13px}
+.kl>.sec:first-child{border-radius:var(--r-lg) var(--r-lg) 0 0}
+.kl>.sec .quiet{font-weight:500}
+.kl .prod{margin:0 -12px;padding:4px 12px}
+.kl>.prod:has(+ #noHit){border-bottom:0;border-radius:0 0 var(--r-lg) var(--r-lg)}
+.kl>.state,.kl>#noHit{grid-column:1/-1}
+@media (hover:hover){.kl[data-view=lijst] .prod:hover,.kl[data-view=compact] .prod:hover{background:var(--soft)}}
+/* Lijst, smalle lijst (telefoon) : twee compacte regels — vignet, naam, ster / prijs, aantal */
+.kl[data-view=lijst] .prod{grid-template-columns:minmax(0,1fr) auto 44px;grid-template-areas:"x x fav" "pp st st" "d d d"}
+.kl[data-view=lijst] .pr-th{width:40px;height:40px}
+.kl[data-view=lijst] .pr-chev{display:none}
+.kl[data-view=lijst] .prod>.pp{padding-left:48px}
+.pn .nw{white-space:nowrap}
+/* Compact, smalle lijst : naam + kaliber · eenheid · prijs, aantal ; geen vignet, geen ster */
+.kl[data-view=compact] .prod{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"x st" "d d";padding-top:2px;padding-bottom:2px;contain-intrinsic-size:auto 52px}
+.kl[data-view=compact] .prod>.pp,.kl[data-view=compact] .prod>.fav{display:none}
+.kl[data-view=compact] .pn{font-size:14px}
+.kl[data-view=compact] .pr-t{flex:1}
+.kl[data-view=compact] .pr-chev{display:none}
+.kl[data-view=compact] .stepper input{width:34px}
+.kl[data-view=compact] .pp-m .quiet{display:none}
+.pm-p{display:inline-flex;align-items:baseline;gap:4px;color:var(--ink)}.pm-p b{font-weight:600}.pm-p small{color:var(--klei);font-size:11.5px;font-weight:600}
+.pm-p::before{content:"·";color:var(--ink-2)}
+@container kl (min-width:600px){
+  /* Lijst, brede lijst : één regel van ± 60 px */
+  .kl[data-view=lijst] .prod{grid-template-columns:minmax(0,1fr) minmax(96px,auto) 44px auto;grid-template-areas:"x pp fav st" "d d d d";padding-top:6px;padding-bottom:6px;contain-intrinsic-size:auto 60px}
+  .kl[data-view=lijst] .pr-x{gap:10px}
+  .kl[data-view=lijst] .pr-chev{display:block}
+  .kl[data-view=lijst] .pr-th{width:44px;height:44px}
+  .kl[data-view=lijst] .prod>.pp{padding-left:0;flex-direction:column;align-items:flex-end;gap:0}
+  .kl .pr-d{padding-left:26px}.kl .gal{width:240px}
+}
+@container kl (min-width:640px){
+  /* Compact, brede lijst : tabel — naam | kaliber · eenheid | prijs | ster | aantal, ± 46 px */
+  .kl[data-view=compact] .prod{grid-template-columns:minmax(0,1fr) minmax(116px,auto) 44px auto;grid-template-areas:"x pp fav st" "d d d d";padding-top:1px;padding-bottom:1px;contain-intrinsic-size:auto 47px}
+  .kl[data-view=compact] .prod>.pp{display:flex;flex-direction:column;align-items:flex-end;gap:0}
+  .kl[data-view=compact] .prod>.fav{display:grid}
+  .kl[data-view=compact] .pr-t{display:grid;grid-template-columns:minmax(0,1fr) 88px;align-items:center;column-gap:16px}
+  .kl[data-view=compact] .pr-chev{display:block}
+  .kl[data-view=compact] .stepper input{width:44px}
+  .kl[data-view=compact] .pm-p{display:none}
+}
+/* Tegels : grote foto (4:3, hele verpakking op een zachte achtergrond), naam, prijs, ster, aantal over de breedte */
+.kl[data-view=tegels]{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:stretch}
+.kl[data-view=tegels]>.sec{grid-column:1/-1;margin:4px 0 0;padding:10px 2px 4px;background:var(--canvas);border:0;border-radius:0}
+.kl[data-view=tegels] .prod{grid-template-columns:minmax(0,1fr) 44px;grid-template-rows:1fr auto auto;grid-template-areas:"x x" "pp fav" "st st";row-gap:6px;margin:0;padding:8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);contain-intrinsic-size:auto 300px}
+.kl[data-view=tegels] .prod:hover{border-color:var(--line-strong)}
+.kl[data-view=tegels] .prod.on{background:var(--card);border-color:var(--p);box-shadow:inset 0 0 0 1px var(--p)}
+.kl[data-view=tegels] .pr-x{flex-direction:column;align-items:stretch;align-self:start;gap:8px;padding:0}
+.kl[data-view=tegels] .pr-th{width:100%;height:auto;aspect-ratio:4/3;object-fit:contain;margin:0;border-radius:var(--r-sm)}
+.kl[data-view=tegels] .pthumb-ph.pr-th svg{width:40px;height:40px}
+.kl[data-view=tegels] .pr-t{padding:0 2px}
+.kl[data-view=tegels] .prod>.pp{padding-left:2px;flex-direction:column;gap:0}
+.kl[data-view=tegels] .prod>.stepper{width:100%}
+.kl[data-view=tegels] .stepper input{flex:1}
+/* Tegels : details in het paneel */
+.pr-dp{flex-direction:column;padding:0;gap:16px}.pr-dp .gal{width:100%}.pr-dp .gal-track{aspect-ratio:4/3}
+.pd-f{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}.pd-f .pp{flex-direction:column;gap:0}
+
+/* ---------- telefoon (< 720) : zoeken en categorieën kleven ; aantal, sorteren, weergave en families schuiven mee ---------- */
+@media (max-width:719px){
+  .ktools{display:contents}
+  .kt-s{position:sticky;top:0;z-index:22;height:62px;padding:0 16px;background:var(--canvas)}
+  .kt-c{position:sticky;top:62px;z-index:21;margin:0;padding:0 16px;background:var(--canvas);border-bottom:1px solid var(--line-soft)}
+  .kt-o{padding:10px 16px 8px;margin:0}
+  .kt-n{flex:1}
+  .seg-t,.ksort-l{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .seg button{padding:0}
+  .fams{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:0 16px 10px}.fams::-webkit-scrollbar{display:none}.fams button{flex:none}
+  .kl{margin:0 0 170px}
+  .kl[data-view=lijst],.kl[data-view=compact]{border-left:0;border-right:0;border-radius:0;padding:0 16px}
+  .kl>.sec{margin:0 -16px;padding:12px 16px 6px}.kl>.sec:first-child{border-radius:0}
+  .kl .prod{margin:0 -16px;padding-left:16px;padding-right:16px}
+  .kl>.prod:has(+ #noHit){border-radius:0}
+  .kl[data-view=tegels]{padding:0 16px}
+}
+
+/* ---------- ≥ 720 : kopbalk bovenaan (merk, tabs, winkelmand) ; catalogus over de volle breedte ---------- */
+@media (min-width:720px){
+  .kwrap,.kwrap.kv-catalogus{max-width:1440px;padding:0 24px 48px}
+  .khead{display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:30;height:64px;margin:0 -24px;padding:0 24px;background:var(--canvas);border-bottom:1px solid var(--line-soft)}
+  .kbrand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-size:15px;white-space:nowrap}.kbrand:hover{text-decoration:none}
+  .khead>.mtabs{position:static;height:64px;display:flex;gap:2px;background:transparent;border:0;padding:0;flex:1;transform:none;width:auto;min-width:0}
+  .khead .mtab{flex-direction:row;gap:8px;font-size:14.5px;padding:0 12px;border-bottom:2px solid transparent}.khead .mtab svg{width:18px;height:18px}.khead .mtab.on{border-bottom-color:var(--p)}
+  .kcartlink{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:var(--r);color:var(--ink);font-size:14px;font-weight:500;white-space:nowrap;text-decoration:none}.kcartlink:hover{text-decoration:none;border-color:var(--p)}
+  .kcartlink .ico{width:18px;height:18px}.kbadge{background:var(--p);color:#fff;border-radius:999px;min-width:22px;height:22px;display:inline-grid;place-items:center;font-size:12px;padding:0 6px}
+  .kmain>.mtop{position:static;background:transparent;border-bottom:0;padding:24px 0 16px;flex-direction:row;align-items:center;gap:24px}
+  .kmain>.mtop>.mrow{flex:1;min-width:0}.kmain>.mtop .mrow>.logo,.kmain>.mtop .mrow>.avatar{display:none}
+  .ktitle{font-size:24px;letter-spacing:-.3px}.ksub{font-size:13.5px}
+  .kmain>.mtop .search{flex:0 1 420px;width:420px}
+  .mlist{padding:0 0 32px}
+  .kv-bestellingen .mtop .cats{margin:0;padding:0;flex:none}
+  /* catalogus */
+  .kv-catalogus .kmain>.mtop{padding:20px 0 6px}
+  .ktools{position:sticky;top:64px;z-index:20;padding:10px 0;container:kt / inline-size}
+  .kt-c{margin:0;padding:0;border-bottom:1px solid var(--line-soft)}
+  .fams{padding:6px 0 14px}
+  .kl{margin-bottom:100px}
+  .kl>.sec{top:calc(64px + var(--kt-h,112px))}
+  .kl[data-view=tegels]{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+  .cartbar{left:50%;right:auto;bottom:16px;transform:translateX(-50%);width:min(560px,calc(100% - 48px))}
+}
+/* 720–1023 : smallere kop (merknaam en woord « Winkelmand » enkel voor schermlezers) ; andere vues gecentreerd */
+@media (min-width:720px) and (max-width:1023px){
+  .kbrand b,.kcl-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .khead .mtab{padding:0 10px;font-size:14px}
+  .kwrap:not(.kv-catalogus) .kmain{max-width:760px;margin:0 auto}
+}
+@media (min-width:720px) and (max-width:879px){.khead .mtab svg{display:none}}
+/* werkbalk smaller dan ± 860 px : weergaveknoppen enkel met icoon (naam blijft voor schermlezers) */
+@container kt (max-width:860px){.seg-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.seg button{padding:0}}
+/* ≥ 1100 : winkelmand als kolom naast de catalogus */
+@media (min-width:1100px){
+  .kgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+  .kcart{display:flex;flex-direction:column;gap:10px;position:sticky;top:80px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;max-height:calc(100vh - 96px);overflow:auto}
+  .kc-h{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}.kc-h .quiet{font-size:12.5px}
+  .kc-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+  .kc-l li{display:grid;grid-template-columns:minmax(0,1fr) auto 36px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13px}
+  .kc-l .ibtn{width:36px;height:36px}.kc-l .ibtn svg{width:16px;height:16px}
+  .kc-n{min-width:0;overflow-wrap:anywhere}.kc-n small{display:block;font-size:12px}
+  .kc-t{display:flex;justify-content:space-between;font-size:15px;font-weight:600;padding-top:4px}
+  .kc-min{margin:0;font-size:12.5px;color:var(--klei)}.kc-empty,.kc-foot{margin:0;font-size:12.5px}
+  .kv-catalogus .cartbar{display:none}
+  .kl{margin-bottom:32px}
+}
+/* ≥ 1240 : categorieën links (de tabs boven de lijst verdwijnen) */
+@media (min-width:1240px){
+  .kwrap,.kwrap.kv-catalogus{padding:0 32px 48px}.khead{margin:0 -32px;padding:0 32px;gap:24px}
+  .kgrid{grid-template-columns:170px minmax(0,1fr) 280px}
+  .kside{display:flex;flex-direction:column;gap:2px;position:sticky;top:80px;max-height:calc(100vh - 96px);overflow:auto}
+  .kside button{display:flex;justify-content:space-between;align-items:center;min-height:40px;padding:0 12px;border:0;border-radius:var(--r-sm);background:transparent;font:inherit;font-size:14px;color:var(--ink-2);cursor:pointer;text-align:left}
+  .kside button:hover{background:var(--soft);color:var(--ink)}.kside button.on{background:var(--p-soft);color:var(--p-deep);font-weight:600}
+  .kside button:focus-visible{outline:2px solid var(--p);outline-offset:1px}
+  .kt-c{display:none}
+}
+@media (min-width:1440px){.kgrid{grid-template-columns:200px minmax(0,1fr) 300px;gap:32px}}
+/* andere vues (≥ 1024, ongewijzigd) : breed maar leesbaar, twee kolommen */
+@media (min-width:1024px){
+  .kcols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:start}.kcols>.kc-side{position:sticky;top:80px;gap:12px;order:0}
+  .mlist.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;align-items:start}
+  .mlist.grid>.full{grid-column:1/-1}
+  /* Account : colonnes qui se remplissent (plus de trous quand une carte est plus haute que sa voisine) */
+  .kv-account .mlist.grid{display:block;columns:2;column-gap:16px}.kv-account .mlist.grid>*{break-inside:avoid;margin:0 0 16px;display:block;width:100%}
+  .kv-account .mlist.grid>#logout{width:auto;min-width:240px;display:inline-flex}
+  /* Commandes : lignes en tableau */
+  .kv-bestellingen .mlist.grid{display:flex;flex-direction:column;gap:16px;align-items:stretch}
+  .orow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"m a"}
+  .orow-main{grid-template-columns:190px minmax(0,1fr) 170px 110px 20px;grid-template-areas:"d s st t c";align-items:center}
+  .orow-a{display:flex}
+}
+/* ---------- Bestellen per e-mail (specs/020) : Bestellingen → Te controleren, Beheer → Bedrijfsgegevens ---------- */
+.mc-item .card-h .chip{flex:none}
+.mc-line{display:grid;grid-template-columns:minmax(0,1fr) 96px 56px 44px;grid-template-areas:"f f f f" "p q u x" "c c c c";gap:6px 8px;align-items:center;padding:10px 0;border-top:1px solid var(--line-soft)}
+.mc-from{grid-area:f;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;color:var(--ink-2)}
+.mc-from b{color:var(--ink)}
+.mc-p{grid-area:p}.mc-q{grid-area:q}.mc-u{grid-area:u;font-size:13px;color:var(--ink-2)}.mc-line>.ibtn{grid-area:x}.mc-c{grid-area:c}
+.mc-mail{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--canvas)}
+.mc-sum{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;font-weight:600;font-size:14px;color:var(--ink);cursor:pointer;list-style:none}
+.mc-sum::-webkit-details-marker{display:none}
+.mc-sum .ico{transform:rotate(-90deg)}.mc-mail[open] .mc-sum .ico{transform:none}
+.mc-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5;color:var(--ink);background:var(--card);padding:10px 14px 14px;border-top:1px solid var(--line-soft);border-radius:0 0 var(--r-sm) var(--r-sm)}
+.mc-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--line-soft)}
+.views .mc-count{margin-left:6px}
+.mb-keys{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink)}
+.mb-keys li{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+@media (max-width:560px){.mc-line{grid-template-columns:minmax(0,1fr) 56px 44px;grid-template-areas:"f f f" "p p p" "q u x" "c c c"}.mc-grid{grid-template-columns:1fr!important}.mc-acts .btn-p{flex:1 1 100%}}

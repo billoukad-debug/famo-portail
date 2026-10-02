@@ -1,11 +1,11 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
-const { at, atAll } = require("../lib/airtable");
+const { at } = require("../lib/airtable");
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const __mail = require("../lib/ordermail");
-const __prices = require("../lib/prices");
 const __orderNumber = require("../lib/ordernumber");
 const __lev = require("../lib/levering");
 const __lj = require("../lib/lignesjson");
+const __bestelling = require("../lib/bestelling");
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -22,61 +22,10 @@ const BASE = "appcdduLth9iGX8I0";
 // limite anti-force brute partagée) : une seule implémentation à maintenir.
 const { authRequest, authUnavailable } = require("./catalogue");
 
-function roundMoney(value){
-  return Math.round((Number(value) || 0) * 100) / 100;
-}
-
-function numberOf(value){
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function cleanComment(value){
-  return String(value || "").replace(/[\r\n]+/g, " ").replace(/[()\[\]]/g, "").trim().slice(0, 200);
-}
-
-// The browser may choose quantities, but never product names or prices.  Those
-// always come back from Airtable for the authenticated customer.
-async function buildOrderLines(clientId, items){
-  if (!Array.isArray(items) || !items.length) throw new Error("Geen artikelen");
-
-  const cat = await atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}`);
-  const negotiated = await atAll(`${encodeURIComponent("Prix négociés")}`);
-  const priceByProduct = __prices.negotiatedFor(negotiated.records, clientId);
-  const products = new Map((cat.records || []).map(record => [record.id, record]));
-
-  const merged = new Map();
-  for (const item of items) {
-    const productId = String(item && item.productId || "");
-    const quantity = numberOf(item && item.quantity);
-    if (!productId || quantity <= 0 || quantity > 1000) throw new Error("Ongeldige hoeveelheid");
-    if (!products.has(productId)) throw new Error("Artikel is niet beschikbaar");
-    if (!/kg/i.test(String(products.get(productId).fields["Unité"] || "")) && !Number.isInteger(quantity)) {
-      throw new Error("Alleen producten per kg mogen een decimale hoeveelheid hebben");
-    }
-    const prev = merged.get(productId) || { quantity: 0, comment: "" };
-    prev.quantity += quantity;
-    prev.comment = cleanComment(item && item.comment) || prev.comment;
-    merged.set(productId, prev);
-  }
-
-  const lines = [], structured = [];
-  let total = 0;
-  for (const [productId, entry] of merged) {
-    const quantity = entry.quantity;
-    const fields = products.get(productId).fields;
-    const price = __prices.unitPrice(products.get(productId), priceByProduct);
-    const unit = fields["Unité"] || "";
-    const name = fields["Produit"] || "Artikel";
-    const comment = entry.comment;
-    // Keep the agreed unit price with the order. It makes a later invoice
-    // reproducible even if the catalogue price changes in the meantime.
-    lines.push(`${name} × ${quantity}${unit ? " " + unit : ""} [€${price.toFixed(2)}]${comment ? " (" + comment + ")" : ""}`);
-    // Même ligne, structurée (B4) : référence, nom, unité et prix du catalogue — rien du navigateur.
-    structured.push(__lj.entry(products.get(productId), { qty: quantity, unit, price, comment }));
-    total += require("../assets/vat.js").r2(Math.round(price * 100) / 100 * quantity); // = le prix écrit dans la ligne (B-09)
-  }
-  return { lignes: lines.join("\n"), json: __lj.serialize(structured), total: roundMoney(total) };
+// Les lignes (noms, unités, prix négociés) sont décidées par le serveur : lib/bestelling.js, partagé
+// avec la saisie du personnel et la commande par e-mail. Le navigateur ne choisit que les quantités.
+function buildOrderLines(clientId, items){
+  return __bestelling.buildOrderLines(clientId, items, __bestelling.MSG_KLANT);
 }
 
 // Prepare et envoie les deux confirmations. Ne jette jamais.
@@ -160,7 +109,8 @@ module.exports = async (req, res) => {
       const today0 = __lev.brusselsToday();
       const f = encodeURIComponent(`AND({Date}='${today0}',{Statut}!='Annulée')`);
       const recent = await at(`Commandes?filterByFormula=${f}`);
-      const mine = ((recent && recent.records) || []).filter(r => (r.fields["Client"] || []).includes(clientId));
+      // Une commande d'essai archivée (specs/021) n'est ni un doublon ni une réponse idempotente.
+      const mine = require("../lib/testorders").real(recent && recent.records).filter(r => (r.fields["Client"] || []).includes(clientId));
       const same = mine.find(r => r.fields["Idempotentie"] === key);
       if (same) return res.status(200).json({ ref: same.fields["Référence"], id: same.id, total: same.fields["Total"], duplicate: true });
       const twin = mine.find(r => r.fields["Lignes (produits / quantités)"] === order.lignes && (r.fields["Date livraison souhaitée"] || "") === dateLivraison);

@@ -65,7 +65,11 @@ const SCHEMA = {
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
       "Lots": "text",
       // Régime de TVA du client figé au passage en « Facturée » (C-10) ; absent = Normal.
-      "Régime TVA": "select"
+      "Régime TVA": "select",
+      // Bestellen per e-mail (specs/020) : « E-mail » + id de l'enregistrement « Inkomende mails » d'origine.
+      "Bron": "text", "Inkomende mail": "text",
+      // Commande d'essai archivée (specs/021, lib/testorders.js) : invisible partout, réversible.
+      "Test": "checkbox", "Test gemarkeerd op": "datetime"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
@@ -92,7 +96,9 @@ const SCHEMA = {
       // Audit L-06 : codes partagés refusés, seuls les PIN personnels ouvrent (Beheer → Toegang).
       "Enkel persoonlijke PIN": "checkbox",
       // Conditions générales (C-12) : texte NL/FR et version publiée.
-      "Voorwaarden NL": "text", "Voorwaarden FR": "text", "Voorwaarden versie": "text" },
+      "Voorwaarden NL": "text", "Voorwaarden FR": "text", "Voorwaarden versie": "text",
+      // Bestellen per e-mail (specs/020) : adres om aan klanten te geven, automatisch aanmaken (absent = uit).
+      "Bestel-e-mailadres": "text", "Mailbestellingen automatisch": "checkbox" },
     selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
   },
   // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
@@ -109,6 +115,16 @@ const SCHEMA = {
   Aanvragen: {
     fields: { "Bedrijfsnaam": "text", "Contactpersoon": "text", "Email": "email", "Telefoon": "text", "Adres": "text", "Notities": "text", "Status": "select", "Taal": "select", "Voorwaarden versie": "text" },
     selects: { "Status": ["Nieuw", "Verwerkt"], "Taal": ["NL", "FR"] }, primary: "Bedrijfsnaam"
+  },
+  // E-mails reçus (specs/020-bestellen-per-mail, lib/inbound/mailorder.js) : un par message Resend,
+  // file « Te controleren » du personnel ; supprimés après 90 jours (api/reminders-cron.js).
+  "Inkomende mails": {
+    fields: { "Bericht-id": "text", "Message-ID": "text", "Ontvangen op": "datetime", "Van": "text", "Aan": "text", "Onderwerp": "text", "Tekst": "text",
+      "Client": "links", "Status": "select", "Reden": "text", "Voorstel": "text", "Verificatie": "text", "Commande": "links", "Referentie": "text",
+      "Behandeld door": "text", "Behandeld op": "datetime", "AI-gebruik": "text", "Inhoud ontbreekt": "checkbox", "Bevestiging": "text",
+      // Jeton de la réservation en cours (ISO#hasard) et expéditeur prouvé (DMARC / DKIM aligné), spec 020 revue.
+      "Verwerking sinds": "text", "Afzender geverifieerd": "checkbox" },
+    selects: { "Status": ["Verwerken", "Te controleren", "Aanmaken", "Aangemaakt", "Genegeerd"] }, primary: "Bericht-id"
   },
   // Comptes individuels du personnel (api/session : connexion par PIN, api/onboarding : gestion).
   Medewerkers: {

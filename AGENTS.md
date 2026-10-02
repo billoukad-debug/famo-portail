@@ -26,7 +26,13 @@ needs a recent Node 22.
   013 client HttpOnly cookie `famo_klant`, 014 clean Dutch URLs + tree, 015 driver mode + delivery slot (`Leverslot`),
   016 structured order lines (`Lignes JSON`), 017 static inline styles → `ui.css` utilities
   (`check.js` caps the remaining `style="…"`), 018 product photos (up to 6 per product, `setFotos`,
-  thumbnails everywhere via `K.thumb`, client gallery) + caliber order (`K.byNameKaliber`, `K.kaliberOrder`).
+  thumbnails everywhere via `K.thumb`, client gallery) + caliber order (`K.byNameKaliber`, `K.kaliberOrder`),
+  019 client catalogue views « Weergave » Lijst / Tegels / Compact + « Sorteren » (per device, `K.pref`), name
+  families (`K.families`), sticky toolbar; breakpoints 720 / 1100 / 1240 (the `<style>` of `klant.html` now lives
+  at the end of `assets/ui.css`; rows use container queries on `#list`).
+  020 order by e-mail (Resend Receiving webhook `api/inbound-mail.js`, Svix signature on the raw body,
+  `lib/inbound/*`, Claude proposes / server decides via `lib/bestelling.js`, staff queue « Te controleren »
+  `api/mailcontrole.js`; local demo `node scripts/mail-inbound-test.js` against `scripts/dev.js`).
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 

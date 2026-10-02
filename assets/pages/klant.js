@@ -81,7 +81,7 @@
   }
   function cartLinkHtml() {
     const n = cartCount();
-    return K.icon("cart") + '<span>' + K.t("Winkelmand") + '</span>' + (n ? '<b class="kbadge">' + n + '</b><span class="mono">' + K.eur(cartTotal()) + '</span>' : "");
+    return K.icon("cart") + '<span class="kcl-t">' + K.t("Winkelmand") + '</span>' + (n ? '<b class="kbadge">' + n + '</b><span class="mono">' + K.eur(cartTotal()) + '</span>' : "");
   }
   function topbar(title, sub, right) {
     return '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div class="grow"><h1 class="ktitle">' + K.esc(title) + '</h1><span class="quiet ksub">' + K.esc(sub || "") + '</span></div>' + (right || "") + '</div></div>';
@@ -113,23 +113,37 @@
   }
 
   /* ---------- catalogus ---------- */
-  let q = "", catFilter = "Alles";
-  // Eén compacte regel per product, met de hoofdfoto als kleine vignet (spec 018 : foto's altijd zichtbaar) ;
-  // alle zichten en extra info na het openklappen (lijsten van honderden producten blijven licht : lazy).
+  // Spec 019 : drie weergaven van dezelfde regel (Lijst, Tegels, Compact) en een sortering, onthouden per toestel
+  // (K.pref : opslag geblokkeerd → Lijst / Standaard). Zoeken, categorie en familie filteren door te verbergen :
+  // geen nieuwe tekening per toets, per + / − enkel de eigen regel en de winkelmand.
+  const VIEW = K.pref("famoKlantWeergave", K.CATALOG_VIEWS, "lijst"), SORT = K.pref("famoKlantSortering", K.CATALOG_SORTS, "standaard");
+  const VIEWS = [["lijst", "Lijst", "vlist"], ["tegels", "Tegels", "tiles"], ["compact", "Compact", "rows"]];
+  const SORT_LABELS = { standaard: "Standaard", naam: "Naam A–Z", "prijs-op": "Prijs ↑", "prijs-af": "Prijs ↓" };
+  const REST = "__overige"; // familie « Overige » : de producten zonder familie
+  let q = "", catFilter = "Alles", famFilter = "", view = VIEW.get(), sortMode = SORT.get(), CS = null;
+  // Lijst en Compact : details openklappen op hun plaats (spec 018 : alle zichten, info, opmerking) ; Tegels : paneel.
   const opened = new Set();
   // Zichten van een product : fotos (spec 018), of enkel foto (oude cache in sessionStorage).
   const photosOf = p => (Array.isArray(p.fotos) && p.fotos.length ? p.fotos : p.foto ? [p.foto] : []);
+  // Prijs : onderhandelde prijs groot, publieke prijs klein en doorstreept, « uw prijs » (DESIGN : het prijzenpaar).
+  const priceHtml = p => '<div class="pp"><span class="pp-m"><b class="mono">' + K.eur(p.prix) + '</b> <span class="quiet">/ ' + K.esc(unitLabel(p)) + '</span></span>' + (p.prix < p.base ? '<span class="pp-u"><s class="mono">' + K.eur(p.base) + '</s> <small>' + K.t("uw prijs") + '</small></span>' : "") + '</div>';
   function productRow(p) {
-    const qty = Number(cart.items[p.id] || 0), neg = p.prix < p.base, open = opened.has(p.id), u = unitLabel(p);
-    const meta = [p.kaliber, u].filter(Boolean).map(K.esc).join(" · ");
+    const qty = Number(cart.items[p.id] || 0), tiles = view === "tegels", compact = view === "compact", open = !tiles && opened.has(p.id);
+    // Metaregel : kaliber (niet herhaald als het al in de naam staat : « … 16-20 » en kaliber « 16/20 ») en voorraad ;
+    // de eenheid staat bij de prijs (« / kassa »), behalve in Compact (eenheid in de metakolom). Compact op een
+    // smalle lijst : ook de prijs in de metaregel (de prijskolom verschijnt pas op een brede lijst).
+    const kal = p.kaliber && K.searchKey(p.nom).indexOf(K.searchKey(p.kaliber)) < 0 ? p.kaliber : "";
+    const meta = [kal, compact ? unitLabel(p) : ""].filter(Boolean).map(K.esc).join(" · ") + stockTag(p) +
+      (compact ? '<span class="pm-p"><b class="mono">' + K.eur(p.prix) + '</b>' + (p.prix < p.base ? ' <small>' + K.t("uw prijs") + '</small>' : "") + '</span>' : "");
     // Vignet in de knop : een tik erop opent de details. alt leeg : de naam staat ernaast in dezelfde knop.
-    return '<div class="prod' + (qty > 0 ? " on" : "") + (open ? " open" : "") + '" data-id="' + p.id + '">' +
-      '<button type="button" class="pr-x" data-x="' + p.id + '" aria-expanded="' + open + '" aria-controls="pd-' + p.id + '">' + K.icon("chev", "pr-chev") + K.thumb(photosOf(p)[0], "", "pr-th") + '<span class="pr-t"><span class="pn">' + K.esc(p.nom) + '</span><span class="pm">' + meta + stockTag(p) + '</span></span></button>' +
-      '<span class="pr-k">' + K.esc(p.kaliber || "") + '</span><span class="pr-u">' + K.esc(u) + stockTag(p) + '</span>' +
-      '<div class="pp"><b class="mono">' + K.eur(p.prix) + '</b>' + (neg ? '<s class="mono">' + K.eur(p.base) + '</s><small>' + K.t("uw prijs") + '</small>' : '<span class="quiet">/ ' + K.esc(u) + '</span>') + '</div>' +
+    const btn = '<button type="button" class="pr-x" data-x="' + p.id + '"' + (tiles ? ' aria-haspopup="dialog"' : ' aria-expanded="' + open + '" aria-controls="pd-' + p.id + '"') + '>' +
+      (tiles ? "" : K.icon("chev", "pr-chev")) + (compact ? "" : K.thumb(photosOf(p)[0], "", "pr-th")) +
+      // Kaliber en gewicht in de naam (« 13-15 », « 1KG ») niet afbreken.
+      '<span class="pr-t"><span class="pn">' + K.esc(p.nom).replace(/\S*\d\S*/g, m => '<span class="nw">' + m + '</span>') + '</span><span class="pm">' + meta + '</span></span></button>';
+    return '<div class="prod' + (qty > 0 ? " on" : "") + (open ? " open" : "") + '" data-id="' + p.id + '">' + btn + priceHtml(p) +
       '<button type="button" class="ibtn fav' + (favs[p.id] ? " on" : "") + '" data-fav="' + p.id + '" aria-label="' + K.t("Favoriet") + ': ' + K.esc(p.nom) + '" aria-pressed="' + (favs[p.id] ? "true" : "false") + '">' + K.icon("star") + '</button>' +
       K.c.stepper(p.id, qty, { step: isKg(p) ? 0.5 : 1, name: p.nom }) +
-      '<div class="pr-d" id="pd-' + p.id + '"' + (open ? "" : " hidden") + '>' + (open ? detailHtml(p) : "") + '</div></div>';
+      (tiles ? "" : '<div class="pr-d" id="pd-' + p.id + '"' + (open ? "" : " hidden") + '>' + (open ? detailHtml(p) : "") + '</div>') + '</div>';
   }
   // Galerij (spec 018) : grote foto ; bij meerdere zichten een strook om te vegen (scroll-snap) en vignetknoppen
   // « Foto 2 van 3 » (aria-current op het getoonde zicht) ; ← → wisselen. Zonder foto : niets (de regel toont het icoon).
@@ -201,44 +215,118 @@
     const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
     set("kcartlink", cartLinkHtml()); set("cartPanel", cartPanelHtml()); set("cartbarBox", cartbarHtml());
   }
-  function renderCatalogus() {
+  // Wat de catalogus toont : categorie, groepen (favorieten eerst bij « Alles »), sortering, families, zoekteksten.
+  function catalogState() {
     // Catégorie affichée = traduction (K.cat) ; la valeur Airtable reste la clé de filtre.
     const all = (cat.products || []).slice().sort(K.byVolgorde);
     const byCat = K.catOrder(cat.products, p => K.cat(p.cat));
-    // E-08 : la recherche ne redessine plus la liste — toutes les lignes de la catégorie sont posées une fois,
-    // la frappe ne fait que masquer / montrer (applyQuery), après une courte pause.
-    const products = all.filter(p => catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : K.cat(p.cat) === catFilter));
-    const hay = new Map(products.map(p => [p.id, (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat) + " " + (p.omschrijving || "")).toLowerCase()]));
     const catNames = Array.from(new Set(all.map(p => K.cat(p.cat)))).sort(byCat);
-    const count = c => c === "Alles" ? all.length : c === "Favorieten" ? all.filter(p => favs[p.id]).length : all.filter(p => K.cat(p.cat) === c).length;
-    const cats = ["Alles", "Favorieten", ...catNames];
+    const products = all.filter(p => catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : K.cat(p.cat) === catFilter));
     const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" ? "Favorieten" : K.cat(p.cat)); (groups[g] = groups[g] || []).push(p); });
+    const sorter = K.catalogSort(sortMode); Object.keys(groups).forEach(g => groups[g].sort(sorter));
     const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : byCat(a, b)));
-    const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + count(c) + '</span></button>';
-    const top = '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div class="grow"><h1 class="ktitle">' + K.t("Catalogus") + '</h1></div>' + K.c.avatar(cat.client.nom) + '</div>' +
-      '<label class="search maxw-none">' + K.icon("search") + '<input id="q" type="search" placeholder="' + K.t("Zoek een product…") + '" aria-label="' + K.t("Zoek een product…") + '" aria-keyshortcuts="/" value="' + K.esc(q) + '" autocomplete="off" spellcheck="false"></label>' +
-      '<div class="cats" role="group" aria-label="' + K.t("Categorieën") + '">' + cats.map(catBtn).join("") + '</div></div>';
-    const head = '<div class="prhead" aria-hidden="true"><span>' + K.t("Product") + '</span><span>' + K.t("Kaliber") + '</span><span>' + K.t("Eenheid") + '</span><span>' + K.t("Prijs excl. btw") + '</span><span></span><span>' + K.t("Aantal") + '</span></div>';
-    const list = products.length ? head + order.map(g => '<h2 class="sec">' + K.esc(K.t(g)) + ' <span class="quiet" data-gn>' + groups[g].length + '</span></h2>' + groups[g].map(productRow).join("")).join("") + '<div id="noHit" role="status"></div>' : K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product om het hier te zien."));
-    shell("catalogus", '<div class="kgrid"><nav class="kside" aria-label="' + K.t("Categorieën") + '">' + cats.map(catBtn).join("") + '</nav><div class="mlist" id="list">' + list + '</div><aside class="kcart" id="cartPanel" aria-label="' + K.t("Winkelmand") + '">' + cartPanelHtml() + '</aside></div><div id="cartbarBox">' + cartbarHtml() + '</div>', top);
-    const applyQuery = () => {
-      const box = document.getElementById("list"); if (!box) return;
-      let sec = null, n = 0, total = 0;
-      const endGroup = () => { if (!sec) return; sec.classList.toggle("hidden", !n); const c = sec.querySelector("[data-gn]"); if (c) c.textContent = n; };
-      for (const el of box.children) {
-        if (el.tagName === "H2") { endGroup(); sec = el; n = 0; }
-        else if (el.classList.contains("prod")) { const ok = !q || (hay.get(el.dataset.id) || "").includes(q); el.classList.toggle("hidden", !ok); if (ok) { n++; total++; } }
+    // Families binnen één categorie (niet « Alles » of « Favorieten »), op de volgorde van Beheer
+    // (de knoppen verspringen niet bij een andere sortering).
+    const fams = catFilter === "Alles" || catFilter === "Favorieten" ? null : K.families(products), famOf = new Map();
+    if (fams) { fams.families.forEach(f => f.ids.forEach(id => famOf.set(id, f.key))); fams.rest.forEach(id => famOf.set(id, REST)); }
+    if (famFilter && !famOf.size) famFilter = "";
+    const hay = new Map(products.map(p => [p.id, K.searchKey([p.nom, p.kaliber, K.cat(p.cat), p.omschrijving].filter(Boolean).join(" "))]));
+    const count = c => c === "Alles" ? all.length : c === "Favorieten" ? all.filter(p => favs[p.id]).length : all.filter(p => K.cat(p.cat) === c).length;
+    return { all, cats: ["Alles", "Favorieten", ...catNames], count, products, groups, order, fams, famOf, hay };
+  }
+  const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + CS.count(c) + '</span></button>';
+  // Werkbalk (blijft bovenaan) : zoeken (× wist), naar boven, categorieën, aantal, sorteren, weergave.
+  function toolsHtml() {
+    return '<div class="ktools" id="ktools">' +
+      '<div class="kt-s"><div class="search ksearch"><label class="ks-l">' + K.icon("search") + '<input id="q" type="search" placeholder="' + K.t("Zoek een product…") + '" aria-label="' + K.t("Zoek een product…") + '" aria-keyshortcuts="/" value="' + K.esc(q) + '" autocomplete="off" spellcheck="false" enterkeyhint="search"></label>' +
+      '<button type="button" class="ks-x" id="qClear" aria-label="' + K.t("Zoekterm wissen") + '"' + (q ? "" : " hidden") + '>' + K.icon("x") + '</button></div>' +
+      '<button type="button" class="btn btn-o totop" id="toTop" aria-label="' + K.t("Naar boven") + '" title="' + K.t("Naar boven") + '" hidden>' + K.icon("up") + '</button></div>' +
+      '<div class="cats kt-c" role="group" aria-label="' + K.t("Categorieën") + '">' + CS.cats.map(catBtn).join("") + '</div>' +
+      '<div class="kt-o"><span class="kt-n" id="kCount" role="status" aria-live="polite"></span>' +
+      '<label class="ksort"><span class="ksort-l">' + K.t("Sorteren") + '</span><select class="input" id="kSort">' + K.CATALOG_SORTS.map(s => '<option value="' + s + '"' + (s === sortMode ? " selected" : "") + '>' + K.esc(K.t(SORT_LABELS[s])) + '</option>').join("") + '</select></label>' +
+      '<div class="seg" role="group" aria-label="' + K.t("Weergave") + '">' + VIEWS.map(([k, l, i]) => '<button type="button" data-weergave="' + k + '"' + (k === view ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + ' title="' + K.esc(K.t(l)) + '">' + K.icon(i) + '<span class="seg-t">' + K.esc(K.t(l)) + '</span></button>').join("") + '</div></div></div>';
+  }
+  // Families (spec 019) : enkel als de lijst er baat bij heeft (K.families : > 12 producten, 3–12 families).
+  function famsHtml() {
+    const f = CS.fams; if (!f) return "";
+    const b = (key, label, n) => '<button type="button" data-fam="' + K.esc(key) + '"' + (key === famFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(label) + '<span class="kcount">' + n + '</span></button>';
+    return '<div class="fams" id="kFams" role="group" aria-label="' + K.t("Soort") + '">' + b("", K.t("Alle"), CS.products.length) + f.families.map(x => b(x.key, x.label, x.ids.length)).join("") + (f.rest.length ? b(REST, K.t("Overige"), f.rest.length) : "") + '</div>';
+  }
+  function listHtml() {
+    if (!CS.products.length) return K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product om het hier te zien."));
+    return CS.order.map(g => '<h2 class="sec">' + K.esc(K.t(g)) + ' <span class="quiet" data-gn>' + CS.groups[g].length + '</span></h2>' + CS.groups[g].map(productRow).join("")).join("") + '<div id="noHit" role="status"></div>';
+  }
+  // Zoeken × familie : regels verbergen of tonen, groepen zonder treffer verbergen, aantal en melding bijwerken.
+  function applyFilter() {
+    const box = document.getElementById("list"); if (!box || !CS) return;
+    const qk = K.searchKey(q);
+    let sec = null, n = 0, total = 0;
+    const endGroup = () => { if (!sec) return; sec.classList.toggle("hidden", !n); const c = sec.querySelector("[data-gn]"); if (c) c.textContent = n; };
+    for (const el of box.children) {
+      if (el.tagName === "H2") { endGroup(); sec = el; n = 0; }
+      else if (el.classList.contains("prod")) {
+        const id = el.dataset.id, ok = (!qk || K.searchHit(CS.hay.get(id) || "", qk)) && (!famFilter || CS.famOf.get(id) === famFilter);
+        el.classList.toggle("hidden", !ok); if (ok) { n++; total++; }
       }
-      endGroup();
-      const ph = box.querySelector(".prhead"); if (ph) ph.classList.toggle("hidden", !total);
-      const nh = document.getElementById("noHit"); if (nh) nh.innerHTML = total || !q ? "" : K.c.empty(K.t("Niets gevonden voor") + " „" + q + "”", K.t("Probeer een ander woord of kies een categorie."));
-    };
-    applyQuery();
-    const qi = document.getElementById("q"); qi.addEventListener("input", K.debounce(() => { q = qi.value.trim().toLowerCase(); applyQuery(); }, 120));
-    K.on(app, "click", "[data-cat]", (e, t) => { catFilter = t.dataset.cat; renderCatalogus(); const b = K.$$('[data-cat="' + CSS.escape(catFilter) + '"]', app).find(x => x.offsetParent); if (b) b.focus(); });
+    }
+    endGroup();
+    const cnt = document.getElementById("kCount"); if (cnt) cnt.textContent = total === 1 ? K.t("1 product") : K.tt("{n} producten", { n: total });
+    const nh = document.getElementById("noHit"); if (nh) nh.innerHTML = total || !CS.products.length ? "" : qk ? K.c.empty(K.t("Niets gevonden voor") + " „" + q.trim() + "”", K.t("Probeer een ander woord of kies een categorie.")) : "";
+    const x = document.getElementById("qClear"); if (x) x.hidden = !q;
+  }
+  // Andere weergave of sortering : enkel de lijst opnieuw ; het product bovenaan het scherm blijft op zijn plaats.
+  function redrawList() {
+    const box = document.getElementById("list"); if (!box) return;
+    const tools = document.getElementById("ktools"), edge = tools && tools.offsetHeight ? tools.getBoundingClientRect().bottom : 0;
+    const anchor = window.scrollY > 0 ? K.$$(".prod:not(.hidden)", box).find(r => r.getBoundingClientRect().bottom > edge + 8) : null;
+    const id = anchor && anchor.dataset.id, top = anchor ? anchor.getBoundingClientRect().top : 0;
+    box.setAttribute("data-view", view); box.innerHTML = listHtml();
+    fallback(box); bindSteppers(box, rid => { syncRow(rid); refreshCart(); }); applyFilter();
+    if (id) { const r = box.querySelector('.prod[data-id="' + CSS.escape(id) + '"]'); if (r) window.scrollBy(0, r.getBoundingClientRect().top - top); }
+  }
+  // Tegels : de details in een paneel (galerij, info, opmerking, aantal) ; Esc of × geeft de focus terug aan de tegel.
+  function openDetail(p) {
+    closePanel();
+    panel = K.panel({ title: p.nom, sub: [p.kaliber, unitLabel(p)].filter(Boolean).join(" · "), body: '<div class="pr-d pr-dp" data-no-dirty>' + detailHtml(p) + '</div>', footer: '<div class="pd-f">' + priceHtml(p) + K.c.stepper(p.id, Number(cart.items[p.id] || 0), { step: isKg(p) ? 0.5 : 1, name: p.nom }) + '</div>', onClose: () => { panel = null; } });
+    fallback(panel.el); bindSteppers(panel.el, id => { syncRow(id); refreshCart(); });
+    panel.el.addEventListener("input", e => { const t = e.target; if (t && t.matches && t.matches("[data-comment]")) { cart.comments[t.dataset.comment] = t.value.slice(0, 120); saveCart(); } });
+  }
+  function toTop() {
+    const h = app.querySelector("h1");
+    window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+    if (h) { h.setAttribute("tabindex", "-1"); try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
+  }
+  // « Naar boven » verschijnt na een scherm ; verdwijnt niet onder de focus.
+  function syncToTop() { const b = document.getElementById("toTop"); if (!b) return; const far = window.scrollY > window.innerHeight; if (b.hidden === !far || (!far && document.activeElement === b)) return; b.hidden = !far; }
+  let scrollTick = false;
+  window.addEventListener("scroll", () => { if (scrollTick) return; scrollTick = true; requestAnimationFrame(() => { scrollTick = false; syncToTop(); }); }, { passive: true });
+  // Hoogte van de werkbalk (≥ 720 px) → --kt-h : groepstitels kleven eronder en scroll-padding houdt de focus vrij (2.4.11).
+  let ktRO = null;
+  function watchTools() {
+    if (ktRO) { ktRO.disconnect(); ktRO = null; }
+    const el = document.getElementById("ktools"); if (!el || typeof window.ResizeObserver !== "function") return;
+    ktRO = new window.ResizeObserver(() => { const h = el.offsetHeight; if (h) document.documentElement.style.setProperty("--kt-h", h + "px"); });
+    ktRO.observe(el);
+  }
+  function renderCatalogus() {
+    CS = catalogState();
+    const top = '<div class="mtop"><div class="mrow"><span class="logo" aria-hidden="true"></span><div class="grow"><h1 class="ktitle">' + K.t("Catalogus") + '</h1><span class="quiet ksub">' + K.esc(K.t("Prijzen excl. btw") + " · " + K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) })) + '</span></div>' + K.c.avatar(cat.client.nom) + '</div></div>';
+    shell("catalogus", '<div class="kgrid"><nav class="kside" aria-label="' + K.t("Categorieën") + '">' + CS.cats.map(catBtn).join("") + '</nav><div class="kcat">' + toolsHtml() + famsHtml() + '<div class="kl" id="list" data-view="' + view + '">' + listHtml() + '</div></div><aside class="kcart" id="cartPanel" aria-label="' + K.t("Winkelmand") + '">' + cartPanelHtml() + '</aside></div><div id="cartbarBox">' + cartbarHtml() + '</div>', top);
+    applyFilter();
+    const qi = document.getElementById("q");
+    qi.addEventListener("input", K.debounce(() => { q = qi.value; applyFilter(); }, 120));
+    qi.addEventListener("input", () => { const x = document.getElementById("qClear"); if (x) x.hidden = !qi.value; });
+    document.getElementById("qClear").onclick = () => { qi.value = ""; q = ""; qi.focus(); applyFilter(); };
+    document.getElementById("toTop").onclick = toTop;
+    document.getElementById("kSort").onchange = e => { sortMode = e.target.value; SORT.set(sortMode); CS = catalogState(); redrawList(); };
+    K.on(app, "click", "[data-cat]", (e, t) => { catFilter = t.dataset.cat; famFilter = ""; renderCatalogus(); const b = K.$$('[data-cat="' + CSS.escape(catFilter) + '"]', app).find(x => x.offsetParent); if (b) b.focus(); });
+    K.on(app, "click", "[data-fam]", (e, t) => { famFilter = t.dataset.fam; K.$$("[data-fam]", app).forEach(b => K.setOn(b, b === t)); applyFilter(); });
+    K.on(app, "click", "[data-weergave]", (e, t) => { if (t.dataset.weergave === view) return; view = t.dataset.weergave; VIEW.set(view); K.$$("[data-weergave]", app).forEach(b => K.setOn(b, b === t)); redrawList(); });
     K.on(app, "click", "[data-fav]", (e, t) => { const id = t.dataset.fav; setFav(id, !favs[id]); K.setOn(t, !!favs[id]); });
     K.on(app, "click", "[data-x]", (e, t) => {
-      const id = t.dataset.x, row = t.closest(".prod"), box = row.querySelector(".pr-d"), open = !opened.has(id), p = byId(id);
+      const id = t.dataset.x, p = byId(id);
+      if (view === "tegels") { if (p) openDetail(p); return; }
+      const row = t.closest(".prod"), box = row.querySelector(".pr-d"), open = !opened.has(id);
       if (open) { opened.add(id); box.innerHTML = detailHtml(p); fallback(box); } else opened.delete(id);
       box.hidden = !open; row.classList.toggle("open", open); t.setAttribute("aria-expanded", String(open));
     });
@@ -251,6 +339,7 @@
     });
     fallback(app);
     bindSteppers(app, id => { syncRow(id); refreshCart(); });
+    watchTools(); syncToTop();
   }
   // Foto's van Airtable verlopen na een tijd : een kapotte afbeelding verdwijnt (de details blijven).
   function fallback(root) { K.$$("img[data-fallback]", root).forEach(img => { img.onerror = () => { img.parentNode.remove(); }; }); bindGallery(root); }

@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
     if (tot < van) return res.status(400).json({ error: "„Tot” ligt vóór „van”" });
     const [orders, lots, cat, stock] = await Promise.all([atAll("Commandes"), atAll("Lots"), atAll("Catalogue"), atAll("Stock")]);
     if (orders.error || lots.error) return res.status(500).json({ error: "Gegevens onleesbaar. Probeer opnieuw." });
-    return res.status(200).json(margin.compute({ van, tot, orders: orders.records, lots: lots.records, catalogue: (cat && cat.records) || [], stock: (stock && stock.records) || [] }));
+    return res.status(200).json(margin.compute({ van, tot, orders: require("../lib/testorders").real(orders.records), lots: lots.records, catalogue: (cat && cat.records) || [], stock: (stock && stock.records) || [] }));
   } catch (e) {
     console.error("[marge]", e && e.message || e);
     return res.status(500).json({ error: "Serverfout. Probeer opnieuw." });

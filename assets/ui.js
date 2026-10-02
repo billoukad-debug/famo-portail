@@ -57,6 +57,8 @@
     "Tik op de ster bij een product om het hier te zien.": "Touchez l'étoile d'un produit pour le voir ici.", "Tik op de ster bij een product in de catalogus.": "Touchez l'étoile d'un produit dans le catalogue.",
     // winkelmand
     "Categorieën": "Catégories", "Product": "Produit", "Kaliber": "Calibre", "Eenheid": "Unité", "Prijs excl. btw": "Prix HTVA", "Categorie": "Catégorie", "Beschikbaar": "Disponible", "Bestellen per": "Commander par", "0,5 kg": "0,5 kg", "Opmerking bij dit artikel": "Remarque pour cet article", "Foto {i} van {n}": "Photo {i} sur {n}", "Foto's van {p}": "Photos de {p}", "bv. dikke moot…": "ex. tranche épaisse…", "Nog niets gekozen. Gebruik + bij een product.": "Rien choisi pour l’instant. Utilisez + sur un produit.", "{p} verwijderd": "{p} retiré", "Ongedaan maken": "Annuler", "Verwijderen": "Retirer",
+    "Weergave": "Affichage", "Lijst": "Liste", "Tegels": "Vignettes", "Compact": "Compact", "Sorteren": "Trier", "Standaard": "Par défaut", "Naam A–Z": "Nom A–Z", "Prijs ↑": "Prix ↑", "Prijs ↓": "Prix ↓",
+    "Naar boven": "Haut", "Zoekterm wissen": "Effacer la recherche", "Soort": "Type", "Alle": "Tous", "Overige": "Autres", "{n} producten": "{n} produits", "1 product": "1 produit", "Prijzen excl. btw": "Prix HTVA",
     "Winkelmand": "Panier", "Leegmaken": "Vider", "Opmerking (bv. dikke moot)": "Remarque (ex. tranche épaisse)", "Leverdag": "Jour de livraison", "Andere dag": "Autre jour",
     "Geen levering op zondag. Vóór 22:00 besteld = morgen geleverd.": "Pas de livraison le dimanche. Commandé avant 22 h = livré demain.",
     "Leveradres": "Adresse de livraison", "Adres bij Famo bekend": "Adresse connue de Famo", "Ander adres? Zet het in de opmerking.": "Autre adresse ? Indiquez-la dans la remarque.",
@@ -228,7 +230,8 @@
   // Ordre du catalogue : Volgorde (Beheer, glisser-déposer) puis nom ; une catégorie se place
   // selon le plus petit Volgorde de ses produits, puis alphabétiquement.
   const VO = p => (p && p.volgorde != null && Number.isFinite(Number(p.volgorde)) ? Number(p.volgorde) : 1e9);
-  K.byVolgorde = (a, b) => VO(a) - VO(b) || String(a.nom || "").localeCompare(String(b.nom || ""), "nl");
+  // Zonder volgorde : de naam, getallen numeriek (« 8-12 » vóór « 13-15 », spec 019 ; cmpText staat verderop).
+  K.byVolgorde = (a, b) => VO(a) - VO(b) || cmpText(a.nom, b.nom);
   K.catOrder = (products, keyOf) => { const m = new Map(); (products || []).forEach(p => { const k = keyOf(p); m.set(k, Math.min(m.has(k) ? m.get(k) : 1e9, VO(p))); }); return (a, b) => (m.has(a) ? m.get(a) : 1e9) - (m.has(b) ? m.get(b) : 1e9) || String(a).localeCompare(String(b), "nl"); };
   K.cat = v => { const k = String(v || "").trim().toLowerCase(); return dict().cat[k] || String(v || "").trim() || K.t("Algemeen"); };
   /* ---- Kaliber (spec 018) : « 8/12 » < « 13/15 » < « 16/20 » < « 21/25 » ; « U10 » / « U/10 » (onder 10)
@@ -268,6 +271,85 @@
         .forEach(x => out.push(x.p.id));
     });
     return out;
+  };
+  /* ---- Catalogus (spec 019) : weergave, sortering, families, zoeken — zuivere hulpjes, getest onder Node ---- */
+  K.CATALOG_VIEWS = ["lijst", "tegels", "compact"];
+  K.CATALOG_SORTS = ["standaard", "naam", "prijs-op", "prijs-af"];
+  // Voorkeur per toestel (weergave, sortering) : enkel een toegelaten waarde ; opslag leeg, kapot of geblokkeerd → standaard.
+  K.pref = (key, allowed, def) => ({
+    get() { const v = K.store.get(key, def); return allowed.indexOf(v) >= 0 ? v : def; },
+    set(v) { if (allowed.indexOf(v) >= 0) K.store.set(key, v); }
+  });
+  const hasPrice = p => typeof (p && p.prix) === "number" && Number.isFinite(p.prix);
+  const byPrice = dir => (a, b) => (hasPrice(b) - hasPrice(a)) || (hasPrice(a) ? dir * (a.prix - b.prix) : 0) || K.byNameKaliber(a, b) || K.byVolgorde(a, b);
+  const SORTS = { standaard: K.byVolgorde, naam: (a, b) => K.byNameKaliber(a, b) || K.byVolgorde(a, b), "prijs-op": byPrice(1), "prijs-af": byPrice(-1) };
+  K.catalogSort = mode => SORTS[mode] || SORTS.standaard;
+  // Zoeken : zonder hoofdletters en accenten, « 16-20 » = « 16/20 » ; alle woorden moeten voorkomen (in eender welke volgorde).
+  K.searchKey = s => String(s == null ? "" : s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/(\d)\s*[-/]\s*(?=\d)/g, "$1/").replace(/\s+/g, " ").trim();
+  K.searchHit = (hayKey, qKey) => { const words = String(qKey || "").split(" ").filter(Boolean); return words.every(w => hayKey.indexOf(w) >= 0); };
+  // Families : de woorden vóór het kaliber (eerste woord met een cijfer : 8-12, 16/20, U10, 400-600, 1KG, 10x1kg…),
+  // zonder haakjes, losse leestekens en eenheden of bindwoorden achteraan (kg, st, nr., x…).
+  const FAM_TAIL = /^(kg|kilo|g|gr|gram|l|ml|cl|st|stk|stuks|pcs|pc|x|nr\.?|n°|no\.?|ca\.?|±|en|et|met|avec)$/;
+  const famWords = name => {
+    const words = String(name == null ? "" : name).replace(/\([^)]*\)/g, " ").replace(/[,;:]/g, " ").split(/\s+/).filter(w => w && !/^[-–—/+&.·|*]+$/.test(w));
+    const cut = words.findIndex(w => /\d/.test(w));
+    let base = cut < 0 ? words.slice() : words.slice(0, cut);
+    while (base.length && FAM_TAIL.test(base[base.length - 1].toLowerCase())) base.pop();
+    if (!base.length) base = words.filter(w => !/\d/.test(w) && !FAM_TAIL.test(w.toLowerCase()));
+    return base;
+  };
+  K.familyKey = name => famWords(name).join(" ").toLowerCase();
+  // Groepen van minstens 2 producten (opts.minSize) in een lijst van meer dan 12 (opts.min = 13) ; enkel als er
+  // 3 tot 12 families uitkomen (opts.minFam / opts.maxFam), anders null. Alleenstaanden : sluiten aan bij een familie
+  // die ze verlengen, of bij de enige familie waarmee ze het langste begin delen ; daarna per eerste woord ; de rest
+  // is « Overige » (rest). Meer dan 12 families → per eerste woord. Volgorde : eerste verschijning in de lijst.
+  K.families = (products, opts) => {
+    const o = Object.assign({ min: 13, minFam: 3, maxFam: 12, minSize: 2 }, opts || {});
+    const list = (products || []).filter(p => p && p.id != null);
+    if (list.length < o.min) return null;
+    const W = new Map(list.map((p, i) => [p.id, { i, words: famWords(p.nom), low: famWords(p.nom).map(w => w.toLowerCase()) }]));
+    const lcp = (a, b) => { let n = 0; while (n < a.length && n < b.length && a[n] === b[n]) n++; return n; };
+    // fam = { n: aantal woorden van de sleutel, ids: [...] } ; sleutel = de eerste n woorden van zijn eerste product.
+    const keyOf = f => W.get(f.ids[0]).low.slice(0, f.n);
+    const groupBy = (ids, kfn) => { const m = new Map(); ids.forEach(id => { const k = kfn(id); if (!m.has(k)) m.set(k, []); m.get(k).push(id); }); return m; };
+    const fine = () => {
+      const m = groupBy(list.map(p => p.id), id => W.get(id).low.join(" "));
+      const fams = [], single = [];
+      m.forEach(ids => { if (ids.length >= o.minSize && W.get(ids[0]).low.length) fams.push({ n: W.get(ids[0]).low.length, ids }); else single.push(...ids); });
+      const left = [];
+      single.forEach(id => {
+        const w = W.get(id).low; if (!w.length) { left.push(id); return; }
+        // 1. verlengt een familie (« black tiger garnalen gepeld » → « black tiger garnalen ») : de langste
+        let best = null; fams.forEach(f => { const k = keyOf(f); if (k.length < w.length && lcp(k, w) === k.length && (!best || f.n > best.n)) best = f; });
+        if (best) { best.ids.push(id); return; }
+        // 2. deelt het langste begin met precies één familie (« inktvis ringen » + « inktvis tubes » → « inktvis »)
+        let top = 0, hits = []; fams.forEach(f => { const n = lcp(keyOf(f), w); if (n > top) { top = n; hits = [f]; } else if (n && n === top) hits.push(f); });
+        if (top && hits.length === 1) { hits[0].n = top; hits[0].ids.push(id); return; }
+        left.push(id);
+      });
+      // 3. de overgebleven alleenstaanden per eerste woord
+      const rest = [];
+      groupBy(left, id => W.get(id).low[0] || "").forEach((ids, k) => {
+        if (k && ids.length >= o.minSize) fams.push({ n: ids.slice(1).reduce((n, id) => Math.min(n, lcp(W.get(ids[0]).low, W.get(id).low)), W.get(ids[0]).low.length), ids });
+        else rest.push(...ids);
+      });
+      return { fams, rest };
+    };
+    const coarse = () => {
+      const fams = [], rest = [];
+      groupBy(list.map(p => p.id), id => W.get(id).low[0] || "").forEach((ids, k) => {
+        if (k && ids.length >= o.minSize) fams.push({ n: ids.slice(1).reduce((n, id) => Math.min(n, lcp(W.get(ids[0]).low, W.get(id).low)), W.get(ids[0]).low.length), ids });
+        else rest.push(...ids);
+      });
+      return { fams, rest };
+    };
+    let r = fine();
+    if (r.fams.length > o.maxFam) r = coarse();
+    if (r.fams.length < o.minFam || r.fams.length > o.maxFam) return null;
+    const pos = id => W.get(id).i, byPos = (a, b) => pos(a) - pos(b);
+    const label = f => { const s = W.get(f.ids[0]).words.slice(0, f.n).join(" "); return /\p{L}/u.test(s) && s === s.toUpperCase() ? s.charAt(0) + s.slice(1).toLowerCase() : s; };
+    const families = r.fams.map(f => { f.ids.sort(byPos); return { key: keyOf(f).join(" "), label: label(f), ids: f.ids }; }).sort((a, b) => pos(a.ids[0]) - pos(b.ids[0]));
+    return { families, rest: r.rest.sort(byPos) };
   };
   K.STATUSES = ["Reçue", "Prête", "Sortie en livraison", "Facturée"];
   K.CANCELLED = "Annulée";
@@ -445,6 +527,7 @@
     orders: '<path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6"/>',
     box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
     truck: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+    mail: '<path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>',
     doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
@@ -472,6 +555,10 @@
     chev: '<path d="M6 9l6 6 6-6"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     list: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    vlist: '<path d="M4 5h5v5H4zM4 14h5v5H4zM12 7.5h8M12 16.5h8"/>',
+    tiles: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+    rows: '<path d="M4 5h16M4 9.7h16M4 14.3h16M4 19h16"/>',
+    up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
     fish: '<path d="M3 12c3-4 7-6 11-6 3 0 5 2 7 6-2 4-4 6-7 6-4 0-8-2-11-6z"/><path d="M3 12l-1-4M3 12l-1 4"/><circle cx="15" cy="11" r="1"/>',
     phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',
     pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',

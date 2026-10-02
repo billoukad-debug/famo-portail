@@ -5,6 +5,7 @@ const __auth = require("../lib/staffauth");
 const __bill = require("../lib/billing");
 const __cn = require("../lib/creditnota");
 const __corr = require("../lib/correctie");
+const __test = require("../lib/testorders"); // commandes d'essai archivées : jamais listées (specs/021)
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -64,7 +65,7 @@ module.exports = async (req, res) => {
       cmd = cmd || { records: recs }; next = offset || null;
     } else cmd = await atAll(base);
     if (cmd.error) return res.status(500).json({ error: cmd.error.message || "Commandes onleesbaar" });
-    const orders = (cmd.records || []).map(r => ({
+    const orders = __test.real(cmd.records).map(r => ({
       id: r.id,
       ref: r.fields["Référence"] || "",
       date: r.fields["Date"] || "",

@@ -1,10 +1,12 @@
 require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voir lib/datastore.js
 // Beheer : point d'entrée HTTP unique (garde A-10, session beheerder, journal d'audit). Les actions
-// vivent par domaine dans lib/beheer/ (config, producten, klanten, klantgebruikers, toegang, prijzen).
+// vivent par domaine dans lib/beheer/ (config, producten, klanten, klantgebruikers, toegang, prijzen, testperiode).
 const { atAll, __auth, __journal, REC, parseBody, clean, statusPayload } = require("../lib/beheer/common");
 // require statiques : Vercel (nft) n'embarque que les fichiers qu'il voit.
 const BEHEER = [require("../lib/beheer/config"), require("../lib/beheer/producten"), require("../lib/beheer/klanten"),
-  require("../lib/beheer/klantgebruikers"), require("../lib/beheer/toegang"), require("../lib/beheer/prijzen")];
+  require("../lib/beheer/klantgebruikers"), require("../lib/beheer/toegang"), require("../lib/beheer/prijzen"), require("../lib/beheer/testperiode")];
+// Testperiode afsluiten (specs/021) : ces actions journalisent elles-mêmes (comptes, plages) ; l'aperçu n'écrit rien.
+const SELF_LOGGED = new Set(["previewCredentials"].concat(require("../lib/beheer/testperiode").ACTIONS));
 
 const handler = async (req, res) => {
   if (!__auth.hasCode()) {
@@ -63,9 +65,9 @@ module.exports = async (req, res) => {
   let body = {};
   try { body = parseBody(req) || {}; } catch (e) { return handler(req, res); }
   const action = clean(body.action, 40);
-  if (!action || action === "previewCredentials") return handler(req, res);
+  if (!action || SELF_LOGGED.has(action)) return handler(req, res);
   let table = TARGET[action] || "", id = table && REC.test(String(body.id || "")) ? String(body.id) : "";
-  if (action === "saveConfig" || action === "saveVoorwaarden" || action === "saveEnkelPin") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
+  if (action === "saveConfig" || action === "saveVoorwaarden" || action === "saveEnkelPin" || action === "saveMailBestellingen") { table = "Configuratie"; try { id = ((await st.list("Configuratie"))[0] || {}).id || ""; } catch (e) { id = ""; } }
   const before = id ? await __journal.get(table, id) : null;
   await handler(req, res);
   if (res.statusCode !== 200) return;

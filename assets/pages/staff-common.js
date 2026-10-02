@@ -49,7 +49,8 @@
     // Listes d'identifiants (pas des nombres) : en mode « Nieuw » seuls les éléments pas encore vus comptent (spec 001).
     const t = K.today(), ids = f => S.orders.filter(f).map(o => o.id);
     K.setBadges({
-      "bestellingen.html": ids(o => o.statut === "Reçue"),
+      // + e-mails « Te controleren » (specs/020) : ook werk voor wie de bestellingen bevestigt.
+      "bestellingen.html": ids(o => o.statut === "Reçue").concat((S.mailIds || []).map(id => "mail:" + id)),
       "entrepot.html": ids(o => o.statut === "Reçue" && o.day && o.day <= K.addDays(t, 1)), // Magazijn s'ouvre sur « morgen » (G-13)
       "leveringen.html": ids(o => (o.statut === "Prête" || o.statut === "Sortie en livraison") && o.day === t),
       "documenten.html": ids(o => o.statut === "Facturée" && o.paiement !== "Payé")
@@ -59,7 +60,17 @@
     const due = k => !(seen[k] && now - seen[k] < every);
     const mark = k => { seen[k] = now; K.session.set("famoBadgesAt", seen); };
     if (due("stock") && document.querySelector('[data-badge="stock.html"]')) { mark("stock"); K.api("/api/stock").then(d => S.stockBadge(d.items)).catch(() => {}); }
+    // E-mails te controleren : klein telverzoek, hoogstens elke minuut.
+    if (!(seen.mail && now - seen.mail < 60 * 1000) && document.querySelector('[data-badge="bestellingen.html"]')) { mark("mail"); K.api("/api/mailcontrole?count=1").then(d => S.setMailIds(d.ids)).catch(() => {}); }
     if (due("beheer") && K.staff.isAdmin() && document.querySelector('[data-badge="beheer.html"]')) { mark("beheer"); K.api("/api/onboarding?counts=1").then(d => K.setBadges({ "beheer.html": Number(d.aanvragen) || 0 })).catch(() => {}); }
+  };
+  // Ids van de e-mails « Te controleren » (pastille + teller in Bestellingen) ; S.onMailIds : pagina die meetekent.
+  S.mailIds = K.session.get("famoMailIds", []) || [];
+  S.setMailIds = list => {
+    const ids = Array.isArray(list) ? list.map(String) : [];
+    const changed = JSON.stringify(ids) !== JSON.stringify(S.mailIds);
+    S.mailIds = ids; K.session.set("famoMailIds", ids);
+    if (changed) { S.badges(); if (typeof S.onMailIds === "function") S.onMailIds(); }
   };
   S.stockBadge = items => K.setBadges({ "stock.html": (items || []).filter(i => i.quantity <= i.lowThreshold).map(i => i.id || i.product) }); // = « n onder drempel » de Voorraad
   S.byId = id => S.orders.find(o => o.id === id);

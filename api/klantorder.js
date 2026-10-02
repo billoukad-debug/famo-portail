@@ -41,7 +41,8 @@ async function findOwnOrder(client, ref){
   const found = await at(`Commandes?filterByFormula=${encodeURIComponent(`{Référence}='${safe}'`)}&maxRecords=10`);
   // Parmi les commandes à cette référence, celle de CE client : un doublon de numéro ne doit
   // pas rendre sa commande introuvable (audit B-01).
-  return ((found && found.records) || []).find(r => (r.fields["Client"] || []).includes(client.id)) || null;
+  // Commande d'essai archivée (specs/021) : introuvable pour le client.
+  return require("../lib/testorders").real(found && found.records).find(r => (r.fields["Client"] || []).includes(client.id)) || null;
 }
 
 const handler = async (req, res) => {

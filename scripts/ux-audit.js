@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
-/* global document, getComputedStyle, matchMedia, innerWidth, location, localStorage, sessionStorage */
-// Contrôles automatiques de docs/CHECKLIST-UX.md sur toutes les pages, à 1280 px et 390 px (tactile) :
+/* global document, getComputedStyle, matchMedia, innerWidth, location, localStorage, sessionStorage, window */
+// Contrôles automatiques de docs/CHECKLIST-UX.md sur toutes les pages, à 1280 px et 390 px (tactile), le catalogue client aussi à 990 px :
 // FOR-01 libellés · ACC-02 noms accessibles · ACC-03 alt · ACC-04 h1 / lien d'évitement / titre / lang ·
 // INT-01 pas de <a href="#"> ni de onclick hors bouton · INT-03 cibles 24 px, 44 px au tactile (hauteur ET
 // largeur, champs texte et nombre compris) · MEP-04 pas de défilement horizontal · CLA-01 cliquable hors clavier ·
@@ -10,7 +10,8 @@
 // ACC-06 état « choisi » (.on) exposé (aria-pressed / aria-current / aria-selected / aria-expanded).
 // États visités en plus des pages : fiche commande (team/bestelling.html), Journaal, Magazijn Bord, confirmation de
 // commande, panier rempli, panneaux ouverts (Valideren, Leveruur, fiche client, produit), Leveringen en mode
-// Chauffeur, l'aperçu d'un document, la galerie photo d'un produit (client) et la gestion des photos (Beheer, spec 018).
+// Chauffeur, l'aperçu d'un document, la galerie photo d'un produit (client) et la gestion des photos (Beheer, spec 018), les trois weergaven du catalogue, ses familles et sa barre collante (spec 019),
+// l'aperçu de « Testperiode afsluiten » (Beheer → Systeemstatus, spec 021).
 //
 //   node scripts/dev.js            (autre terminal : portail de dev + données de test)
 //   node scripts/ux-audit.js       (BASE=http://localhost:4200 par défaut ; sortie 1 s'il y a un écart)
@@ -22,8 +23,14 @@ const EXE = process.env.CHROMIUM || (require("fs").existsSync("/opt/pw-browsers/
 // Un écran = une URL, ou { url, name, before(page), after(page) } : before avant l'ouverture, after pour ouvrir un panneau.
 const firstOrder = async p => p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => { const o = (d.orders || []).find(x => x.statut === "Facturée") || (d.orders || [])[0]; return o ? o.id : ""; }));
 const clickAndWait = (sel, ms) => async p => { const el = p.locator(sel).first(); if (await el.count()) { await el.click(); await p.waitForTimeout(ms || 800); } };
+// Catalogue client (spec 019) : weergave retenue sur l'appareil (localStorage), posée avant l'ouverture de l'écran.
+const weergave = v => async p => { await p.evaluate(v => localStorage.setItem("famoKlantWeergave", JSON.stringify(v)), v); };
 const pages = {
-  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender", "/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
+  staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender",
+    // Bestellen per e-mail (specs/020) : file « Te controleren », puis le texte de la première e-mail déplié.
+    { name: "/team/bestellingen#/controle (Te controleren)", url: "/team/bestellingen#/controle", after: async p => { await p.waitForSelector(".mc-item, .state", { timeout: 5000 }).catch(() => {}); } },
+    { name: "/team/bestellingen#/controle · originele e-mail open", url: "/team/bestellingen#/controle", after: async p => { await p.waitForSelector(".mc-sum", { timeout: 5000 }).catch(() => {}); await clickAndWait(".mc-sum", 400)(p); } },
+"/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
     { name: "/team/leveringen (mode Chauffeur)", url: "/team/leveringen", before: async p => { await p.evaluate(() => localStorage.setItem("famoLevMode", JSON.stringify("chauffeur"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoLevMode")); } },
     "/team/documenten",
     { name: "/team/bestelling (fiche commande)", url: async p => "/team/bestelling?id=" + encodeURIComponent(await firstOrder(p)) },
@@ -33,9 +40,18 @@ const pages = {
   admin: ["/beheer#/overzicht", "/beheer#/aanvragen", "/beheer#/klanten", "/beheer#/producten", "/beheer#/prijzen", "/beheer#/rapportage", "/beheer#/journaal", "/beheer#/bedrijf", "/beheer#/toegang", "/beheer#/status", "/team/invoeren", "/team/voorraad",
     { name: "/beheer#/klanten · panneau klant", url: "/beheer#/klanten", after: clickAndWait("[data-edit]", 700) },
     { name: "/beheer#/producten · panneau product", url: "/beheer#/producten", after: clickAndWait("[data-new-product]", 700) },
-    { name: "/beheer#/producten · foto's van een product", url: "/beheer#/producten", after: clickAndWait("tr[data-p]:has(img.pthumb)", 900) }],
-  klant: ["/klant#/catalogus",
-    { name: "/klant#/catalogus · galerij van een product", url: "/klant#/catalogus", after: clickAndWait(".prod:has(img.pthumb) .pr-x", 900) }, "/klant#/winkelmand", "/klant#/bestellingen", "/klant#/favorieten", "/klant#/account",
+    { name: "/beheer#/producten · foto's van een product", url: "/beheer#/producten", after: clickAndWait("tr[data-p]:has(img.pthumb)", 900) },
+    { name: "/beheer#/status · Testperiode afsluiten (voorbeeld)", url: "/beheer#/status", after: clickAndWait("#tpVoorbeeld", 1500) }],
+  klant: [{ name: "/klant#/catalogus", url: "/klant#/catalogus", mid: true },
+    { name: "/klant#/catalogus · galerij van een product", url: "/klant#/catalogus", after: clickAndWait(".prod:has(img.pthumb) .pr-x", 900), mid: true },
+    // Spec 019 : les trois weergaven (aussi à 990 px), les familles d'une grande catégorie, la barre collante après défilement,
+    // le détail d'une tuile (panneau).
+    { name: "/klant#/catalogus · Compact", url: "/klant#/catalogus", before: weergave("compact"), mid: true },
+    { name: "/klant#/catalogus · Tegels", url: "/klant#/catalogus", before: weergave("tegels"), mid: true },
+    { name: "/klant#/catalogus · Tegels · detail (paneel)", url: "/klant#/catalogus", before: weergave("tegels"), after: clickAndWait(".prod:has(img.pthumb) .pr-x", 900), mid: true },
+    { name: "/klant#/catalogus · familles (Algemeen)", url: "/klant#/catalogus", before: weergave("lijst"), after: async p => { await clickAndWait('[data-cat="Algemeen"]:visible', 500)(p); await clickAndWait("[data-fam]:nth-child(3)", 400)(p); }, mid: true },
+    { name: "/klant#/catalogus · barre collante (défilé)", url: "/klant#/catalogus", before: weergave("lijst"), after: async p => { await p.evaluate(() => window.scrollTo(0, 2400)); await p.waitForTimeout(500); }, mid: true },
+    "/klant#/winkelmand", "/klant#/bestellingen", "/klant#/favorieten", "/klant#/account",
     { name: "/klant#/winkelmand (rempli)", url: "/klant#/winkelmand", before: async p => { await p.evaluate(() => { const c = JSON.parse(sessionStorage.getItem("famoKlantCatalogus") || "{}"); const items = {}; (c.products || []).slice(0, 3).forEach(x => { items[x.id] = 2; }); localStorage.setItem("famoCart:aloha", JSON.stringify({ items, comments: {}, note: "", day: "" })); }); } },
     { name: "/klant#/bevestigd (commande reçue)", url: "/klant#/bevestigd", before: async p => { await p.evaluate(() => sessionStorage.setItem("famoLastOrder", JSON.stringify({ ref: "CMD-TEST", total: 42, day: new Date(Date.now() + 864e5).toISOString().slice(0, 10), items: [{ nom: "Test", qty: 2, prix: 21 }], at: Date.now(), mail: { customer: { ok: true } }, email: "test@example.com" }))); } },
     { name: "/klant#/bestellingen · fiche commande", url: "/klant#/bestellingen", after: async p => { await clickAndWait('[data-of="alles"]', 300)(p); await clickAndWait(".orow-main", 600)(p); } }],
@@ -137,7 +153,9 @@ function focusRings() {
 (async () => {
   const b = await chromium.launch(EXE ? { executablePath: EXE } : {});
   const issues = {}; const add = (k, v) => { (issues[k] = issues[k] || new Set()).add(v); };
-  for (const [w, h] of [[1280, 900], [390, 844]]) for (const role in pages) {
+  // 990 px (fenêtre moyenne, portable) : seulement les écrans marqués mid (catalogue client, spec 019).
+  for (const [w, h] of [[1280, 900], [990, 760], [390, 844]]) for (const role in pages) {
+    if (w === 990 && !pages[role].some(it => it && it.mid)) continue;
     const ctx = await b.newContext({ ignoreHTTPSErrors: true, viewport: { width: w, height: h }, hasTouch: w < 600 });
     if (role === "staff") await ctx.request.post(B + "/api/session", { data: { code: "team-dev-code" } });
     if (role === "admin") await ctx.request.post(B + "/api/session", { data: { code: "beheer-dev-code" } });
@@ -147,6 +165,7 @@ function focusRings() {
     else await p.goto(B + "/favicon.ico").catch(() => {}); // même origine, pour les écrans dont l'URL se calcule dans la page
     for (const item of pages[role]) {
       const it = typeof item === "string" ? { url: item } : item;
+      if (w === 990 && !it.mid) continue;
       if (it.before) await it.before(p);
       const url = typeof it.url === "function" ? await it.url(p) : it.url, label = it.name || url;
       await p.goto(B + url); if (/#/.test(url)) await p.reload(); // même page, autre #vue : rechargement propre

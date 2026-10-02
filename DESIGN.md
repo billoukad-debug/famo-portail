@@ -72,7 +72,7 @@ Titre « Vóór 22:00 besteld, morgen in uw keuken. » (heure limite lue dans la
 
 ## Appareils
 
-- **Client** : téléphone et ordinateur ont la même importance. ≥ 1024px : onglets en haut, catalogue en grille, barre panier pleine largeur en bas. Chaque ligne produit commence par une vignette carrée de 44 px (photo principale, icône neutre sans photo ; `K.thumb`, aussi dans Voorraad, Invoeren et Beheer) ; le dépliage montre la galerie de toutes les vues (jusqu'à 6, `Foto`, envoyées depuis Beheer) : grande image qu'on fait glisser (scroll-snap), vignettes-boutons « Foto 2 van 3 », ← → au clavier, pas d'animation au survol (spec 018).
+- **Client** : téléphone et ordinateur ont la même importance. < 720 px : onglets en bas, barre panier au-dessus ; ≥ 720 px : en-tête en haut (marque, onglets, panier), catalogue sur toute la largeur, barre panier en bas ; ≥ 1100 px : colonne panier ; ≥ 1240 px : catégories à gauche (spec 019). Le catalogue a trois « Weergave » retenues sur l'appareil : **Lijst** (une ligne de ± 60 px : vignette 44 px, nom, prix, étoile, quantité ; deux lignes compactes au téléphone), **Tegels** (photo 4:3 entière sur fond doux — ce sont des emballages —, détail dans un panneau), **Compact** (texte seul, ± 46 px). Les lignes suivent la largeur de la liste (container queries). Barre d'outils collante (recherche + ×, nombre, Sorteren, Weergave, catégories), familles déduites des noms dans une grande catégorie (boutons rectangulaires, pas de pilules), titres de groupe collants, « Naar boven ». Vignette : photo principale ou icône neutre (`K.thumb`, aussi dans Voorraad, Invoeren et Beheer) ; le dépliage montre la galerie de toutes les vues (jusqu'à 6, `Foto`, envoyées depuis Beheer) : grande image qu'on fait glisser (scroll-snap), vignettes-boutons « Foto 2 van 3 », ← → au clavier, pas d'animation au survol (spec 018).
 - **Personnel** : tablette au magasin (820), téléphone en tournée (390), ordinateur au bureau (1280). Barre latérale 240px → rail 88px (≤ 1180px) → bandeau horizontal (≤ 720px). Cibles ≥ 44px, y compris les cases à cocher (zone 44px, case visible 22px).
 - **Bestellingen** : un appui sur une commande la déplie, un second ouvre sa page.
 
@@ -96,7 +96,7 @@ Menu (figé par les tests, bloc I de `test/workflow/interface.test.js`) :
 - **Meer** (personnel) : Invoeren · Documenten (`NAV_STAFF_MORE`) ; **Beheer** (beheerder) : Invoeren · Documenten · Beheer (`NAV_ADMIN`)
 - **Voorraad** pour tous ; pied : Klantportaal, nom de la personne connectée, Uitloggen. Systeemstatus : beheerder seulement.
 
-Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone, en haut ≥ 1024 px) mais la même feuille de style.
+Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone, en haut ≥ 720 px) mais la même feuille de style.
 
 ## Composants
 
@@ -133,7 +133,7 @@ Le portail client (`klant.js`) a sa propre coque (onglets en bas sur téléphone
 2. **Documents A4** : redessinés (spec 012) — fournisseur et client à gauche, titre et faits à droite, taux de TVA par ligne, récapitulatif par taux, paiement, mentions, pied légal ; `@page` A4 et en-tête de tableau répété à l'impression. Reste : le PDF (html2pdf, capture) ne répète pas l'en-tête de tableau ; numéros de page absents.
 3. **E-mails** : gabarit commun (spec 012). Reste : pas de thème sombre dédié (il faudrait un `<style>`, refusé par Gmail replié et par les tests) ; vérifier sur de vrais clients (Litmus ou boîtes de test) — seul un rendu Chromium a été relu.
 4. **Logo** : le F sobre (spec 007) sert de marque, favicon, icône d'app et en-tête de document. Reste à décider : un mot-symbole « FAMO Seafood » dessiné, ou le nom en texte comme aujourd'hui.
-5. **Styles en ligne** : migrés (spec 017, 307 → 13 `style="`, rendu vérifié identique au pixel) ; restent 6 valeurs calculées, 3 états pilotés par `el.style` et la verzamellijst autonome ; plafond surveillé par `check.js`. Reste le bloc `<style>` de `klant.html` à déplacer dans `ui.css`.
+5. **Styles en ligne** : migrés (spec 017, 307 → 13 `style="`, rendu vérifié identique au pixel) ; restent 6 valeurs calculées, 3 états pilotés par `el.style` et la verzamellijst autonome ; plafond surveillé par `check.js`. Le bloc `<style>` de `klant.html` est dans `ui.css` (fin de feuille, spec 019).
 6. **Design system sur claude.ai** (« FAMO Portail Design System ») : il porte encore « Famo Trading » et les valeurs d'avant Crème. À resynchroniser sur ce dépôt.
 
 # Ce qu'il ne faut pas faire

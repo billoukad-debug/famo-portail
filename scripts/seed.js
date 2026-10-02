@@ -36,13 +36,31 @@ function demoFoto(body, view) {
     return fish(x, y, 170, 80, 70) || fish(x, y, 170, 165, 70) || fish(x, y, 170, 250, 70) || shade;
   });
 }
+// Spec 019 : en production les photos sont des emballages (sac ou boîte avec étiquette), en paysage ou en portrait.
+// view pair = paysage 320×240, impair = portrait 240×320 : les tuiles (4:3, contain) doivent montrer tout l'emballage.
+function demoPak(color, view) {
+  const portrait = view % 2 === 1, W = portrait ? 240 : 320, H = portrait ? 320 : 240;
+  const bg = [244, 246, 246], edge = mix(color, [14, 34, 41], 0.35), ink = [14, 34, 41];
+  const x0 = W * 0.14, x1 = W * 0.86, y0 = H * 0.1, y1 = H * 0.9, ly0 = y0 + (y1 - y0) * 0.36, ly1 = y0 + (y1 - y0) * 0.64, tx = x0 + (x1 - x0) * 0.12;
+  return png(W, H, (x, y) => {
+    if (x < x0 || x > x1 || y < y0 || y > y1) return x > x0 + 6 && x < x1 + 6 && y > y1 && y < y1 + 5 ? [222, 228, 228] : bg;
+    if (x < x0 + 3 || x > x1 - 3 || y < y0 + 3 || y > y1 - 3) return edge;
+    if (y > ly0 && y < ly1) {
+      if (y > ly0 + 9 && y < ly0 + 17 && x > tx && x < x1 - (x1 - x0) * 0.28) return ink;
+      if (y > ly0 + 25 && y < ly0 + 31 && x > tx && x < x1 - (x1 - x0) * 0.46) return [135, 146, 150];
+      return [255, 255, 255];
+    }
+    return mix(color, [255, 255, 255], ((y - y0) / (y1 - y0)) * 0.18);
+  });
+}
 const DEMO_FOTOS = { "Saumon frais": [[240, 128, 96], 3], "Cabillaud": [[214, 206, 190], 2], "Zeebaars heel 400-600": [[150, 164, 170], 1], "VANNAMEI GARNALEN GEPELD 16/20": [[238, 150, 110], 3], "VANNAMEI GARNALEN GEPELD 26/30": [[236, 160, 120], 2], "Tonijn sashimi blok": [[176, 48, 56], 1] };
+const DEMO_PAK = { "BLACK TIGER GARNALEN 8-12": [[34, 46, 58], 2], "BLACK TIGER GARNALEN 13-15": [[34, 46, 58], 1], "BLACK TIGER GARNALEN BLOK 13-15": [[52, 70, 92], 2], "VANNAMEI GARNALEN 31-40": [[196, 82, 54], 1], "INKTVIS RINGEN 1KG": [[70, 110, 150], 2], "SURIMI STICKS 1KG": [[214, 70, 70], 1], "EDAMAME 1KG": [[92, 140, 70], 1], "KREEFTENSTAARTEN 150-200": [[160, 40, 36], 2] };
 function addDemoFotos(db, products) {
   const patch = [];
   for (const p of products) {
-    const d = DEMO_FOTOS[p.fields["Produit"]]; if (!d) continue;
-    const slug = p.fields["Produit"].toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    patch.push({ id: p.id, fields: { "Foto": Array.from({ length: d[1] }, (_, v) => db.addFile(p.id, "image/png", slug + "-" + (v + 1) + ".png", demoFoto(d[0], v))) } });
+    const name = p.fields["Produit"], d = DEMO_FOTOS[name], k = DEMO_PAK[name]; if (!d && !k) continue;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    patch.push({ id: p.id, fields: { "Foto": Array.from({ length: (d || k)[1] }, (_, v) => db.addFile(p.id, "image/png", slug + "-" + (v + 1) + ".png", d ? demoFoto(d[0], v) : demoPak(k[0], v))) } });
   }
   db.update("Catalogue", patch, false);
 }
@@ -55,7 +73,9 @@ function seed(db, opts) {
     "Bedrijfsnaam": "FAMO Seafood", "Adres": "Jezusstraat 34", "Postcode en plaats": "2000 Antwerpen, België", "BTW-nummer": "BE 0788.705.713",
     "Telefoon": "03 000 00 00", "E-mail": "info@famotrading.be", "IBAN": "BE68539007547034", "BIC": "GKCCBEBB", "BTW-tarief": 6,
     "Betalingsvoorwaarden": "Betaalbaar binnen 14 dagen", "Leveringsvoorwaarden": "Controleer de goederen bij ontvangst. Klachten over verse producten melden wij graag dezelfde dag.",
-    "Bestellingen e-mail": "bestellingen@famotrading.be", "Besteldeadline": "22:00", "Leverdagen": "ma,di,wo,do,vr,za"
+    "Bestellingen e-mail": "bestellingen@famotrading.be", "Besteldeadline": "22:00", "Leverdagen": "ma,di,wo,do,vr,za",
+    // Bestellen per e-mail (specs/020) : demo met automatisch aanmaken aan (scripts/mail-inbound-test.js).
+    "Bestel-e-mailadres": "bestel@orders.famoseafood.be", "Mailbestellingen automatisch": true
   }]);
   const products = db.create("Catalogue", [
     { "Produit": "Saumon frais", "Prix de base": 18.5, "Unité": "kg", "Catégorie": "Poisson", "Actif": true },
@@ -70,7 +90,19 @@ function seed(db, opts) {
     { "Produit": "Scampi", "Prix de base": 15, "Unité": "caisse", "Catégorie": "Algemeen", "Actif": true },
     { "Produit": "Oesters Zeeuwse creuse nr. 3", "Prix de base": 0.85, "Unité": "pièce", "Catégorie": "Coquillages", "Actif": true },
     { "Produit": "Tonijn sashimi blok", "Prix de base": 29.9, "Unité": "kg", "Catégorie": "Poisson", "Actif": true },
-    { "Produit": "Vis (oud artikel)", "Prix de base": 3, "Unité": "caisse", "Catégorie": "Algemeen", "Actif": false }
+    { "Produit": "Vis (oud artikel)", "Prix de base": 3, "Unité": "caisse", "Catégorie": "Algemeen", "Actif": false },
+    // Spec 019 : comme en production — une grande catégorie « Algemeen », le kaliber dans le nom (familles,
+    // affichage dense) ; « Vegetarisch » et « Surimi ». Ajoutés après les 13 produits historiques (tests).
+    ...[
+      ["BLACK TIGER GARNALEN 8-12", 24.9, "caisse", "8/12"], ["BLACK TIGER GARNALEN 13-15", 21.5, "caisse", "13/15"], ["BLACK TIGER GARNALEN 16-20", 18.9, "caisse", "16/20"], ["BLACK TIGER GARNALEN 21-25", 16.5, "caisse", "21/25"],
+      ["BLACK TIGER GARNALEN BLOK 8-12", 22, "caisse", "8/12"], ["BLACK TIGER GARNALEN BLOK 13-15", 19.5, "caisse", "13/15"], ["BLACK TIGER GARNALEN BLOK 16-20", 17.5, "caisse", "16/20"],
+      ["VANNAMEI GARNALEN 31-40", 9.9, "caisse", "31/40"], ["VANNAMEI GARNALEN GEPELD 41/50", 8.5, "caisse", "41/50"],
+      ["SCAMPI GEPELD 16-20", 16.9, "kg", "16/20"], ["SCAMPI GEPELD 21-25", 14.9, "kg", "21/25"],
+      ["INKTVIS RINGEN 1KG", 7.9, "caisse", ""], ["INKTVIS TUBES U5", 11.5, "kg", "U5"], ["INKTVIS TUBES U10", 10.5, "kg", "U10"],
+      ["MOSSELVLEES 1KG", 9.5, "caisse", ""], ["KREEFTENSTAARTEN 150-200", 39, "kg", "150/200"], ["KREEFTENSTAARTEN 200-250", 44, "kg", "200/250"]
+    ].map(([n, prix, u, k]) => ({ "Produit": n, "Prix de base": prix, "Unité": u, "Catégorie": "Algemeen", "Actif": true, ...(k ? { "Kaliber": k } : {}) })),
+    ...[["VEGGIE GARNALEN 1KG", 12.5], ["ZEEWIERSALADE 1KG", 9.9], ["WAKAME 500G", 6.5], ["EDAMAME 1KG", 5.9], ["VEGAN TONIJN 500G", 8.9]].map(([n, prix]) => ({ "Produit": n, "Prix de base": prix, "Unité": "pièce", "Catégorie": "Vegetarisch", "Actif": true })),
+    ...[["SURIMI STICKS 1KG", 6.9], ["SURIMI SNOW CRAB 500G", 5.5]].map(([n, prix]) => ({ "Produit": n, "Prix de base": prix, "Unité": "pièce", "Catégorie": "Surimi", "Actif": true }))
   ]);
   if (opts && opts.fotos) addDemoFotos(db, products);
   const P = (name) => products.find((p) => p.fields["Produit"] === name);
@@ -85,7 +117,8 @@ function seed(db, opts) {
     { "Client": [C("Aloha Poke Bowls").id], "Produit": [P("Saumon frais").id], "Prix négocié": 16 },
     { "Client": [C("Aloha Poke Bowls").id], "Produit": [P("VANNAMEI GARNALEN 26-30").id], "Prix négocié": 10 },
     { "Client": [C("Aloha Poke Bowls").id], "Produit": [P("Tonijn sashimi blok").id], "Prix négocié": 27.5 },
-    { "Client": [C("Brasserie De Kaai").id], "Produit": [P("Moules (caisse)").id], "Prix négocié": 26 }
+    { "Client": [C("Brasserie De Kaai").id], "Produit": [P("Moules (caisse)").id], "Prix négocié": 26 },
+    { "Client": [C("Aloha Poke Bowls").id], "Produit": [P("BLACK TIGER GARNALEN 13-15").id], "Prix négocié": 19.9 }
   ]);
   db.create("Commandes", [
     { "Référence": "B-260828-ZQ4R", "Date": isoDaysAgo(5), "Lignes (produits / quantités)": "Saumon frais × 3 kg [€16.00]\nVANNAMEI GARNALEN 26-30 × 4 pièce [€10.00] (gepeld graag)", "Statut": "Facturée", "Statut paiement": "Payé", "Total": 88, "Client": [C("Aloha Poke Bowls").id], "Date livraison souhaitée": isoDaysAgo(4), "Factuurnummer": "FA-2026-0001", "Préparation validée": true, "Préparée le": new Date(Date.now() - 4 * 86400000).toISOString(), "Livrée le": new Date(Date.now() - 4 * 86400000 + 3600000).toISOString(), "Facturée le": new Date(Date.now() - 4 * 86400000 + 3600000).toISOString(), "Réceptionné par": "Kenji", "Livraison confirmée": true },
@@ -100,6 +133,22 @@ function seed(db, opts) {
   db.create("Aanvragen", [
     { "Bedrijfsnaam": "Sushi Sato", "Contactpersoon": "Yuki Sato", "Email": "yuki@sushisato.example", "Telefoon": "+32 470 11 22 33", "Adres": "Meir 12, 2000 Antwerpen", "Notities": "Wij zoeken een vaste leverancier voor sashimi-kwaliteit.", "Status": "Nieuw" },
     { "Bedrijfsnaam": "Voorbeeld BV", "Contactpersoon": "Jan Janssens", "Email": "info@voorbeeld.example", "Telefoon": "+32 3 000 00 00", "Adres": "Voorbeeldstraat 1", "Status": "Verwerkt" }
+  ]);
+  // Bestellen per e-mail (specs/020) : twee berichten in Bestellingen → Te controleren.
+  const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
+  const ahead = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); if (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+  const voorstel = { lines: [
+    { productId: P("Saumon frais").id, naam_in_mail: "zalm", qty: 4, unit: "kg", confidence: 0.93, opmerking: "", note: "" },
+    { productId: P("VANNAMEI GARNALEN GEPELD 16/20").id, naam_in_mail: "garnalen 16/20 gepeld", qty: 2, unit: "carton", confidence: 0.55, opmerking: "gepeld", note: "eenheid nagaan: catalogus per stuk" },
+    { productId: P("Oesters Zeeuwse creuse nr. 3").id, naam_in_mail: "oesters", qty: 48, unit: "pièce", confidence: 0.9, opmerking: "", note: "" }
+  ], leverdag: ahead(3), opmerkingen: "Levering langs de achterdeur", onduidelijk: false, leverdagVoorstel: ahead(3) };
+  db.create("Inkomende mails", [
+    { "Bericht-id": "demo-inbound-1", "Ontvangen op": ago(2), "Van": "keuken@alohapoke.example", "Aan": "bestel@orders.famoseafood.be", "Onderwerp": "Bestelling vrijdag",
+      "Tekst": "Hallo,\n\nVoor vrijdag graag:\n4 kg zalm\n2 dozen garnalen 16/20 gepeld\n48 oesters\n\nLevering langs de achterdeur.\n\nGroeten,\nKeuken Aloha",
+      "Client": [C("Aloha Poke Bowls").id], "Status": "Te controleren", "Verificatie": "spf=pass dkim=pass dmarc=pass", "Voorstel": JSON.stringify(voorstel),
+      "Reden": "«garnalen 16/20 gepeld» onzeker (55 %): eenheid nagaan: catalogus per stuk; «garnalen 16/20 gepeld»: eenheid in de mail (doos) verschilt van de catalogus (stuk)" },
+    { "Bericht-id": "demo-inbound-2", "Ontvangen op": ago(5), "Van": "info@sushisato.example", "Aan": "bestel@orders.famoseafood.be", "Onderwerp": "Commande",
+      "Tekst": "Bonjour,\n\nPour demain: 2 kg de thon sashimi et 1 caisse de moules.\n\nMerci,\nYuki", "Status": "Te controleren", "Verificatie": "spf=pass dkim=pass dmarc=pass", "Reden": "onbekende afzender" }
   ]);
   db.save();
   return { configId: cfg.id, products, clients };

@@ -6,7 +6,7 @@ const assert = require("node:assert");
 const fs = require("fs");
 const path = require("path");
 const ROOT = path.join(__dirname, "..");
-const MODS = ["config", "producten", "klanten", "klantgebruikers", "toegang", "prijzen"].map((m) => [m, require(path.join(ROOT, "lib", "beheer", m + ".js"))]);
+const MODS = ["config", "producten", "klanten", "klantgebruikers", "toegang", "prijzen", "testperiode"].map((m) => [m, require(path.join(ROOT, "lib", "beheer", m + ".js"))]);
 
 test("aucune action traitée par deux modules", () => {
   const seen = new Map();

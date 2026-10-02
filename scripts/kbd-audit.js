@@ -9,7 +9,8 @@
 //   2.1.2   piège ou fuite : Tab / Maj+Tab doit rester dans la fenêtre ouverte (panneau, dialogue, aperçu) ;
 //   2.4.3   focus perdu (sur <body>) après une action ou un changement de vue ;
 //   4.1.2   état non exposé (aria-pressed / aria-current) sur les choix, filtres et onglets.
-// Parcours : client (390 et 1440 px) · équipe (1440 et 390 px) · beheer (1440 px).
+// Catalogue (spec 019) : weergave au clavier (focus gardé, aria-pressed), famille, Naar boven.
+// Parcours : client (390, 990 et 1440 px) · équipe (1440 et 390 px) · beheer (1440 px).
 // Le parcours client passe une commande : l'équipe la prépare, la fait partir, confirme la livraison.
 //
 //   node scripts/dev.js              (autre terminal : portail de dev + données de test)
@@ -120,7 +121,7 @@ const pressedOf = (p, sel) => p.evaluate(s => { const x = document.querySelector
 const is = (p, sel) => p.evaluate(s => !!(document.activeElement && document.activeElement.matches(s)), sel);
 
 async function klant(b, W) {
-  const H = W < 600 ? 844 : 900;
+  const H = W < 600 ? 844 : W < 1100 ? 760 : 900;
   const ctx = await b.newContext({ viewport: { width: W, height: H }, hasTouch: W < 600, isMobile: W < 600 });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "klant " + W + " · " + e.message));
   const J = journey("klant " + W, p, cdp);
@@ -129,13 +130,47 @@ async function klant(b, W) {
   await J.tabTo("#user", "connexion");
   await p.keyboard.type("aloha"); await J.press("Tab", "connexion"); await p.keyboard.type("welkom123"); await p.keyboard.press("Enter");
   await p.waitForURL(/klant/); await J.notLost("connexion → catalogue", 1500);
+  // Spec 019 : changer de weergave au clavier — le focus reste sur l'interrupteur, son état est exposé, la liste suit.
+  for (const v of ["tegels", "compact", "lijst"]) {
+    const sel = '[data-weergave="' + v + '"]';
+    if (!(await J.tabTo(sel, "weergave", { max: 60, back: v === "lijst" }))) continue;
+    await p.keyboard.press("Enter"); await J.notLost("weergave " + v, 400);
+    if (!(await is(p, sel))) add("2.4.3 focus déplacé après action", "klant " + W + " · weergave " + v + " : le focus quitte l'interrupteur");
+    if (await pressedOf(p, sel) !== "true") add("4.1.2 état non exposé", "klant " + W + " · weergave " + v + " sans aria-pressed=true");
+    if (await p.evaluate(() => document.getElementById("list").getAttribute("data-view")) !== v) add("parcours incomplet", "klant " + W + " · weergave " + v + " : la liste n'a pas changé");
+    const grp = await p.evaluate(s => { const g = document.querySelector(s).closest("[role=group]"); return g ? g.getAttribute("aria-label") || "" : ""; }, sel);
+    if (!grp) add("4.1.2 état non exposé", "klant " + W + " · weergave hors d'un groupe nommé");
+  }
+  // Familles (grande catégorie) : filtre au clavier, état exposé, focus gardé ; « Alle » remet tout.
+  if (await J.tabTo('[data-cat="Algemeen"]', "catégories", { back: true, max: 40 })) {
+    await p.keyboard.press("Enter"); await J.notLost("catégorie Algemeen", 500);
+    if (await J.tabTo('[data-fam]:not([data-fam=""])', "familles", { max: 30 })) {
+      const n0 = await p.evaluate(() => document.querySelectorAll("#list .prod:not(.hidden)").length);
+      await p.keyboard.press("Enter"); await J.notLost("famille", 300);
+      if (!(await is(p, "[data-fam]"))) add("2.4.3 focus déplacé après action", "klant " + W + " · famille : le focus quitte le bouton");
+      if (await p.evaluate(() => document.activeElement.getAttribute("aria-pressed")) !== "true") add("4.1.2 état non exposé", "klant " + W + " · famille sans aria-pressed=true");
+      const n1 = await p.evaluate(() => document.querySelectorAll("#list .prod:not(.hidden)").length);
+      if (!(n1 > 0 && n1 < n0)) add("parcours incomplet", "klant " + W + " · famille : la liste n'est pas filtrée (" + n0 + " → " + n1 + ")");
+      if (await J.tabTo('[data-fam=""]', "familles", { back: true, max: 20 })) { await p.keyboard.press("Enter"); await J.notLost("famille Alle", 300); }
+    }
+    if (await J.tabTo('[data-cat="Alles"]', "catégories", { back: true, max: 40 })) { await p.keyboard.press("Enter"); await J.notLost("catégorie Alles", 500); }
+    // « Naar boven » : Fin descend en bas de la liste, le bouton apparaît dans la barre collante et ramène au titre.
+    // (Mise en place : le focus est posé sur le bouton, comme #famoDocFrame plus bas ; l'activation se fait au clavier.)
+    await p.keyboard.press("End"); await p.waitForTimeout(600);
+    if (!(await p.isVisible("#toTop"))) add("parcours incomplet", "klant " + W + " · Naar boven absent après Fin");
+    else {
+      await p.focus("#toTop"); J.check(await J.info(), "naar boven");
+      await p.keyboard.press("Enter"); await J.notLost("naar boven", 900);
+      if (await p.evaluate(() => window.scrollY) > 4) add("parcours incomplet", "klant " + W + " · Naar boven : la page n'est pas remontée");
+    }
+  }
   // Deux produits au panier, puis toute la liste jusqu'au bouton « Bestellen » (masquage, anneau, noms).
   if (await J.tabTo("[data-inc]", "catalogue")) { await p.keyboard.press("Enter"); await J.notLost("+ (1er produit)", 300); }
   if (await J.tabTo(".prod:nth-of-type(3) [data-inc], [data-inc]:not(:focus)", "catalogue")) { await p.keyboard.press("Enter"); await J.notLost("+ (2e produit)", 300); }
   const bestel = W < 1024 ? ".cartbar a" : "#cartPanel a.btn";
-  await J.tabTo(bestel, "catalogue → Bestellen", { max: 160 });
+  await J.tabTo(bestel, "catalogue → Bestellen", { max: 400 });
   for (let i = 0; i < 25; i++) await J.press("Shift+Tab", "catalogue (Maj+Tab)");
-  await J.tabTo(bestel, "catalogue → Bestellen", { max: 160 });
+  await J.tabTo(bestel, "catalogue → Bestellen", { max: 400 });
   await p.keyboard.press("Enter"); await p.waitForURL(/winkelmand/); await J.notLost("Bestellen → panier");
   // Jour de livraison : état exposé.
   if (await J.tabTo("[data-day]:nth-child(2)", "panier")) {
@@ -372,6 +407,7 @@ async function beheer(b) {
   const b = await chromium.launch(EXE ? { executablePath: EXE } : {});
   const run = async (what, fn) => { try { await fn(); } catch (e) { add("parcours interrompu", what + " : " + String(e.message || e).split("\n")[0]); } };
   await run("klant 390", () => klant(b, 390));
+  await run("klant 990", () => klant(b, 990)); // spec 019 : en-tête en haut, barre panier en bas (720–1099 px)
   await run("klant 1440", () => klant(b, 1440));
   await run("équipe 1440", () => staff(b, 1440));
   await run("équipe 390", () => staff(b, 390));
