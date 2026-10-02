@@ -10,6 +10,7 @@ const __bill = require("../lib/billing");
 const __cn = require("../lib/creditnota");
 const __lj = require("../lib/lignesjson");
 const { parseLines } = require("./updateorder");
+const __test = require("../lib/testorders"); // commandes d'essai archivées : invisibles pour le client (specs/021)
 
 // Ouvert + 365 jours d'historique (voir api/allorders.js).
 const WINDOW = `OR(AND({Statut}!='Facturée',{Statut}!='Annulée'),IS_AFTER({Date},DATEADD(TODAY(),-365,'days')))`;
@@ -50,7 +51,7 @@ module.exports = async (req, res) => {
     const cf = ((conf.records || [])[0] || {}).fields || {};
     const fallback = __bill.defaultRate(cf), rates = __bill.ratesFromCatalogue(catl.records || []);
     const tvac = f => { const l = parseLines(f["Lignes (produits / quantités)"]); return l.some(x => x.price != null) ? __bill.orderTotals(l, __bill.linesRates(l, f, rates, fallback, __bill.regimeOf(f, client.fields)), fallback).total : __bill.vat.r2((Number(f["Total"]) || 0) * (1 + fallback / 100)); };
-    const orders = (cmd.records || [])
+    const orders = __test.real(cmd.records)
       .filter(r => (r.fields["Client"] || []).includes(clientId))
       .map(r => ({
         ref: r.fields["Référence"] || "",

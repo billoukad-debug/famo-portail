@@ -114,7 +114,8 @@ module.exports = async (req, res) => {
       const clients = await count("Clients", "", L);
       const prijzen = await count("Prix négociés", "", L);
       const stock = await count("Stock", "", L);
-      const orders = await count("Commandes", "", L);
+      // Essais archivés exclus (specs/021) : COUNT(*) moins les commandes test (pré-filtrées en SQL, jamais toute la table).
+      const orders = Math.max(0, await count("Commandes", "", L) - await count("Commandes", "{Test}=1", L));
       const aanvragen = await count("Aanvragen", "{Status}='Nieuw'", L);
       return res.status(200).json({ config, status: {
         identiteit: !!(config.bedrijfsnaam && config.btw && config.iban && config.bic),

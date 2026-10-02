@@ -17,7 +17,7 @@ Le code métier parle toujours le protocole REST d'Airtable (`lib/airtable.js`) 
 | Table | Colonnes | Rôle |
 |---|---|---|
 | `famo_records` | `id` TEXT PK (`rec…`), `tbl` TEXT (nom de la table métier), `created_time` TEXT ISO, `fields` TEXT (JSON des champs), `version` INTEGER | Tous les enregistrements. `version` sert à la concurrence optimiste : deux PATCH simultanés ne s'écrasent pas (relecture + nouvel essai). Index sur `tbl`. |
-| `famo_files` | `id` TEXT PK (`att…`), `record_id`, `content_type`, `filename`, `size`, `data` (base64), `created_time` | Photos produit envoyées depuis Beheer, servies par `/api/foto?id=att…` (cache 1 an). |
+| `famo_files` | `id` TEXT PK (`att…`), `record_id`, `content_type`, `filename`, `size`, `data` (base64), `created_time` | Photos produit envoyées depuis Beheer, servies par `/api/foto?id=att…` (cache 1 an) ; preuves de livraison. `filesOfRecords(ids)` liste les fichiers d'enregistrements donnés (purge des essais, specs/021). |
 
 Règles du moteur (comme Airtable) : une valeur vide (`""`, `null`, `false`, `[]`) **efface** le champ ; 10 enregistrements au plus par écriture groupée ; `filterByFormula`, `sort`, `fields[]`, `maxRecords`, `offset` pris en charge (`lib/at-formula.js`).
 
@@ -100,6 +100,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Besteld door` | texte | order (utilisateur supplémentaire) | allorders, team/bestelling.html | Nom de la personne qui a passé la commande (H-08) ; vide = identifiant principal du client. Anonymisé avec le client. |
 | `Herinnering 1 op`, `Herinnering 2 op` | date-heure | reminders-cron (lib/reminders.js) | allorders, team/bestelling.html | Relances de paiement envoyées (mode Portaal) : échéance + 3 j et + 17 j ; réservé avant l'envoi, libéré si l'envoi échoue. |
 | `Bron`, `Inkomende mail` | texte, texte | lib/inbound/mailorder (commande par e-mail, specs/020) | — (affichage futur) | `E-mail` + id de l'enregistrement `Inkomende mails` d'origine. Absent = commande du portail ou d'Invoeren. Pas une donnée personnelle. |
+| `Test`, `Test gemarkeerd op` | case, date-heure | onboarding (testArchiveren / testTerugzetten, `lib/beheer/testperiode.js`) | `lib/testorders.js` : allorders, orders, klantdoc, klantorder, order (doublon), lots (trace), marge, config (status), reminders, Beheer (comptes, deleteProduct) ; updateorder, bewijs, export refusent (409) | Specs/021 « Testperiode afsluiten ». Cochée = commande d'essai archivée : **invisible partout** (personnel, client, documents, rapports, relances, doublons, traçabilité) et non modifiable ; « Terugzetten » retire les deux champs. **Garde son numéro** CMD/FA/CN (comptés par max + 1 : pas de doublon) jusqu'à « Definitief verwijderen » (commande, fichiers `famo_files` et mouvements de stock liés supprimés ; `Stock` jamais touché). Comprise dans les sauvegardes, l'export RGPD et l'anonymisation. Absente = commande normale. |
 | `Photo préparation` | pièces jointes | — | — | Hérité, non utilisé. |
 
 ### `Stock` — stock par produit
@@ -119,7 +120,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Date et heure` | date-heure | stock, updateorder, onboarding | stock (historique) |
 | `Type` | liste `Sortie livraison` / `Correction inventaire` / `Entrée stock` / `Retour client` / `Annulation sortie` | stock, updateorder, onboarding | stock |
 | `Produit`, `Quantité` (signée), `Stock avant`, `Stock après` | texte, nombres | stock, updateorder, onboarding | stock |
-| `Référence commande` | texte | updateorder | — |
+| `Référence commande` | texte | updateorder | testperiode (specs/021 : supprimé avec la commande d'essai de même référence) |
 | `Note` | texte | stock, onboarding | stock |
 
 ### `Prix négociés` — prix par client et produit
@@ -237,6 +238,7 @@ Les noms de champs et les valeurs stockées mêlent le français (base d'origine
 | `Uitzondering levering` / `nota` | NL | Uitzondering | Exception à la réception. |
 | `Volgorde` (Catalogue) / `Volgorde levering` (Commandes) | NL | Volgorde | Ordre d'affichage / ordre de tournée. |
 | `Leverslot` (Commandes) | NL | Leveruur · client : Verwacht leveruur / Heure de livraison prévue | Créneau `HH:MM-HH:MM` posé par le personnel. |
+| `Test` / `Test gemarkeerd op` (Commandes) | NL | Testbestelling (Beheer → Systeemstatus → Testperiode afsluiten) | Commande d'essai archivée, invisible partout (specs/021). |
 | `Voorraad afboeken` (Configuratie) | NL | Voorraad automatisch afboeken | Déduire le stock au départ. |
 | `Stock afgeboekt` (Commandes) | NL | — | Stock déjà déduit pour cette commande. |
 | `Prix négocié` | FR | Uw prijs / Prijs | Prix propre au client. |

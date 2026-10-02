@@ -43,6 +43,8 @@ async function handle(req, res, body, id){
   const cur = await at(`Commandes/${id}`);
   if (cur.error) return res.status(cur.error.type === "NOT_FOUND" || /not found/i.test(String(cur.error.message || "")) ? 404 : 500).json({ error: cur.error.message || "Bestelling onleesbaar" });
   const f = cur.fields || {};
+  // Commande d'essai archivée (specs/021) : plus aucune écriture (stock, numéros, e-mails) tant qu'elle n'est pas remise.
+  if (require("../lib/testorders").isTest(f)) return res.status(409).json({ error: require("../lib/testorders").REFUS });
   if (body.correction !== undefined) return applyCorrection(req, res, id, f, body, STATUSES);
   if (body.creditnota && typeof body.creditnota === "object") return makeCreditnota(req, res, id, f, body.creditnota);
   if (body.correctieMail === true) return sendCorrectieMail(req, res, id, f);

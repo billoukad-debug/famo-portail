@@ -31,7 +31,7 @@ module.exports = async (req, res) => {
         const [cmd, cl] = await Promise.all([atAll("Commandes"), atAll("Clients")]);
         const naam = new Map(((cl && cl.records) || []).map((r) => [r.id, r.fields]));
         const leveringen = [];
-        ((cmd && cmd.records) || []).forEach((r) => {
+        require("../lib/testorders").real(cmd && cmd.records).forEach((r) => { // essais archivés exclus (specs/021)
           const m = __trace.parseLots(r.fields["Lots"]);
           if (!m) return;
           for (const [prod, list] of Object.entries(m)) {

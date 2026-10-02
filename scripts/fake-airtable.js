@@ -67,7 +67,9 @@ const SCHEMA = {
       // Régime de TVA du client figé au passage en « Facturée » (C-10) ; absent = Normal.
       "Régime TVA": "select",
       // Bestellen per e-mail (specs/020) : « E-mail » + id de l'enregistrement « Inkomende mails » d'origine.
-      "Bron": "text", "Inkomende mail": "text"
+      "Bron": "text", "Inkomende mail": "text",
+      // Commande d'essai archivée (specs/021, lib/testorders.js) : invisible partout, réversible.
+      "Test": "checkbox", "Test gemarkeerd op": "datetime"
     },
     selects: {
       "Statut": ["Reçue", "Prête", "Sortie en livraison", "Facturée", "Annulée"], "Statut paiement": ["En attente", "Payé"],
