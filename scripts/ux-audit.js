@@ -11,7 +11,8 @@
 // États visités en plus des pages : fiche commande (team/bestelling.html), Journaal, Magazijn Bord, confirmation de
 // commande, panier rempli, panneaux ouverts (Valideren, Leveruur, fiche client, produit), Leveringen en mode
 // Chauffeur, l'aperçu d'un document, la galerie photo d'un produit (client) et la gestion des photos (Beheer, spec 018), les trois weergaven du catalogue, ses familles et sa barre collante (spec 019),
-// l'aperçu de « Testperiode afsluiten » (Beheer → Systeemstatus, spec 021).
+// l'aperçu de « Testperiode afsluiten » (Beheer → Systeemstatus, spec 021), la Rapportage (base, filtres, tableau
+// ouvert, info-bulle, hoog contrast ; spec 022).
 //
 //   node scripts/dev.js            (autre terminal : portail de dev + données de test)
 //   node scripts/ux-audit.js       (BASE=http://localhost:4200 par défaut ; sortie 1 s'il y a un écart)
@@ -37,7 +38,13 @@ const pages = {
     { name: "/team/bestelling · panneau Leveruur", url: async p => "/team/bestelling?id=" + encodeURIComponent(await p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => ((d.orders || []).find(x => x.statut === "Prête") || {}).id || ""))), after: clickAndWait('[data-act="slot"]', 700) },
     { name: "/team/bestellingen · panneau Artikelen valideren", url: "/team/bestellingen#/tabel", after: clickAndWait('[data-act="validate"]', 700) },
     { name: "/team/documenten · aperçu d'un document", url: "/team/documenten", after: clickAndWait('[data-act="invoice"], [data-act="delivery"]', 2500) }],
-  admin: ["/beheer#/overzicht", "/beheer#/aanvragen", "/beheer#/klanten", "/beheer#/producten", "/beheer#/prijzen", "/beheer#/rapportage", "/beheer#/journaal", "/beheer#/bedrijf", "/beheer#/toegang", "/beheer#/status", "/team/invoeren", "/team/voorraad",
+  admin: ["/beheer#/overzicht", "/beheer#/aanvragen", "/beheer#/klanten", "/beheer#/producten", "/beheer#/prijzen", "/beheer#/journaal", "/beheer#/bedrijf", "/beheer#/toegang", "/beheer#/status", "/team/invoeren", "/team/voorraad",
+    // Rapportage (spec 022) : page à part ; vue de base, filtre client + trimestre (drill-down), tableau mensuel ouvert
+    // avec info-bulle (focus), hoog contrast. Le téléphone (390 px) est couvert par la boucle des largeurs.
+    "/beheer/rapportage",
+    { name: "/beheer/rapportage (filtre klant + kwartaal)", url: async p => "/beheer/rapportage?periode=kwartaal&kwartaal=" + new Date().getFullYear() + "-Q" + Math.ceil((new Date().getMonth() + 1) / 3) + "&vergelijk=jaar&klant=" + encodeURIComponent(await p.evaluate(() => fetch("/api/rapportage", { credentials: "include" }).then(r => r.json()).then(d => ((d.klanten || [])[0] || {}).id || ""))) },
+    { name: "/beheer/rapportage (product, tabel per maand open, info-bulle)", url: "/beheer/rapportage?product=cabillaud", after: async p => { await clickAndWait(".rp-details summary", 300)(p); await p.focus(".rp-hit").catch(() => {}); await p.waitForTimeout(200); } },
+    { name: "/beheer/rapportage (hoog contrast, families)", url: "/beheer/rapportage?groep=familie", before: async p => { await p.evaluate(() => localStorage.setItem("famoContrast", JSON.stringify("hoog"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoContrast")); } },
     { name: "/beheer#/klanten · panneau klant", url: "/beheer#/klanten", after: clickAndWait("[data-edit]", 700) },
     { name: "/beheer#/producten · panneau product", url: "/beheer#/producten", after: clickAndWait("[data-new-product]", 700) },
     { name: "/beheer#/producten · foto's van een product", url: "/beheer#/producten", after: clickAndWait("tr[data-p]:has(img.pthumb)", 900) },

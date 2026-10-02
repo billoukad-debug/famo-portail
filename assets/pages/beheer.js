@@ -1,5 +1,7 @@
 (async function () {
   if (!(await K.requireStaff({ admin: true }))) return;
+  // Ancien lien (#/rapportage) : la Rapportage est une page à part depuis la spec 022.
+  if (K.hashParams().path === "rapportage") { location.replace("/beheer/rapportage"); return; }
   const page = K.shell({ portal: "beheer" });
   const TABS = [["overzicht", "Overzicht"], ["aanvragen", "Aanvragen"], ["klanten", "Klanten"], ["producten", "Producten"], ["prijzen", "Prijzen"], ["rapportage", "Rapportage"], ["journaal", "Journaal"], ["bedrijf", "Bedrijfsgegevens"], ["toegang", "Toegang"], ["status", "Systeemstatus"]];
   const DAGEN = [["ma", "maandag"], ["di", "dinsdag"], ["wo", "woensdag"], ["do", "donderdag"], ["vr", "vrijdag"], ["za", "zaterdag"], ["zo", "zondag"]];
@@ -11,15 +13,11 @@
   // Index client|product reconstruit seulement quand D.prices change (grille produits × klanten : O(1) par cellule).
   let priceIdx = null, priceSrc = null;
   const priceOf = (cid, pid) => { if (priceSrc !== D.prices) { priceSrc = D.prices; priceIdx = new Map((D.prices || []).filter(p => !p.van && !p.tot).map(p => [p.clientId + "|" + p.productId, p])); } return priceIdx.get(cid + "|" + pid); };
-  const head = (sub, right) => '<div class="page-h"><div><h1 class="h1">' + K.esc((TABS.find(t => t[0] === tab) || ["", "Beheer"])[1]) + '</h1><p class="sub">' + K.esc(sub) + '</p></div><span class="spacer"></span>' + (right || "") + '</div><nav class="tabs" aria-label="Beheer">' + TABS.map(([k, l]) => '<a href="#/' + k + '"' + (tab === k ? ' class="on"' : "") + '>' + l + (k === "aanvragen" ? '<b class="nbadge" data-badge="aanvragen"' + (D.status.aanvragen ? "" : " hidden") + ' aria-label="' + K.plural(D.status.aanvragen, "nieuwe aanvraag", "nieuwe aanvragen") + '">' + D.status.aanvragen + '</b>' : "") + '</a>').join("") + '</nav>';
+  const head = (sub, right) => '<div class="page-h"><div><h1 class="h1">' + K.esc((TABS.find(t => t[0] === tab) || ["", "Beheer"])[1]) + '</h1><p class="sub">' + K.esc(sub) + '</p></div><span class="spacer"></span>' + (right || "") + '</div><nav class="tabs" aria-label="Beheer">' + TABS.map(([k, l]) => '<a href="' + (k === "rapportage" ? "/beheer/rapportage" : "#/" + k) + '"' + (tab === k ? ' class="on"' : "") + '>' + l + (k === "aanvragen" ? '<b class="nbadge" data-badge="aanvragen"' + (D.status.aanvragen ? "" : " hidden") + ' aria-label="' + K.plural(D.status.aanvragen, "nieuwe aanvraag", "nieuwe aanvragen") + '">' + D.status.aanvragen + '</b>' : "") + '</a>').join("") + '</nav>';
   const credsBox = c => K.c.ok('<b>Toegang voor ' + K.esc(c.nom) + '</b><div class="mt-6 d-grid gc-a-1 gap-4-12 fs-13"><span class="quiet">Gebruikersnaam</span><b class="mono us-all">' + K.esc(c.user) + '</b><span class="quiet">Wachtwoord</span><b class="mono us-all">' + K.esc(c.password) + '</b></div><div class="quiet fs-12 mt-6">Wordt maar één keer getoond. Geef het door aan de klant (telefoon of WhatsApp), niet per onbeveiligde mail.</div>');
   // Ingeklapte groep (gearchiveerde klanten, verwerkte aanvragen) : zelfde kop als een .grp.
   const fold = (title, n, inner) => '<details class="grp mt-14"><summary class="grp-h c-pointer ls-none blc-line">' + K.icon("chev") + K.esc(title) + ' <small>' + n + '</small></summary>' + inner + '</details>';
   const dateTime = v => v ? K.date(K.isoDay(v)) + " " + K.time(v) : "—";
-  // CSV voor Excel (nl-BE) : puntkomma, ; cellen die met = + - @ beginnen krijgen een apostrof (formule-injectie).
-  const csvCell = v => { let s = String(v == null ? "" : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const download = (name, rows) => { const blob = new Blob(["﻿" + rows.map(r => r.map(csvCell).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
-  const csvNum = v => (Math.round(Number(v) * 100) / 100).toFixed(2).replace(".", ",");
 
   /* ---------- overzicht ---------- */
   async function overzicht() {
@@ -388,8 +386,9 @@
     saveBtns().forEach(b => { b.onclick = () => saveAll(b); });
   }
 
-  /* ---------- rapportage ---------- */
-  let rapCache = null, rapJaar = "";
+  /* ---------- journaal ---------- */
+  // Rapportage (spec 022) : page à part, /beheer/rapportage (barre latérale) ; l'ancien lien #/rapportage y mène.
+  let rapCache = null;
   // EDI-06 : journal global — toutes les corrections, paiements, creditnota's et exceptions (champ Correcties),
   // du plus récent au plus ancien, avec lien vers la commande. Format d'une ligne : « jj/mm/aaaa hh:mm · action · qui — raison ».
   let jq = "";
@@ -422,71 +421,6 @@
     show();
     const qi = page.querySelector("#jq"); qi.addEventListener("input", K.debounce(() => { jq = qi.value.trim(); show(); }, 150));
   }
-  // Marge brute (schatting) en voorraadwaarde (H-05/H-06/H-11) : /api/marge, aankoopprijs per lot.
-  async function margeCard() {
-    const box = document.createElement("div"); box.style.marginTop = "16px"; page.querySelector(".content").appendChild(box);
-    box.innerHTML = '<div class="card card-b">' + K.c.skeleton(1) + '</div>';
-    let m; try { m = await K.api("/api/marge?van=" + rapJaar + "-01-01&tot=" + rapJaar + "-12-31"); } catch (err) { box.innerHTML = '<div class="card card-b">' + K.c.error("Marge: " + err.message) + '</div>'; return; }
-    const pct = v => v == null ? "—" : K.num(v) + " %", t = m.totaal;
-    box.innerHTML = '<div class="card"><div class="card-h"><div><h2 class="h2">Marge ' + K.esc(rapJaar) + ' (schatting)</h2><p class="sub ws-normal">Omzet excl. btw min aankoopprijs van het geleverde lot (anders de laatste aankoopprijs van het product). Creditnota\'s in mindering. Geen boekhouding: gewichtsverschillen en verlies zijn niet meegeteld.</p></div></div>' +
-      '<div class="kpis px-16 pb-12"><div class="kp"><small>Brutomarge</small><b class="mono">' + K.eur(t.marge) + '</b><em>' + pct(t.pct) + ' op ' + K.eur(t.omzetMetKost) + '</em></div><div class="kp"><small>Aankoopwaarde</small><b class="mono">' + K.eur(t.kost) + '</b></div><div class="kp"><small>Omzet zonder aankoopprijs</small><b class="mono">' + K.eur(t.zonderKost) + '</b><em>' + (t.zonderKost > 0 ? "vul de aankoopprijs in bij de loten" : "alles gedekt") + '</em></div><div class="kp"><small>Voorraadwaarde nu</small><b class="mono">' + K.eur(m.voorraadWaarde) + '</b><em>' + (m.voorraadZonderPrijs ? m.voorraadZonderPrijs + " product(en) zonder prijs" : "laatste aankoopprijs") + '</em></div></div>' +
-      '<div class="tblwrap"><table class="tbl"><thead><tr><th>Product</th><th class="num">Aantal</th><th class="num">Omzet</th><th class="num">Aankoop</th><th class="num">Marge</th><th class="num">%</th></tr></thead><tbody>' +
-      (m.producten.length ? m.producten.slice(0, 60).map(x => '<tr><td><b>' + K.esc(x.produit) + '</b>' + (x.zonderKost > 0 ? '<div class="quiet fs-11">' + K.eur(x.zonderKost) + ' zonder aankoopprijs</div>' : "") + '</td><td class="num mono">' + K.esc(K.qty(x.qty) + " " + K.unit(x.unit)) + '</td><td class="num mono">' + K.eur(x.omzet) + '</td><td class="num mono">' + K.eur(x.kost) + '</td><td class="num mono">' + K.eur(x.marge) + '</td><td class="num mono">' + pct(x.pct) + '</td></tr>').join("") : '<tr><td colspan="6" class="quiet">Nog geen gefactureerde bestellingen dit jaar.</td></tr>') +
-      '</tbody></table></div></div>';
-  }
-  async function rapportage() {
-    page.innerHTML = head("Omzet, klanten, producten en btw · op basis van geleverde (gefactureerde) bestellingen") + '<div class="content pt-16">' + K.c.skeleton(3) + '</div>';
-    if (!rapCache) { try { rapCache = await K.api("/api/allorders?all=1"); } catch (err) { page.querySelector(".content").innerHTML = K.c.error(err.message, true); K.on(page, "click", "[data-retry]", e => { e.preventDefault(); rapCache = null; render(); }); return; } }
-    const all = rapCache.orders || [], btwPer = rapCache.btwPerProduct || {}, stdRate = window.FamoVat.validRate(D.config.btwTarief, 6), std = stdRate;
-    const dayOf = o => o.factureeLe ? K.isoDay(o.factureeLe) : (o.dateLiv || o.date || "");
-    const done = all.filter(o => o.statut === "Facturée").map(o => Object.assign({}, o, { dag: dayOf(o) }));
-    const years = Array.from(new Set(done.map(o => o.dag.slice(0, 4)).filter(Boolean))).sort().reverse();
-    if (!rapJaar || !years.includes(rapJaar)) rapJaar = years[0] || String(new Date().getFullYear());
-    const yr = done.filter(o => o.dag.startsWith(rapJaar));
-    // Creditnota's van het jaar (datum van de creditnota) : in mindering van omzet en btw.
-    const cnYr = all.reduce((a, o) => a.concat(S.cns(o).filter(cn => K.isoDay(cn.le || o.factureeLe || "").startsWith(rapJaar)).map(cn => ({ o, cn }))), []); // C-08 : elke creditnota
-    const cnSum = cnYr.reduce((s, x) => s + (Number(x.cn.montant) || 0), 0);
-    const sum = (arr, f) => arr.reduce((s, o) => s + (Number(f(o)) || 0), 0);
-    const group = (arr, key, add) => { const m = new Map(); arr.forEach(o => { const k = key(o); if (!k) return; const g = m.get(k) || { key: k, n: 0, total: 0 }; g.n++; g.total += Number(o.total) || 0; if (add) add(g, o); m.set(k, g); }); return Array.from(m.values()); };
-    const months = group(yr.concat(cnYr.map(x => ({ dag: K.isoDay(x.cn.le || x.o.factureeLe || ""), total: -(Number(x.cn.montant) || 0) }))), o => o.dag.slice(0, 7)).sort((a, b) => a.key.localeCompare(b.key));
-    const clients = group(yr, o => o.client).sort((a, b) => b.total - a.total);
-    const prodMap = new Map(); yr.forEach(o => K.parseLines(o.lignes).forEach(l => { const k = l.name.toLowerCase(); const g = prodMap.get(k) || { name: l.name, unit: l.unit, qty: 0, total: 0, noPrice: 0 }; g.qty += l.qty; if (l.price != null) g.total += l.qty * l.price; else g.noPrice++; prodMap.set(k, g); }));
-    const prods = Array.from(prodMap.values()).sort((a, b) => b.total - a.total);
-    const unpaid = all.filter(o => o.statut === "Facturée" && o.paiement !== "Payé"), unpaidSum = sum(unpaid, o => o.total);
-    // Btw per tarief : per regel (product-tarief of standaard) ; regels zonder prijs vallen terug op het ordertotaal naar rato.
-    const vat = new Map(); let vatLinesTotal = 0;
-    // Btw per tarief : zelfde regel als documenten en UBL (assets/vat.js, vastgezette tarieven), MIN de
-    // creditnota's van het jaar (vroeger vergeten, audit B-17). Standaardtarief leeg → 6 %, zoals de facturen.
-    const rateOf = o => { const m = o.btwFrozen || btwPer; return n => window.FamoVat.rateFrom(m, n, stdRate); };
-    const addVat = (o, lignes, sign) => { const priced = K.parseLines(lignes).filter(l => l.price != null); const r0 = window.FamoVat.regime(o.btwRegime).zero ? 0 : stdRate; const t = priced.length ? window.FamoVat.totals(priced, rateOf(o), sign) : { groups: [{ rate: r0, base: sign * (Number(o.total) || 0), tva: window.FamoVat.r2(sign * (Number(o.total) || 0) * r0 / 100) }] }; t.groups.forEach(g => { const v = vat.get(g.rate) || { rate: g.rate, base: 0, tva: 0 }; v.base = window.FamoVat.r2(v.base + g.base); v.tva = window.FamoVat.r2(v.tva + g.tva); vat.set(g.rate, v); vatLinesTotal += g.base; }); };
-    yr.forEach(o => addVat(o, o.lignes, 1));
-    cnYr.forEach(x => addVat(x.o, x.cn.lignes, -1));
-    const vatRows = Array.from(vat.values()).sort((a, b) => a.rate - b.rate);
-    const mName = k => { const d = K.parseDate(k + "-01"); return d ? d.toLocaleDateString("nl-BE", { month: "long", year: "numeric" }) : k; };
-    const card = (title, sub, id, table) => '<div class="card"><div class="card-h"><div><h2 class="h2">' + title + '</h2>' + (sub ? '<p class="sub">' + sub + '</p>' : "") + '</div><button type="button" class="btn btn-o btn-sm" data-csv="' + id + '">CSV</button></div>' + table + '</div>';
-    const tbl = (heads, rows, foot) => rows.length ? '<div class="tblwrap"><table class="tbl"><thead><tr>' + heads.map(h => '<th' + (h[1] ? ' class="num"' : "") + '>' + h[0] + '</th>').join("") + '</tr></thead><tbody>' + rows.join("") + (foot || "") + '</tbody></table></div>' : '<div class="empty m-12">Niets in ' + K.esc(rapJaar) + '.</div>';
-    page.querySelector(".content").innerHTML = '<div class="tools p-0 pb-14"><label for="rapJaar" class="fs-13">Jaar</label><select class="input tool w-auto px-8" id="rapJaar">' + (years.length ? years : [rapJaar]).map(y => '<option' + (y === rapJaar ? " selected" : "") + '>' + y + '</option>').join("") + '</select><span class="quiet fs-125">Datum = factuurdatum („Facturée le”), anders leverdag. Bedragen excl. btw.</span></div>' +
-      '<div class="kpis"><div class="kp"><small>Omzet ' + K.esc(rapJaar) + '</small><b class="mono">' + K.eur(sum(yr, o => o.total) - cnSum) + '</b><em>' + yr.length + ' factu' + (yr.length === 1 ? "ur" : "ren") + (cnYr.length ? ' · ' + cnYr.length + ' creditnota' + (cnYr.length === 1 ? "" : "'s") + ' afgetrokken' : "") + '</em></div><div class="kp"><small>Openstaand (alle jaren)</small><b class="mono">' + K.eur(unpaidSum) + '</b><em>' + unpaid.length + ' onbetaald</em></div><div class="kp"><small>Btw te innen ' + K.esc(rapJaar) + '</small><b class="mono">' + K.eur(vatRows.reduce((s, r) => s + r.tva, 0)) + '</b><em>op ' + K.eur(vatLinesTotal) + '</em></div><div class="kp"><small>Klanten met omzet</small><b>' + clients.length + '</b><em>' + prods.length + ' producten</em></div></div>' +
-      '<div class="masonry mt-16" id="two">' +
-      card("Per maand", "", "maand", tbl([["Maand"], ["Facturen", 1], ["Omzet", 1]], months.map(m => '<tr><td><b>' + K.esc(mName(m.key)) + '</b></td><td class="num">' + m.n + '</td><td class="num mono">' + K.eur(m.total) + '</td></tr>'))) +
-      card("Btw-overzicht", "Per tarief · producttarief of standaard " + K.num(std) + " %", "btw", tbl([["Tarief"], ["Grondslag", 1], ["Btw", 1], ["Incl. btw", 1]], vatRows.map(r => '<tr><td><b>' + K.num(r.rate) + ' %</b></td><td class="num mono">' + K.eur(r.base) + '</td><td class="num mono">' + K.eur(r.tva) + '</td><td class="num mono">' + K.eur(r.base + r.tva) + '</td></tr>'))) +
-      card("Per klant", "Top 20 op omzet", "klant", tbl([["Klant"], ["Facturen", 1], ["Omzet", 1]], clients.slice(0, 20).map(c => '<tr><td><b>' + K.esc(c.key) + '</b></td><td class="num">' + c.n + '</td><td class="num mono">' + K.eur(c.total) + '</td></tr>'))) +
-      card("Per product", "Hoeveelheid en omzet", "product", tbl([["Product"], ["Aantal", 1], ["Omzet", 1]], prods.slice(0, 40).map(p => '<tr><td><b>' + K.esc(p.name) + '</b></td><td class="num mono">' + K.esc(K.qty(p.qty) + " " + K.unit(p.unit)) + '</td><td class="num mono">' + K.eur(p.total) + (p.noPrice ? ' <span class="tag" title="regels zonder prijs">±</span>' : "") + '</td></tr>'))) +
-      '</div>' + (unpaid.length ? '<div class="card mt-16"><div class="card-h"><div><h2 class="h2">Openstaande facturen</h2><p class="sub">Alle jaren · geleverd, nog niet betaald</p></div><button type="button" class="btn btn-o btn-sm" data-csv="open">CSV</button></div>' + tbl([["Factuur"], ["Klant"], ["Datum"], ["Bedrag", 1]], unpaid.sort((a, b) => dayOf(a).localeCompare(dayOf(b))).map(o => '<tr class="row" data-open="' + o.id + '"><td class="mono">' + K.esc(o.factuurnummer || o.ref) + '</td><td>' + K.esc(o.client) + '</td><td' + (K.addDays(dayOf(o), Number(D.config.betaaltermijnDagen) || 14) < K.today() ? ' class="t-danger"' : "") + '>' + K.esc(K.date(dayOf(o))) + '</td><td class="num mono">' + K.eur(o.total) + '</td></tr>')) + '</div>' : "") + '</div>';
-    if (window.innerWidth < 900) page.querySelector("#two").style.gridTemplateColumns = "1fr";
-    margeCard();
-    page.querySelector("#rapJaar").onchange = e => { rapJaar = e.target.value; render(); };
-    K.on(page, "click", "tr[data-open]", (e, t) => { location.href = "/team/bestelling?id=" + encodeURIComponent(t.dataset.open); });
-    K.on(page, "click", "[data-csv]", (e, t) => {
-      const w = t.dataset.csv, name = "famo-" + w + "-" + rapJaar + ".csv";
-      if (w === "maand") download(name, [["Maand", "Facturen", "Omzet excl. btw"]].concat(months.map(m => [m.key, m.n, csvNum(m.total)])));
-      if (w === "btw") download(name, [["Tarief %", "Grondslag", "Btw", "Incl. btw"]].concat(vatRows.map(r => [csvNum(r.rate), csvNum(r.base), csvNum(r.tva), csvNum(r.base + r.tva)])));
-      if (w === "klant") download(name, [["Klant", "Facturen", "Omzet excl. btw"]].concat(clients.map(c => [c.key, c.n, csvNum(c.total)])));
-      if (w === "product") download(name, [["Product", "Aantal", "Eenheid", "Omzet excl. btw"]].concat(prods.map(p => [p.name, K.qty(p.qty), K.unit(p.unit), csvNum(p.total)])));
-      if (w === "open") download("famo-openstaand.csv", [["Factuur", "Referentie", "Klant", "Datum", "Bedrag excl. btw"]].concat(unpaid.map(o => [o.factuurnummer, o.ref, o.client, dayOf(o), csvNum(o.total)])));
-    });
-  }
-
   /* ---------- bedrijf ---------- */
   function bedrijf() {
     const c = D.config, lev = c.levering || {}, dagen = lev.leverdagen || ["ma", "di", "wo", "do", "vr", "za"], lg = c.legal || {};
@@ -859,7 +793,7 @@
   async function draw(force) {
     if (force || !D) { try { await load(); } catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content pt-20">' + K.c.error(err.message, true) + '</div>'; K.on(page, "click", "[data-retry]", e => { e.preventDefault(); render(true); }); return; } }
     if (!D.config) D.config = {};
-    const views = { overzicht, aanvragen, klanten, producten, prijzen, rapportage, journaal, bedrijf, toegang, status };
+    const views = { overzicht, aanvragen, klanten, producten, prijzen, journaal, bedrijf, toegang, status };
     if (force) rapCache = null;
     views[tab] ? await views[tab]() : overzicht();
     K.setBadges({ "beheer.html": D.status.aanvragen || 0, "aanvragen": D.status.aanvragen || 0 });
@@ -869,6 +803,7 @@
   K.on(page, "click", "[data-new-client]", () => clientPanel(null));
   K.on(page, "click", "[data-new-product]", () => productPanel(null));
   window.addEventListener("hashchange", () => {
+    if (K.hashParams().path === "rapportage") { location.replace("/beheer/rapportage"); return; }
     const h = K.hashParams(), prevTab = tab, prevSel = sel; tab = h.path || "overzicht"; if (h.params.klant) sel = h.params.klant;
     render().then(() => { if (tab !== prevTab) K.focusTitle(page, null, { scroll: true }); else if (sel !== prevSel) K.focusTitle(page, "#detail h2", { scroll: true }); });
   });

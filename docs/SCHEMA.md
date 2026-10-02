@@ -55,7 +55,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Produit` | texte | onboarding (saveProduct, renommage) | allorders, catalogue, order, staff, prices, stock | Nom ; **clé de jointure** avec `Stock.Produit` (par nom normalisé, la ligne de stock est renommée avec le produit). Lignes de commande : par id via `Commandes.Lignes JSON` quand il existe, sinon par nom (anciennes commandes). |
 | `Prix de base` | nombre (€ HTVA) | onboarding | catalogue, staff, prices | |
 | `Unité` | liste `kg` / `pièce` / `caisse` / `carton` | onboarding | catalogue, order, staff, updateorder | Valeur FR stockée, affichée en NL (`kg`, `stuk`, `kassa`, `doos`). |
-| `Catégorie` | texte | onboarding | catalogue, staff | |
+| `Catégorie` | texte | onboarding | catalogue, staff, rapportage | Rapportage (spec 022) : répartition par catégorie, affichée en néerlandais (`K.cat`). |
 | `Actif` | case | onboarding | catalogue, config, order, staff, stock | Inactif = absent du catalogue client. |
 | `Kaliber` | texte | onboarding | catalogue, staff, stock | Texte libre (« 16/20 », « U10 », « 400-600 », « 1-2 kg ») ; trié numériquement par `K.kaliberKey` (spec 018 : U10 d'abord, puis par premier nombre, texte à la fin). |
 | `Omschrijving` | texte | onboarding | catalogue | |
@@ -71,9 +71,9 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Référence` | texte | order, staff | allorders, klantdoc, klantorder, orders, updateorder, ordernumber | `CMD-AAAA-NNNN` (max + 1, non atomique : voir `lib/ordernumber.js`). |
 | `Date` | date | order, staff | allorders, klantdoc, orders | Date de la commande. |
 | `Lignes (produits / quantités)` | texte multiligne | order, staff, updateorder, onboarding (renommage produit) | allorders, klantdoc, klantorder, orders | Une ligne : `Nom × qté unité [€prix]` ; prix figé par le serveur. Affichage humain et légal (documents, e-mails) ; forme structurée à côté : `Lignes JSON`. |
-| `Statut` | liste `Reçue` / `Prête` / `Sortie en livraison` / `Facturée` / `Annulée` | order, staff, updateorder, klantorder | allorders, klantdoc, onboarding, orders | Affiché : Ontvangen / Klaar / Onderweg / Geleverd / Geannuleerd. |
+| `Statut` | liste `Reçue` / `Prête` / `Sortie en livraison` / `Facturée` / `Annulée` | order, staff, updateorder, klantorder | allorders, klantdoc, onboarding, orders, rapportage | Affiché : Ontvangen / Klaar / Onderweg / Geleverd / Geannuleerd. |
 | `Statut paiement` | liste `En attente` / `Payé` | order, staff, updateorder | allorders, klantdoc, orders | Openstaand / Betaald. |
-| `Total` | nombre (€ HTVA) | order, staff, updateorder | allorders, dbadmin, klantdoc, klantorder, orders | Recalculé par le serveur. |
+| `Total` | nombre (€ HTVA) | order, staff, updateorder | allorders, dbadmin, klantdoc, klantorder, orders, rapportage | Recalculé par le serveur. |
 | `Notes` | texte | order, staff, updateorder | allorders, klantdoc, orders | |
 | `Client` | lien → Clients | order, staff | allorders, klantdoc, klantorder, orders, updateorder | |
 | `Date livraison souhaitée` | date | order, staff, updateorder | allorders, klantdoc, klantorder, orders | Contrôlée par `lib/levering.js`. |

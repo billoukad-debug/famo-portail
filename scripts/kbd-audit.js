@@ -10,6 +10,8 @@
 //   2.4.3   focus perdu (sur <body>) après une action ou un changement de vue ;
 //   4.1.2   état non exposé (aria-pressed / aria-current) sur les choix, filtres et onglets.
 // Catalogue (spec 019) : weergave au clavier (focus gardé, aria-pressed), famille, Naar boven.
+// Rapportage (spec 022, /beheer/rapportage) : lien de la barre, filtre (URL), tri (aria-sort), info-bulle au focus,
+// drill-down d'un mois puis « terug ».
 // Parcours : client (390, 990 et 1440 px) · équipe (1440 et 390 px) · beheer (1440 px).
 // Le parcours client passe une commande : l'équipe la prépare, la fait partir, confirme la livraison.
 //
@@ -398,6 +400,29 @@ async function beheer(b) {
   }
   // Journaal : atteignable, focus sur le titre.
   if (await J.tabTo('.tabs a[href="#/journaal"]', "Prijzen", { max: 140 })) { await p.keyboard.press("Enter"); await J.notLost("onglet Journaal", 1500); }
+  // Rapportage (spec 022) : lien de la barre latérale, filtre au clavier, tri, drill-down depuis un graphique.
+  if (await J.tabTo('.side a[href="/beheer/rapportage"]', "Journaal → barre latérale", { back: true, max: 160 })) {
+    await p.keyboard.press("Enter"); await p.waitForURL(/\/beheer\/rapportage/); await p.waitForTimeout(1800);
+    if ((await p.evaluate(() => document.querySelector('.side a[href="/beheer/rapportage"]').getAttribute("aria-current"))) !== "page") add("4.1.2 état non exposé", "beheer · Rapportage sans aria-current=page dans la barre");
+    if (await J.tabTo("#rpKlant", "Rapportage · filtres", { max: 40 })) {
+      await p.keyboard.press("ArrowDown"); await J.notLost("Rapportage · filtre klant", 900);
+      if (!/[?&]klant=rec/.test(p.url())) add("parcours incomplet", "beheer · Rapportage : le filtre klant n'est pas dans l'URL (" + p.url() + ")");
+      if (!(await is(p, "#rpKlant"))) add("2.4.3 focus déplacé par le filtre", "beheer · Rapportage · #rpKlant");
+    }
+    if (await J.tabTo('[data-sort="klanten:naam"]', "Rapportage · tableau Klanten", { max: 120 })) {
+      await p.keyboard.press("Enter"); await J.notLost("Rapportage · tri", 500);
+      const sort = await p.evaluate(() => document.querySelector('[data-sort="klanten:naam"]').closest("th").getAttribute("aria-sort"));
+      if (sort !== "ascending") add("4.1.2 état non exposé", "beheer · Rapportage · tri Klant : aria-sort=" + sort);
+    }
+    if (await J.tabTo('.rp-hit[data-drill="maand"]', "Rapportage · graphique mensuel", { back: true, max: 160 })) {
+      const tip = await p.evaluate(() => { const t = document.activeElement.closest(".rp-plot").querySelector(".rp-tip"); return !t.hidden && t.textContent.length > 0; });
+      if (!tip) add("1.4.13 info-bulle absente au focus", "beheer · Rapportage · graphique mensuel");
+      await p.keyboard.press("Enter"); await J.notLost("Rapportage · drill-down maand", 900);
+      if (!/periode=maand/.test(p.url())) add("parcours incomplet", "beheer · Rapportage : le clic sur un mois n'applique pas la période (" + p.url() + ")");
+      await p.goBack(); await p.waitForTimeout(800);
+      if (/periode=maand/.test(p.url())) add("parcours incomplet", "beheer · Rapportage : « terug » ne revient pas à l'état précédent");
+    }
+  }
   // Nettoyage : le produit de test est supprimé (souris : hors parcours).
   await p.evaluate(async n => { const d = await K.api("/api/onboarding"); const pr = (d.products || []).find(x => x.nom === n); if (pr) await K.api("/api/onboarding", { json: { action: "deleteProduct", id: pr.id } }); }, name).catch(() => {});
   await ctx.close();
