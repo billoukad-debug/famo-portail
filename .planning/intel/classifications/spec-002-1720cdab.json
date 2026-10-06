@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/002-identite-vismijn/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Identité « Vismijn » — enlever l'effet « généré »",
+  "summary": "Identité visuelle Vismijn : fond froid, une couleur d action Noordzee, Atkinson Hyperlegible Next, fin de l aspect généré.",
+  "scope": [
+    "spec 002"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

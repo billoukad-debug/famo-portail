@@ -1,0 +1,17 @@
+{
+  "source_path": "docs/adr/0001-sans-build-sans-dependances.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0001 — Pas de build, pas de dépendances npm",
+  "summary": "Front HTML/CSS/JS vanilla sans bundler, fonctions CommonJS sur modules intégrés de Node, aucun package.json, outils figés via npx.",
+  "scope": [
+    "build",
+    "dépendances",
+    "front",
+    "fonctions Vercel"
+  ],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": 1
+}

@@ -1,0 +1,20 @@
+{
+  "source_path": "docs/adr/0004-numerotation.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0004 — Numérotation CMD / FA / CN",
+  "summary": "Numéros CMD/FA/CN séquentiels par année ; compteur atomique pour FA/CN (spec 010), CMD en max+1 ; FA/CN sont des numéros internes depuis l ADR 0005.",
+  "scope": [
+    "numérotation",
+    "factures internes",
+    "notes de crédit",
+    "commandes"
+  ],
+  "cross_refs": [
+    "docs/adr/0005-facturation-legale.md",
+    "specs/010-updateorder-numerotation/spec.md"
+  ],
+  "locked": true,
+  "precedence": 1
+}

@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/023-verpakking/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Verpakking / verkoopeenheid",
+  "summary": "Verpakking : vente par conditionnement (doos de 6, 12), prix et lignes restent par unité, conditionnement figé dans Lignes JSON.",
+  "scope": [
+    "spec 023"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/003-regime-tva-vies/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Régime TVA par client et contrôle VIES",
+  "summary": "Régime de TVA par client (dont 0 % intracommunautaire et export) avec mention correcte et contrôle du numéro dans VIES.",
+  "scope": [
+    "spec 003"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/016-lignes-structurees/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Lignes de commande structurées (B4)",
+  "summary": "Lignes de commande structurées Lignes JSON (productId, qty, prix) pour stock, retours et recommande par id.",
+  "scope": [
+    "spec 016"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

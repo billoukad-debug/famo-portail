@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/020-bestellen-per-mail/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Bestellen per e-mail (commande enregistrée seule)",
+  "summary": "Commande par e-mail : Resend Receiving, signature Svix, Claude propose, le serveur décide, file Te controleren ; WhatsApp plus tard.",
+  "scope": [
+    "spec 020"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

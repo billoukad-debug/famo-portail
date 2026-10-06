@@ -1,0 +1,19 @@
+{
+  "source_path": "CONTRIBUER.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Avant de pousser du code",
+  "summary": "Portes avant push (assets-version, check.js, ESLint 9.39.5), audits navigateur Playwright, CI GitHub et règles de la maison.",
+  "scope": [
+    "contribution",
+    "CI",
+    "tests",
+    "règles UI"
+  ],
+  "cross_refs": [
+    "docs/CHECKLIST-UX.md"
+  ],
+  "locked": false,
+  "precedence": 4
+}

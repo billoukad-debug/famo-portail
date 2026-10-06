@@ -1,0 +1,16 @@
+{
+  "source_path": "specs/012-documents-emails/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Documents A4 et e-mails redessinés (audit A10)",
+  "summary": "Documents A4 redessinés et gabarit e-mail unique, sobres, imprimables, lisibles dans les clients mail courants.",
+  "scope": [
+    "spec 012"
+  ],
+  "cross_refs": [
+    "DESIGN.md"
+  ],
+  "locked": false,
+  "precedence": 2
+}

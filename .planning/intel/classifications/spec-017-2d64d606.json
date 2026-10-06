@@ -1,0 +1,16 @@
+{
+  "source_path": "specs/017-styles-en-ligne/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Derniers styles en ligne vers ui.css (A5)",
+  "summary": "Migration des derniers styles en ligne vers les utilitaires de ui.css, plafond contrôlé par check.js.",
+  "scope": [
+    "spec 017"
+  ],
+  "cross_refs": [
+    "DESIGN.md"
+  ],
+  "locked": false,
+  "precedence": 2
+}

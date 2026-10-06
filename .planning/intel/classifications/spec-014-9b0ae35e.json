@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/014-url-arborescence/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: URL propres et arborescence par portail",
+  "summary": "URL propres sans .html, arborescence par portail, redirections permanentes des anciennes adresses.",
+  "scope": [
+    "spec 014"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

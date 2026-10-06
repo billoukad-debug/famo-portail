@@ -1,0 +1,16 @@
+{
+  "source_path": "specs/009-lot-a-finitions/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Lot A — docs exactes, panier juste, nettoyage, focus clavier",
+  "summary": "Lot A de finitions : documentation exacte, panier juste, nettoyage, focus clavier.",
+  "scope": [
+    "spec 009"
+  ],
+  "cross_refs": [
+    "DESIGN.md"
+  ],
+  "locked": false,
+  "precedence": 2
+}

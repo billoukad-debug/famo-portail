@@ -1,0 +1,19 @@
+{
+  "source_path": "DESIGN.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Brief design — FAMO Portail",
+  "summary": "Brief design : utilisateurs et contextes, langue, système Vismijn, structure des écrans, contraintes techniques et reste à faire.",
+  "scope": [
+    "design",
+    "UI",
+    "Vismijn",
+    "accessibilité"
+  ],
+  "cross_refs": [
+    "specs/002-identite-vismijn/spec.md"
+  ],
+  "locked": false,
+  "precedence": 4
+}

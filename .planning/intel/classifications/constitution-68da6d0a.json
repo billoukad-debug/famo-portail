@@ -1,0 +1,23 @@
+{
+  "source_path": ".specify/memory/constitution.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "FAMO Portail Constitution",
+  "summary": "Règles non négociables : sans build ni dépendance, le serveur décide, tests d abord en local, terrain NL/FR WCAG 44 px, données et conformité RGPD.",
+  "scope": [
+    "architecture",
+    "sécurité",
+    "tests",
+    "accessibilité",
+    "langue",
+    "schéma",
+    "RGPD",
+    "flux spec-kit"
+  ],
+  "cross_refs": [
+    "CONTRIBUER.md"
+  ],
+  "locked": true,
+  "precedence": 0
+}

@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/006-dette-technique/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Dette technique — Beheer découpé, lecture des lignes unique",
+  "summary": "Dette technique : Beheer découpé en modules lib/beheer, lecture des lignes de commande unique (parseLines).",
+  "scope": [
+    "spec 006"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

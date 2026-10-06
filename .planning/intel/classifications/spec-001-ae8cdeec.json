@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/001-badges-lus/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Pastilles lues (compteurs du menu)",
+  "summary": "Pastilles du menu qui disparaissent après lecture, avec choix Nouveau / Tout / Aucune par appareil.",
+  "scope": [
+    "spec 001"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

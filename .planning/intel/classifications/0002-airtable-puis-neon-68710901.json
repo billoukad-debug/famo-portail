@@ -1,0 +1,17 @@
+{
+  "source_path": "docs/adr/0002-airtable-puis-neon.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0002 — Airtable d'abord, puis Neon via `lib/at-engine.js`",
+  "summary": "Le code métier parle REST Airtable, intercepté par lib/datastore.js vers lib/at-engine.js sur Neon ; production sur Postgres, aucun repli silencieux.",
+  "scope": [
+    "base de données",
+    "Neon",
+    "Airtable",
+    "moteur SQL"
+  ],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": 1
+}

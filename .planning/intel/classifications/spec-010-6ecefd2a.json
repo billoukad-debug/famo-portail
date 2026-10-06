@@ -1,0 +1,16 @@
+{
+  "source_path": "specs/010-updateorder-numerotation/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Bijwerken découpé, numérotation FA/CN sans trou inexpliqué",
+  "summary": "updateorder découpé en lib/commande ; numérotation FA/CN sans trou inexpliqué (réservation après contrôles, journal Nummer vervallen).",
+  "scope": [
+    "spec 010"
+  ],
+  "cross_refs": [
+    "docs/adr/0005-facturation-legale.md"
+  ],
+  "locked": false,
+  "precedence": 2
+}
