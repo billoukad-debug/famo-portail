@@ -1,0 +1,26 @@
+{
+  "source_path": "README.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "FAMO Portail — v2",
+  "summary": "Présentation du portail v2 : trois portails, structure, banc local, parcours d une commande, corrections, comptes clients, base Neon, variables d environnement.",
+  "scope": [
+    "portail",
+    "parcours commande",
+    "variables",
+    "base de données"
+  ],
+  "cross_refs": [
+    "docs/adr/0002-airtable-puis-neon.md",
+    "docs/adr/0005-facturation-legale.md",
+    "specs/013-cookie-client-httponly/spec.md",
+    "docs/COUTS.md",
+    "docs/COMPTES.md",
+    "DESIGN.md",
+    "CONTRIBUER.md",
+    "VERCEL_CHECKLIST.md"
+  ],
+  "locked": false,
+  "precedence": 4
+}

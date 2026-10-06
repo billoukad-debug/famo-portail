@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/007-logo-f-sans-minuteur/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Logo « F » sobre, accueil sans minuteur",
+  "summary": "Logo F sobre comme marque, favicon et en-tête de document ; accueil client sans minuteur.",
+  "scope": [
+    "spec 007"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

@@ -1,0 +1,19 @@
+{
+  "source_path": "VERCEL_CHECKLIST.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Checklist Vercel — mise en service",
+  "summary": "Checklist de mise en service Vercel : variables d environnement, première mise en route, vérifications rapides, e-mails.",
+  "scope": [
+    "Vercel",
+    "mise en service",
+    "variables"
+  ],
+  "cross_refs": [
+    "docs/COUTS.md",
+    "docs/COMPTES.md"
+  ],
+  "locked": false,
+  "precedence": 4
+}

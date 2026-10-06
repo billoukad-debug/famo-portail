@@ -1,0 +1,18 @@
+{
+  "source_path": "docs/COMPTES.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Inventaire des comptes",
+  "summary": "Inventaire sans secret des comptes de service et des accès applicatifs ; tous au nom d une seule personne au 27/09/2026.",
+  "scope": [
+    "comptes",
+    "exploitation",
+    "risque"
+  ],
+  "cross_refs": [
+    "docs/COUTS.md"
+  ],
+  "locked": false,
+  "precedence": 4
+}

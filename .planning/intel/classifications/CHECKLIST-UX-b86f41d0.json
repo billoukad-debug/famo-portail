@@ -1,0 +1,19 @@
+{
+  "source_path": "docs/CHECKLIST-UX.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Checklist UX — FAMO Portail",
+  "summary": "Checklist UX par familles (interactions, clavier, formulaires, états, mise en page, chiffres, accessibilité, ton) à passer à chaque changement d interface.",
+  "scope": [
+    "UX",
+    "accessibilité",
+    "checklist"
+  ],
+  "cross_refs": [
+    "specs/001-badges-lus/spec.md",
+    "specs/002-identite-vismijn/spec.md"
+  ],
+  "locked": false,
+  "precedence": 4
+}

@@ -1,0 +1,17 @@
+{
+  "source_path": "specs/022-rapportage/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Rapportage (page à part entière, graphiques, filtres, tri, actions)",
+  "summary": "Rapportage page à part pour le beheerder : chiffres clés, graphiques SVG, filtres dans l URL, tri, CSV, action Betaald.",
+  "scope": [
+    "spec 022"
+  ],
+  "cross_refs": [
+    "docs/adr/0005-facturation-legale.md",
+    "DESIGN.md"
+  ],
+  "locked": false,
+  "precedence": 2
+}

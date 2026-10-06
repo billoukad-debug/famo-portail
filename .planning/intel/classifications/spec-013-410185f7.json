@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/013-cookie-client-httponly/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Session client par cookie HttpOnly",
+  "summary": "Session client par cookie HttpOnly famo_klant (SameSite=Strict, Path=/api) au lieu du jeton en sessionStorage.",
+  "scope": [
+    "spec 013"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

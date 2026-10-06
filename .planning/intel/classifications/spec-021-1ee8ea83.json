@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/021-testgegevens-opruimen/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Testperiode afsluiten (testgegevens archiveren, verwijderen, nummering herstarten)",
+  "summary": "Testperiode afsluiten : aperçu, archivage réversible des commandes d essai, suppression définitive après back-up, redémarrage de numérotation sous conditions.",
+  "scope": [
+    "spec 021"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

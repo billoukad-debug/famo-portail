@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/019-catalogus-weergave/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Catalogus — weergave kiezen, dichtere regels, vlotter navigeren",
+  "summary": "Catalogue client : vues Lijst / Tegels / Compact, tri, familles de noms, barre d outils collante.",
+  "scope": [
+    "spec 019"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

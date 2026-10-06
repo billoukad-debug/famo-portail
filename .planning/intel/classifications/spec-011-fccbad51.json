@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/011-workflow-check-decoupe/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Scénarios métier découpés par domaine (workflow-check)",
+  "summary": "Scénarios métier découpés par domaine dans test/workflow, lancés en parallèle, inventaire anti-perte d assertions.",
+  "scope": [
+    "spec 011"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

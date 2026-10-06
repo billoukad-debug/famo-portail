@@ -12,4 +12,6 @@
 eslint.config.js
 /.claude
 /.specify
+# Suivi VibeFlow / GSD (.planning/ : PROJECT, ROADMAP, STATE, config.json, intel/) : jamais servi.
+/.planning
 /specs

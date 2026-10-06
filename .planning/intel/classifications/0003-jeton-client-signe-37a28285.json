@@ -1,0 +1,19 @@
+{
+  "source_path": "docs/adr/0003-jeton-client-signe.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0003 — Jeton client signé ; cookie HttpOnly pour le personnel",
+  "summary": "Session personnel par cookie HttpOnly signé ; client par jeton signé, déplacé dans le cookie HttpOnly famo_klant (spec 013), transition jusqu au 31/10/2026.",
+  "scope": [
+    "authentification",
+    "session client",
+    "session personnel",
+    "CSRF"
+  ],
+  "cross_refs": [
+    "specs/013-cookie-client-httponly/spec.md"
+  ],
+  "locked": true,
+  "precedence": 1
+}

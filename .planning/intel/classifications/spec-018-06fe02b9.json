@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/018-fotos-kaliber/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Foto's altijd zichtbaar, meerdere zichten per product, volgorde per kaliber",
+  "summary": "Photos produit toujours visibles, jusqu à 6 vues par produit, ordre des produits par kaliber.",
+  "scope": [
+    "spec 018"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

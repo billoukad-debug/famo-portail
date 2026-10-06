@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/008-catalogue-sans-ligne-deadline/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Catalogue client sans la ligne « Vóór 22:00 besteld »",
+  "summary": "Catalogue client sans la ligne Vóór 22:00 besteld.",
+  "scope": [
+    "spec 008"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

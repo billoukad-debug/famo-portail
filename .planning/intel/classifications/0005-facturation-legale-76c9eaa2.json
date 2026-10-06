@@ -1,0 +1,17 @@
+{
+  "source_path": "docs/adr/0005-facturation-legale.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 0005 — Facturation légale chez le comptable ; le portail n'émet pas de facture",
+  "summary": "Factures et notes de crédit légales émises par le comptable via Billtobox (Peppol) ; documents du portail internes ; le portail fournit des exports CSV/UBL.",
+  "scope": [
+    "facturation légale",
+    "Peppol",
+    "Billtobox",
+    "exports comptables"
+  ],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": 1
+}

@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/005-pin-personnels-seuls/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: PIN personnels seuls (fin des codes partagés)",
+  "summary": "Option Enkel persoonlijke pincodes : codes partagés refusés, seuls les PIN ouvrent, ADMIN_CODE en accès de secours journalisé.",
+  "scope": [
+    "spec 005"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

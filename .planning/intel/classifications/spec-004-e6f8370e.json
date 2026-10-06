@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/004-avoirs-multiples-mail-correction/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Plusieurs notes de crédit par facture et e-mail de correction",
+  "summary": "Plusieurs notes de crédit par facture et e-mail de correction au client après une correction ou une note de crédit.",
+  "scope": [
+    "spec 004"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}

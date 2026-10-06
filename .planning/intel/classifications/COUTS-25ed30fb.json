@@ -1,0 +1,20 @@
+{
+  "source_path": "docs/COUTS.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Coûts d'exploitation",
+  "summary": "Coûts d exploitation relevés au 27/09/2026 : Vercel Pro, Neon Launch recommandé, Resend gratuit jusqu à 25 commandes/jour, Anthropic pour la spec 020.",
+  "scope": [
+    "coûts",
+    "Vercel",
+    "Neon",
+    "Resend",
+    "Anthropic"
+  ],
+  "cross_refs": [
+    "specs/020-bestellen-per-mail/spec.md"
+  ],
+  "locked": false,
+  "precedence": 4
+}

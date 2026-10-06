@@ -1,0 +1,14 @@
+{
+  "source_path": "specs/015-chauffeur-creneau/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Feature Specification: Leveringen « chauffeur d'abord » (A4) et créneau visible par le client (D4)",
+  "summary": "Mode chauffeur un stop à la fois dans l ordre de tournée et créneau de livraison Leverslot visible par le client.",
+  "scope": [
+    "spec 015"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": 2
+}
