@@ -325,6 +325,20 @@ async function staff(b, W) {
       if (await pressedOf(p, '[data-mode="lijst"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · retour à la liste sans aria-pressed=true");
     }
   }
+  // Vandaag (spec 024) : filtres exposés (aria-pressed) ; un tap d'étape au clavier garde le focus sur la même
+  // commande (bouton suivant, ou à défaut sa carte) — jamais perdu sur <body>.
+  await p.goto(B + "/team/vandaag"); await p.waitForTimeout(1400);
+  if (await J.tabTo('.vd-filter [data-filter="nieuw"]', "Vandaag", { max: 40 })) {
+    await p.keyboard.press("Enter"); await J.notLost("Vandaag : filter Nieuw", 500);
+    if (await pressedOf(p, '.vd-filter [data-filter="nieuw"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · Vandaag : filtre choisi sans aria-pressed=true");
+  }
+  if (await J.tabTo(".vd-card [data-go]", "Vandaag", { max: 40 })) {
+    const id = await p.evaluate(() => document.activeElement.dataset.go);
+    await p.keyboard.press("Enter"); await J.notLost("Vandaag : stap", 1800);
+    const ok = await p.evaluate(id => { const a = document.activeElement; return !!a && !!a.closest && !!(a.closest('[id="o-' + id + '"]') || a.matches('[data-go="' + id + '"]')); }, id);
+    if (!ok && await p.$('[id="o-' + id + '"]')) add("2.4.3 focus déplacé après action", "équipe " + W + " · Vandaag : après une étape, le focus n'est plus sur la commande (" + (await J.info()).text + ")");
+  }
+  await p.evaluate(() => localStorage.removeItem("famoVdFilter"));
   // Magazijn : Vandaag / Morgen exposés, Bord sans bouton imbriqué dans un lien.
   await p.goto(B + "/team/magazijn#/dag"); await p.waitForTimeout(1400);
   if (await J.tabTo(".page-h .opt [data-day]:not(.on)", "Magazijn")) {

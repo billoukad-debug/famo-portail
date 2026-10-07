@@ -24,8 +24,8 @@
       // Op naam aangemeld (persoonlijke PIN) : even begroeten, dan door.
       if (d.name) { K.toast("Welkom, " + d.name); K.busy(btn, true, "Welkom, " + d.name + "…"); }
       const ret = K.takeReturn(null);
-      setTimeout(() => { location.href = ret || (admin ? "/beheer" : "/team/bestellingen"); }, d.name ? 600 : 0);
+      setTimeout(() => { location.href = ret || K.home(admin); }, d.name ? 600 : 0);
     } catch (err) { document.getElementById("err").innerHTML = K.c.error(err.message); K.busy(btn, false); }
   });
-  K.staff.check().then(ok => { if (ok && (!admin || K.staff.isAdmin())) { const ret = K.takeReturn(null); location.replace(ret || (admin ? "/beheer" : "/team/bestellingen")); } });
+  K.staff.check().then(ok => { if (ok && (!admin || K.staff.isAdmin())) { const ret = K.takeReturn(null); location.replace(ret || K.home(admin)); } });
 })();

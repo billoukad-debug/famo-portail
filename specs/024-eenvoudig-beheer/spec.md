@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/brave-lovelace-s4xk7h` (sur `main` a159186)
 **Created**: 2026-10-07
-**Status**: Draft (design validé par le co-gérant le 2026-10-07)
+**Status**: Implemented (préversion, en attente de validation par Mohsen — SC-005)
 **Input**: demande du co-gérant, verbatim : « J'ai besoin d'une version pour Mohsen car actuellement il
 est le seul qui utilise l'app. Il aimerait ne pas avoir les étapes de magazijn, levering etc. où il peut
 simplement recevoir les commandes et passer en 1 clic entre les étapes, ultra simpliste et parfait, qu'il
@@ -43,7 +43,8 @@ ceux des règles existantes (aucune règle serveur modifiée).
    livraison (stock déduit si « Voorraad afboeken » est actif, e-mail « onderweg » au client comme
    aujourd'hui).
 3. **Given** une commande « Onderweg », **When** il tape « Geleverd », **Then** la livraison est
-   confirmée avec le nom du client comme réceptionnaire (modifiable avant confirmation), le numéro
+   confirmée avec le nom du client comme réceptionnaire (autre nom, signature ou photo : « ⋯ → Geleverd met
+   naam of handtekening », le panneau existant ; décision du plan, 1 tap gardé), le numéro
    FA est attribué par le serveur, l'e-mail « geleverd » part comme aujourd'hui ; photo / signature
    restent facultatives et ajoutables ensuite.
 4. **Given** une commande « Geleverd » non payée, **When** il tape « Betaald » et choisit le mode

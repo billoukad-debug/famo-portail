@@ -3,6 +3,8 @@
 // Parcours fonctionnels du portail client dans un vrai navigateur (régressions vues en production) :
 //   favorieten · une étoile posée sur un appareil se retrouve sur un autre appareil (nouvelle connexion),
 //                et un rechargement dans les 10 minutes du cache catalogue ne la fait pas disparaître.
+//   vandaag    · (spec 024) une commande Nieuw passe Klaar → (ongedaan) → Klaar → Onderweg → Geleverd → Betaald
+//                en un tap par étape, le serveur attribue le numéro FA ; « + Bestelling » crée une commande.
 //
 //   node scripts/dev.js              (autre terminal : portail de dev + données de test)
 //   node scripts/parcours-check.js   (BASE=http://localhost:4200 par défaut ; sortie 1 s'il y a un écart)
@@ -53,6 +55,29 @@ const starred = (p) => p.$$eval("[data-fav].on", els => els.map(e => e.dataset.f
     // Nettoyage : plus d'étoiles pour les audits suivants.
     for (const id of got2) { await A2.p.click('[data-fav="' + id + '"]'); await A2.p.waitForTimeout(150); }
     await A2.p.waitForTimeout(2200);
+    // Vandaag (spec 024) : l'écran du gérant, de bout en bout, comme Mohsen sur son iPhone.
+    const V = await b.newContext({ viewport: { width: 390, height: 844 } });
+    await V.request.post(B + "/api/session", { data: { code: "beheer-dev-code" } });
+    const vp = await V.newPage(); vp.on("pageerror", e => fail("Vandaag · erreur JS : " + e.message));
+    const order = async id => ((await (await V.request.get(B + "/api/allorders?limit=1000")).json()).orders || []).find(o => o.id === id) || {};
+    await vp.goto(B + "/team/vandaag"); await vp.waitForSelector(".vd-card [data-go]");
+    const vid = await vp.$eval(".vd-nieuw [data-go]", e => e.dataset.go).catch(() => "");
+    if (!vid) fail("Vandaag : aucune commande Nieuw avec un bouton d'étape");
+    else {
+      const tap = async () => { await vp.click('[data-go="' + vid + '"]'); await vp.waitForTimeout(1000); };
+      await tap(); if ((await order(vid)).statut !== "Prête") fail("Vandaag : Klaar n'a pas mis la commande sur Prête");
+      await vp.click(".toast button"); await vp.waitForTimeout(1000); if ((await order(vid)).statut !== "Reçue") fail("Vandaag : Ongedaan maken n'est pas revenu sur Reçue");
+      await tap(); await tap(); if ((await order(vid)).statut !== "Sortie en livraison") fail("Vandaag : Onderweg non atteint");
+      await tap(); const g = await order(vid); if (g.statut !== "Facturée" || !/^FA-/.test(g.factuurnummer || "")) fail("Vandaag : Geleverd sans numéro FA (" + g.statut + ")");
+      await vp.click('[data-go="' + vid + '"]'); await vp.waitForSelector("#mOk"); await vp.click("#mOk"); await vp.waitForTimeout(1000);
+      if ((await order(vid)).paiement !== "Payé") fail("Vandaag : Betaald non enregistré");
+      if (await vp.$('[data-go="' + vid + '"]')) fail("Vandaag : la commande payée reste dans la liste");
+    }
+    await vp.click("#vdNew"); await vp.waitForSelector("#nbClient");
+    await vp.selectOption("#nbClient", await vp.$eval("#nbClient option:nth-child(2)", o => o.value)); await vp.waitForSelector("#nb .stepper");
+    await vp.click("#nb .stepper [data-inc]"); await vp.waitForTimeout(200); await vp.click("#nbOk"); await vp.waitForTimeout(1500);
+    if (await vp.isVisible("#nbOk")) fail("Vandaag : + Bestelling n'a pas placé la commande (" + (await vp.textContent("#nbErr").catch(() => "")) + ")");
+    await V.close();
   } finally { await b.close(); }
   if (issues.length) { console.log("Écarts :\n- " + issues.join("\n- ")); process.exit(1); }
   console.log("Aucun écart.");

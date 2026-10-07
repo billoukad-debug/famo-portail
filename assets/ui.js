@@ -920,6 +920,12 @@
   };
   // Keuze per toestel : drie knoppen (zelfde vorm als de taalkeuze), meteen toegepast.
   K.badgeSwitch = () => '<div class="lang" role="group" aria-label="' + K.t("Tellers in het menu") + '">' + [["nieuw", "Nieuw"], ["alles", "Alles"], ["uit", "Uit"]].map(([m, l]) => '<button type="button" data-badgemode="' + m + '" aria-pressed="' + (K.badgeMode() === m) + '"' + (K.badgeMode() === m ? ' class="on"' : "") + '>' + K.t(l) + '</button>').join("") + '</div>';
+  // Weergave per toestel (spec 024) : Eenvoudig opent op Vandaag met een kort menu ; meteen toegepast.
+  K.modusSwitch = () => '<div class="badgeset mt-16"><h3 class="h3">Weergave</h3><p class="muted">Eenvoudig: alles op één scherm (Vandaag), kort menu. Uitgebreid: alle schermen (magazijn, leveringen…).</p><div class="lang" role="group" aria-label="Weergave op dit toestel">' + [["eenvoudig", "Eenvoudig"], ["uitgebreid", "Uitgebreid"]].map(([m, l]) => '<button type="button" data-modus="' + m + '" aria-pressed="' + (K.modus() === m) + '"' + (K.modus() === m ? ' class="on"' : "") + '>' + l + '</button>').join("") + '</div></div>';
+  if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => {
+    const b = e.target && e.target.closest && e.target.closest("[data-modus]"); if (!b) return;
+    K.setModus(b.dataset.modus); location.href = K.home(K.staff.isAdmin());
+  });
   K.badgeHelp = () => K.t("Nieuw: verdwijnt zodra u de pagina opent. Alles: blijft zolang er iets te doen is. Uit: geen tellers.");
   if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => {
     const b = e.target && e.target.closest && e.target.closest("[data-badgemode]"); if (!b) return;
@@ -928,6 +934,13 @@
     K.setBadges({});
   });
   // Rapportage (spec 022) : chiffres de direction, beheerder seul (api/rapportage, api/marge refusent le personnel).
+  // Eenvoudig beheer (spec 024) : par appareil, « eenvoudig » = Vandaag + menu réduit ; « uitgebreid » (défaut) = tout,
+  // inchangé. localStorage protégé (K.store) : bloqué ou vide → uitgebreid.
+  K.modus = () => (K.store.get("famoModus", "uitgebreid") === "eenvoudig" ? "eenvoudig" : "uitgebreid");
+  K.setModus = m => K.store.set("famoModus", m === "eenvoudig" ? "eenvoudig" : "uitgebreid");
+  K.home = admin => (K.modus() === "eenvoudig" ? "/team/vandaag" : (admin ? "/beheer" : "/team/bestellingen"));
+  const NAV_SIMPLE = [["vandaag.html", "/team/vandaag", "Vandaag", "check"]];
+  const NAV_SIMPLE_ADMIN = [["documenten.html", "/team/documenten", "Documenten", "doc"], ["rapportage.html", "/beheer/rapportage", "Rapportage", "chart"], ["beheer.html", "/beheer", "Beheer", "settings"]];
   const NAV_ADMIN = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"], ["rapportage.html", "/beheer/rapportage", "Rapportage", "chart"], ["beheer.html", "/beheer", "Beheer", "settings"]];
   const NAV_STAFF_MORE = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"]];
   K.shell = function (opts) {
@@ -943,10 +956,12 @@
     const more = admin ? NAV_ADMIN : NAV_STAFF_MORE;
     // Sessie GET geeft de naam van de medewerker (persoonlijke PIN) : die staat bij de rol ; zonder naam blijft de rol alleen.
     const role = admin ? "Beheerder" : "Personeel", who = K.staff.name || role;
-    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="/team/bestellingen"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
-      '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
+    const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="' + K.home(admin) + '"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
+      (K.modus() === "eenvoudig"
+        ? NAV_SIMPLE.map(link).join("") + (admin ? NAV_SIMPLE_ADMIN : [NAV_STAFF_MORE[1]]).map(link).join("") + link(["stock.html", "/team/voorraad", "Voorraad", "stock"]) + link(["meer.html", "/team/bestellingen#/tabel", "Alle schermen", "list"])
+        : '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
-      link(["stock.html", "/team/voorraad", "Voorraad", "stock"]) +
+      link(["stock.html", "/team/voorraad", "Voorraad", "stock"])) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +
       '<div class="user">' + c.avatar(who) + '<div class="utxt fs-125 minw-0"><b class="ellipsis fw-500 d-block">' + K.esc(who) + '</b>' + (K.staff.name ? '<small class="quiet fs-11 d-block">' + role + '</small>' : "") + '<div><button type="button" class="linkbtn fs-11" data-logout>Uitloggen</button></div></div></div></nav>';
     // Uitloggen aussi dans la topbar (44px) : sur tablette et téléphone la sidebar cache le lien.
@@ -956,7 +971,7 @@
     app.innerHTML = '<a class="skip" href="#page">Naar de inhoud</a><div class="shell">' + side + '<div class="main">' + top + '<main id="page" tabindex="-1"></main></div></div>';
     K.setBadges({}); // derniers compteurs connus (session) tout de suite, sans attendre les données
     app.querySelector("[data-contrasttoggle]").onclick = () => { K.store.set("famoContrast", K.contrast() === "hoog" ? "normaal" : "hoog"); K.applyContrast(); K.toast(K.contrast() === "hoog" ? "Hoog contrast aan" : "Hoog contrast uit"); };
-    app.querySelector("[data-badgesettings]").onclick = () => K.panel({ title: "Tellers in het menu", sub: "Voor dit toestel", width: "420px", body: '<div class="badgeset"><p class="muted">' + K.badgeHelp() + '</p>' + K.badgeSwitch() + '</div>' });
+    app.querySelector("[data-badgesettings]").onclick = () => K.panel({ title: "Tellers in het menu", sub: "Voor dit toestel", width: "420px", body: '<div class="badgeset"><p class="muted">' + K.badgeHelp() + '</p>' + K.badgeSwitch() + '</div>' + K.modusSwitch() });
     // G-20 : au téléphone la navigation défile à l'horizontale — un fondu montre qu'il reste des onglets,
     // et l'onglet de la page est ramené dans la vue.
     const sideEl = app.querySelector(".side");

@@ -981,3 +981,24 @@ a.kp-link:hover{background:var(--row-hover)}
 .prod.on .pp-k{color:var(--ink-2)}
 .tag.t-pak{background:var(--p-soft);color:var(--p-deep);border-color:transparent;font-weight:600}
 @media (max-width:480px){.li:has(.stepper.st-pak),.li:has(.pak-q){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n n" "s t" "c c"}.li:has(.stepper.st-pak)>.stepper,.li:has(.pak-q)>.stepper{justify-self:start}}
+/* ===== Vandaag (spec 024) : l'écran du gérant — une carte par commande, UNE action principale (56 px) ===== */
+.vd-filter{flex-wrap:wrap}.vd-filter button b{margin-left:4px;font-variant-numeric:tabular-nums}
+.vd-list{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+@media (min-width:1100px){.vd-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.vd-card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--st-inv);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.vd-nieuw{border-left-color:var(--st-new)}.vd-klaar{border-left-color:var(--st-ready)}.vd-onderweg{border-left-color:var(--st-road)}.vd-geleverd{border-left-color:var(--st-inv)}
+.vd-top{display:flex;align-items:baseline;gap:10px;min-width:0}.vd-cl{font-size:18px;line-height:1.25;flex:1;min-width:0;overflow-wrap:anywhere}.vd-sum{font-size:16px;white-space:nowrap}
+.vd-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.vd-lines{margin:0;font-size:14px;color:var(--ink);overflow-wrap:anywhere}.vd-note{margin:0;font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}
+.vd-act{display:flex;gap:8px;align-items:stretch;margin-top:auto;padding-top:2px}
+.vd-go{flex:1;min-height:56px;font-size:17px;gap:8px}.vd-go .ico{width:22px;height:22px}
+.vd-ic{min-width:var(--tap);min-height:var(--tap);padding:0 12px;font-weight:700}.vd-act .vd-ic{min-height:56px;min-width:56px}
+.vd-done{flex:1;display:flex;align-items:center;min-height:56px;padding:0 12px;border-radius:var(--r);background:var(--soft);color:var(--ink-2);font-weight:600}
+.vd-invite{align-items:center;flex-wrap:wrap;gap:10px}.vd-invite>div:first-child{flex:1;min-width:200px}
+.vd-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.vd-menu{display:flex;flex-direction:column;gap:6px}
+.vd-mi{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--ink);text-align:left;font:inherit;cursor:pointer;text-decoration:none}
+.vd-mi:hover{background:var(--soft)}.vd-mi span{display:flex;flex-direction:column;min-width:0}.vd-mi small{color:var(--ink-2);font-size:12.5px}
+.vd-mi .ico{width:22px;height:22px;flex:none;color:var(--ink-2)}
+@media (max-width:420px){.vd-card{padding:12px}.vd-act .vd-ic{min-width:48px;padding:0 8px}}
+.vd-pl{grid-template-columns:minmax(0,1fr) auto!important}
