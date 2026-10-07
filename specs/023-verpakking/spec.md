@@ -109,6 +109,13 @@ raison.
   `verpakkingen` dans le schéma ; le serveur décide des unités ; ambigu → Te controleren.
 - **FR-008**: `docs/SCHEMA.md`, `scripts/fake-airtable.js`, seed (« Eieren », per 6, enkel),
   AGENTS.md.
+- **FR-009** (retour Mohsen, 2026-10-07) : au kg, « Per verpakking » accepte stuks × gewicht
+  (« 12 x 0,8 », « 0,8 x 12 », `×`, `*`, « kg » final) → `Per verpakking` = 9,6 (la décimale n'est jamais
+  perdue) et `Stuks per verpakking` = 12 ; affiché « doos van 12 × 0,8 kg (9,6 kg) » / « carton de 12 × 0,8 kg
+  (9,6 kg) », exposé (`stuks`) et figé dans `Lignes JSON`. Hors kg, l'expression doit donner un entier
+  (« 2 x 6 » = 12, sans détail). Une saisie non comprise est signalée tout de suite dans Beheer (avant :
+  message « leeg = per stuk », trompeur). Avant ce correctif, l'expression était refusée, Mohsen tapait 12
+  et le portail affichait « doos van 12 kg » au lieu de 9,6 kg.
 
 ### Key Entities
 

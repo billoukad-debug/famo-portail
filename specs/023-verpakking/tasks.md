@@ -32,3 +32,8 @@
 - [x] T011 `scripts/seed.js` (Eieren, per 6, enkel ; Oesters per 12 kist, pas enkel), `scripts/fake-airtable.js`, `docs/SCHEMA.md`, AGENTS.md
 - [x] T012 Parcours navigateur aloha / welkom123 (2 doos, panier, bestelling, facture, bon, refus 7), captures 1280 / 390
 - [x] T013 Portes : assets-version, check.js, ESLint, contrast-check, ux-audit → kbd-audit (serveur reseedé)
+
+## Phase 5 — Correctif « 12 x 0,8 kg » (FR-009)
+
+- [x] T014 Test d'abord (`test/verpakking.test.js`, « 12 x 0,8 » kg) : rouge (`pakParse` absent)
+- [x] T015 `FamoVat.pakParse`, `pakOf`/`pakOne` avec `stuks`, `lib/beheer/producten.js`, `lib/verpakking.js`, `lib/lignesjson.js`, Beheer (saisie, aide, valeur relue), `K.pakParse`, SCHEMA, fake-airtable

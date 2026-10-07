@@ -36,6 +36,8 @@ async function call(file, body, opts) {
 const rec = (id, fields) => ({ id, createdTime: new Date().toISOString(), fields });
 const store = () => ds.state.store;
 const fieldsOf = async (table, id) => (await store().get(table, id)).fields;
+// Modifie quelques champs d'un enregistrement (le store bas niveau n'a pas de PATCH partiel).
+const patch = async (table, id, fields) => store().replaceAll(table, (await store().list(table)).map((r) => (r.id === id ? Object.assign({}, r, { fields: Object.assign({}, r.fields, fields) }) : r)));
 const json = (f) => { try { return JSON.parse(f[FIELD]); } catch (e) { return undefined; } };
 const EGG = { Produit: "Eieren", "Prix de base": 1, "Unité": "pièce", "Catégorie": "Algemeen", Actif: true, "Per verpakking": 6, "Verpakking": "doos", "Enkel per verpakking": true };
 
@@ -131,6 +133,82 @@ test("Beheer : Per verpakking / Verpakking / Enkel per verpakking écrits, effac
   assert.deepStrictEqual(["per", "verpakking", "enkel"].map((x) => s.payload.products.find((y) => y.id === "recEGG")[x]), [6, "doos", true]);
 });
 
+// Retour de Mohsen : un carton de 12 pièces de 0,8 kg se saisit « 0,8 x 12 » (ou « 12 x 0,8 ») et pèse
+// 9,6 kg. Avant, le champ refusait l'expression, Mohsen tapait 12 et le portail affichait « doos van 12 kg ».
+test("Verpakking « 12 x 0,8 » kg : 12 stuks de 0,8 kg = 9,6 kg (décimale gardée), affiché, exposé et figé", async () => {
+  for (const s of ["12 x 0,8", "0,8 x 12", "12×0,8", "12 X 0.8", "12*0,8", " 12 x 0,8 kg "]) assert.deepStrictEqual(V.pakParse(s), { per: 9.6, stuks: 12 }, s);
+  assert.deepStrictEqual(V.pakParse("9,6"), { per: 9.6 });
+  assert.deepStrictEqual(V.pakParse("6 x 2"), { per: 12, stuks: 6 }, "deux entiers : le premier compte les pièces");
+  for (const bad of ["", "zes", "12 x", "x 0,8", "12 x 0,8 x 2", "-12 x 0,8", "12 x 0"]) assert.equal(V.pakParse(bad), null, bad);
+  const p = V.pakOf({ per: 9.6, stuks: 12 });
+  assert.deepStrictEqual(p, { per: 9.6, label: "doos", only: false, stuks: 12 });
+  assert.deepStrictEqual(V.pakOf({ "Per verpakking": 9.6, "Stuks per verpakking": 12, "Verpakking": "doos" }), p);
+  for (const s of [1, 2.5, 0, -3, 20000, "abc"]) assert.equal(V.pakOf({ per: 9.6, stuks: s }).stuks, undefined, "stuks invalide ignoré : " + s);
+  assert.equal(V.pakOne(p, "kg", "nl"), "doos van 12 × 0,8 kg (9,6 kg)");
+  assert.equal(V.pakOne(p, "kg", "fr"), "carton de 12 × 0,8 kg (9,6 kg)");
+  assert.equal(V.pakOne(p, "pièce", "nl"), "doos van 9,6", "hors kg : pas de détail par pièce");
+  assert.equal(V.pakQty(19.2, "kg", p, "nl"), "2 doos · 19,2 kg");
+  assert.equal(V.pakCalc(19.2, "kg", p, "nl"), "2 doos × 9,6 kg = 19,2 kg");
+
+  await seed();
+  const save = (more) => beheer(Object.assign({ action: "saveProduct", id: "recTONG", nom: "Tong", unite: "kg", base: 16, cat: "Vis" }, more));
+  for (const s of ["0,8 x 12", "12 x 0,8"]) {
+    const r = await save({ perVerpakking: s, verpakking: "doos", enkelPerVerpakking: true });
+    assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+    const t = await fieldsOf("Catalogue", "recTONG");
+    assert.deepStrictEqual([t["Per verpakking"], t["Stuks per verpakking"]], [9.6, 12], s);
+    const b = r.payload.products.find((x) => x.id === "recTONG");
+    assert.deepStrictEqual([b.per, b.stuks, b.enkel], [9.6, 12, true], "Beheer relit le détail");
+  }
+  const c = await call("catalogue.js", { token: await tokenOf("recCLA") });
+  const tong = c.payload.products.find((x) => x.id === "recTONG");
+  assert.deepStrictEqual([tong.per, tong.stuks, tong.verpakking], [9.6, 12, "doos"]);
+  // Commande d'un carton : 9,6 kg (pas 12), détail figé avec la ligne.
+  const o = await order("recCLA", [{ productId: "recTONG", quantity: 9.6 }]);
+  assert.equal(o.statusCode, 200, JSON.stringify(o.payload));
+  const f = await fieldsOf("Commandes", o.payload.id);
+  assert.deepStrictEqual(json(f)[0], { productId: "recTONG", naam: "Tong", qty: 9.6, unit: "kg", prijs: 16, per: 9.6, verpakking: "doos", stuks: 12 });
+  assert.equal(f.Total, 153.6);
+  const all = await call("allorders.js", null, { method: "GET", headers: cookie("staff") });
+  assert.deepStrictEqual(all.payload.orders.find((x) => x.id === o.payload.id).verpakking, { tong: { per: 9.6, verpakking: "doos", stuks: 12 } });
+  // Un poids simple efface le détail ; hors kg, l'expression doit donner un entier.
+  let r = await save({ perVerpakking: "9,6", verpakking: "doos" });
+  assert.equal(r.statusCode, 200);
+  assert.ok(!(await fieldsOf("Catalogue", "recTONG"))["Stuks per verpakking"]);
+  r = await beheer({ action: "saveProduct", id: "recEGG", nom: "Eieren", unite: "stuk", base: 1, cat: "Algemeen", perVerpakking: "2 x 6", verpakking: "tray" });
+  assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+  const egg = await fieldsOf("Catalogue", "recEGG");
+  assert.deepStrictEqual([egg["Per verpakking"], egg["Stuks per verpakking"] || null], [12, null], "stuks : détail réservé au kg");
+  r = await beheer({ action: "saveProduct", id: "recEGG", nom: "Eieren", unite: "stuk", base: 1, cat: "Algemeen", perVerpakking: "12 x 0,8" });
+  assert.equal(r.statusCode, 400);
+  assert.match(r.payload.error, /verpakking/i);
+});
+
+// Chasse aux décimales perdues (même famille que « 12 x 0,8 ») : un nombre illisible n'est jamais 0.
+test("décimales : taux TVA illisible refusé (jamais 0 %), stock / seuil illisibles = inchangés (jamais 0)", async () => {
+  await seed();
+  const cfg = (more) => beheer(Object.assign({ action: "saveConfig", bedrijfsnaam: "FAMO Seafood", btw: "BE0788705713", leverdagen: "1,2,3,4,5" }, more));
+  for (const bad of [null, "", "6%", "zes", -1, 101]) {
+    const r = await cfg({ btwTarief: bad });
+    assert.equal(r.statusCode, 400, JSON.stringify(bad) + " " + JSON.stringify(r.payload));
+    assert.match(r.payload.error, /BTW-tarief/);
+  }
+  assert.equal((await fieldsOf("Configuratie", "recCONF"))["BTW-tarief"], 6, "taux inchangé");
+  let r = await cfg({ btwTarief: "5,5" });
+  assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+  assert.equal((await fieldsOf("Configuratie", "recCONF"))["BTW-tarief"], 5.5);
+  // Stock 0,375 : un enregistrement du produit sans stock lisible (null, "") ne le remet pas à 0.
+  await patch("Stock", "recSTT", { "Quantité disponible": 0.375, "Seuil bas": 1.125 });
+  for (const v of [null, ""]) {
+    r = await beheer({ action: "saveProduct", id: "recTONG", nom: "Tong", unite: "kg", base: 16, cat: "Vis", stock: v, lowThreshold: v });
+    assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
+    const st = await fieldsOf("Stock", "recSTT");
+    assert.deepStrictEqual([st["Quantité disponible"], st["Seuil bas"]], [0.375, 1.125], JSON.stringify(v));
+  }
+  r = await beheer({ action: "saveProduct", id: "recTONG", nom: "Tong", unite: "kg", base: 16, cat: "Vis", stock: 1.125 });
+  assert.equal((await fieldsOf("Stock", "recSTT"))["Quantité disponible"], 1.125, "décimale gardée");
+});
+
 // ---- Commande client ---------------------------------------------------------------------------
 test("client : 2 doos = 12 stuks au prix unitaire ; conditionnement figé dans Lignes JSON ; stock en unités", async () => {
   await seed();
@@ -142,7 +220,8 @@ test("client : 2 doos = 12 stuks au prix unitaire ; conditionnement figé dans L
   assert.equal(f.Total, 12);
   assert.deepStrictEqual(json(f), [{ productId: "recEGG", naam: "Eieren", qty: 12, unit: "pièce", prijs: 1, per: 6, verpakking: "doos" }], "conditionnement du catalogue, jamais du navigateur");
   // Le conditionnement change ensuite au catalogue : la commande garde le sien.
-  await store().update("Catalogue", [{ id: "recEGG", fields: { "Per verpakking": 10 } }]);
+  await patch("Catalogue", "recEGG", { "Per verpakking": 10 });
+  assert.equal((await fieldsOf("Catalogue", "recEGG"))["Per verpakking"], 10);
   // Stock : le départ retire 12 UNITÉS.
   const id = r.payload.id;
   for (const body of [{ statut: "Prête", preparationValidee: true }, { statut: "Sortie en livraison" }]) { const x = await staff(Object.assign({ id }, body)); assert.equal(x.statusCode, 200, JSON.stringify(x.payload)); }
@@ -186,7 +265,8 @@ test("Invoeren (personnel) : même règle serveur ; lignes corrigées par le mag
   assert.match(bad.payload.error, /enkel per doos van 6/);
   const r = await staffPost({ clientId: "recCLA", items: [{ productId: "recEGG", quantity: 18 }] });
   assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
-  await store().update("Catalogue", [{ id: "recEGG", fields: { "Per verpakking": 10 } }]);
+  await patch("Catalogue", "recEGG", { "Per verpakking": 10 });
+  assert.equal((await fieldsOf("Catalogue", "recEGG"))["Per verpakking"], 10);
   // 17 œufs livrés (un cassé) + un article ajouté : permis au magasin.
   const u = await staff({ id: r.payload.id, lignes: "Eieren × 17 pièce\nOesters × 12 pièce" });
   assert.equal(u.statusCode, 200, JSON.stringify(u.payload));

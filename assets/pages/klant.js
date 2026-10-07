@@ -369,7 +369,7 @@
   function syncRow(id) {
     const row = app.querySelector('.prod[data-id="' + CSS.escape(id) + '"]'); if (!row) return;
     const v = Number(cart.items[id] || 0), st = row.querySelector(".stepper");
-    row.classList.toggle("on", v > 0); if (st) { st.classList.toggle("on", v > 0); st.querySelector("input").value = v / stepUnits(byId(id) || {}); pakSuffix(st, byId(id), v); }
+    row.classList.toggle("on", v > 0); if (st) { st.classList.toggle("on", v > 0); st.querySelector("input").value = K.num(v / stepUnits(byId(id) || {})); pakSuffix(st, byId(id), v); }
   }
   // Libellé dans le stepper (« doos » / FR « carton(s) ») et légende « 2 doos · 12 stuks » à côté, s'il y en a une.
   function pakSuffix(st, p, v) {
@@ -386,10 +386,10 @@
         let v = n > 1 ? Math.max(0, Math.round(s)) * n : Math.max(0, Math.round(s * 1000) / 1000); if (n === 1 && !isKg(p)) v = Math.round(v);
         // Voorraad begrenst het aantal (de server kan alsnog weigeren : de klant ziet dan de servermelding).
         const capped = capQty(p, v); if (capped < v) { v = capped; K.toast(v > 0 ? K.tt("Slechts {n} beschikbaar.", { n: qtyTxt(p, v) }) : K.t("Uitverkocht"), { kind: "err" }); }
-        if (v > 0) cart.items[id] = v; else { delete cart.items[id]; delete cart.comments[id]; } saveCart(); inp.value = v / n; pakSuffix(st, p, v); st.classList.toggle("on", v > 0); if (after) after(id, v);
+        if (v > 0) cart.items[id] = v; else { delete cart.items[id]; delete cart.comments[id]; } saveCart(); inp.value = K.num(v / n); pakSuffix(st, p, v); st.classList.toggle("on", v > 0); if (after) after(id, v);
       };
-      st.querySelector("[data-dec]").onclick = () => set(Number(inp.value) - step);
-      st.querySelector("[data-inc]").onclick = () => set(Number(inp.value) + step);
+      st.querySelector("[data-dec]").onclick = () => set((K.parseNum(inp.value) || 0) - step);
+      st.querySelector("[data-inc]").onclick = () => set((K.parseNum(inp.value) || 0) + step);
       inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0));
     });
   }

@@ -104,7 +104,27 @@
     const per = typeof raw === "number" ? raw : (typeof raw === "string" && /^\s*\d+([.,]\d+)?\s*$/.test(raw) ? num(raw) : NaN);
     if (!(per > 1) || per > PAK_MAX) return null;
     const label = String(pick(src, "Verpakking", "verpakking") || "").trim().slice(0, 30) || "doos";
-    return { per: Math.round(per * 1000) / 1000, label, only: !!pick(src, "Enkel per verpakking", "enkel") };
+    const out = { per: Math.round(per * 1000) / 1000, label, only: !!pick(src, "Enkel per verpakking", "enkel") };
+    // Détail « 12 × 0,8 kg » (retour Mohsen) : nombre de pièces du conditionnement, le poids total reste « per ».
+    const stuks = pick(src, "Stuks per verpakking", "stuks");
+    if (typeof stuks === "number" && Number.isInteger(stuks) && stuks > 1 && stuks <= PAK_MAX * 10) out.stuks = stuks;
+    return out;
+  }
+  // Saisie du conditionnement (Beheer) : « 9,6 » → { per: 9.6 } ; « 12 x 0,8 », « 0,8 × 12 », « 12*0,8 kg »
+  // → { per: 9.6, stuks: 12 } (12 pièces de 0,8 kg ; deux entiers : le premier compte les pièces). Sinon null.
+  function pakParse(raw) {
+    const t = String(raw == null ? "" : raw).trim().toLowerCase().replace(/\s*kg$/, "");
+    const n = "(\\d+(?:[.,]\\d+)?)";
+    let m = new RegExp("^" + n + "$").exec(t);
+    if (m) { const per = num(m[1]); return per > 0 ? { per: Math.round(per * 1000) / 1000 } : null; }
+    m = new RegExp("^" + n + "\\s*[x×*]\\s*" + n + "$").exec(t);
+    if (!m) return null;
+    const a = num(m[1]), b = num(m[2]);
+    if (!(a > 0) || !(b > 0)) return null;
+    const stuks = Number.isInteger(a) ? a : Number.isInteger(b) ? b : null;
+    if (stuks == null) return null;
+    const per = Math.round(a * b * 1000) / 1000;
+    return stuks > 1 ? { per, stuks } : { per };
   }
   const EPS = 1e-9;
   // Quantité = nombre entier de conditionnements (sans conditionnement : toujours vrai).
@@ -134,7 +154,9 @@
   function pakOne(p, unit, lang) {
     if (!p) return "";
     const k = unitKey(unit), u = k === "pièce" ? "" : " " + pakUnit(p.per, unit, lang);
-    return pakLabel(p.label, 1, lang) + (lang === "fr" ? " de " : " van ") + fmtQ(p.per, lang) + u;
+    const head = pakLabel(p.label, 1, lang) + (lang === "fr" ? " de " : " van ");
+    if (p.stuks && k === "kg") return head + p.stuks + " × " + fmtQ(p.per / p.stuks, lang) + u + " (" + fmtQ(p.per, lang) + u + ")";
+    return head + fmtQ(p.per, lang) + u;
   }
   // « 2 doos · 12 stuks » · « 2 doos + 2 st · 14 stuks » · « 4 stuks » (moins d'un conditionnement).
   function pakQty(qty, unit, p, lang) {
@@ -156,5 +178,5 @@
     return out;
   }
 
-  return { r2, num, totals, net, rateFrom, validRate, DEFAULT_RATE, regime, REGIME_KEYS, pakOf, pakFits, pakSplit, pakUnit, pakLabel, pakOne, pakQty, pakCalc, PAK_MAX };
+  return { r2, num, totals, net, rateFrom, validRate, DEFAULT_RATE, regime, REGIME_KEYS, pakOf, pakParse, pakFits, pakSplit, pakUnit, pakLabel, pakOne, pakQty, pakCalc, PAK_MAX };
 });
