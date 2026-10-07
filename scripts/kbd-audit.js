@@ -124,7 +124,9 @@ const is = (p, sel) => p.evaluate(s => !!(document.activeElement && document.act
 
 async function klant(b, W) {
   const H = W < 600 ? 844 : W < 1100 ? 760 : 900;
-  const ctx = await b.newContext({ viewport: { width: W, height: H }, hasTouch: W < 600, isMobile: W < 600 });
+  // Appareils simulés à l'heure de Bruxelles (comme ceux de FAMO) : K.today() suit l'heure de l'appareil et les
+  // horodatages du serveur sont lus en Europe/Brussels ; en UTC, entre 22 h et minuit UTC les deux dates divergent.
+  const ctx = await b.newContext({ timezoneId: "Europe/Brussels", viewport: { width: W, height: H }, hasTouch: W < 600, isMobile: W < 600 });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "klant " + W + " · " + e.message));
   const J = journey("klant " + W, p, cdp);
   await p.goto(B + "/"); await p.waitForTimeout(700);
@@ -224,7 +226,7 @@ async function klant(b, W) {
 }
 
 async function staff(b, W) {
-  const ctx = await b.newContext({ viewport: { width: W, height: W < 600 ? 844 : 900 }, hasTouch: W < 600 });
+  const ctx = await b.newContext({ timezoneId: "Europe/Brussels", viewport: { width: W, height: W < 600 ? 844 : 900 }, hasTouch: W < 600 });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "équipe " + W + " · " + e.message));
   const J = journey("équipe " + W, p, cdp);
   await p.goto(B + "/team/aanmelden"); await p.waitForTimeout(700);
@@ -365,7 +367,7 @@ async function staff(b, W) {
 }
 
 async function beheer(b) {
-  const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const ctx = await b.newContext({ timezoneId: "Europe/Brussels", viewport: { width: 1440, height: 900 } });
   const p = await ctx.newPage(); const cdp = await ctx.newCDPSession(p); p.on("pageerror", e => add("erreur JS", "beheer · " + e.message));
   const J = journey("beheer", p, cdp);
   await p.goto(B + "/beheer/aanmelden"); await p.waitForTimeout(700);

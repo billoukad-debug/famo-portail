@@ -1,7 +1,10 @@
 "use strict";
 // Testgegevens voor de lokale nabootsing: dezelfde vorm als de echte base.
 const zlib = require("zlib");
-function isoDaysAgo(n) { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); }
+// Jours de démo à la date de Bruxelles (comme le serveur et l'appareil d'un employé de FAMO) : autour de minuit
+// la date UTC est encore celle de la veille, et les commandes « vandaag » seraient alors d'hier.
+function bxlNoon() { const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); return new Date(ymd + "T12:00:00Z"); }
+function isoDaysAgo(n) { const d = bxlNoon(); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); }
 
 // ---- Photos de démo (spec 018) : PNG dessinés ici (zlib intégré), sans fichier ni dépendance ----
 const CRC = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
@@ -140,7 +143,7 @@ function seed(db, opts) {
   ]);
   // Bestellen per e-mail (specs/020) : twee berichten in Bestellingen → Te controleren.
   const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
-  const ahead = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); if (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+  const ahead = (n) => { const d = bxlNoon(); d.setUTCDate(d.getUTCDate() + n); if (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
   const voorstel = { lines: [
     { productId: P("Saumon frais").id, naam_in_mail: "zalm", qty: 4, unit: "kg", confidence: 0.93, opmerking: "", note: "" },
     { productId: P("VANNAMEI GARNALEN GEPELD 16/20").id, naam_in_mail: "garnalen 16/20 gepeld", qty: 2, unit: "carton", confidence: 0.55, opmerking: "gepeld", note: "eenheid nagaan: catalogus per stuk" },
