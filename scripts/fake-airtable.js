@@ -30,7 +30,7 @@ const SCHEMA = {
     // BTW-tarief : taux par produit (6 / 21) ; vide = taux de Configuratie.
     fields: { "Produit": "text", "Prix de base": "number", "Unité": "select", "Catégorie": "text", "Actif": "checkbox", "Stock": "links", "Prix négociés": "links", "Kaliber": "text", "Foto": "attachments", "BTW-tarief": "number", "Volgorde": "number", "Omschrijving": "text",
       // Verpakking (specs/023) : unités par conditionnement (vide/1 = à l'unité), libellé (« doos »), commande par conditionnement seulement.
-      "Per verpakking": "number", "Verpakking": "text", "Enkel per verpakking": "checkbox" },
+      "Per verpakking": "number", "Stuks per verpakking": "number", "Verpakking": "text", "Enkel per verpakking": "checkbox" },
     selects: { "Unité": ["kg", "pièce", "caisse", "carton"] }, primary: "Produit"
   },
   Commandes: {

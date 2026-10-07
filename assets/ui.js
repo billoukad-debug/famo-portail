@@ -17,7 +17,7 @@
     const c = t.lastIndexOf(","), d = t.lastIndexOf(".");
     if (c >= 0 && d >= 0) t = c > d ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
     else if (c >= 0) t = t.replace(/,(?=.*,)/g, "").replace(",", ".");
-    else if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
+    else if (/^-?[1-9]\d{0,2}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, ""); // « 0.375 » n'est jamais un millier
     return /^-?\d*\.?\d+$/.test(t) ? Number(t) : NaN;
   };
   // Pour l'envoi au serveur : le nombre lu, ou le texte tel quel (le serveur refuse ce qui n'est pas un nombre).
@@ -384,6 +384,7 @@
   // Conditionnement d'une ligne de commande (par nom, comme les lots et les taux de TVA).
   K.pakIn = (map, name) => { if (!map || typeof map !== "object") return null; const k = String(name || "").trim().toLowerCase(); return Object.prototype.hasOwnProperty.call(map, k) ? K.pakOf(map[k]) : null; };
   // Unités par pas du stepper : le conditionnement pour un article « enkel per verpakking », sinon 1.
+  K.pakParse = v => (FV() ? FV().pakParse(v) : null);
   K.pakStep = p => { const k = K.pakOf(p); return k && k.only ? k.per : 1; };
   K.pakOne = (pak, unit, lang) => (FV() && pak ? FV().pakOne(pak, unit, pakLang(lang)) : "");
   K.pakLabel = (label, n, lang) => (FV() ? FV().pakLabel(label, n, pakLang(lang)) : String(label || ""));
@@ -443,7 +444,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "d6baeafc78";
+  K.DOCS_VER = "a9e95c0f36";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -639,7 +640,7 @@
   }
   // opts.name : nom du produit dans chaque libellé (« Meer: Zalmfilet ») — sinon dix « Meer » identiques (G-27).
   // opts.suffix : ce que l'on compte, visible à côté du nombre (« doos », spec 023) ; opts.label : nom accessible du champ.
-  c.stepper = (id, value, opts) => { const o = opts || {}, n = o.name ? ": " + o.name : ""; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + (o.suffix ? " st-pak" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.esc(K.t("Minder") + n) + '">−</button><input type="number" inputmode="decimal" min="0" step="' + (o.step || 1) + '" value="' + K.esc(value) + '" aria-label="' + K.esc((o.label || K.t("Aantal")) + n) + '">' + (o.suffix ? '<span class="st-u" aria-hidden="true">' + K.esc(o.suffix) + '</span>' : "") + '<button type="button" data-inc aria-label="' + K.esc(K.t("Meer") + n) + '">+</button></div>'; };
+  c.stepper = (id, value, opts) => { const o = opts || {}, n = o.name ? ": " + o.name : ""; return '<div class="stepper' + (Number(value) > 0 ? " on" : "") + (o.suffix ? " st-pak" : "") + '" data-stepper="' + id + '"><button type="button" data-dec aria-label="' + K.esc(K.t("Minder") + n) + '">−</button><input type="text" inputmode="decimal" autocomplete="off" value="' + K.esc(K.num(value)) + '" aria-label="' + K.esc((o.label || K.t("Aantal")) + n) + '">' + (o.suffix ? '<span class="st-u" aria-hidden="true">' + K.esc(o.suffix) + '</span>' : "") + '<button type="button" data-inc aria-label="' + K.esc(K.t("Meer") + n) + '">+</button></div>'; };
   K.c = c;
 
   /* ---------- toast / dialoog / paneel ---------- */
