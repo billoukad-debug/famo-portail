@@ -45,6 +45,13 @@ needs a recent Node 22.
   (`per`, `verpakking`) and exposed as `verpakking` by allorders / orders / klantdoc; one rule for screen, documents,
   e-mails, UBL and server in `assets/vat.js` (`FamoVat.pak*`, `K.pak*` in `ui.js`); `lib/bestelling.js` refuses a
   non-multiple of an « enkel » article (client, Invoeren, e-mail order); demo product « Eieren » (doos van 6, enkel).
+  FR-009: « Per verpakking » accepts pieces × weight at kg (« 12 x 0,8 » → 9,6 kg, `Stuks per verpakking` 12).
+  024 Eenvoudig beheer « Vandaag » (`/team/vandaag`, `assets/pages/team/vandaag.js`): the owner's single screen,
+  one tap per step (Klaar → Onderweg → Geleverd → Betaald) through the EXISTING `/api/updateorder` rules (no server
+  change); screen rules in the pure module `assets/vandaag.js` (`window.FamoVandaag`, tested in Node with the real
+  server chain by `test/vandaag.test.js`); « + Bestelling » via `/api/staff`, menu ⋯ (aantallen, leverdag, bon,
+  bellen, WhatsApp, corrigeren). Per-device mode `famoModus` (`K.modus` / `K.setModus` / `K.home`): « eenvoudig »
+  = landing on Vandaag after login / app launch and a short menu; « uitgebreid » (default) = unchanged.
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 

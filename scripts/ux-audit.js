@@ -34,6 +34,8 @@ const pages = {
 "/team/magazijn#/dag", "/team/magazijn#/bord", "/team/leveringen",
     { name: "/team/leveringen (mode Chauffeur)", url: "/team/leveringen", before: async p => { await p.evaluate(() => localStorage.setItem("famoLevMode", JSON.stringify("chauffeur"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoLevMode")); } },
     "/team/documenten",
+    // Vandaag (spec 024) : l'écran du gérant, aussi pour le personnel (sans « Betaald »).
+    "/team/vandaag",
     { name: "/team/bestelling (fiche commande)", url: async p => "/team/bestelling?id=" + encodeURIComponent(await firstOrder(p)) },
     { name: "/team/bestelling · panneau Leveruur", url: async p => "/team/bestelling?id=" + encodeURIComponent(await p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => ((d.orders || []).find(x => x.statut === "Prête") || {}).id || ""))), after: clickAndWait('[data-act="slot"]', 700) },
     { name: "/team/bestellingen · panneau Artikelen valideren", url: "/team/bestellingen#/tabel", after: clickAndWait('[data-act="validate"]', 700) },
@@ -42,6 +44,11 @@ const pages = {
     // Rapportage (spec 022) : page à part ; vue de base, filtre client + trimestre (drill-down), tableau mensuel ouvert
     // avec info-bulle (focus), hoog contrast. Le téléphone (390 px) est couvert par la boucle des largeurs.
     "/beheer/rapportage",
+    // Vandaag (spec 024) : écran, menu ⋯, + Bestelling (client choisi), et le menu court du mode Eenvoudig.
+    "/team/vandaag",
+    { name: "/team/vandaag · menu ⋯", url: "/team/vandaag", after: clickAndWait(".vd-card [data-more]", 600) },
+    { name: "/team/vandaag · + Bestelling", url: "/team/vandaag", after: async p => { await clickAndWait("#vdNew", 900)(p); const v = await p.$eval("#nbClient option:nth-child(2)", o => o.value).catch(() => ""); if (v) { await p.selectOption("#nbClient", v); await p.waitForSelector("#nb .stepper", { timeout: 5000 }).catch(() => {}); } } },
+    { name: "/team/vandaag (mode Eenvoudig, menu court)", url: "/team/vandaag", before: async p => { await p.evaluate(() => localStorage.setItem("famoModus", JSON.stringify("eenvoudig"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoModus")); } },
     { name: "/beheer/rapportage (filtre klant + kwartaal)", url: async p => "/beheer/rapportage?periode=kwartaal&kwartaal=" + new Date().getFullYear() + "-Q" + Math.ceil((new Date().getMonth() + 1) / 3) + "&vergelijk=jaar&klant=" + encodeURIComponent(await p.evaluate(() => fetch("/api/rapportage", { credentials: "include" }).then(r => r.json()).then(d => ((d.klanten || [])[0] || {}).id || ""))) },
     { name: "/beheer/rapportage (product, tabel per maand open, info-bulle)", url: "/beheer/rapportage?product=cabillaud", after: async p => { await clickAndWait(".rp-details summary", 300)(p); await p.focus(".rp-hit").catch(() => {}); await p.waitForTimeout(200); } },
     { name: "/beheer/rapportage (hoog contrast, families)", url: "/beheer/rapportage?groep=familie", before: async p => { await p.evaluate(() => localStorage.setItem("famoContrast", JSON.stringify("hoog"))); }, after: async p => { await p.evaluate(() => localStorage.removeItem("famoContrast")); } },

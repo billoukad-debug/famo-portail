@@ -233,3 +233,18 @@ Pour le propriétaire, **une fois**, quand l'usage réel commence. Tout se fait 
 7. **Nummering herstarten** (facultatif) : **d'abord demander au comptable**. Seulement si **aucune** facture ou note de crédit d'essai n'a été envoyée à un client ni transmise au comptable (Billtobox, export UBL/CSV) : une facture émise ne s'efface pas, elle s'annule par une note de crédit (`docs/adr/0005-facturation-legale.md`, `specs/021-testgegevens-opruimen/plan.md` § légal). Le bouton n'est actif que pour les séries de l'année où plus aucun document numéroté n'existe (FA, CN ; CMD seulement si aucune vraie commande n'a déjà un numéro) ; back-up de moins de 30 min et saisie de `HERSTART NUMMERING` exigées. Le compteur repart : la prochaine facture est `FA-<année>-0001`. Journalisé « Testperiode: nummering herstart ». Si quelqu'un doute : ne pas herstarten, la série continue simplement (FA-…-0007) et c'est toujours correct.
 8. **Première vraie commande** : la passer (ou attendre la première du jour), vérifier dans Bestellingen sa référence ; à la première livraison, vérifier le numéro FA attribué (`…-0001` si l'étape 7 a été faite).
 9. Retour en arrière après l'étape 6 : seulement par la back-up (Systeemstatus → Database → « Terugzetten » sur la back-up, saisir RESTORE) — elle remplace **toute** la base, y compris ce qui a été saisi depuis ; à faire tout de suite ou pas du tout (§ 3.2 / 3.3).
+
+## 9. « Vandaag » : l'écran du gérant (`specs/024-eenvoudig-beheer/`)
+
+Pour qui : Mohsen (et tout appareil réglé en « Eenvoudig »). Rien ne change pour un appareil « Uitgebreid ».
+
+1. **Activer sur un appareil** : ouvrir `/team/vandaag` (ou la bannière « Altijd op Vandaag openen? » → Ja), ou
+   l'engrenage en haut → « Weergave » → Eenvoudig. L'appareil s'ouvre alors sur Vandaag (connexion et app installée).
+2. **Installer sur l'iPhone** : Safari → `www.famoseafood.be/team/vandaag` → Partager → « Zet op beginscherm ».
+3. **Une commande** = une carte, un gros bouton : Klaar → Onderweg → Geleverd → Betaald. Après chaque tap,
+   « Ongedaan maken » pendant 6 s. Geleverd : réceptionnaire = nom du client ; pour un autre nom, une signature ou
+   une photo : ⋯ → « Geleverd met naam of handtekening ».
+4. **Refus du serveur** (stock insuffisant, lots obligatoires, commande changée ailleurs) : le message est sur la
+   carte, la commande n'a pas bougé. « Lots verplicht » actif : le tap Klaar ouvre la saisie des lots.
+5. **Revenir aux écrans complets** : menu « Alle schermen », ou engrenage → Weergave → Uitgebreid.
+

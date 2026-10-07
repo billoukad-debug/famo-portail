@@ -1,4 +1,7 @@
 (async function () {
+  // Eenvoudig (spec 024) : l'app installée s'ouvre sur /team/bestellingen (manifeste) ; au premier lancement de
+  // l'onglet on va sur Vandaag. Un lien explicite (#/tabel, ?klant=…) ou une 2e visite reste ici.
+  if (K.modus() === "eenvoudig" && !location.hash && !location.search && !K.session.get("famoVandaagStart", false)) { K.session.set("famoVandaagStart", true); location.replace("/team/vandaag"); return; }
   if (!(await K.requireStaff())) return;
   const page = K.shell({});
   const P = K.hashParams(); const qs = new URLSearchParams(location.search);
