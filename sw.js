@@ -4,6 +4,8 @@
 //  - Pages HTML : réseau d'abord, copie en cache en secours, sinon /offline.
 //  - /api/* : JAMAIS en cache (données clients, prix, sessions). La file hors ligne des
 //    confirmations de livraison est dans la page (assets/offline-queue.js), pas ici.
+//  - Pushmeldingen (specs/025) : la notification envoyée par le serveur (chiffrée, { title, body, url, tag }) est
+//    affichée ; la toucher ramène FAMO sur la bonne page (même origine seulement).
 const CACHE = "famo-static-v1";
 const OFFLINE = "/offline";
 
@@ -36,4 +38,37 @@ self.addEventListener("fetch", (e) => {
       return res;
     }).catch(async () => (await caches.match(req)) || (await caches.match(OFFLINE))));
   }
+});
+
+// Toujours une notification visible, même si le contenu est illisible : Safari retire l'abonnement d'un site
+// qui reçoit des messages sans en montrer.
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = (e.data && e.data.json()) || {}; } catch (err) { d = {}; }
+  const str = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
+  e.waitUntil(self.registration.showNotification(str(d.title, 80) || "FAMO", {
+    body: str(d.body, 200),
+    tag: str(d.tag, 64) || undefined,
+    icon: "/assets/icons/famo-192.png",
+    data: { url: str(d.url, 300) || "/team/vandaag" }
+  }));
+});
+
+// Page à ouvrir : un chemin du portail ; toute autre origine → Vandaag.
+function pageUrl(u) {
+  try { const x = new URL(u || "/team/vandaag", self.location.origin); if (x.origin === self.location.origin) return x.href; } catch (err) { /* adresse illisible */ }
+  return new URL("/team/vandaag", self.location.origin).href;
+}
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = pageUrl(e.notification.data && e.notification.data.url);
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const w = wins.find((c) => { try { return new URL(c.url).origin === self.location.origin; } catch (err) { return false; } });
+    if (w) {
+      try { await w.focus(); } catch (err) { /* déjà au premier plan */ }
+      if (typeof w.navigate === "function") { try { await w.navigate(url); return; } catch (err) { /* fenêtre non contrôlée : nouvelle fenêtre */ } }
+    }
+    await self.clients.openWindow(url);
+  })());
 });

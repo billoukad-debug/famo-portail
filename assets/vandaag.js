@@ -74,5 +74,33 @@
   }
   const telHref = (tel) => { const d = String(tel || "").replace(/[^\d+]/g, ""); return d ? "tel:" + d : ""; };
 
-  return { group, GROUPS, next, payPayload, undo, editPayload, list, counts, late, recipientOf, waLink, telHref, REDEN };
+  // ---- Meldingen (specs/025-pushmeldingen) : état de CET appareil, sans DOM ---------------------------------
+  // env : { ios, standalone, sw, push, notification, permission, server } (server : le serveur confirme que cet
+  // appareil est inscrit avec la clé actuelle). iPhone/iPad dans Safari sans app sur l'écran d'accueil : Apple
+  // n'envoie rien à un onglet, il faut d'abord installer FAMO (même si le navigateur expose déjà PushManager).
+  function pushState(env) {
+    const e = env || {};
+    if (e.ios && !e.standalone) return "installeren";
+    if (!e.sw || !e.push || !e.notification) return "geen";
+    if (e.permission === "denied") return "geweigerd";
+    return e.permission === "granted" && e.server === true ? "aan" : "uit";
+  }
+  // iPadOS se présente comme un Mac : « MacIntel » avec écran tactile.
+  const isIos = (ua, platform, touchPoints) => /iPhone|iPad|iPod/.test(String(ua || "")) || (platform === "MacIntel" && Number(touchPoints) > 1);
+  // Clé publique VAPID (base64url) → octets pour pushManager.subscribe({ applicationServerKey }).
+  function keyBytes(b64u) {
+    const s = String(b64u || "").replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(s + "===".slice((s.length + 3) % 4));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  // L'abonnement du navigateur (options.applicationServerKey) a-t-il été fait avec cette clé ? Inconnu → oui (le serveur tranche).
+  function sameKey(buf, b64u) {
+    if (!buf) return true;
+    const a = new Uint8Array(buf), b = keyBytes(b64u);
+    return a.length === b.length && a.every((x, i) => x === b[i]);
+  }
+
+  return { group, GROUPS, next, payPayload, undo, editPayload, list, counts, late, recipientOf, waLink, telHref, REDEN, pushState, isIos, keyBytes, sameKey };
 });

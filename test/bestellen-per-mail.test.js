@@ -17,7 +17,7 @@ delete process.env.PORTAL_URL; delete process.env.VERCEL;
 process.removeAllListeners("warning"); // node:sqlite est « expérimental »
 
 // Réseau simulé AVANT lib/datastore.js (il garde le fetch d'origine pour tout ce qui n'est pas Airtable).
-const net = { sent: [], inbound: new Map(), ai: null, aiCalls: [], resendGet: null };
+const net = { sent: [], inbound: new Map(), ai: null, aiCalls: [], resendGet: null, pushes: [] };
 global.fetch = async (url, init) => {
   const u = String(url), o = init || {};
   const reply = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "request-id": "req_test" } });
@@ -25,6 +25,8 @@ global.fetch = async (url, init) => {
   const m = /^https:\/\/api\.resend\.com\/emails\/receiving\/([^/?]+)$/.exec(u);
   if (m) { if (net.resendGet) return net.resendGet(m[1]); const e = net.inbound.get(decodeURIComponent(m[1])); return e ? reply(200, e) : reply(404, { message: "not found" }); }
   if (u === "https://api.anthropic.com/v1/messages") { net.aiCalls.push({ headers: o.headers, body: JSON.parse(o.body) }); return net.ai(JSON.parse(o.body), o); }
+  // Pushmeldingen (specs/025) : service d'Apple simulé, le corps chiffré est gardé pour être déchiffré par l'appareil du test.
+  if (u.startsWith("https://web.push.apple.com/")) { net.pushes.push({ url: u, headers: Object.assign({}, o.headers), body: Buffer.from(o.body || "") }); return new Response(null, { status: 201 }); }
   throw new Error("Réseau réel interdit : " + u);
 };
 
@@ -57,7 +59,7 @@ const TODAY = lev.brusselsToday();
 const LATER = addDays(TODAY, 5); // jamais touché par l'heure limite (veille de livraison seulement)
 
 async function seed(conf) {
-  net.sent.length = 0; net.aiCalls.length = 0; net.inbound.clear(); net.resendGet = null; logs.length = 0;
+  net.sent.length = 0; net.aiCalls.length = 0; net.inbound.clear(); net.resendGet = null; net.pushes.length = 0; logs.length = 0;
   await store().replaceAll("Configuratie", [rec("recCONF", Object.assign({ Bedrijfsnaam: "FAMO Seafood", "E-mail": "info@famo.test", "Bestellingen e-mail": "ops@famo.test", "BTW-tarief": 6, "Besteldeadline": "22:00", "Leverdagen": "ma,di,wo,do,vr,za,zo", "Mailbestellingen automatisch": true, "Bestel-e-mailadres": "bestel@orders.famo.test" }, conf || {}))]);
   await store().replaceAll("Catalogue", [
     rec("recP1", { Produit: "Tong", "Prix de base": 16, "Unité": "kg", "Catégorie": "Vis", Actif: true }),
@@ -700,4 +702,38 @@ test("#10 corps brut : flux consommé → Buffer/texte de req.body acceptés, ob
   assert.equal(c.res.statusCode, 400); assert.ok(c.ms < 3000);
   assert.ok(logs.some((l) => /corps brut|ruwe body/i.test(l.msg)), "ligne de log claire");
   assert.equal(require(path.join(ROOT, "api", "inbound-mail.js")).config, undefined, "pas de config bodyParser : ignorée par @vercel/node (fonctions Node simples)");
+});
+
+test("pushmeldingen (specs/025) : e-mail « Te controleren » → une melding (au plus une par 10 min) ; commande créée → melding ; ignoré ou créé par le personnel → rien", async () => {
+  await seed();
+  const push = require(path.join(ROOT, "lib", "push.js"));
+  const { device, decrypt } = require("./_push-device");
+  await store().replaceAll(push.TABLE, []);
+  const dev = device();
+  assert.equal((await push.subscribe({ subscription: dev.subscription }, { wie: "Mohsen", rol: "admin", ua: "" })).status, 200);
+  const msgs = () => net.pushes.map((p) => JSON.parse(decrypt(p.body, dev)));
+  // Expéditeur inconnu → Te controleren → une notification qui ouvre la file.
+  await webhook(inbound({ from: "Nieuw <nieuw@ailleurs.example>", subject: "Bestelling vrijdag" }).payload);
+  assert.deepStrictEqual(msgs().map((m) => [m.title, m.body, m.url]), [["E-mail te controleren", "nieuw@ailleurs.example: Bestelling vrijdag", "/team/bestellingen#/controle"]]);
+  // Un deuxième dans les 10 minutes : pas de deuxième sonnerie (la file montre le nombre) ; une vague de spam ne fait pas sonner 50 fois.
+  await webhook(inbound({ from: "ander@ailleurs.example", subject: "Nog een" }).payload);
+  assert.equal(net.pushes.length, 1);
+  // Réponse automatique : Genegeerd, rien.
+  net.pushes.length = 0;
+  await webhook(inbound({ headers: { "Auto-Submitted": "auto-replied" }, text: "Je suis absent" }).payload);
+  assert.equal(net.pushes.length, 0);
+  // Commande créée automatiquement (client connu et vérifié, proposition sûre) → « Nieuwe bestelling (e-mail) ».
+  net.ai = aiAnswer(proposal([line({})]));
+  const r = await webhook(inbound().payload);
+  assert.equal(r.payload.status, "Aangemaakt", JSON.stringify(r.payload));
+  const [m] = msgs();
+  assert.equal(m.title, "Nieuwe bestelling (e-mail)");
+  assert.match(m.body, /^Resto A · € 42,00 · levering (ma|di|wo|do|vr|za|zo) \d{1,2} [a-z]{3}$/);
+  assert.equal(m.url, "/team/vandaag");
+  // Créée par le personnel depuis la file : rien (FAMO l'a déjà vue).
+  net.pushes.length = 0;
+  const open = (await mails()).find((x) => x.fields.Van === "nieuw@ailleurs.example");
+  const ok = await staff({ action: "create", id: open.id, clientId: "recCLA", lines: [{ productId: "recP1", qty: 1 }], dateLivraison: LATER });
+  assert.equal(ok.statusCode, 200, JSON.stringify(ok.payload));
+  assert.equal(net.pushes.length, 0);
 });

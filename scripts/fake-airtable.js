@@ -100,7 +100,9 @@ const SCHEMA = {
       // Conditions générales (C-12) : texte NL/FR et version publiée.
       "Voorwaarden NL": "text", "Voorwaarden FR": "text", "Voorwaarden versie": "text",
       // Bestellen per e-mail (specs/020) : adres om aan klanten te geven, automatisch aanmaken (absent = uit).
-      "Bestel-e-mailadres": "text", "Mailbestellingen automatisch": "checkbox" },
+      "Bestel-e-mailadres": "text", "Mailbestellingen automatisch": "checkbox",
+      // Pushmeldingen (specs/025) : paire VAPID créée à la première activation (sans VAPID_* dans Vercel) ; la privée ne quitte jamais le serveur.
+      "Push publieke sleutel": "text", "Push privésleutel": "text" },
     selects: { "Facturatie": ["Boekhouder", "Portaal"] }, primary: "Bedrijfsnaam"
   },
   // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
@@ -127,6 +129,13 @@ const SCHEMA = {
       // Jeton de la réservation en cours (ISO#hasard) et expéditeur prouvé (DMARC / DKIM aligné), spec 020 revue.
       "Verwerking sinds": "text", "Afzender geverifieerd": "checkbox" },
     selects: { "Status": ["Verwerken", "Te controleren", "Aanmaken", "Aangemaakt", "Genegeerd"] }, primary: "Bericht-id"
+  },
+  // Appareils qui reçoivent une notification à chaque nouvelle commande (specs/025, lib/push.js) : adresse du service
+  // (Apple, Google, Mozilla, Microsoft), clés de l'appareil, empreinte de la clé VAPID au moment de l'inscription.
+  Pushabonnementen: {
+    fields: { "Toestel": "text", "Endpoint": "text", "P256dh": "text", "Auth": "text", "Sleutel": "text", "Wie": "text", "Rol": "text", "Dienst": "text",
+      "Aangemaakt op": "datetime", "Laatst verstuurd": "datetime", "Laatste fout": "text", "Fout op": "datetime" },
+    primary: "Toestel"
   },
   // Comptes individuels du personnel (api/session : connexion par PIN, api/onboarding : gestion).
   Medewerkers: {

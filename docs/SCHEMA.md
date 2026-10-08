@@ -152,6 +152,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Voorwaarden NL`, `Voorwaarden FR`, `Voorwaarden versie` | texte, texte, texte (`AAAA-MM-JJ HH:MM:SS`) | onboarding (saveVoorwaarden ; « Publiceren » change la version) | config (?voorwaarden=1 public, version dans le bloc contact), catalogue, order, signup, klantorder, documents | Conditions générales (C-12, lib/terms.js). Version vide = rien à accepter ; version publiée = chaque client l'accepte avant sa commande suivante (order : 409 `needTerms`). |
 | `Herinneringen aan`, `Lots verplicht` | case, case | onboarding (saveConfig, Beheer → Bedrijf) | reminders-cron ; updateorder | Relances de paiement automatiques (Portaal seulement) ; lot obligatoire avant « Klaar ». |
 | `Bestel-e-mailadres`, `Mailbestellingen automatisch` | texte, case | onboarding (saveMailBestellingen, Beheer → Bedrijf) | lib/inbound/mailorder, onboarding | Specs/020. Adresse à donner aux clients (vide = `bestel@orders.famoseafood.be`) ; son domaine et celui de `MAIL_FROM` sont « les nôtres » (pas de boucle). Case **absente = coupée** : toute mail va dans Te controleren. |
+| `Push publieke sleutel`, `Push privésleutel` | texte (base64url : 65 et 32 octets P-256) | lib/push.js (première activation, si `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` absentes) | lib/push.js | Specs/025. Paire VAPID des pushmeldingen, créée une fois (écriture conditionnelle, puis relue). La publique est donnée aux appareils (`GET /api/push`) ; la **privée ne quitte jamais le serveur** (ni API, ni journal, ni log) mais fait partie de la sauvegarde complète. Les variables d'environnement, si elles existent, ont priorité. Effacer les deux = nouvelle paire à la prochaine activation (chaque appareil doit être rallumé). |
 
 ### `Lots` — lots reçus (traçabilité, marge)
 
@@ -198,6 +199,25 @@ dérivé du `Bericht-id` (`recml` + 24 hexa de son SHA-256) : la clé primaire r
 | `Behandeld door`, `Behandeld op` | texte, date-heure | inbound-mail (« automatisch »), mailcontrole | mailcontrole | Aussi dans le Journaal (« Mailbestelling aangemaakt / genegeerd / nagelezen »). |
 | `AI-gebruik` | texte (JSON) | inbound-mail, mailcontrole | coûts | `{model, input, output, cacheRead, cacheWrite}` (jetons) ; pas de contenu. Le plafond quotidien compte les appels réels dans `Compteurs` (série `AI-lezingen-AAAA-MM-JJ`, date de Bruxelles, relectures comprises). |
 | `Bevestiging` | texte | inbound-mail | — | `ontvangst` (accusé « We ontvingen uw bericht ») ou `bestelling` (confirmation de commande). |
+
+### `Pushabonnementen` — appareils qui reçoivent une notification (specs/025-pushmeldingen)
+
+Un enregistrement par appareil inscrit depuis Vandaag → Meldingen (`POST /api/push`, `lib/push.js`) ; au plus 20.
+À chaque commande du portail client ou créée depuis un e-mail, et à chaque e-mail mis en « Te controleren » (au plus
+une notification par 10 minutes), chaque appareil reçoit un message chiffré pour lui (RFC 8291). Moteur SQL seulement
+(sur Airtable : rien). **Données personnelles légères** (appareil du personnel) : liste et retrait dans Beheer → Toegang
+(beheerder), retrait automatique quand le service répond 404 / 410 ou quand la clé VAPID a changé.
+
+| Champ | Type | Écrit par | Lu par | Remarque |
+|---|---|---|---|---|
+| `Toestel` | texte | push (User-Agent lu par le serveur) | Beheer → Toegang, journal | « iPhone · Safari », « Windows · Edge »… ; jamais fourni par le navigateur. |
+| `Endpoint` | texte (≤ 1000 car., https) | push | push (envoi) | Adresse chez le service de l'appareil. **Liste blanche** : `*.push.apple.com`, `fcm.googleapis.com`, `*.push.services.mozilla.com`, `*.notify.windows.com` (le serveur n'envoie jamais ailleurs). Jamais renvoyée à Beheer. |
+| `P256dh`, `Auth` | texte (base64url, 65 et 16 octets) | push | push (chiffrement) | Clés de l'appareil (point P-256 vérifié sur la courbe). Jamais renvoyées. |
+| `Sleutel` | texte | push | push | Empreinte (SHA-256, 16 car.) de la clé VAPID publique lors de l'inscription : autre clé → appareil retiré sans envoi. |
+| `Wie`, `Rol` | texte | push (session) | Beheer → Toegang | Nom du Medewerker (sinon « beheerder » / « personeel ») et rôle `admin` / `staff`. |
+| `Dienst` | texte | push | Beheer → Toegang | `Apple` / `Google` / `Mozilla` / `Microsoft`. |
+| `Aangemaakt op`, `Laatst verstuurd` | date-heure | push | Beheer → Toegang | |
+| `Laatste fout`, `Fout op` | texte, date-heure | push (envoi) | Beheer → Toegang | « meldingsdienst antwoordde 500 », « time-out na 4 s », « netwerkfout… » ; effacé au prochain envoi réussi. |
 
 ### `Aanvragen` — demandes d'accès publiques
 
