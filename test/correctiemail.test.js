@@ -102,7 +102,7 @@ test("buildCorrectionMail (FR) et notes de crédit ; copie interne NL avec /team
   assert.ok(!/Uw bestelling|Totaal/.test(m.text), "aucun texte NL");
   // Mode boekhouder : pas de numéro CN du portail (la note légale vient du comptable).
   const b = om.buildCorrectionMail(Object.assign({}, ctx, { facturatie: "boekhouder" }));
-  assert.ok(!b.text.includes("CN-2026-0003")); assert.match(b.text, /Peppol/);
+  assert.ok(!b.text.includes("CN-2026-0003")); assert.doesNotMatch(b.text + b.html, /Peppol|comptabilité/, "mention retirée le 2026-10-08");
   const t = om.buildCorrectionTeamMail(ctx);
   assert.equal(t.to, "ops@famo.test"); assert.equal(t.replyTo, "chef@resto.test");
   assert.match(t.subject, /^Correctiemail verstuurd — CMD-2026-0042/);

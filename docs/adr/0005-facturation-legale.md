@@ -18,5 +18,7 @@ Le portail produit des documents « leveringsbon », « factuur » et « creditn
 ## Évolution (08/10/2026)
 À la demande du co-gérant, le bandeau « Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door
 onze boekhouding (via Peppol). » (et sa variante creditnota, NL/FR) est retiré des documents du portail. Le document
-reste identifiable comme non-facture par son titre (« PRO FORMA », « RETOURBON ») et son numéro `PF-` ; les e-mails
-et la carte « Openstaande facturen » du portail client disent toujours que la facture vient de la comptabilité.
+reste identifiable comme non-facture par son titre (« PRO FORMA », « RETOURBON ») et son numéro `PF-`. Même jour,
+même demande (« de partout ») : les e-mails client (confirmation « … geen factuur », « geleverd », correction) ne disent
+plus que la facture ou la note de crédit vient de la comptabilité via Peppol, et le portail client n'affiche plus la
+carte « Openstaande facturen » en mode boekhouder. Aucun e-mail n'est renvoyé : seuls les envois suivants changent.

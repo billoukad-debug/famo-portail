@@ -56,7 +56,9 @@ livraison, imprimer / télécharger le PDF ; rendu Playwright (captures A4) relu
 5. **Given** le mode « boekhouder » (défaut), **Then** PRO FORMA / bon de retour, ni IBAN ni
    communication structurée (inchangé). Le bandeau « Dit document is geen factuur… (via Peppol) » (et sa
    variante creditnota, NL/FR) a été retiré le 2026-10-08 à la demande du co-gérant : le titre et le numéro
-   PF suffisent.
+   PF suffisent. Même jour, même demande (« de partout ») : plus de « geen factuur » / « via Peppol » dans les
+   e-mails client (confirmation, geleverd, correction) ni de carte « Openstaande facturen » au portail client
+   en mode boekhouder.
 
 ---
 
