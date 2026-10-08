@@ -106,13 +106,15 @@ test("structuredRef ongewijzigd", () => {
 // ---- Mode « boekhouder » (défaut) : la facture légale vient du comptable (Billtobox / Peppol) ----
 const PRO = { ...CFG, facturatie: "", legal: { naam: "Famo Trading", rechtsvorm: "BV", ondernemingsnummer: "0788.705.713", rpr: "RPR Antwerpen, afdeling Antwerpen", handelsnaam: "FAMO Seafood" } };
 
-test("boekhouder : PRO FORMA, geen factuurnummer/IBAN/OGM, vermelding « geen factuur »", () => {
+// Bandeau « Dit document is geen factuur… (via Peppol) » retiré le 2026-10-08 à la demande du co-gérant :
+// le titre PRO FORMA (ou RETOURBON) et le numéro PF suffisent à distinguer le document de la facture légale.
+test("boekhouder : PRO FORMA, geen factuurnummer/IBAN/OGM, zonder bandeau « geen factuur »", () => {
   const D = load();
   D.setCompany(PRO);
   const html = D.build(ORDER, "invoice");
   assert.match(html, /<h1>PRO FORMA<\/h1>/);
   assert.doesNotMatch(html, /FACTUUR|FA-2026-0500|BE71|\+\+\+|Vervaldatum/);
-  assert.match(html, /geen factuur/);
+  assert.doesNotMatch(html, /geen factuur|afzonderlijk bezorgd|via Peppol/);
   assert.equal(D.number(ORDER, "invoice"), "PF-2026-0500");
   assert.match(D.filename(ORDER, "invoice"), /ProForma/);
 });
@@ -123,7 +125,7 @@ test("boekhouder : retourbon in plaats van creditnota, FR vertaald", () => {
   const o = { ...ORDER, klant: { ...ORDER.klant, taal: "FR" }, creditnota: { nummer: "CN-2026-0001", lignes: "Kabeljauw × 1 kg [€20.00]", montant: 20, le: "2026-03-12T10:00:00.000Z", motif: "Retour" } };
   const html = D.build(o, "credit");
   assert.match(html, /BON DE RETOUR/);
-  assert.match(html, /n'est pas une note de crédit/);
+  assert.doesNotMatch(html, /n'est pas une note de crédit|envoyée séparément|via Peppol/);
   assert.equal(D.number(o, "credit"), "RB-2026-0001");
 });
 

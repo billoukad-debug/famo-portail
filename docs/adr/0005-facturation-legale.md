@@ -14,3 +14,9 @@ Le portail produit des documents « leveringsbon », « factuur » et « creditn
 - Pas de responsabilité légale de numérotation ni de conformité Peppol dans le portail ; `IDEAS.md` C1 et C3 sont requalifiés.
 - Risque de confusion pour le client final tant que la mention « pas une facture » n'est pas en place, et de double numérotation (FA interne vs numéro du comptable) : l'export doit porter les deux références.
 - Les e-mails « geleverd » ne doivent plus présenter le document du portail comme la facture.
+
+## Évolution (08/10/2026)
+À la demande du co-gérant, le bandeau « Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door
+onze boekhouding (via Peppol). » (et sa variante creditnota, NL/FR) est retiré des documents du portail. Le document
+reste identifiable comme non-facture par son titre (« PRO FORMA », « RETOURBON ») et son numéro `PF-` ; les e-mails
+et la carte « Openstaande facturen » du portail client disent toujours que la facture vient de la comptabilité.

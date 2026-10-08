@@ -36,5 +36,5 @@ Ordre de précédence : constitution (0) > ADR (1) > SPEC (2) > DOC (4-5). Aucun
 ## ADR-0005: Facturation légale chez le comptable ; le portail n'émet pas de facture
 - source: docs/adr/0005-facturation-legale.md
 - status: locked (Accepted 2026-09-27, décision du client Famo Trading BV ; re-confirmée VERROUILLÉE par le propriétaire le 2026-10-02 dans le brief de mission)
-- decision: les factures et notes de crédit légales sont émises par le comptable dans Billtobox (Peppol) ; les documents du portail sont internes, marqués « pas une facture », numéros FA/CN internes ; le portail fournit des exports CSV (et UBL si le comptable le demande) ; le portail n'envoie pas de Peppol. Idée différée (brief) : envoi Peppol direct seulement si FAMO quitte Billtobox.
+- decision: les factures et notes de crédit légales sont émises par le comptable dans Billtobox (Peppol) ; les documents du portail sont internes, titrés PRO FORMA / RETOURBON (bandeau « pas une facture » retiré le 08/10/2026), numéros FA/CN internes ; le portail fournit des exports CSV (et UBL si le comptable le demande) ; le portail n'envoie pas de Peppol. Idée différée (brief) : envoi Peppol direct seulement si FAMO quitte Billtobox.
 - scope: facturation légale, Peppol, Billtobox, exports comptables

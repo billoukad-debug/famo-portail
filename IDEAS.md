@@ -18,7 +18,7 @@ sans transformer le portail en ERP générique.
 | Parcours ops staff | Solide | Règles métier côté serveur (prix, stock une fois, facture une fois) |
 | UI staff | En cours (PRs) | Shell + nav 4+Meer ; documents PDF in-app |
 | Go-live | En production | Vercel + Neon (`DB_BACKEND=postgres`) ; Airtable n'est plus utilisé. `/aan-de-slag.html` n'existe plus (redirigé vers `/beheer`, onglet Overzicht) |
-| Facturation légale | Hors portail (décision du 27/09/2026) | Le comptable émet les factures légales via Billtobox (Peppol) ; les documents du portail sont internes (« pas une facture »), exports CSV/UBL à prévoir (`docs/adr/0005-facturation-legale.md`) |
+| Facturation légale | Hors portail (décision du 27/09/2026) | Le comptable émet les factures légales via Billtobox (Peppol) ; les documents du portail sont internes (titre PRO FORMA ; bandeau « pas une facture » retiré le 08/10/2026), exports CSV/UBL à prévoir (`docs/adr/0005-facturation-legale.md`) |
 | Auth | Acceptable pour démarrer | Codes partagés (modifiables et hachés depuis Beheer) + PIN personnels (`Medewerkers`) ; pas de fallback ; mots de passe clients hachés (scrypt) ; session client par cookie HttpOnly (jeton signé 12 h) |
 | Portail client `/` | Fonctionnel, NL/FR, version ordinateur | Détail commande, documents téléchargeables, relevé impayés, favoris synchronisés, mot de passe oublié par e-mail ; session par cookie HttpOnly |
 | Livraison & paiement | Fait | Règles configurables (deadline, jours, fermetures, minimum), exceptions de livraison, ordre de tournée, mode/date de paiement, creditnota réelle (C2) |
@@ -107,7 +107,7 @@ Idées à forte valeur dès que Mohsen tourne en réel, **sans** changer le mod�
 Quand les docs internes ne suffisent plus.
 
 ### C1. Handoff Peppol / Billtobox — [DÉCIDÉ : export, pas d'envoi]
-**Décision (27/09/2026) :** le comptable émet les factures légales via Billtobox ; le portail marque ses documents « pas une facture » et fournira des exports (CSV/UBL) au comptable. Voir `docs/adr/0005-facturation-legale.md`.
+**Décision (27/09/2026) :** le comptable émet les factures légales via Billtobox ; le portail marque ses documents PRO FORMA (le bandeau « pas une facture » a été retiré le 08/10/2026) et fournira des exports (CSV/UBL) au comptable. Voir `docs/adr/0005-facturation-legale.md`.
 **Problème (d'origine) :** facture portail = document interne ; envoi légal B2B à raccorder.  
 **Idée :** après `Facturée`, bouton « Envoyer au comptable » (export structuré ou API prestataire) ; statut Peppol séparé du statut ops.  
 **DoD :** une facture réelle part sans ressaisie manuelle dans l’outil comptable.  
