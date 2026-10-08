@@ -68,11 +68,11 @@ test("buildStatusMail geleverd (mode portaal) : facture + paiement TVAC + bouton
   assert.ok(m.html.includes(om.dateNl("2026-10-25")), "vervaldatum affichée");
 });
 
-test("buildStatusMail geleverd (mode boekhouder, défaut) : ni facture ni paiement, renvoi vers la boekhouding", () => {
+test("buildStatusMail geleverd (mode boekhouder, défaut) : ni facture ni paiement, sans mention « via Peppol »", () => {
   const m = om.buildStatusMail({ ...base, status: "geleverd", totalExcl: 53, totalIncl: 56.18, factuurnummer: "FA-2026-0101", ontvangenDoor: "Jan", vervaldatum: "2026-10-25", mededeling: "+++202/6000/10167+++" });
   assert.equal(m.subject, "Uw bestelling CMD-2026-0007 is geleverd");
   for (const s of ["FA-2026-0101", "BE68539007547034", "+++", "Bedrag", "Vervaldatum", "Factuur bekijken"]) assert.ok(!m.html.includes(s) && !m.text.includes(s), "absent : " + s);
-  assert.match(m.text, /boekhouding \(via Peppol\)/);
+  assert.doesNotMatch(m.text + m.html, /Peppol|afzonderlijk van onze boekhouding|geen factuur/, "mention retirée le 2026-10-08");
   assert.match(m.text, /Totaal incl\. btw: € 56,18/);
 });
 
@@ -170,9 +170,25 @@ test("C-15 : e-mails client en français quand Taal = FR (sujet, corps, montants
   const g = om.buildStatusMail({ ...fr, status: "geleverd", facturatie: "portaal", totalExcl: 53, totalIncl: 56.18, factuurnummer: "FA-2026-0101", vervaldatum: "2026-10-25", mededeling: "+++202/6000/10167+++" });
   assert.match(g.subject, /livrée/); assert.match(g.text, /56,18\s€/); assert.match(g.html, /lang="fr"/);
   const b = om.buildStatusMail({ ...fr, status: "geleverd", totalExcl: 53, totalIncl: 56.18, factuurnummer: "FA-2026-0101" });
-  assert.match(b.text, /Peppol/); assert.ok(!/FA-2026-0101/.test(b.text), "mode boekhouder : pas de numéro de facture");
+  assert.doesNotMatch(b.text + b.html, /Peppol|comptabilité|pas une facture/); assert.ok(!/FA-2026-0101/.test(b.text), "mode boekhouder : pas de numéro de facture");
   assert.match(om.buildTeamMail(fr).subject, /Nieuwe bestelling|bestelling/i, "e-mail interne en néerlandais");
   assert.equal(om.clientFrom({ fields: { Taal: "fr" } }).taal, "FR");
+});
+
+// Mention « geen factuur / via Peppol » retirée de tous les e-mails client le 2026-10-08 (demande du co-gérant) :
+// confirmation de commande, « geleverd », correction avec note de crédit, en NL et en FR. Le reste du texte ne bouge pas.
+test("e-mails client sans mention « geen factuur » ni « via Peppol » (NL et FR), le reste inchangé", () => {
+  const NO = /geen factuur|pas une facture|Peppol|afzonderlijk van onze boekhouding|envoyée séparément par notre comptabilité/;
+  for (const taal of ["NL", "FR"]) {
+    const ctx = { ...base, klant: { ...klant, taal } };
+    const c = om.buildCustomerMail(ctx);
+    assert.doesNotMatch(c.text + c.html, NO, taal + " confirmation");
+    assert.match(c.html, taal === "FR" ? /hésitez pas à répondre à ce message/ : /Antwoord gerust op dit bericht/, taal + " : la phrase « aanpassing » reste");
+    const g = om.buildStatusMail({ ...ctx, status: "geleverd", totalExcl: 53, totalIncl: 56.18 });
+    assert.doesNotMatch(g.text + g.html + g.preheader, NO, taal + " geleverd");
+    const k = om.buildCorrectionMail({ ...ctx, facturatie: "boekhouder", wijzigingen: [], creditnotas: [{ nummer: "CN-2026-0003", montantIncl: 21.2, motif: "abîmé" }], netIncl: 19.88 });
+    assert.doesNotMatch(k.text + k.html, NO, taal + " correction");
+  }
 });
 
 // ---- Gabarit commun des e-mails (spec 012, audit A10) ----

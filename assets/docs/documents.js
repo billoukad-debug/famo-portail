@@ -17,14 +17,14 @@ window.FamoDocuments=(()=>{
       unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",rateCol:"Btw-tarief",baseCol:"Maatstaf",vatCol:"Btw",amount:"Bedrag",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
       exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
       lot:"Lot",tht:"THT",thawed:"ontdooid",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
-      proforma:"PRO FORMA",retour:"RETOURBON",receivedBy:"Ontvangen door",signed:"ondertekend",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",notInvoice:"Dit document is geen factuur. De factuur wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",notCredit:"Dit document is geen creditnota. De creditnota wordt u afzonderlijk bezorgd door onze boekhouding (via Peppol).",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
+      proforma:"PRO FORMA",retour:"RETOURBON",receivedBy:"Ontvangen door",signed:"ondertekend",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
       unitPrice:"Prix unitaire",subtotal:"Sous-total",rateCol:"Taux TVA",baseCol:"Base",vatCol:"TVA",amount:"Montant",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
       exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
       lot:"Lot",tht:"DLC",thawed:"décongelé",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
-      proforma:"PRO FORMA",retour:"BON DE RETOUR",receivedBy:"Réceptionné par",signed:"signé",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",notInvoice:"Ce document n'est pas une facture. La facture vous est envoyée séparément par notre comptabilité (via Peppol).",notCredit:"Ce document n'est pas une note de crédit. La note de crédit vous est envoyée séparément par notre comptabilité (via Peppol).",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
+      proforma:"PRO FORMA",retour:"BON DE RETOUR",receivedBy:"Réceptionné par",signed:"signé",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
   };
   const langOf=order=>{const v=String((order&&(order.taal||(order.klant&&order.klant.taal)))||"").trim().toLowerCase();return v==="fr"?"fr":"nl";};
   // Company identity from /api/config. Missing IBAN/BIC → temporary example bank (banner on invoice).
@@ -200,8 +200,9 @@ window.FamoDocuments=(()=>{
       : (invoice
         ? terms
         : esc(COMPANY.leveringsvoorwaarden||"").replace(/\n/g,'<br>'));
-    const notice=pro&&priced?'<div class="banner"><b>'+esc(credit?L.notCredit:L.notInvoice)+'</b></div>':'';
-    const banners=notice+(invoice&&!pro&&COMPANY.exampleBank?'<div class="banner"><b>'+L.exampleBanner+'</b> '+(lang==="nl"&&window.famoCompany?esc(famoCompany.EXAMPLE.label):L.exampleFix)+'</div>':'');
+    // Mode boekhouder : plus de bandeau « geen factuur » (retiré le 2026-10-08, demande du co-gérant) ; le titre
+    // PRO FORMA / RETOURBON et le numéro PF distinguent le document de la facture légale (Peppol, comptable).
+    const banners=(invoice&&!pro&&COMPANY.exampleBank?'<div class="banner"><b>'+L.exampleBanner+'</b> '+(lang==="nl"&&window.famoCompany?esc(famoCompany.EXAMPLE.label):L.exampleFix)+'</div>':'');
     // Marque F sobre (assets/brand/famo-mark.svg) : carré Noordzee, F blanc en tracés.
     const mark='<svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0B5A6C"/><path d="M11 8h11v3.4h-7.2v3.3h6.2v3.4h-6.2V24H11z" fill="#FFFFFF"/></svg>';
     const coords=[COMPANY.adresse,COMPANY.cp,COMPANY.tva?L.vat+" "+COMPANY.tva:"",COMPANY.tel].filter(Boolean).map(esc).join("<br>");

@@ -53,8 +53,12 @@ livraison, imprimer / télécharger le PDF ; rendu Playwright (captures A4) relu
 4. **Given** 34 lignes, **When** on imprime, **Then** l'en-tête du tableau se répète sur la page
    suivante, aucune ligne n'est coupée, les marges A4 sont respectées sur chaque page, totaux et
    paiement ne sont pas coupés.
-5. **Given** le mode « boekhouder » (défaut), **Then** PRO FORMA / bon de retour, mention « geen
-   factuur », ni IBAN ni communication structurée (inchangé).
+5. **Given** le mode « boekhouder » (défaut), **Then** PRO FORMA / bon de retour, ni IBAN ni
+   communication structurée (inchangé). Le bandeau « Dit document is geen factuur… (via Peppol) » (et sa
+   variante creditnota, NL/FR) a été retiré le 2026-10-08 à la demande du co-gérant : le titre et le numéro
+   PF suffisent. Même jour, même demande (« de partout ») : plus de « geen factuur » / « via Peppol » dans les
+   e-mails client (confirmation, geleverd, correction) ni de carte « Openstaande facturen » au portail client
+   en mode boekhouder.
 
 ---
 

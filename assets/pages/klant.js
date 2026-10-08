@@ -560,12 +560,13 @@
   // Document « factuur » van het portaal : pro forma zolang de boekhouding factureert (lib/billing.js).
   const invLabel = () => ((cat && cat.company && cat.company.facturatie) === "portaal" ? K.t("Factuur") : K.t("Pro forma"));
   // Openstaande facturen. Modus « boekhouder » (standaard) : de factuur én de betaalgegevens komen van
-  // de boekhouding (Peppol) ; het portaal toont dan geen bedrag « te betalen » (anders twee facturen).
+  // de boekhouding (Peppol) ; het portaal toont dan geen kaart en geen bedrag « te betalen » (anders twee facturen).
   // Modus « portaal » : totaal INCL. btw (zelfde regel als de factuur) en gestructureerde mededeling.
   const ogm = nr => { const m = String(nr || "").match(/^FA-(\d{4})-(\d{1,6})$/i); if (!m) return ""; const base = m[1] + m[2].padStart(6, "0"); const d = base + String(Number(base) % 97 || 97).padStart(2, "0"); return "+++" + d.slice(0, 3) + "/" + d.slice(3, 7) + "/" + d.slice(7) + "+++"; };
   function statement(list) {
     const co = cat.company || {};
-    if (co.facturatie !== "portaal") return '<div class="mcard card-tint"><b>' + K.t("Openstaande facturen") + '</b><div class="quiet fs-125 mt-4">' + K.t("Uw facturen en betaalgegevens ontvangt u van onze boekhouding (via Peppol).") + '</div></div>';
+    // Modus « boekhouder » : geen kaart meer (de vermelding « via de boekhouding (Peppol) » is weg sinds 2026-10-08).
+    if (co.facturatie !== "portaal") return "";
     const due = o => Number(o.totalIncl != null ? o.totalIncl : o.total || 0);
     const sum = list.reduce((s, o) => s + due(o), 0);
     const bank = [co.iban ? "IBAN " + co.iban : "", co.bic ? "BIC " + co.bic : ""].filter(Boolean).join(" · ");
@@ -591,7 +592,8 @@
     const empty = ordFilter === "lopend" ? K.c.empty(K.t("Geen lopende bestellingen"), K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) }), '<a class="btn btn-p btn-sm mt-6" href="#/catalogus">' + K.t("Naar de catalogus") + '</a>') : ordFilter === "tebetalen" ? K.c.empty(K.t("Geen openstaande facturen"), K.t("Alles is betaald. Dank u wel.")) : K.c.empty(K.t("Niets in deze lijst"));
     // G-13 : la pastille de l'onglet compte les factures à payer ; la vue qui s'ouvre le dit et y mène en un geste.
     const payHint = ordFilter !== "tebetalen" && nUnpaid ? '<div class="full">' + K.c.warn('<span>' + K.esc(nUnpaid + " " + K.t(nUnpaid === 1 ? "factuur te betalen" : "facturen te betalen")) + '</span> <button type="button" class="linkbtn" data-of="tebetalen">' + K.t("Bekijken") + '</button>') + '</div>' : "";
-    shell("bestellingen", '<div class="mlist grid">' + payHint + (ordFilter === "tebetalen" && list.length ? '<div class="full">' + statement(list) + '</div>' : "") + (list.length ? '<div class="olist full">' + list.map(card).join("") + '</div>' : '<div class="full">' + empty + '</div>') + '</div>', topbar(K.t("Mijn bestellingen"), cat.client.nom).slice(0, -6) + chips + "</div>");
+    const st = ordFilter === "tebetalen" && list.length ? statement(list) : ""; // modus boekhouder : leeg, geen kaart
+    shell("bestellingen", '<div class="mlist grid">' + payHint + (st ? '<div class="full">' + st + '</div>' : "") + (list.length ? '<div class="olist full">' + list.map(card).join("") + '</div>' : '<div class="full">' + empty + '</div>') + '</div>', topbar(K.t("Mijn bestellingen"), cat.client.nom).slice(0, -6) + chips + "</div>");
     const ofGroup = app.querySelector("[data-of]") && app.querySelector("[data-of]").parentElement; if (ofGroup) ofGroup.setAttribute("aria-label", K.t("Filter")); // G-06 : groupe de filtres nommé (aria-pressed : K.syncStates)
     K.on(app, "click", "[data-of]", (e, t) => { ordFilter = t.dataset.of; K.keep(app, renderOrderList); });
     bindOrderActions(app);

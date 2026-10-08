@@ -101,7 +101,8 @@ mailen » : le faux Resend reçoit deux messages, le bouton disparaît, le journ
 - Commande annulée : pas de correction mailée (409).
 - Ancienne commande sans « Lignes besteld » : seules les notes de crédit comptent comme correction.
 - Mode « Boekhouder » : l'e-mail client ne cite pas les numéros CN du portail (la note légale
-  vient du comptable, via Peppol) ; la copie interne les cite.
+  vient du comptable, via Peppol) ; la copie interne les cite. Depuis le 2026-10-08 (demande du co-gérant),
+  l'e-mail client ne dit plus non plus « la note de crédit vous est envoyée par notre comptabilité (via Peppol) ».
 
 ## Requirements *(mandatory)*
 
