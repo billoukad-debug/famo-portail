@@ -6,6 +6,7 @@ const __orderNumber = require("../lib/ordernumber");
 const __lev = require("../lib/levering");
 const __lj = require("../lib/lignesjson");
 const __bestelling = require("../lib/bestelling");
+const __push = require("../lib/push"); // pushmeldingen (specs/025)
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -150,11 +151,15 @@ module.exports = async (req, res) => {
     // structurel — sans lui, un echec d'envoi remonterait au catch general qui
     // repond 500, transformant une commande valide en erreur pour le client.
     // On attend l'envoi car Vercel gele l'execution des que la reponse part.
-    const mail = await notifyOrderMail({
-      req, ref, date: today, dateLivraison, notes,
-      lignes: order.lignes, json: order.json, total: order.total,
-      recordId: j.records[0].id, client, bron: "Klantportaal"
-    }).catch(() => null);
+    // Pushmelding (specs/025) en parallele de l'e-mail : bornee a 4 s par appareil, ne jette jamais.
+    const [mail] = await Promise.all([
+      notifyOrderMail({
+        req, ref, date: today, dateLivraison, notes,
+        lignes: order.lignes, json: order.json, total: order.total,
+        recordId: j.records[0].id, client, bron: "Klantportaal"
+      }).catch(() => null),
+      __push.newOrder({ id: j.records[0].id, ref, klant: client.fields["Nom"], total: order.total, dateLivraison }).catch(() => null)
+    ]);
 
     await require("../lib/revision").bump();
     res.status(200).json({ ref, id: j.records[0].id, total: order.total, mail });

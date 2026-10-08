@@ -14,6 +14,7 @@
   const admin = () => K.staff.isAdmin();
   const opts = () => ({ admin: admin(), lotsVerplicht: !!(S.config && S.config.lotsVerplicht) });
   const sound = () => K.store.get("famoVdSound", true) !== false;
+  let meldLocal = null, loaded = false; // meldLocal : ce navigateur a un abonnement push (null = pas encore regardé)
 
   // Kort signaal (Web Audio, geen bestand) ; stil als de browser het weigert.
   function ping() {
@@ -44,10 +45,13 @@
     seenNew = new Set(nieuw);
     const invite = K.modus() !== "eenvoudig" && !K.store.get("famoVdInvite", false)
       ? '<div class="notice vd-invite"><div><b>Altijd op Vandaag openen op dit toestel?</b><div class="quiet fs-12">Kort menu, alles op één scherm. Terug te zetten via het tandwiel bovenaan.</div></div><div class="d-flex gap-8"><button type="button" class="btn btn-p btn-sm" data-invite="ja">Ja</button><button type="button" class="btn btn-o btn-sm" data-invite="nee">Nee</button></div></div>' : "";
+    // Pushmeldingen (specs/025) : une seule invitation, sur un appareil qui n'est pas encore inscrit.
+    const meldInvite = !invite && meldLocal === false && !K.store.get("famoVdMeldInvite", false)
+      ? '<div class="notice vd-invite"><div><b>Een melding bij elke nieuwe bestelling?</b><div class="quiet fs-12">Op dit toestel, ook als FAMO gesloten is.</div></div><div class="d-flex gap-8"><button type="button" class="btn btn-p btn-sm" data-meld-open>Instellen</button><button type="button" class="btn btn-o btn-sm" data-meld-later>Later</button></div></div>' : "";
     page.innerHTML = '<div class="page-h"><div><h1 class="h1">Vandaag</h1><p class="sub">' + K.esc(K.dateLong(K.today())) + ' · ' + K.plural(c.alle, "bestelling", "bestellingen") + ' te doen</p></div><span class="spacer"></span>' +
-      '<button type="button" class="btn btn-o" id="vdSound" aria-pressed="' + sound() + '" title="Geluid bij een nieuwe bestelling">' + K.icon("bell") + (sound() ? "Geluid aan" : "Geluid uit") + '</button>' +
+      '<button type="button" class="btn btn-o" id="vdMeld" aria-haspopup="dialog">' + K.icon("bell") + 'Meldingen</button>' +
       '<button type="button" class="btn btn-p" id="vdNew">' + K.icon("plus") + 'Bestelling</button></div>' +
-      '<div class="content pt-14 stack-12">' + invite +
+      '<div class="content pt-14 stack-12">' + invite + meldInvite +
       '<div class="opt vd-filter" role="group" aria-label="Toon">' + Object.keys(LABEL).map(k => '<button type="button" data-filter="' + k + '" aria-pressed="' + (k === filter) + '"' + (k === filter ? ' class="on"' : "") + '>' + LABEL[k] + ' <b>' + c[k] + '</b></button>').join("") + '</div>' +
       (list.length ? '<div class="vd-list">' + list.map(card).join("") + '</div>'
         : '<div class="state"><div class="ic">' + K.icon("check") + '</div><b>Alles is bijgewerkt</b><p class="muted">' + (filter === "alle" ? "Geen bestellingen te doen." : "Niets in „" + LABEL[filter] + "”.") + '</p><button type="button" class="btn btn-p mt-6" data-new>' + K.icon("plus") + 'Bestelling ingeven</button></div>') +
@@ -129,6 +133,93 @@
     });
   }
 
+  // ---- Meldingen (specs/025-pushmeldingen) : een melding op DIT toestel bij elke nieuwe bestelling ----------
+  // Toestand : V.pushState (assets/vandaag.js). Op de iPhone moet subscribe() rechtstreeks uit de tik komen :
+  // sleutel en service worker worden vooraf geladen bij het openen van het venster, niets wacht ervoor.
+  const M = { state: "", reg: null, key: "", sub: null, server: false, err: "" };
+  const env = () => ({
+    ios: V.isIos(navigator.userAgent, navigator.platform, navigator.maxTouchPoints),
+    standalone: !!((window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true),
+    sw: "serviceWorker" in navigator, push: "PushManager" in window, notification: "Notification" in window,
+    permission: "Notification" in window ? window.Notification.permission : "default", server: M.server
+  });
+  const b64u = buf => btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(buf)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const usedKey = sub => (sub && sub.options && sub.options.applicationServerKey ? b64u(sub.options.applicationServerKey) : M.key);
+  const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error("De app is nog niet klaar. Herlaad de pagina en probeer opnieuw.")), 8000))]);
+  async function prepare() {
+    M.err = ""; M.state = V.pushState(env());
+    if (M.state === "installeren" || M.state === "geen") return;
+    try {
+      if (!(await navigator.serviceWorker.getRegistration("/"))) await navigator.serviceWorker.register("/sw.js");
+      const both = await Promise.all([swReady(), K.api("/api/push")]);
+      M.reg = both[0]; M.key = both[1].publicKey;
+      let sub = await M.reg.pushManager.getSubscription();
+      // Abonnement gemaakt met een oude sleutel : ontvangt nooit meer iets, dus lokaal opruimen (opnieuw aanzetten volstaat).
+      if (sub && !V.sameKey(sub.options && sub.options.applicationServerKey, M.key)) { try { await sub.unsubscribe(); } catch (e) { /* al weg */ } sub = null; }
+      M.sub = sub;
+      M.server = sub ? !!(await K.api("/api/push", { json: { action: "status", endpoint: sub.endpoint } })).aan : false;
+    } catch (err) { M.err = err.message; }
+    M.state = V.pushState(env()); meldLocal = M.state === "aan" ? true : meldLocal;
+  }
+  function meldBody() {
+    const st = M.state, btn = (act, cls, label) => '<button type="button" class="btn ' + cls + '" data-meld="' + act + '">' + label + '</button>';
+    let top;
+    if (st === "aan") top = K.c.ok("<b>Meldingen staan aan op dit toestel.</b> Bij elke nieuwe bestelling (klantportaal of e-mail) verschijnt er een melding, ook als FAMO gesloten is.") +
+      '<div class="d-flex gap-8 f-wrap">' + btn("test", "btn-p", K.icon("bell") + "Test sturen") + btn("uit", "btn-o", "Uitzetten") + '</div>';
+    else if (st === "uit") top = '<p class="m-0">Meldingen staan uit op dit toestel. Zet ze aan om een nieuwe bestelling meteen te zien, ook \'s avonds.</p>' +
+      '<div>' + btn("aan", "btn-p", K.icon("bell") + "Aanzetten") + '</div><p class="quiet fs-12 m-0">Het toestel vraagt eerst toestemming: kies „Sta toe”.</p>';
+    else if (st === "installeren") top = '<p class="m-0"><b>Op de iPhone werken meldingen enkel vanuit de FAMO-app op het beginscherm.</b></p><ol class="vd-steps">' +
+      '<li>Tik in Safari op <b>Deel</b> (het vierkantje met de pijl omhoog).</li><li>Kies <b>Zet op beginscherm</b> en tik op <b>Voeg toe</b>.</li>' +
+      '<li>Open FAMO via het nieuwe icoon, ga naar Vandaag → Meldingen en tik op <b>Aanzetten</b>.</li></ol><p class="quiet fs-12 m-0">Vereist iOS 16.4 of nieuwer.</p>';
+    else if (st === "geweigerd") top = K.c.warn("<b>Meldingen zijn geweigerd voor FAMO op dit toestel.</b> iPhone: Instellingen → Meldingen → FAMO → Sta meldingen toe. Computer: klik op het slotje links van het adres → Meldingen → Toestaan. Open daarna dit venster opnieuw.");
+    else if (st === "geen") top = K.c.warn(env().ios ? "<b>Deze iPhone ondersteunt nog geen meldingen.</b> Werk bij naar iOS 16.4 of nieuwer (Instellingen → Algemeen → Software-update)." : "<b>Deze browser ondersteunt geen meldingen.</b> Vandaag toont nieuwe bestellingen wel zolang het open staat, met geluid.");
+    else top = K.c.skeleton(1);
+    return top + (M.err ? K.c.error(M.err) : "") +
+      '<div class="vd-row"><div><b>Geluid in de app</b><div class="quiet fs-12">Kort signaal bij een nieuwe bestelling terwijl Vandaag open staat.</div></div>' + K.c.check(sound(), 'id="vdSnd"', { big: true, label: "Geluid in de app" }) + '</div>';
+  }
+  async function meldingen() {
+    K.store.set("famoVdMeldInvite", true);
+    const p = K.panel({ title: "Meldingen", sub: "Op dit toestel", width: "460px", body: '<div class="stack-12" id="vdMeldBox" aria-live="polite">' + meldBody() + '</div>', onClose: render });
+    const box = p.el.querySelector("#vdMeldBox");
+    const paint = focusAct => {
+      box.innerHTML = meldBody();
+      const t = focusAct && box.querySelector('[data-meld="' + focusAct + '"]'); if (t) try { t.focus(); } catch (e) { /* ignore */ }
+    };
+    box.addEventListener("click", async e => {
+      const snd = e.target.closest("#vdSnd");
+      if (snd) { K.store.set("famoVdSound", !sound()); K.setOn(snd, sound()); say(sound() ? "Geluid aan" : "Geluid uit"); return; }
+      const b = e.target.closest("[data-meld]"); if (!b || b.disabled) return;
+      const act = b.dataset.meld; M.err = "";
+      if (act === "aan") {
+        let sub;
+        if (!M.reg || !M.key) { K.busy(b, true, "Laden…"); await prepare(); if (!M.err && M.state === "uit") M.err = "Nog niet klaar. Tik nogmaals op Aanzetten."; paint("aan"); return; }
+        K.busy(b, true, "Aanzetten…");
+        // Eerste stap = subscribe() : geen enkele await ervoor (iPhone).
+        try { sub = await M.reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: V.keyBytes(M.key) }); }
+        catch (err) { M.state = V.pushState(env()); if (M.state !== "geweigerd") M.err = "Aanzetten lukte niet: " + (err.message || err); paint("aan"); return; }
+        try {
+          await K.api("/api/push", { json: { action: "subscribe", subscription: sub.toJSON(), sleutel: usedKey(sub) } });
+          M.sub = sub; M.server = true; meldLocal = true; K.toast("Meldingen staan aan op dit toestel");
+        } catch (err) { try { await sub.unsubscribe(); } catch (e2) { /* al weg */ } M.err = err.message; }
+        M.state = V.pushState(env()); paint(M.state === "aan" ? "test" : "aan");
+      } else if (act === "uit") {
+        K.busy(b, true, "Uitzetten…");
+        const sub = M.sub || (M.reg && await M.reg.pushManager.getSubscription());
+        // Eerst de server (anders blijft hij versturen) ; mislukt dat, dan ruimt de meldingsdienst het op (404/410).
+        if (sub) { try { await K.api("/api/push", { json: { action: "unsubscribe", endpoint: sub.endpoint } }); } catch (err) { /* zie hierboven */ } try { await sub.unsubscribe(); } catch (err) { /* al weg */ } }
+        M.sub = null; M.server = false; meldLocal = false; M.state = V.pushState(env());
+        K.toast("Meldingen uit op dit toestel"); paint("aan");
+      } else if (act === "test") {
+        K.busy(b, true, "Versturen…");
+        try { await K.api("/api/push", { json: { action: "test", endpoint: M.sub.endpoint } }); K.toast("Test verstuurd. De melding komt binnen enkele seconden."); say("Test verstuurd"); }
+        catch (err) { if (err.status === 404 || err.status === 410) { M.server = false; M.state = V.pushState(env()); } M.err = err.message; }
+        paint(M.state === "aan" ? "test" : "aan");
+      }
+    });
+    await prepare();
+    if (document.body.contains(p.el)) paint();
+  }
+
   // + Bestelling : klant → artikelen → plaatsen, zelfde weg als Invoeren (/api/staff, de server beslist).
   async function newOrder() {
     let clients = [], products = [], clientId = "", items = {}, q = "", bron = "Telefoon";
@@ -183,14 +274,21 @@
   K.on(page, "click", "[data-more]", (e, t) => { const o = S.byId(t.dataset.more); if (o) more(o); });
   K.on(page, "click", "[data-filter]", (e, t) => { filter = t.dataset.filter; K.store.set("famoVdFilter", filter); render(); });
   K.on(page, "click", "#vdNew, [data-new]", () => newOrder());
-  K.on(page, "click", "#vdSound", () => { K.store.set("famoVdSound", !sound()); K.toast(sound() ? "Geluid aan bij nieuwe bestelling" : "Geluid uit"); render(); });
+  K.on(page, "click", "#vdMeld, [data-meld-open]", () => meldingen());
+  K.on(page, "click", "[data-meld-later]", () => { K.store.set("famoVdMeldInvite", true); render(); });
   K.on(page, "click", "[data-invite]", (e, t) => { K.store.set("famoVdInvite", true); if (t.dataset.invite === "ja") { K.setModus("eenvoudig"); location.reload(); return; } render(); });
 
   page.innerHTML = '<div class="page-h"><h1 class="h1">Vandaag</h1></div><div class="content">' + K.c.skeleton(3) + '</div>';
   async function first(force) {
-    try { await S.load(force); render(); return true; }
+    try { await S.load(force); loaded = true; render(); return true; }
     catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content pt-20">' + K.c.error(err.message, true) + '</div>'; return false; }
   }
   K.on(page, "click", "[data-retry]", async e => { e.preventDefault(); if (await first(true)) S.autoRefresh(render); });
+  // Abonnement op dit toestel (lokaal, zonder server) : bepaalt enkel of de uitnodiging verschijnt.
+  (async () => {
+    try { const r = "serviceWorker" in navigator && "PushManager" in window ? await navigator.serviceWorker.getRegistration("/") : null; meldLocal = !!(r && (await r.pushManager.getSubscription())); }
+    catch (e) { meldLocal = true; /* onbekend : geen uitnodiging */ }
+    if (loaded) render();
+  })();
   if (await first()) S.autoRefresh(render);
 })();

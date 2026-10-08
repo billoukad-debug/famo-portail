@@ -52,6 +52,16 @@ needs a recent Node 22.
   server chain by `test/vandaag.test.js`); « + Bestelling » via `/api/staff`, menu ⋯ (aantallen, leverdag, bon,
   bellen, WhatsApp, corrigeren). Per-device mode `famoModus` (`K.modus` / `K.setModus` / `K.home`): « eenvoudig »
   = landing on Vandaag after login / app launch and a short menu; « uitgebreid » (default) = unchanged.
+  025 Pushmeldingen: Web Push without dependencies (`lib/webpush.js`: RFC 8291 aes128gcm encryption, RFC 8292 VAPID
+  JWT ES256, bounded send; `test/push.test.js` replays the RFC 8291 appendix A vector and decrypts with a simulated
+  device, `test/_push-device.js`). Rules in `lib/push.js`: VAPID keys from `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, else
+  created once in Configuratie (`Push publieke sleutel` / `Push privésleutel`, private key never leaves the server),
+  table `Pushabonnementen` (allowlist Apple/Google/Mozilla/Microsoft https, max 20, key fingerprint, 404/410 → removed),
+  SQL engine only (inert on Airtable, zero fetch calls). `api/push.js` (staff session + guard; list/remove beheerder);
+  hooks: client order (`api/order.js`, parallel to the mail) and e-mail orders / « Te controleren » (max one per
+  10 min) in `lib/inbound/mailorder.js`; staff-entered orders send nothing. `sw.js` push + notificationclick (same
+  origin only); Vandaag « Meldingen » panel (`V.pushState`: installeren / geen / geweigerd / aan / uit; on iPhone
+  `subscribe()` is the first await of the tap); Beheer → Toegang « Meldingen op toestellen ».
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 

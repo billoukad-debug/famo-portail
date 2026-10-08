@@ -1002,3 +1002,6 @@ a.kp-link:hover{background:var(--row-hover)}
 .vd-mi .ico{width:22px;height:22px;flex:none;color:var(--ink-2)}
 @media (max-width:420px){.vd-card{padding:12px}.vd-act .vd-ic{min-width:48px;padding:0 8px}}
 .vd-pl{grid-template-columns:minmax(0,1fr) auto!important}
+/* Vandaag → Meldingen (specs/025-pushmeldingen) : stappen om FAMO op het beginscherm te zetten, rij « Geluid in de app ». */
+.vd-steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.vd-row{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}.vd-row>div{flex:1;min-width:0}

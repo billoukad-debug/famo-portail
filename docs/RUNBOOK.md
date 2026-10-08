@@ -111,6 +111,7 @@ Symptôme : les clients ou la boîte interne ne reçoivent plus rien. Un échec 
 | `CRON_SECRET` | à remplir | Obligatoire pour la sauvegarde nocturne et les relances (sinon 500). |
 | `RESEND_INBOUND_SECRET` | Resend → Webhooks → nouveau secret → Vercel → Redeploy | Bestellen per e-mail (§ 7) ; absent = toute mail refusée (500). |
 | `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys → Vercel → Redeploy → révoquer l'ancienne | Lecture des mails (§ 7) ; absente = tout en Te controleren. |
+| Clés des pushmeldingen (VAPID) | Par défaut créées dans Configuratie à la première activation ; pour en changer : `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` dans Vercel (prioritaires) → Redeploy | Chaque appareil rallume ses meldingen (Vandaag → Meldingen → Aanzetten) ; les anciens abonnements sont retirés sans envoi (§ 10). |
 | Mot de passe d'un client | Beheer → Klanten → Nieuw wachtwoord / Toegang blokkeren | Invalide aussi ses jetons. |
 
 Après une rotation : vérifier la connexion Beheer, une commande test, un e-mail test.
@@ -248,3 +249,30 @@ Pour qui : Mohsen (et tout appareil réglé en « Eenvoudig »). Rien ne change 
    carte, la commande n'a pas bougé. « Lots verplicht » actif : le tap Klaar ouvre la saisie des lots.
 5. **Revenir aux écrans complets** : menu « Alle schermen », ou engrenage → Weergave → Uitgebreid.
 
+## 10. Pushmeldingen : une notification sur l'iPhone (`specs/025-pushmeldingen/`)
+
+Une notification à chaque commande du portail client ou créée depuis un e-mail, et pour un e-mail mis en
+« Te controleren » (au plus une par 10 minutes : une vague de spam ne fait pas sonner le téléphone à chaque fois).
+Une commande saisie par le personnel (Invoeren, « + Bestelling ») n'en envoie pas. L'e-mail de nouvelle commande reste
+le filet. Moteur SQL seulement (production : Postgres ; en local : `DB_BACKEND=sqlite node scripts/dev.js`).
+
+1. **Activer sur l'iPhone** (iOS 16.4 ou plus) : FAMO sur l'écran d'accueil (Safari → Partager → « Zet op
+   beginscherm ») et ouvert **depuis l'icône** (Apple n'envoie rien à un onglet Safari). Vandaag → **Meldingen** →
+   **Aanzetten** → iOS demande l'autorisation → « Sta toe ». Puis **Test sturen** : « FAMO · Test » arrive en quelques
+   secondes. Ordinateur (Chrome, Edge, Firefox, Safari) : même chemin, dans le navigateur.
+2. **Rien n'arrive** :
+   - Vandaag → Meldingen dit « uit » : rallumer (appareil retiré dans Beheer, nettoyé après un 404/410, ou clé changée).
+   - « geweigerd » : iPhone → Instellingen → Meldingen → FAMO → Sta meldingen toe ; ordinateur : cadenas à gauche de
+     l'adresse → Meldingen → Toestaan.
+   - Beheer → Toegang → « Meldingen op toestellen » : colonne « Laatste fout » (service en panne, time-out) ; effacée
+     au prochain envoi réussi. Mode Concentration / Niet storen de l'iPhone : notifications muettes.
+   - Logs Vercel, `"fn":"push"` : « niet alle meldingen verstuurd » (nombre d'envois ratés, jamais le contenu).
+3. **Retirer un appareil** (perdu, personne partie) : Beheer → Toegang → Meldingen op toestellen → Verwijderen.
+   Sur l'appareil lui-même : Vandaag → Meldingen → Uitzetten.
+4. **Changer les clés** (fuite supposée d'une sauvegarde : la clé privée en fait partie) : poser `VAPID_PUBLIC_KEY` /
+   `VAPID_PRIVATE_KEY` dans Vercel (paire P-256 en base64url, générée dans un terminal local :
+   `node -e "console.log(require('./lib/webpush').generateKeys())"`, jamais dans un chat) puis Redeploy. Chaque appareil
+   rallume ensuite ses meldingen ; les anciens abonnements sont retirés sans envoi. Une seule des deux variables, ou
+   une paire invalide : `/api/push` répond 503 (jamais d'autres clés en silence).
+5. Une notification ne bloque jamais une commande : 4 s au plus par appareil, en parallèle de l'e-mail ; la commande
+   est déjà enregistrée.
