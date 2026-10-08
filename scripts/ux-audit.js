@@ -170,7 +170,9 @@ function focusRings() {
   // 990 px (fenêtre moyenne, portable) : seulement les écrans marqués mid (catalogue client, spec 019).
   for (const [w, h] of [[1280, 900], [990, 760], [390, 844]]) for (const role in pages) {
     if (w === 990 && !pages[role].some(it => it && it.mid)) continue;
-    const ctx = await b.newContext({ ignoreHTTPSErrors: true, viewport: { width: w, height: h }, hasTouch: w < 600 });
+    // Appareils simulés à l'heure de Bruxelles (comme ceux de FAMO) : K.today() suit l'heure de l'appareil et les
+    // horodatages du serveur sont lus en Europe/Brussels ; en UTC, entre 22 h et minuit UTC les deux dates divergent.
+    const ctx = await b.newContext({ timezoneId: "Europe/Brussels", ignoreHTTPSErrors: true, viewport: { width: w, height: h }, hasTouch: w < 600 });
     if (role === "staff") await ctx.request.post(B + "/api/session", { data: { code: "team-dev-code" } });
     if (role === "admin") await ctx.request.post(B + "/api/session", { data: { code: "beheer-dev-code" } });
     const p = await ctx.newPage();

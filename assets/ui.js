@@ -959,7 +959,7 @@
     const side = '<nav class="side" data-famo-nav aria-label="Hoofdnavigatie"><a class="brand" href="' + K.home(admin) + '"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + (admin ? "Beheer" : "Teamportaal") + '</small></span></a>' +
       (K.modus() === "eenvoudig"
         ? NAV_SIMPLE.map(link).join("") + (admin ? NAV_SIMPLE_ADMIN : [NAV_STAFF_MORE[1]]).map(link).join("") + link(["stock.html", "/team/voorraad", "Voorraad", "stock"]) + link(["meer.html", "/team/bestellingen#/tabel", "Alle schermen", "list"])
-        : '<div class="navlbl">Dagelijks</div>' + NAV_DAILY.map(link).join("") +
+        : '<div class="navlbl">Dagelijks</div>' + link(NAV_SIMPLE[0]) + NAV_DAILY.map(link).join("") +
       '<div class="navlbl">' + (admin ? "Beheer" : "Meer") + '</div>' + more.map(link).join("") +
       link(["stock.html", "/team/voorraad", "Voorraad", "stock"])) +
       '<div class="spacer"></div><a class="nav" href="/">' + K.icon("ext") + '<span>Klantportaal</span></a>' +

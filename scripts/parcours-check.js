@@ -19,7 +19,9 @@ const issues = [];
 const fail = (msg) => issues.push(msg);
 
 async function login(b) {
-  const ctx = await b.newContext(); const p = await ctx.newPage();
+  // Appareils simulés à l'heure de Bruxelles (comme ceux de FAMO) : K.today() suit l'heure de l'appareil et les
+  // horodatages du serveur sont lus en Europe/Brussels ; en UTC, entre 22 h et minuit UTC les deux dates divergent.
+  const ctx = await b.newContext({ timezoneId: "Europe/Brussels" }); const p = await ctx.newPage();
   p.on("pageerror", e => fail("erreur JS : " + e.message));
   await p.goto(B + "/");
   await p.fill("input[autocomplete=username]", "aloha"); await p.fill("input[type=password]", "welkom123");
@@ -56,7 +58,7 @@ const starred = (p) => p.$$eval("[data-fav].on", els => els.map(e => e.dataset.f
     for (const id of got2) { await A2.p.click('[data-fav="' + id + '"]'); await A2.p.waitForTimeout(150); }
     await A2.p.waitForTimeout(2200);
     // Vandaag (spec 024) : l'écran du gérant, de bout en bout, comme Mohsen sur son iPhone.
-    const V = await b.newContext({ viewport: { width: 390, height: 844 } });
+    const V = await b.newContext({ timezoneId: "Europe/Brussels", viewport: { width: 390, height: 844 } });
     await V.request.post(B + "/api/session", { data: { code: "beheer-dev-code" } });
     const vp = await V.newPage(); vp.on("pageerror", e => fail("Vandaag · erreur JS : " + e.message));
     const order = async id => ((await (await V.request.get(B + "/api/allorders?limit=1000")).json()).orders || []).find(o => o.id === id) || {};

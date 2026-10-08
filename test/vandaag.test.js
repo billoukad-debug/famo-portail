@@ -158,3 +158,14 @@ test("chaîne réelle : aantallen wijzigen sur Klaar garde Klaar, puis Onderweg 
   r = await upd(V.next({ id, statut: "Prête", client: "Aloha" }, { admin: true }).payload);
   assert.equal(r.statusCode, 200, "Onderweg après modification : " + JSON.stringify(r.payload));
 });
+
+// Retour du co-gérant (2026-10-07) : « j'ai ouvert Beheer sur mon iPhone, je ne vois nulle part la version
+// eenvoudig ». Vandaag doit être trouvable sans connaître l'URL : en tête du menu (les deux modes) et dans Beheer.
+test("Vandaag trouvable : lien en tête du menu (Uitgebreid aussi) et encadré dans Beheer → Overzicht", () => {
+  const fs = require("fs");
+  const ui = fs.readFileSync(path.join(ROOT, "assets", "ui.js"), "utf8");
+  assert.match(ui, /'<div class="navlbl">Dagelijks<\/div>' \+ link\(NAV_SIMPLE\[0\]\) \+ NAV_DAILY\.map\(link\)/, "Uitgebreid : Vandaag en tête de Dagelijks");
+  const beheer = fs.readFileSync(path.join(ROOT, "assets", "pages", "beheer.js"), "utf8");
+  assert.match(beheer, /href="\/team\/vandaag"/, "Overzicht : lien vers Vandaag");
+  assert.match(beheer, /data-modus="eenvoudig"/, "Overzicht : activer Eenvoudig sur cet appareil");
+});
