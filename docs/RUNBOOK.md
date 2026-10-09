@@ -276,3 +276,20 @@ le filet. Moteur SQL seulement (production : Postgres ; en local : `DB_BACKEND=s
    une paire invalide : `/api/push` répond 503 (jamais d'autres clés en silence).
 5. Une notification ne bloque jamais une commande : 4 s au plus par appareil, en parallèle de l'e-mail ; la commande
    est déjà enregistrée.
+
+## 11. Alarmen en bewaking (`specs/026-exploitation/`)
+
+- **Bewaking elke 15 min** : GitHub Actions « Bewaking productie » (`.github/workflows/watch.yml`) leest
+  `/api/health`. Rood = e-mail van GitHub aan de eigenaar van de repo. Oorzaken : site onbereikbaar (2× na
+  elkaar), database of configuratie in fout, laatste back-up mislukt of > 26 uur oud.
+- **Nachtelijke back-up** : wordt elke nacht teruggezet in een lege testdatabase (in het geheugen, nooit de
+  echte) en vergeleken ; resultaat in de back-upmail (« Terugzet-test »). Mislukt → alarm-e-mail
+  « ⚠ FAMO alarm — back-up » + pushmelding (max. 1 per uur).
+- **Wat te doen** : Systeemstatus openen ; § 3 (Neon) of § 4 (e-mail) volgen ; back-up opnieuw : Beheer →
+  Systeemstatus → Database → Back-up maken.
+- **Previews** (`*.vercel.app`, behalve `famo-portail.vercel.app`) : oranje band « PREVIEW », geen e-mails en
+  geen pushmeldingen (tenzij `PREVIEW_MAIL=1`). Let op : zolang Vercel previews dezelfde `DATABASE_URL`
+  gebruiken, schrijven ze in de echte database — een aparte Neon-branch voor Preview vraagt de eigenaar
+  (Vercel → Settings → Environment Variables → Preview → eigen `DATABASE_URL`).
+- **Beveiliging** : `scripts/security-check.js` (in check.js en CI) controleert CSP, HSTS, nosniff, DENY,
+  Referrer-Policy en dat interne mappen nooit geserveerd worden.

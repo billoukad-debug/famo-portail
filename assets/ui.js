@@ -943,6 +943,11 @@
   const NAV_SIMPLE_ADMIN = [["documenten.html", "/team/documenten", "Documenten", "doc"], ["rapportage.html", "/beheer/rapportage", "Rapportage", "chart"], ["beheer.html", "/beheer", "Beheer", "settings"]];
   const NAV_ADMIN = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"], ["rapportage.html", "/beheer/rapportage", "Rapportage", "chart"], ["beheer.html", "/beheer", "Beheer", "settings"]];
   const NAV_STAFF_MORE = [["invoer.html", "/team/invoeren", "Invoeren", "plus"], ["documenten.html", "/team/documenten", "Documenten", "doc"]];
+  // Préversion Vercel (specs/026) : bandeau visible, pour ne jamais confondre avec la production.
+  K.isPreview = h => /\.vercel\.app$/i.test(h || "") && !/^famo-portail\.vercel\.app$/i.test(h || "");
+  if (doc && doc.addEventListener && K.isPreview(global.location && global.location.hostname)) doc.addEventListener("DOMContentLoaded", () => {
+    const b = doc.createElement("div"); b.className = "preview-band"; b.setAttribute("role", "note"); b.textContent = "PREVIEW — testversie, geen e-mails naar klanten"; doc.body.prepend(b);
+  });
   K.shell = function (opts) {
     const o = opts || {};
     K.lang = "nl"; // personeel en beheer werken altijd in het Nederlands, ook op een toestel dat het klantportaal in het Frans toont

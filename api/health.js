@@ -19,6 +19,7 @@ module.exports = async (req, res) => {
     version: String(process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 7) || "lokaal",
     backend: ds.backend(),
     region: String(process.env.VERCEL_REGION || ""),
+    env: String(process.env.VERCEL_ENV || "lokaal"), // specs/026 : préversion visible (bandeau, sonde)
     checks: { database: { ok: false, ms: 0 }, config: { ok: false, ms: 0 }, mail: { configured: mail.enabled() && !!String(process.env.MAIL_FROM || "").trim() } },
     time: new Date().toISOString()
   };
@@ -36,7 +37,7 @@ module.exports = async (req, res) => {
     if (ds.backend() === "airtable") { out.checks.database.ok = out.checks.config.ok; out.checks.database.ms = out.checks.config.ms; }
     if (ds.state.store && ds.state.store.lastSnapshot) {
       const run = await withTimeout(ds.state.store.lastSnapshot("nachtelijk"), 3000).catch(() => null);
-      if (run) { let n = {}; try { n = JSON.parse(run.note || "{}"); } catch (e) { n = {}; } out.checks.backup = { at: run.createdTime, ok: !!n.ok, ageHours: Math.round((Date.now() - Date.parse(run.createdTime)) / 3600000) }; }
+      if (run) { let n = {}; try { n = JSON.parse(run.note || "{}"); } catch (e) { n = {}; } out.checks.backup = { at: run.createdTime, ok: !!n.ok, error: n.error ? String(n.error).slice(0, 120) : undefined, ageHours: Math.round((Date.now() - Date.parse(run.createdTime)) / 3600000) }; }
     }
   } catch (e) {
     if (!out.checks.database.ok) out.checks.database.error = String(e.message || e).slice(0, 120);

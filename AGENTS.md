@@ -62,6 +62,10 @@ needs a recent Node 22.
   10 min) in `lib/inbound/mailorder.js`; staff-entered orders send nothing. `sw.js` push + notificationclick (same
   origin only); Vandaag « Meldingen » panel (`V.pushState`: installeren / geen / geweigerd / aan / uit; on iPhone
   `subscribe()` is the first await of the tap); Beheer → Toegang « Meldingen op toestellen ».
+  026 Exploitation: nightly restore test of the backup into a throwaway in-memory SQLite (`lib/restoretest.js`,
+  result in the backup mail and `/api/health` `checks.backup`), alarms by e-mail + push (`lib/alert.js`, one per type
+  per hour), GitHub Actions probe every 15 min (`.github/workflows/watch.yml`), previews send no mail/push and show
+  a « PREVIEW » band (`K.isPreview`), `scripts/security-check.js` (headers, internal paths) in check.js.
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 
