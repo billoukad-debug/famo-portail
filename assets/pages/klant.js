@@ -204,7 +204,7 @@
     const row = (k, v) => v ? '<div><dt>' + K.esc(k) + '</dt><dd>' + v + '</dd></div>' : "";
     return galleryHtml(p) +
       '<div class="pr-info">' + (p.omschrijving ? '<p class="pr-desc">' + K.esc(p.omschrijving) + '</p>' : "") + '<dl>' +
-      row(K.t("Categorie"), K.esc(K.t(K.cat(p.cat)))) + row(K.t("Kaliber"), K.esc(p.kaliber)) + row(K.t("Eenheid"), K.esc(unitLabel(p))) +
+      row(K.t("Categorie"), K.esc(K.t(K.cat(p.cat)))) + row(K.t("Gewicht"), K.esc(p.kaliber)) + row(K.t("Eenheid"), K.esc(unitLabel(p))) +
       row(K.t("Prijs excl. btw"), '<span class="mono">' + K.eur(p.prix) + '</span> / ' + K.esc(unitLabel(p)) + (neg ? ' <s class="mono quiet">' + K.eur(p.base) + '</s> · ' + K.t("uw prijs") : "")) +
       row(K.t("Beschikbaar"), s == null ? "" : s > 0 ? K.esc(K.qty(s)) + " " + K.esc(unitLabel(p)) : '<span class="t-danger">' + K.t("Uitverkocht") + '</span>') +
       (pakP(p) ? row(K.t("Verpakking"), K.esc(K.pakOne(pakP(p), p.unite)) + ' = <span class="mono">' + K.eur(window.FamoVat.r2(p.prix * pakP(p).per)) + '</span>') : "") +
@@ -498,12 +498,12 @@
   const cancelCall = ref => api("/api/klantorder", { json: Object.assign({}, creds(), { action: "cancel", ref }) });
   function closePanel() { if (panel) { panel.close(); panel = null; } }
   const btn = (attr, label, extra) => '<button type="button" class="btn ' + (extra || "btn-o") + ' btn-sm flex-1' + (/cancel-order/.test(attr) ? " t-danger" : "") + '" ' + attr + '>' + label + '</button>';
-  // Knoppen per status : documenten (klantdoc), opnieuw bestellen (altijd), wijzigen en annuleren (enkel Reçue).
+  // Knoppen per status : documenten (klantdoc), opnieuw bestellen (altijd), wijzigen en annuleren (Reçue of Prête, tot vertrek).
   function actions(o) {
     const r = ' data-ref="' + K.esc(o.ref) + '"';
     return (o.statut === "Facturée" ? btn('data-doc="invoice"' + r, invLabel()) + btn('data-doc="delivery"' + r, K.t("Leveringsbon")) : o.statut === "Sortie en livraison" ? btn('data-doc="delivery"' + r, K.t("Leveringsbon")) : "") +
       btn('data-reorder="' + K.esc(o.ref) + '"', K.t("Opnieuw bestellen")) +
-      (o.statut === "Reçue" ? btn('data-edit-order="' + K.esc(o.ref) + '"', K.t("Wijzigen")) + btn('data-cancel-order="' + K.esc(o.ref) + '"', K.t("Annuleren"), "btn-ghost") : "");
+      (o.statut === "Reçue" || o.statut === "Prête" ? btn('data-edit-order="' + K.esc(o.ref) + '"', K.t("Wijzigen")) + btn('data-cancel-order="' + K.esc(o.ref) + '"', K.t("Annuleren"), "btn-ghost") : "");
   }
   const badge = o => o.statut === "Facturée" ? (o.paiement === "Payé" ? K.stCell("Facturée", K.t("Geleverd · betaald")) : '<span class="cell-st c-inv">' + K.t("Geleverd · openstaand") + '</span>') : K.isLate(o) ? '<span class="cell-st c-late">' + K.t("Te laat") + '</span>' : K.stCell(o.statut);
   const stamp = iso => iso ? K.dateLong(iso) + (String(iso).includes("T") ? " " + K.time(iso) : "") : "";
@@ -519,7 +519,7 @@
       // G-24 : le suivi est une liste ordonnée, l'étape atteinte porte aria-current="step".
       : '<ol class="tl" aria-label="' + K.t("Verloop") + '">' + K.STATUSES.map((st, i) => '<li' + (i === idx ? ' aria-current="step"' : "") + '><i' + (i <= idx ? ' class="on"' : "") + ' aria-hidden="true"></i><div>' + (i <= idx ? '<b>' + K.esc(K.status(st)) + '</b>' : K.esc(K.status(st))) + (when[st] ? '<small>' + K.esc(when[st]) + '</small>' : "") + '</div></li>').join("") + '</ol>';
     const row = (label, value) => value ? '<div class="row"><div>' + K.esc(label) + '<small class="ws-pre">' + K.esc(value) + '</small></div></div>' : "";
-    const body = '<div class="mcard mb-10">' + tl + '</div>' + (o.statut === "Prête" ? '<p class="quiet fs-125 m-0 mb-10">' + K.t("Wordt klaargezet · wijzigen of annuleren: bel Famo.") + '</p>' : "") +
+    const body = '<div class="mcard mb-10">' + tl + '</div>' + "" +
       (o.uitzondering ? K.c.warn('<b>' + K.t("Uitzondering levering") + '</b> ' + K.esc(o.uitzondering)) + '<div class="h-10"></div>' : "") +
       '<div class="mcard mb-10"><div class="sec m-0 mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(K.qty(l.qty) + "× " + l.name + (l.unit ? " · " + K.unit(l.unit) : "") + (K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) ? " · " + K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) : "") + (l.comment ? " (" + l.comment + ")" : "")) + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div></div>' +
       '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") + row(K.t("Verwacht leveruur"), slotTxt(o)) +

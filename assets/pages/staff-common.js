@@ -418,7 +418,7 @@
     if (st === "Prête") out.push({ correction: "terug", title: "Terug naar te bereiden", text: "De validatie van de artikelen wordt gewist. Het magazijn valideert opnieuw." });
     if (st === "Sortie en livraison") out.push({ correction: "terug", title: "Terug naar klaar (vertrek ongedaan)", text: "De bestelling is toch niet vertrokken. Afgeboekte voorraad wordt teruggezet." });
     if (st === "Facturée") out.push({ correction: "terug", title: "Ontvangst ongedaan maken", text: "Terug op Onderweg. Het factuurnummer blijft voorbehouden voor deze bestelling. Enkel beheerder, niet als de factuur op betaald staat of er al een creditnota is.", admin: true, danger: true });
-    if (st === "Reçue" || st === "Prête") out.push({ correction: "annuleren", title: "Bestelling annuleren", text: "De bestelling verdwijnt uit Magazijn en Leveringen. Ze blijft zichtbaar onder „Geannuleerd” en kan hersteld worden.", danger: true });
+    if (st === "Reçue" || st === "Prête") out.push({ correction: "annuleren", title: "Bestelling annuleren", text: "Enkel beheerder. De bestelling verdwijnt uit Magazijn en Leveringen. Ze blijft zichtbaar onder „Geannuleerd” en kan hersteld worden.", admin: true, danger: true });
     if (st === "Sortie en livraison") out.push({ correction: "annuleren", title: "Bestelling annuleren (al onderweg)", text: "Enkel beheerder. Afgeboekte voorraad wordt teruggezet.", admin: true, danger: true });
     if (st === "Annulée") out.push({ correction: "herstellen", title: "Herstellen", text: "Terug naar „Ontvangen”. Het magazijn valideert opnieuw." });
     return out.filter(c => !c.admin || admin);

@@ -122,7 +122,7 @@ test("renommage puis départ : le stock du produit renommé est déduit (command
   await seed();
   const id = await order("recCLA", [{ productId: "recP1", quantity: 2 }]);
   const open = (await call("staff.js", { clientId: "recCLB", items: [{ productId: "recP1", quantity: 1 }] }, { headers: cookie("staff") })).payload.id;
-  await step(id, { correction: "annuleren", reden: "klant belt terug" });
+  assert.equal((await admin({ id, correction: "annuleren", reden: "klant belt terug" })).statusCode, 200);
   const r = await rename("Tongfilet");
   assert.equal(r.statusCode, 200, JSON.stringify(r.payload));
   assert.equal((await fieldsOf("Stock", "recSTK1")).Produit, "Tongfilet", "la ligne de stock suit le catalogue");
@@ -145,7 +145,7 @@ test("renommage puis départ : le stock du produit renommé est déduit (command
 test("renommage puis lignes modifiées par le magasin : l'article reste le même produit, même si un autre reprend son nom", async () => {
   await seed();
   const id = await order("recCLB", [{ productId: "recP1", quantity: 2 }]);
-  await step(id, { correction: "annuleren", reden: "klant belt terug" });
+  assert.equal((await admin({ id, correction: "annuleren", reden: "klant belt terug" })).statusCode, 200);
   assert.equal((await rename("Tongfilet")).statusCode, 200);
   assert.equal((await beheer({ action: "saveProduct", nom: "Tong", unite: "kg", base: 30, cat: "Vis" })).statusCode, 200);
   await step(id, { correction: "herstellen", reden: "toch leveren" });
