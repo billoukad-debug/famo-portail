@@ -61,6 +61,20 @@ const REDIRECTS = (VERCEL.redirects || []).map((r) => {
   const src = r.source.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/:(\w+)\\\*/g, (m, k) => { keys.push(k); return "(.*)"; }).replace(/:(\w+)/g, (m, k) => { keys.push(k); return "([^/]+)"; });
   return { re: new RegExp("^" + src + "$"), keys, to: r.destination, code: r.permanent ? 308 : 307 };
 });
+// Réécritures de vercel.json (specs/027 : /aanbod → /api/vitrine?p=aanbod) : l'adresse reste, la réponse vient de l'API.
+const REWRITES = (VERCEL.rewrites || []).map((r) => {
+  const keys = [];
+  const src = r.source.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/:(\w+)/g, (m, k) => { keys.push(k); return "([^/]+)"; });
+  return { re: new RegExp("^" + src + "$"), keys, to: r.destination };
+});
+function vercelRewrite(pathname) {
+  for (const r of REWRITES) {
+    const m = r.re.exec(pathname); if (!m) continue;
+    let to = r.to; r.keys.forEach((k, i) => { to = to.replace(":" + k, encodeURIComponent(decodeURIComponent(m[i + 1]))); });
+    return to;
+  }
+  return null;
+}
 function redirect(res, to, code) { res.statusCode = code; res.setHeader("Location", to); res.end(); }
 function vercelRedirect(pathname, search) {
   for (const r of REDIRECTS) {
@@ -102,7 +116,9 @@ function serveStatic(res, urlPath, search) {
 
 const server = http.createServer(async (req, res) => {
   decorateRes(res);
-  const parsed = new URL(req.url, "http://localhost:" + PORT);
+  let parsed = new URL(req.url, "http://localhost:" + PORT);
+  const rw = vercelRewrite(parsed.pathname);
+  if (rw) { const u = new URL(rw, parsed); parsed.searchParams.forEach((v, k) => { if (!u.searchParams.has(k)) u.searchParams.set(k, v); }); parsed = u; }
 
   if (parsed.pathname.startsWith("/api/")) {
     const name = parsed.pathname.slice("/api/".length).replace(/\/+$/, "");

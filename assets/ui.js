@@ -46,6 +46,7 @@
     "Laden…": "Chargement…", "Openen": "Ouvrir", "Creditnota niet gevonden": "Note de crédit introuvable", "Minder": "Moins", "Meer": "Plus", "Aantal": "Quantité", "Wijzigen": "Modifier", "Wijzigen…": "Modification…", "Verplicht.": "Obligatoire.",
     // start
     "Toegang aanvragen": "Demander un accès",
+    "Ons aanbod": "Notre offre", "Bekijk ons aanbod": "Voir notre offre", "Klant worden": "Devenir client",
             "Klantportaal": "Portail client", "Aanmelden met uw gebruikersnaam": "Connectez-vous avec votre identifiant", "U bent afgemeld.": "Vous êtes déconnecté.",
     "Gebruikersnaam": "Identifiant", "Wachtwoord": "Mot de passe", "Tonen": "Afficher", "Verbergen": "Masquer", "Aanmelden": "Se connecter", "Aanmelden…": "Connexion…",
     "Wachtwoord vergeten?": "Mot de passe oublié ?", "Nog geen klant? Toegang aanvragen": "Pas encore client ? Demander un accès", "Werkt u bij Famo?": "Vous travaillez chez Famo ?",

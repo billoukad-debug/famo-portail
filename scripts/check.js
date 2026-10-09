@@ -44,7 +44,9 @@ const failsSince = (n) => errors.length - n;
 const linksStart = errors.length;
 // Liens de page en URL propre (/team/magazijn) : la page existe (x.html ou x/index.html) et aucun lien interne
 // ne garde l'extension .html (les anciennes adresses ne vivent plus que dans les redirections de vercel.json).
-const pageOf = (u) => { const p = u.slice(1); return p === "" || fs.existsSync(path.join(ROOT, p + ".html")) || fs.existsSync(path.join(ROOT, p, "index.html")); };
+// Pages servies par une réécriture de vercel.json (specs/027 : /aanbod, /aanbod/:slug) : existent aussi.
+const REWRITE_RE = (JSON.parse(read("vercel.json")).rewrites || []).map(r => new RegExp("^" + r.source.replace(/:\w+/g, "[^/]*") + "$"));
+const pageOf = (u) => { const p = u.slice(1); return p === "" || REWRITE_RE.some(re => re.test(u)) || fs.existsSync(path.join(ROOT, p + ".html")) || fs.existsSync(path.join(ROOT, p, "index.html")); };
 const linkSources = [...htmlPages, "assets/ui.js", ...list("assets/pages", /\.js$/), ...list("assets/pages/team", /\.js$/), ...list("assets/pages/beheer", /\.js$/), ...list("api", /\.js$/), ...list("lib", /\.js$/).filter(f => f !== "lib/sql.js" /* « /sql » = API Neon, pas une page */), ...list("lib/beheer", /\.js$/), ...list("lib/commande", /\.js$/), ...list("lib/inbound", /\.js$/), "sw.js", "manifest.webmanifest"].filter(f => fs.existsSync(path.join(ROOT, f)));
 let pageLinks = 0;
 for (const f of linkSources) {

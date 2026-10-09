@@ -72,7 +72,7 @@ const pages = {
     { name: "/klant#/winkelmand (rempli)", url: "/klant#/winkelmand", before: async p => { await p.evaluate(() => { const c = JSON.parse(sessionStorage.getItem("famoKlantCatalogus") || "{}"); const items = {}; (c.products || []).slice(0, 3).forEach(x => { items[x.id] = 2; }); localStorage.setItem("famoCart:aloha", JSON.stringify({ items, comments: {}, note: "", day: "" })); }); } },
     { name: "/klant#/bevestigd (commande reçue)", url: "/klant#/bevestigd", before: async p => { await p.evaluate(() => sessionStorage.setItem("famoLastOrder", JSON.stringify({ ref: "CMD-TEST", total: 42, day: new Date(Date.now() + 864e5).toISOString().slice(0, 10), items: [{ nom: "Test", qty: 2, prix: 21 }], at: Date.now(), mail: { customer: { ok: true } }, email: "test@example.com" }))); } },
     { name: "/klant#/bestellingen · fiche commande", url: "/klant#/bestellingen", after: async p => { await clickAndWait('[data-of="alles"]', 300)(p); await clickAndWait(".orow-main", 600)(p); } }],
-  public: ["/", "/aanvraag", "/wachtwoord", "/team/aanmelden", "/beheer/aanmelden"] };
+  public: ["/", "/aanbod", "/aanvraag", "/wachtwoord", "/team/aanmelden", "/beheer/aanmelden"] };
 
 // ---------- contrôles dans la page ----------
 function audit() {
