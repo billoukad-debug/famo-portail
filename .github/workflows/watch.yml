@@ -1,0 +1,33 @@
+name: Bewaking productie
+
+# Specs/026 (US1) : sonde toutes les 15 minutes sur /api/health (lecture seule, aucune donnée).
+# Échec = GitHub envoie un e-mail au propriétaire du dépôt (notifications Actions par défaut).
+# Rouge si : site injoignable 2 fois de suite, base ou configuration en échec, dernière back-up > 26 h ou ratée.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sonde:
+    name: Santé de www.famoseafood.be
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Interroger /api/health
+        run: |
+          for i in 1 2; do
+            body=$(curl -s -m 20 https://www.famoseafood.be/api/health) && echo "$body" | grep -q '"ok":true' && break
+            [ "$i" = 2 ] && { echo "::error::Portaal onbereikbaar of niet gezond: $body"; exit 1; }
+            sleep 60
+          done
+          echo "$body"
+          node -e '
+            const b = JSON.parse(process.argv[1]).checks.backup;
+            if (!b) process.exit(0);
+            if (!b.ok) { console.log("::error::Laatste back-up mislukt: " + (b.error || "")); process.exit(1); }
+            if (b.ageHours > 26) { console.log("::error::Laatste back-up is " + b.ageHours + " uur oud"); process.exit(1); }
+          ' "$body"

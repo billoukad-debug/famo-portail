@@ -1005,3 +1005,5 @@ a.kp-link:hover{background:var(--row-hover)}
 /* Vandaag → Meldingen (specs/025-pushmeldingen) : stappen om FAMO op het beginscherm te zetten, rij « Geluid in de app ». */
 .vd-steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:14px}
 .vd-row{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}.vd-row>div{flex:1;min-width:0}
+/* Préversion Vercel (specs/026) */
+.preview-band{position:sticky;top:0;z-index:999;background:#7A2E00;color:#fff;font:600 13px/1.4 inherit;text-align:center;padding:6px 12px}
