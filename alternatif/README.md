@@ -1,13 +1,15 @@
-# Proposition de design alternative — « Kaai bij nacht »
+# Proposition de design alternative, « Kaai bij nacht » v2
 
-Maquettes statiques, **séparées du portail** : rien ici n'est chargé par le site en ligne (`/alternatif` est dans `.vercelignore`).
-Ouvrir les fichiers dans un navigateur :
+Maquettes statiques, **séparées du portail** : `/alternatif` est dans `.vercelignore`, rien n'est servi en ligne.
 
-- `index.html` — accueil / vitrine (nuit au port d'Anvers)
-- `aanbod.html` — catalogue public avec filtres
-- `klant.html` — commander (client, mobile d'abord)
-- `vandaag.html` — écran du patron, un bouton par étape
+- `index.html` : accueil vitrine (photo du quai la nuit, ligne du temps d'une nuit, familles en bento, livraison)
+- `aanbod.html` : l'offre par famille, filtres
+- `klant.html` : commander (client, téléphone d'abord), recherche avec état vide, panier
+- `vandaag.html` : écran du patron, un bouton par étape
+- Ajouter `?demo=pire` à `klant.html` ou `vandaag.html` : données extrêmes (skill emil break-ui)
 
-Direction : `DESIGN.md`. Produit : `PRODUCT.md`. Logo : `assets/logo-nacht.svg`, `assets/logo-ijs.svg`.
-Données fictives (prix « uw prijs », clients) pour la démonstration seulement.
-Outils : skills `impeccable`, `taste` et `motion-kowalski` (.claude/skills), rendu vérifié avec Playwright.
+Skills appliqués : `impeccable`, `taste-skill` + `redesign-skill` (Leonxlnx/taste-skill, MIT), `emil-design-eng`, `emil-animate`,
+`emil-break-ui`, `emil-review-animations`, `emil-find-animation-opportunities` (emilkowalski/skills), Playwright pour les captures.
+Figma : non disponible (connecteur à autoriser par l'utilisateur dans claude.ai).
+Polices : Cabinet Grotesk et Satoshi (Fontshare, licence gratuite ITF). Icônes : Phosphor (MIT). Photos : générées avec Canva.
+Prix et clients : données d'exemple.

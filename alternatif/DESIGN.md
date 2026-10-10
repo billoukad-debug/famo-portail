@@ -1,32 +1,27 @@
-# DESIGN — « Kaai bij nacht » (proposition alternative)
+# DESIGN, « Kaai bij nacht » v2 (proposition alternative)
 
-**Le monde** : le quai d'Anvers avant l'aube. La nuit bleu-encre, les lampes de quai couleur sodium, la glace pilée sous le poisson, les numéros peints au pochoir sur les caisses. FAMO travaille quand la ville dort : c'est l'histoire à raconter.
+**Lecture du brief (taste-skill 0.B)** : vitrine B2B premium d'un grossiste de la mer, pour des chefs de restaurant, ton calme de quai nocturne, système maison en CSS natif (aucun design system officiel ne s'applique).
+**Réglages** : DESIGN_VARIANCE 7, MOTION_INTENSITY 5, VISUAL_DENSITY 4 (vitrine). Écrans de travail : hors périmètre taste (Operate, impeccable), densité 6, mouvement 2.
 
-**Le geste fort** : la vitrine est nocturne (bleu-encre + lampe ambrée) ; les écrans de travail sont « glace » (clairs, très contrastés) et ne gardent de la nuit que la barre de marque.
+## Monde
+Le quai d'Anvers avant l'aube : la nuit bleu-encre, la lampe de quai ambrée, la glace pilée. Une seule audace : la photo réelle plein cadre du hero.
 
-## Couleurs
-| Jeton | Valeur | Rôle |
+## Règles verrouillées
+- **Thème** : vitrine (index, aanbod) entièrement nuit ; écrans de travail (klant, vandaag) entièrement glace. Aucune section n'inverse le thème.
+- **Un accent** : `--lamp #E9A23B` partout (boutons, prix, ligne du temps). Gris d'une seule famille, teintée bleu.
+- **Rayons** : 10 px ce qu'on touche, 16 px ce qui contient, pilule pour les filtres.
+- **Typo** : Cabinet Grotesk 800 (titres, sans-serif, Fontshare) + Satoshi 400/500/700 (texte). Pas de serif (taste 4.1). Emphase = couleur dans la même police.
+- **Icônes** : Phosphor (regular), jamais dessinées à la main.
+- **Images** : 5 photos générées (Canva) : hero quai, garnalen, vis, schelpdieren, levering.
+- **Copie** : zéro tiret long, une étiquette par intention (« Klant worden » partout), sous-texte du hero ≤ 20 mots.
+
+## Mouvement (emil-design-eng)
+| Élément | Choix | Pourquoi |
 |---|---|---|
-| `--night` | `#0A1B26` | fond vitrine, barre de marque |
-| `--night-2` | `#12293A` | surfaces sur la nuit |
-| `--tide` | `#9FB8C6` | texte secondaire sur la nuit (AA sur `--night`) |
-| `--lamp` | `#F0A73A` | la lampe : action principale, prix, accent unique |
-| `--ice` | `#F3F6F5` | fond des écrans de travail |
-| `--salt` | `#FFFFFF` | ce qui contient |
-| `--ink` | `#0B1A22` | texte sur glace |
-| `--ink-2` | `#4A5E68` | secondaire sur glace |
-| `--rope` | `#D5DEE1` | filets, séparateurs |
-| `--kelp` | `#1F7A5A` | succès / livré |
-| `--rust` | `#B3401C` | erreur, retard |
-
-## Typographie
-- **Gloock** (voix : titres, noms de produits, prix vitrine) — serif maritime, chaleureux, un peu « registre de bord ».
-- **Hanken Grotesk** 400/600 (travail : interface, formulaires, tableaux). Chiffres tabulaires pour prix et quantités.
-- Échelle : 14 / 16 / 20 / 28 / 44 / 72 (vitrine).
-
-## Formes et mouvement
-- Rayons : 8 (ce qu'on touche), 14 (ce qui contient). Pas de cartes en grille identique : listes et rangées.
-- Mouvement (skill `motion-kowalski`) : 180 ms ease-out `cubic-bezier(.23,1,.32,1)`, `:active` scale(.97), aucune animation sur les actions répétées de Vandaag, `prefers-reduced-motion` respecté.
-
-## Logo
-Mot « famo » en Gloock bas de casse ; le point du « a » remplacé par une lampe de quai (cercle ambré) au-dessus d'une ligne de flottaison. Variantes : sur nuit (texte sel) et sur glace (texte encre).
+| Entrée du hero | 700 ms, ease-out `cubic-bezier(.23,1,.32,1)`, décalage 60 ms | Vu une fois, raconte l'arrivée |
+| Photos des familles | clip-path depuis le bas, une fois (IntersectionObserver) | Révélation, pas de scroll listener |
+| Boutons | `:active scale(.97)`, 160 ms | Retour tactile |
+| Survols | seulement `(hover:hover) and (pointer:fine)` | Pas de faux survol au toucher |
+| Panier | translateY(100 %) → 0, 250 ms, transition interruptible | Entre et sort du même côté |
+| Étape Vandaag | **aucune animation** | Action répétée des dizaines de fois par matin |
+| Mouvement réduit | fondus gardés, déplacements retirés | Accessibilité |
