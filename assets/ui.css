@@ -1034,4 +1034,5 @@ a.kp-link:hover{background:var(--row-hover)}
 .nw-doen{margin:0;padding-left:22px;display:grid;gap:8px}
 .nw-doen li{line-height:1.5}
 .nw-invite{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.notice a.btn-p{color:#fff}
 .nw-date{margin:0}.nw-todo{margin-bottom:4px}
