@@ -20,8 +20,8 @@
 | `--rust` | `#B3401C` | erreur, retard |
 
 ## Typographie
-- **Fraunces** 600 (voix : titres, noms de produits, prix vitrine) — serif maritime, chaleureux, un peu « registre de bord ».
-- **Instrument Sans** 400/600 (travail : interface, formulaires, tableaux). Chiffres tabulaires pour prix et quantités.
+- **Gloock** (voix : titres, noms de produits, prix vitrine) — serif maritime, chaleureux, un peu « registre de bord ».
+- **Hanken Grotesk** 400/600 (travail : interface, formulaires, tableaux). Chiffres tabulaires pour prix et quantités.
 - Échelle : 14 / 16 / 20 / 28 / 44 / 72 (vitrine).
 
 ## Formes et mouvement
@@ -29,4 +29,4 @@
 - Mouvement (skill `motion-kowalski`) : 180 ms ease-out `cubic-bezier(.23,1,.32,1)`, `:active` scale(.97), aucune animation sur les actions répétées de Vandaag, `prefers-reduced-motion` respecté.
 
 ## Logo
-Mot « famo » en Fraunces bas de casse ; le point du « a » remplacé par une lampe de quai (cercle ambré) au-dessus d'une ligne de flottaison. Variantes : sur nuit (texte sel) et sur glace (texte encre).
+Mot « famo » en Gloock bas de casse ; le point du « a » remplacé par une lampe de quai (cercle ambré) au-dessus d'une ligne de flottaison. Variantes : sur nuit (texte sel) et sur glace (texte encre).
