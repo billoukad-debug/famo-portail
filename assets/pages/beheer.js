@@ -3,7 +3,7 @@
   // Ancien lien (#/rapportage) : la Rapportage est une page à part depuis la spec 022.
   if (K.hashParams().path === "rapportage") { location.replace("/beheer/rapportage"); return; }
   const page = K.shell({ portal: "beheer" });
-  const TABS = [["overzicht", "Overzicht"], ["aanvragen", "Aanvragen"], ["klanten", "Klanten"], ["producten", "Producten"], ["prijzen", "Prijzen"], ["rapportage", "Rapportage"], ["journaal", "Journaal"], ["bedrijf", "Bedrijfsgegevens"], ["toegang", "Toegang"], ["status", "Systeemstatus"]];
+  const TABS = [["overzicht", "Overzicht"], ["nieuw", "Nieuw"], ["aanvragen", "Aanvragen"], ["klanten", "Klanten"], ["producten", "Producten"], ["prijzen", "Prijzen"], ["rapportage", "Rapportage"], ["journaal", "Journaal"], ["bedrijf", "Bedrijfsgegevens"], ["toegang", "Toegang"], ["status", "Systeemstatus"]];
   const DAGEN = [["ma", "maandag"], ["di", "dinsdag"], ["wo", "woensdag"], ["do", "donderdag"], ["vr", "vrijdag"], ["za", "zaterdag"], ["zo", "zondag"]];
   // pendingCreds : net aangemaakt wachtwoord, één keer getoond bovenaan de klantfiche (overleeft de hash-herrender).
   let D = null, tab = K.hashParams().path || "overzicht", sel = K.hashParams().params.klant || "", pendingCreds = null;
@@ -13,11 +13,28 @@
   // Index client|product reconstruit seulement quand D.prices change (grille produits × klanten : O(1) par cellule).
   let priceIdx = null, priceSrc = null;
   const priceOf = (cid, pid) => { if (priceSrc !== D.prices) { priceSrc = D.prices; priceIdx = new Map((D.prices || []).filter(p => !p.van && !p.tot).map(p => [p.clientId + "|" + p.productId, p])); } return priceIdx.get(cid + "|" + pid); };
-  const head = (sub, right) => '<div class="page-h"><div><h1 class="h1">' + K.esc((TABS.find(t => t[0] === tab) || ["", "Beheer"])[1]) + '</h1><p class="sub">' + K.esc(sub) + '</p></div><span class="spacer"></span>' + (right || "") + '</div><nav class="tabs" aria-label="Beheer">' + TABS.map(([k, l]) => '<a href="' + (k === "rapportage" ? "/beheer/rapportage" : "#/" + k) + '"' + (tab === k ? ' class="on"' : "") + '>' + l + (k === "aanvragen" ? '<b class="nbadge" data-badge="aanvragen"' + (D.status.aanvragen ? "" : " hidden") + ' aria-label="' + K.plural(D.status.aanvragen, "nieuwe aanvraag", "nieuwe aanvragen") + '">' + D.status.aanvragen + '</b>' : "") + '</a>').join("") + '</nav>';
+  const head = (sub, right) => '<div class="page-h"><div><h1 class="h1">' + K.esc((TABS.find(t => t[0] === tab) || ["", "Beheer"])[1]) + '</h1><p class="sub">' + K.esc(sub) + '</p></div><span class="spacer"></span>' + (right || "") + '</div><nav class="tabs" aria-label="Beheer">' + TABS.map(([k, l]) => '<a href="' + (k === "rapportage" ? "/beheer/rapportage" : "#/" + k) + '"' + (tab === k ? ' class="on"' : "") + '>' + l + (k === "aanvragen" ? '<b class="nbadge" data-badge="aanvragen"' + (D.status.aanvragen ? "" : " hidden") + ' aria-label="' + K.plural(D.status.aanvragen, "nieuwe aanvraag", "nieuwe aanvragen") + '">' + D.status.aanvragen + '</b>' : "") + (k === "nieuw" && nieuwOpen().length ? '<b class="nbadge" aria-label="' + K.plural(nieuwOpen().length, "nieuw bericht", "nieuwe berichten") + '">' + nieuwOpen().length + '</b>' : "") + '</a>').join("") + '</nav>';
   const credsBox = c => K.c.ok('<b>Toegang voor ' + K.esc(c.nom) + '</b><div class="mt-6 d-grid gc-a-1 gap-4-12 fs-13"><span class="quiet">Gebruikersnaam</span><b class="mono us-all">' + K.esc(c.user) + '</b><span class="quiet">Wachtwoord</span><b class="mono us-all">' + K.esc(c.password) + '</b></div><div class="quiet fs-12 mt-6">Wordt maar één keer getoond. Geef het door aan de klant (telefoon of WhatsApp), niet per onbeveiligde mail.</div>');
   // Ingeklapte groep (gearchiveerde klanten, verwerkte aanvragen) : zelfde kop als een .grp.
   const fold = (title, n, inner) => '<details class="grp mt-14"><summary class="grp-h c-pointer ls-none blc-line">' + K.icon("chev") + K.esc(title) + ' <small>' + n + '</small></summary>' + inner + '</details>';
   const dateTime = v => v ? K.date(K.isoDay(v)) + " " + K.time(v) : "—";
+
+  /* ---------- nieuw : wat is er veranderd en wat moet u doen (assets/nieuws.js) ---------- */
+  // Gelezen = per toestel bewaard ; de lijst blijft altijd te zien onder « Nieuw ».
+  const NW = window.FamoNieuws || { items: [], ongelezen: () => [] };
+  const gezien = () => { try { return JSON.parse(localStorage.getItem("famoNieuwsGezien") || "[]"); } catch (e) { return []; } };
+  const setGezien = ids => { try { localStorage.setItem("famoNieuwsGezien", JSON.stringify(Array.from(new Set(gezien().concat(ids))))); } catch (e) { /* privévenster */ } };
+  const nieuwOpen = () => NW.ongelezen(gezien());
+  const nieuwCard = (n, open) => '<article class="card nw-card' + (open ? " nw-open" : "") + '"><div class="card-b"><p class="quiet fs-12 nw-date">' + K.esc(K.dateLong(n.datum)) + (open ? ' · <b class="t-p">nieuw</b>' : "") + '</p><h3 class="h2 mt-4">' + K.esc(n.titel) + '</h3><p class="mt-6">' + K.esc(n.wat) + '</p>' +
+    (n.doen.length ? '<p class="fw-700 mt-12 nw-todo">Wat moet u doen?</p><ol class="nw-doen">' + n.doen.map(d => '<li>' + K.esc(d.tekst) + (d.link ? ' <a class="btn btn-o btn-sm ml-8" href="' + K.esc(d.link) + '">' + K.esc(d.label || "Openen") + '</a>' : "") + '</li>').join("") + '</ol>' : '<p class="quiet mt-12">U hoeft niets te doen.</p>') +
+    (open ? '<div class="mt-12"><button type="button" class="btn btn-p btn-sm" data-nw-gezien="' + K.esc(n.id) + '">Gezien</button></div>' : "") + '</div></article>';
+  function nieuw() {
+    const open = nieuwOpen(), ids = new Set(open.map(n => n.id));
+    page.innerHTML = head("Wat is er veranderd, en wat moet u doen", open.length > 1 ? '<button type="button" class="btn btn-o btn-sm" data-nw-alles>Alles gezien</button>' : "") +
+      '<div class="content pt-16 stack-12">' + (NW.items.length ? NW.items.map(n => nieuwCard(n, ids.has(n.id))).join("") : K.c.empty("Nog niets nieuws", "")) + '</div>';
+  }
+  K.on(document, "click", "[data-nw-gezien]", (e, t) => { setGezien([t.dataset.nwGezien]); render(); });
+  K.on(document, "click", "[data-nw-alles]", () => { setGezien(NW.items.map(n => n.id)); render(); });
 
   /* ---------- overzicht ---------- */
   async function overzicht() {
@@ -31,6 +48,7 @@
     if (st.aanvragen) issues.push([st.aanvragen === 1 ? "1 nieuwe aanvraag wacht." : st.aanvragen + " nieuwe aanvragen wachten.", '#/aanvragen']);
     page.innerHTML = head("Klanten, producten, prijzen en instellingen", '<a class="btn btn-o btn-sm" href="/team/invoeren">' + K.icon("plus") + 'Bestelling invoeren</a><button type="button" class="btn btn-p btn-sm" data-new-client>Nieuwe klant</button>') +
       '<div class="content pt-16">' +
+      (nieuwOpen().length ? '<div class="notice nw-invite"><div><b>' + K.plural(nieuwOpen().length, "nieuw bericht", "nieuwe berichten") + ' voor u</b><div class="quiet fs-12">' + K.esc(nieuwOpen()[0].titel) + (nieuwOpen().length > 1 ? " en meer" : "") + '</div></div><a class="btn btn-p btn-sm" href="#/nieuw">Bekijken</a></div>' : "") +
       // Spec 024 : Vandaag (l'écran simple) doit se trouver depuis Beheer, sur iPhone comme sur ordinateur.
       (K.modus() !== "eenvoudig" ? '<div class="notice vd-invite"><div><b>Vandaag: alles op één scherm</b><div class="quiet fs-12">Bestellingen ontvangen en per stap één tik verder (Klaar → Onderweg → Geleverd → Betaald), zonder Magazijn of Leveringen.</div></div><div class="d-flex gap-8 f-wrap"><a class="btn btn-o btn-sm" href="/team/vandaag">Openen</a><button type="button" class="btn btn-p btn-sm" data-modus="eenvoudig">Altijd zo openen op dit toestel</button></div></div>' : "") +
       '<div class="kpis"><a class="kp kp-link" href="/team/bestellingen"><small>Open bestellingen</small><b>' + orders.filter(o => !K.isClosed(o)).length + '</b><em>' + c.today + ' vandaag</em></a><a class="kp kp-link" href="/team/documenten#/open"><small>Openstaand te betalen</small><b class="mono">' + K.eur(c.unpaidSum) + '</b><em>' + c.unpaid + ' factu' + (c.unpaid === 1 ? "ur" : "ren") + '</em></a><a class="kp kp-link" href="#/klanten"><small>Klanten</small><b>' + st.clients + '</b><em>' + st.credentials + ' met toegang</em></a><a class="kp kp-link" href="#/producten"><small>Producten actief</small><b>' + st.catalogue + '</b><em>' + st.prijzen + ' prijsafspraken</em></a></div>' +
@@ -240,7 +258,7 @@
     const draw = (focusSel) => {
       const n = fotos.length, lbl = i => "Foto " + (i + 1) + " van " + n;
       box.innerHTML = '<div class="d-flex jc-sb ai-c gap-8"><b>Foto\'s</b><span class="quiet fs-12" id="pFotoN" aria-live="polite">' + n + " van " + MAX_FOTOS + '</span></div>' +
-        '<p class="quiet fs-12 m-0">De eerste foto is de hoofdfoto: die staat in de catalogus, bij Invoeren en in Voorraad. De klant ziet alle foto\'s in de details. JPEG, PNG of WebP; grote foto\'s worden automatisch verkleind.</p>' +
+        '<p class="quiet fs-12 nw-date">De eerste foto is de hoofdfoto: die staat in de catalogus, bij Invoeren en in Voorraad. De klant ziet alle foto\'s in de details. JPEG, PNG of WebP; grote foto\'s worden automatisch verkleind.</p>' +
         (n ? '<ul class="fgrid" aria-label="Foto\'s van ' + K.esc(p.nom) + '">' + fotos.map((f, i) => '<li class="fcell" data-fid="' + K.esc(f.id) + '"><div class="fcell-img"><img src="' + K.esc(f.url) + '" alt="' + K.esc(lbl(i)) + '" loading="lazy" decoding="async">' + (i ? "" : '<span class="tag fcell-main">Hoofdfoto</span>') + '</div>' +
           '<div class="fcell-a"><button type="button" class="ibtn" data-fmv="-1" aria-label="' + K.esc(lbl(i)) + ' naar links"' + (i ? "" : " disabled") + '>◀</button><button type="button" class="ibtn" data-fmv="1" aria-label="' + K.esc(lbl(i)) + ' naar rechts"' + (i < n - 1 ? "" : " disabled") + '>▶</button></div>' +
           (i ? '<button type="button" class="btn btn-o btn-sm" data-fmain aria-label="' + K.esc(lbl(i)) + ' als hoofdfoto">Hoofdfoto</button>' : "") +
@@ -307,7 +325,7 @@
       '<div class="grid-2">' + K.c.field("Voorraad (optioneel)", K.c.input("pStock", { value: stockRow ? K.num(stockRow.quantity) : "", attrs: ' inputmode="decimal"' }), { id: "fPStock", hint: D.config.voorraadAfboeken ? "Wordt bij vertrek automatisch afgeboekt." : "Wordt niet automatisch afgetrokken (instelbaar in Bedrijfsgegevens)." }) + K.c.field("Drempel", K.c.input("pLow", { value: stockRow ? K.num(stockRow.lowThreshold) : "", attrs: ' inputmode="decimal"' }), { id: "fPLow" }) + '</div>' +
       K.c.field("Omschrijving voor de klant (optioneel)", '<textarea class="input" id="pDesc" rows="2" maxlength="400" placeholder="bv. Wilde zeebaars uit de Noordzee, gevangen met de lijn…">' + K.esc(v.omschrijving || "") + '</textarea>', { for: "pDesc", hint: "Verschijnt wanneer de klant het product openklapt." }) +
       '<label class="row-10 fs-13"><button type="button" class="toggle' + (v.actif ? " on" : "") + '" id="pActif" aria-pressed="' + (v.actif ? "true" : "false") + '"></button>Actief in de catalogus</label>' +
-      '<div class="fbox" id="pFotoBox">' + (p ? "" : '<b>Foto\'s</b><p class="quiet fs-12 m-0">Sla het product eerst op, daarna kunt u tot ' + MAX_FOTOS + ' foto\'s toevoegen.</p>') + '</div>' + '<div id="pErr"></div>',
+      '<div class="fbox" id="pFotoBox">' + (p ? "" : '<b>Foto\'s</b><p class="quiet fs-12 nw-date">Sla het product eerst op, daarna kunt u tot ' + MAX_FOTOS + ' foto\'s toevoegen.</p>') + '</div>' + '<div id="pErr"></div>',
       footer: (p ? '<button type="button" class="btn btn-ghost t-danger mr-auto" id="pDel">Verwijderen</button>' : "") + '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="pOk">Opslaan</button>' });
     let actif = !!v.actif; const tg = pn.el.querySelector("#pActif"); tg.onclick = () => { actif = !actif; K.setOn(tg, actif); };
     // Verpakking : voorbeeld van wat de klant ziet (« doos van 6 = € 6,00 », prijs per stuk blijft).
@@ -524,7 +542,7 @@
     return '<div class="card card-b stack-12"><h2 class="h2">Algemene voorwaarden</h2>' +
       (v.versie ? '<p class="sub ws-normal m-0">Versie <b>' + K.esc(v.versie) + '</b> · ' + ok + ' van ' + act.length + ' klanten aanvaard · <a class="tlink" href="/voorwaarden" target="_blank" rel="noopener">bekijken</a></p>' : K.c.warn("Nog geen voorwaarden gepubliceerd: klanten moeten niets aanvaarden. Laat de tekst nakijken door uw juridisch adviseur.")) +
       ta("vwNl", "Tekst (Nederlands)", v.nl) + ta("vwFr", "Texte (français)", v.fr) +
-      '<p class="quiet fs-12 m-0">Lege regel = nieuwe alinea · een regel die met „# ” begint = tussentitel. Publiceren = nieuwe versie: elke klant aanvaardt ze vóór zijn volgende bestelling.</p>' +
+      '<p class="quiet fs-12 nw-date">Lege regel = nieuwe alinea · een regel die met „# ” begint = tussentitel. Publiceren = nieuwe versie: elke klant aanvaardt ze vóór zijn volgende bestelling.</p>' +
       '<div class="d-flex gap-8 f-wrap"><button type="button" class="btn btn-o btn-sm" id="vwSave">Tekst opslaan</button><button type="button" class="btn btn-p btn-sm" id="vwPub">Publiceren als nieuwe versie</button></div></div>';
   }
   function termsWire() {
@@ -738,7 +756,7 @@
       K.c.field("Uur", K.c.input("tpUur", { type: "time", value: hm }), { id: "f_tpUur" }).replace('class="field"', 'class="field fx-130"') +
       K.c.field("Behalve (referenties, gescheiden door een komma)", K.c.input("tpBehalve", { value: tp.behalve, placeholder: "bv. CMD-2026-0031" }), { id: "f_tpBehalve" }).replace('class="field"', 'class="field fx2-180"') + '</div>' +
       '<div class="d-flex gap-8 f-wrap"><button type="button" class="btn btn-p btn-sm" id="tpVoorbeeld">Voorbeeld tonen</button></div>' +
-      '<p class="quiet fs-12 m-0">Het voorbeeld verandert niets. Elke stap daarna vraagt nog een bevestiging.</p>' +
+      '<p class="quiet fs-12 nw-date">Het voorbeeld verandert niets. Elke stap daarna vraagt nog een bevestiging.</p>' +
       '<div id="tpOut" aria-live="polite"></div></div></div>';
     const out = box.querySelector("#tpOut");
     const voorIso = () => { const dv = box.querySelector("#tpDag").value, tv = box.querySelector("#tpUur").value || "00:00"; const t = new Date(dv + "T" + tv); return dv && !isNaN(t) ? t.toISOString() : ""; };
@@ -770,7 +788,7 @@
     const numWhy = !nodig.length ? (blocked.length ? blocked.map(n => n.reden).join(" ") : "Niets te herstarten.") : !fresh ? "Eerst een back-up maken (stap 3)." : "";
     out.innerHTML =
       // Echte klanten : aangevinkt = al hun bestellingen blijven buiten de selectie (server rekent na).
-      (d.kandidaten.length ? '<div class="stack-6 mt-10" role="group" aria-labelledby="tpKeepH"><h3 class="fs-14 m-0" id="tpKeepH">Echte klanten: hun bestellingen behouden</h3><p class="quiet fs-12 m-0">Vink de klanten aan wiens bestellingen echt zijn. Die bestellingen worden niet gearchiveerd.</p>' +
+      (d.kandidaten.length ? '<div class="stack-6 mt-10" role="group" aria-labelledby="tpKeepH"><h3 class="fs-14 m-0" id="tpKeepH">Echte klanten: hun bestellingen behouden</h3><p class="quiet fs-12 nw-date">Vink de klanten aan wiens bestellingen echt zijn. Die bestellingen worden niet gearchiveerd.</p>' +
         d.kandidaten.map(k => '<label class="row-10 fs-13">' + K.c.check(k.behouden, 'data-behoud="' + K.esc(k.id) + '"', { big: true, label: "Bestellingen van " + k.naam + " behouden" }) + '<span><b>' + K.esc(k.naam) + '</b> <span class="quiet">· ' + K.plural(k.bestellingen, "bestelling", "bestellingen") + (k.behouden ? " · behouden" : "") + '</span></span></label>').join("") + '</div>' : "") +
       '<h3 class="fs-14 mt-10 mb-6">Voorbeeld: ' + K.plural(s.bestellingen, "bestelling", "bestellingen") + ' in de selectie</h3>' + table(s, "Wat gearchiveerd zou worden") +
       '<p class="sub m-0 mt-6">Buiten de selectie (blijft zichtbaar): ' + K.plural(d.buiten.bestellingen, "bestelling", "bestellingen") + '.</p>' +
@@ -837,7 +855,7 @@
   async function draw(force) {
     if (force || !D) { try { await load(); } catch (err) { if (err.status !== 401) page.innerHTML = '<div class="content pt-20">' + K.c.error(err.message, true) + '</div>'; K.on(page, "click", "[data-retry]", e => { e.preventDefault(); render(true); }); return; } }
     if (!D.config) D.config = {};
-    const views = { overzicht, aanvragen, klanten, producten, prijzen, journaal, bedrijf, toegang, status };
+    const views = { overzicht, nieuw, aanvragen, klanten, producten, prijzen, journaal, bedrijf, toegang, status };
     if (force) rapCache = null;
     views[tab] ? await views[tab]() : overzicht();
     K.setBadges({ "beheer.html": D.status.aanvragen || 0, "aanvragen": D.status.aanvragen || 0 });

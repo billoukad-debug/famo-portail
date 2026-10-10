@@ -1029,3 +1029,9 @@ a.kp-link:hover{background:var(--row-hover)}
 .vt-specs{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:16px 0}.vt-specs dt{color:var(--ink-2)}.vt-specs dd{margin:0}
 @media (max-width:860px){.vt-product{grid-template-columns:1fr}}
 @media (max-width:480px){.vt-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.vt-body{padding:10px}.vt-name{font-size:14.5px}}
+/* Beheer « Nieuw » : wat er veranderd is en wat Mohsen moet doen */
+.nw-card.nw-open{border-color:var(--p)}
+.nw-doen{margin:0;padding-left:22px;display:grid;gap:8px}
+.nw-doen li{line-height:1.5}
+.nw-invite{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.nw-date{margin:0}.nw-todo{margin-bottom:4px}

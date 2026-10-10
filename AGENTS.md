@@ -72,6 +72,11 @@ needs a recent Node 22.
   prices, stock or client data), JSON-LD Product, NL / FR (`?taal=fr`, hreflang), CDN cache 10 min, previews noindex.
   `robots.txt` opens `/`, `/aanbod`, `/aanvraag` and keeps `/api/`, `/klant`, `/team/`, `/beheer` closed;
   `check.js` accepts rewrite targets as pages; tests `test/vitrine.test.js`.
+  029 « Nieuw » in Beheer: `assets/nieuws.js` (one note per change, simple Dutch: what changed + « Wat moet u doen? »
+  with links), tab « Nieuw » + banner on Overzicht, « Gezien » per device. `test/nieuws.test.js` FAILS if a spec ≥ 027
+  has no note, or a note contains technical jargon.
+- **Release rule (owner, 2026-10-10)**: every change ships with its note in `assets/nieuws.js`; nothing is merged or
+  published before Mohsen has reviewed and approved the update (see `specs/029-nieuw-beheer/spec.md`).
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 
