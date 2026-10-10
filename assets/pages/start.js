@@ -6,9 +6,9 @@
   let lev = DEF;
   app.innerHTML = '<div class="start">' +
     '<a class="skip" href="#main">' + K.t("Naar de inhoud") + '</a><header class="start-hd"><a class="brand" href="/"><span class="logo logo-lg" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + K.t("Verse vis en zeevruchten, Antwerpen") + '</small></span></a>' +
-    '<nav class="mini">' + K.langSwitch() + '<a class="tlink" href="/aanvraag">' + K.t("Toegang aanvragen") + '</a></nav></header>' +
+    '<nav class="mini">' + K.langSwitch() + '<a class="tlink" id="aanbodLink" href="/aanbod">' + K.t("Ons aanbod") + '</a><a class="tlink" href="/aanvraag">' + K.t("Toegang aanvragen") + '</a></nav></header>' +
     '<main class="start-body" id="main" tabindex="-1"><section class="hero"><h1 id="heroT"></h1>' +
-    '<p id="hero"></p></section>' +
+    '<p id="hero"></p><p class="hero-cta"><a class="btn btn-p" id="aanbodCta" href="/aanbod">' + K.t("Bekijk ons aanbod") + '</a><a class="btn btn-o" href="/aanvraag">' + K.t("Klant worden") + '</a></p></section>' +
     '<form class="card login" id="loginForm" novalidate><div><h2 class="h2 login-t">' + K.t("Klantportaal") + '</h2><p class="sub">' + K.t("Aanmelden met uw gebruikersnaam") + '</p></div>' +
     (expired ? K.c.warn(K.t("Sessie verlopen, meld u opnieuw aan.")) : loggedOut ? K.c.ok(K.t("U bent afgemeld.")) : "") +
     K.c.field(K.t("Gebruikersnaam"), K.c.input("user", { attrs: ' autocomplete="username" autocapitalize="none" spellcheck="false" required' }), { id: "fUser", for: "user" }) +
@@ -29,6 +29,8 @@
     document.getElementById("hero").textContent = K.tt("Levering {d} in Antwerpen en omstreken. U ziet uw afgesproken prijzen, kiest zelf de leverdag en vindt uw leveringsbonnen en facturen terug.", { d: daysLabel() });
   }
   draw();
+  // Vitrine (specs/027) : en français, l'aanbod s'ouvre aussi en français.
+  if (K.lang === "fr") ["aanbodLink", "aanbodCta"].forEach(id => { document.getElementById(id).href = "/aanbod?taal=fr"; });
   K.api("/api/config?public=1").then(d => {
     const c = d.config || {};
     document.getElementById("foot").textContent = [c.bedrijfsnaam, c.adres, c.plaats, c.btw].filter(Boolean).join(", ");

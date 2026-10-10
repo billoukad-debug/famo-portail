@@ -66,6 +66,12 @@ needs a recent Node 22.
   result in the backup mail and `/api/health` `checks.backup`), alarms by e-mail + push (`lib/alert.js`, one per type
   per hour), GitHub Actions probe every 15 min (`.github/workflows/watch.yml`), previews send no mail/push and show
   a « PREVIEW » band (`K.isPreview`), `scripts/security-check.js` (headers, internal paths) in check.js.
+  027 Vitrine « Ons aanbod »: public, indexable catalogue rendered on the server (`lib/vitrine.js` pure rendering,
+  `api/vitrine.js`; `vercel.json` `rewrites` `/aanbod`, `/aanbod/:slug`, `/sitemap.xml`, also applied by
+  `scripts/dev-server.js`). Active products only, price « vanaf » = `Prix de base` HTVA per unit (never negotiated
+  prices, stock or client data), JSON-LD Product, NL / FR (`?taal=fr`, hreflang), CDN cache 10 min, previews noindex.
+  `robots.txt` opens `/`, `/aanbod`, `/aanvraag` and keeps `/api/`, `/klant`, `/team/`, `/beheer` closed;
+  `check.js` accepts rewrite targets as pages; tests `test/vitrine.test.js`.
 - Beheer API: `api/onboarding.js` is only the entry point (guard, admin session, audit journal); actions live
   in `lib/beheer/*.js` (one module per domain, static `require`s for Vercel nft; `test/beheer-routes.test.js`).
 

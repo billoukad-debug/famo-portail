@@ -84,7 +84,8 @@ const handler = async (req, res) => {
       const f = rec.fields || {};
       const statut = f["Statut"] || "Reçue";
       if (statut === "Annulée") return res.status(409).json({ error: "Deze bestelling is al geannuleerd." });
-      if (statut !== "Reçue") return res.status(409).json({ error: "Deze bestelling wordt al klaargezet. Bel Famo om ze te wijzigen of te annuleren." });
+      // Retour Mohsen (2026-10-09) : annulable jusqu'au départ en livraison (Ontvangen ou Klaar).
+      if (statut !== "Reçue" && statut !== "Prête") return res.status(409).json({ error: "Deze bestelling is al onderweg of geleverd. Bel Famo." });
       const journal = `${stamp()} · Geannuleerd · klant`;
       const fields = {
         "Statut": "Annulée",

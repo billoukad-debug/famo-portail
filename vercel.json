@@ -204,6 +204,20 @@
       "permanent": true
     }
   ],
+  "rewrites": [
+    {
+      "source": "/aanbod",
+      "destination": "/api/vitrine?p=aanbod"
+    },
+    {
+      "source": "/aanbod/:slug",
+      "destination": "/api/vitrine?p=product&slug=:slug"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/vitrine?p=sitemap"
+    }
+  ],
   "cleanUrls": true,
   "trailingSlash": false
 }

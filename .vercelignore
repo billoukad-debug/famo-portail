@@ -15,3 +15,5 @@ eslint.config.js
 # Suivi VibeFlow / GSD (.planning/ : PROJECT, ROADMAP, STATE, config.json, intel/) : jamais servi.
 /.planning
 /specs
+# Proposition de design alternative (alternatif/) : maquettes, jamais servies.
+/alternatif

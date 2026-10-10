@@ -62,14 +62,16 @@ describe("Corrections : terug, annuleren, herstellen, bewerken", () => {
       r = await call(uo, { id: "o3", correction: "terug", reden: "verkeerde klant getekend" }, [{ fields: { Statut: "Facturée", "Statut paiement": "En attente", Factuurnummer: "FA-2026-0007", "Livraison confirmée": true } }, { fields: {} }], { headers: adminCookieHdr });
       assert.equal(r.res.statusCode, 200, "AN4 beheerder maakt ontvangst ongedaan");
       b = patchOf(r); assert.equal(b.fields.Statut, "Sortie en livraison"); assert.equal(b.fields["Livraison confirmée"], false); assert.equal(b.fields.Factuurnummer, undefined, "AN4 factuurnummer nooit gewist");
-      // 5. Annuleren : Reçue OK (personeel) ; Sortie personeel 403 ; Facturée 409
-      r = await call(uo, { id: "o4", correction: "annuleren", reden: "klant belde af" }, [{ fields: { Statut: "Reçue", "Référence": "CMD-4" } }, { fields: {} }], { headers: cookieHdr });
-      assert.equal(r.res.statusCode, 200, "AN5 annuleren vanuit Reçue");
+      // 5. Annuleren : enkel beheerder (retour Mohsen 2026-10-09) ; personeel 403 ; Facturée 409
+      r = await call(uo, { id: "o4", correction: "annuleren", reden: "klant belde af" }, [{ fields: { Statut: "Reçue", "Référence": "CMD-4" } }], { headers: cookieHdr });
+      assert.equal(r.res.statusCode, 403, "AN5 personeel kan niet annuleren");
+      r = await call(uo, { id: "o4", correction: "annuleren", reden: "klant belde af" }, [{ fields: { Statut: "Reçue", "Référence": "CMD-4" } }, { fields: {} }], { headers: adminCookieHdr });
+      assert.equal(r.res.statusCode, 200, "AN5 beheerder annuleert vanuit Reçue");
       b = patchOf(r); assert.equal(b.fields.Statut, "Annulée"); assert.equal(b.fields["Motif annulation"], "klant belde af"); assert.ok(b.fields["Annulée le"]); assert.equal(b.typecast, true);
       r = await call(uo, { id: "o4", correction: "annuleren", reden: "x" }, [{ fields: { Statut: "Sortie en livraison" } }], { headers: cookieHdr });
       assert.equal(r.res.statusCode, 400, "AN5 reden te kort → 400");
       r = await call(uo, { id: "o4", correction: "annuleren", reden: "onderweg gestopt" }, [{ fields: { Statut: "Sortie en livraison" } }], { headers: cookieHdr });
-      assert.equal(r.res.statusCode, 403, "AN5 annuleren onderweg enkel beheerder");
+      assert.equal(r.res.statusCode, 403, "AN5 annuleren onderweg: personeel nooit");
       r = await call(uo, { id: "o4", correction: "annuleren", reden: "fout" }, [{ fields: { Statut: "Facturée" } }], { headers: adminCookieHdr });
       assert.equal(r.res.statusCode, 409, "AN5 gefactureerd nooit annuleren");
       // 6. Herstellen : enkel vanuit Annulée ; geannuleerde bestelling blokkeert de gewone stappen
@@ -95,8 +97,9 @@ describe("Corrections : terug, annuleren, herstellen, bewerken", () => {
       r = await call(ko, { user: "aloha", pw: "welkom123", action: "cancel", ref: "CMD-1" }, [CLI, { records: [{ id: "o7", fields: { Client: ["cli1"], Statut: "Reçue", "Référence": "CMD-1" } }] }, { fields: {} }]);
       assert.equal(r.res.statusCode, 200, "AN8 klant annuleert Reçue");
       b = patchOf(r); assert.equal(b.fields.Statut, "Annulée"); assert.equal(b.fields["Motif annulation"], "Geannuleerd door klant"); assert.match(b.fields.Correcties, /Geannuleerd · klant/);
-      r = await call(ko, { user: "aloha", pw: "welkom123", action: "cancel", ref: "CMD-1" }, [CLI, { records: [{ id: "o7", fields: { Client: ["cli1"], Statut: "Prête", "Référence": "CMD-1" } }] }]);
-      assert.equal(r.res.statusCode, 409, "AN8 al klaargezet → bel Famo");
+      // Retour Mohsen (2026-10-09) : annulable jusqu'au départ ; Prête passe (retours-mohsen.test.js), onderweg non.
+      r = await call(ko, { user: "aloha", pw: "welkom123", action: "cancel", ref: "CMD-1" }, [CLI, { records: [{ id: "o7", fields: { Client: ["cli1"], Statut: "Sortie en livraison", "Référence": "CMD-1" } }] }]);
+      assert.equal(r.res.statusCode, 409, "AN8 al onderweg → bel Famo");
       r = await call(ko, { user: "aloha", pw: "welkom123", action: "cancel", ref: "CMD-1" }, [CLI, { records: [{ id: "o7", fields: { Client: ["andere"], Statut: "Reçue" } }] }]);
       assert.equal(r.res.statusCode, 404, "AN8 nooit de bestelling van een ander");
       r = await call(ko, { user: "aloha", pw: "fout", action: "cancel", ref: "CMD-1" }, [{ records: [] }]);
