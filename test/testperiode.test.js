@@ -376,3 +376,57 @@ test("nummering : refusée tant qu'un document numéroté existe ; après la pur
   assert.equal(await N.maxNumber("Creditnota nummer", "CN", Y), 0);
   assert.ok((await store().list("Journaal")).some((x) => x.fields.Actie === "Testperiode: nummering herstart"));
 });
+
+test("volgend nummer (retour Mohsen) : la prochaine facture prend le numéro choisi, jamais en dessous d'un numéro existant", async () => {
+  const N = require(path.join(ROOT, "lib", "commande", "nummering.js"));
+  const FA = "FA-" + Y;
+  await backup();
+  for (const v of [0, -3, 2.5, "abc", 100000]) assert.equal((await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: v })).statusCode, 400, "refusé : " + v);
+  assert.equal((await beheer({ action: "testNummering", series: [FA], confirm: "ja", volgende: 25 })).statusCode, 400, "confirmation tapée exigée");
+  // Un numéro existe déjà au-dessus : refus (pas de doublon possible).
+  const rec = (await store().list("Commandes")).find((r) => !r.fields["Factuurnummer"]);
+  assert.ok(await store().update("Commandes", rec.id, Object.assign({}, rec.fields, { Factuurnummer: FA + "-0030" }), rec.version));
+  const v = await voorbeeld();
+  assert.equal(v.body.nummering.find((n) => n.serie === FA).hoogste, 30);
+  const blocked = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 });
+  assert.equal(blocked.statusCode, 409); assert.match(blocked.body.error, /0030/);
+  const back = (await store().list("Commandes")).find((r) => r.id === rec.id);
+  assert.ok(await store().update("Commandes", rec.id, Object.assign({}, back.fields, { Factuurnummer: "" }), back.version));
+  // Back-up trop vieille : refus.
+  for (const s of await store().snapshots()) await store().deleteSnapshot(s.id);
+  assert.equal((await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 })).statusCode, 409);
+  await backup();
+  const ok = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 });
+  assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.herstart[0].volgende, FA + "-0025");
+  assert.equal(await N.nextNumber("Factuurnummer", "FA"), FA + "-0025", "la prochaine facture est 0025");
+  assert.equal(await N.nextNumber("Factuurnummer", "FA"), FA + "-0026", "puis la suite, dans l'ordre");
+  assert.ok((await store().list("Journaal")).some((x) => x.fields.Actie === "Nummering: volgend nummer ingesteld"));
+});
+
+test("nummers vrijgeven (retour Mohsen) : factures jamais envoyées ≥ 25 sans numéro, la prochaine est 0025", async () => {
+  const N = require(path.join(ROOT, "lib", "commande", "nummering.js"));
+  const FA = "FA-" + Y;
+  const set = async (id, nr) => { const r = (await store().list("Commandes")).find((x) => x.id === id); assert.ok(await store().update("Commandes", id, Object.assign({}, r.fields, { Factuurnummer: nr }), r.version)); };
+  const free = (await store().list("Commandes")).filter((r) => !r.fields["Factuurnummer"] && !(r.fields["Creditnota nummer"])).slice(0, 3);
+  await set(free[0].id, FA + "-0024"); await set(free[1].id, FA + "-0031"); await set(free[2].id, FA + "-0032");
+  // Une note de crédit (jamais envoyée non plus) sur FA-…-0032 : libérée avec sa facture.
+  { const r = (await store().list("Commandes")).find((x) => x.id === free[2].id); assert.ok(await store().update("Commandes", r.id, Object.assign({}, r.fields, { "Creditnota nummer": "CN-" + Y + "-0009", "Creditnota montant": -5, "Creditnota le": Y + "-10-01" }), r.version)); }
+  await backup();
+  const sans = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 });
+  assert.equal(sans.statusCode, 409, "sans vrijgeven : refus comme avant");
+  assert.equal((await beheer({ action: "testNummering", series: ["CN-" + Y], confirm: "HERSTART NUMMERING", volgende: 25, vrijgeven: true })).statusCode, 400, "enkel FA");
+  const ok = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25, vrijgeven: true });
+  assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
+  assert.deepEqual(ok.body.vrijgegeven.map((v) => v.nummer).sort(), [FA + "-0031", FA + "-0032"]);
+  const now = Object.fromEntries((await store().list("Commandes")).map((r) => [r.id, r.fields["Factuurnummer"] || ""]));
+  assert.equal(now[free[0].id], FA + "-0024", "en dessous de 25 : inchangé");
+  assert.equal(now[free[1].id], ""); assert.equal(now[free[2].id], "");
+  const cnRec = (await store().list("Commandes")).find((x) => x.id === free[2].id);
+  assert.equal(require(path.join(ROOT, "lib", "creditnota.js")).list(cnRec.fields).length, 0, "note de crédit libérée");
+  assert.deepEqual(ok.body.creditnotas, ["CN-" + Y + "-0009"]);
+  assert.equal(await N.nextNumber("Factuurnummer", "FA"), FA + "-0025");
+  const j = (await store().list("Journaal")).find((x) => x.fields.Actie === "Nummering: factuurnummers vrijgegeven");
+  assert.ok(j, "journal"); assert.match(JSON.stringify(j.fields), /0031/);
+  await set(free[0].id, "");
+});

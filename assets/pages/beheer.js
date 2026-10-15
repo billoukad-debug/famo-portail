@@ -782,6 +782,7 @@
       ["Regels in het auditlogboek", c.journaal == null ? "—" : c.journaal + " (blijven bewaard)"]];
     // Label boven waarde (.kv : twee kolommen, één kolom op de telefoon) : lange nummerlijsten lopen niet buiten beeld.
     const table = (c, cap) => '<div class="kv" role="group" aria-label="' + K.esc(cap) + '">' + rows(c).map(([k, v]) => '<div><small>' + K.esc(k) + '</small>' + K.esc(v) + '</div>').join("") + '</div>';
+    const fa = d.nummering.find(n => /^FA-/.test(n.serie)) || {};
     const nodig = d.nummering.filter(n => n.nodig), blocked = d.nummering.filter(n => !n.magHerstarten);
     const why = (id, txt) => txt ? '<p class="quiet fs-12 m-0" id="' + id + '">' + K.esc(txt) + '</p>' : "";
     const purgeWhy = !g.bestellingen ? "Eerst archiveren als test (stap 2)." : !fresh ? "Eerst een back-up maken (stap 3)." : "";
@@ -804,7 +805,9 @@
       '<h3 class="fs-14 mt-14 mb-6">5. Nummering herstarten</h3>' +
       K.c.warn("<b>Alleen als geen enkele van deze testfacturen of creditnota's ooit naar een klant of naar de boekhouder is gegaan.</b> Facturen moeten doorlopend genummerd zijn; een verstuurde factuur annuleer je met een creditnota, je wist ze niet. Vraag het na bij je boekhouder." + (d.facturatie === "portaal" ? " <b>Let op:</b> het portaal maakt hier zelf de facturen (modus Portaal)." : "")) +
       '<div class="tblwrap mt-6"><table class="tbl"><thead><tr><th scope="col">Reeks</th><th scope="col" class="num">Als test</th><th scope="col" class="num">Andere</th><th scope="col">Volgende</th></tr></thead><tbody>' + d.nummering.map(n => '<tr><td class="mono">' + K.esc(n.serie) + '</td><td class="num mono">' + n.test + '</td><td class="num mono">' + n.echt + '</td><td>' + (n.magHerstarten ? (n.nodig ? '<span class="cell-st c-new">kan terug naar 0001</span>' : '<span class="cell-st c-done">0001</span>') : '<span class="cell-st c-late">loopt door</span>') + '</td></tr>').join("") + '</tbody></table></div>' +
-      '<div class="d-flex gap-8 f-wrap mt-6"><button type="button" class="btn btn-o btn-sm" id="tpNum"' + (numWhy ? ' disabled aria-describedby="tpNumWhy"' : "") + '>Nummering herstarten' + (nodig.length ? " (" + nodig.map(n => n.serie).join(", ") + ")" : "") + '</button></div>' + why("tpNumWhy", numWhy) + '<div id="tpRes" class="mt-6"></div>';
+      '<div class="d-flex gap-8 f-wrap mt-6"><button type="button" class="btn btn-o btn-sm" id="tpNum"' + (numWhy ? ' disabled aria-describedby="tpNumWhy"' : "") + '>Nummering herstarten' + (nodig.length ? " (" + nodig.map(n => n.serie).join(", ") + ")" : "") + '</button></div>' + why("tpNumWhy", numWhy) +
+      '<h3 class="fs-14 mt-14 mb-6">Volgend factuurnummer instellen</h3><p class="sub m-0 mb-6">Bijvoorbeeld 25: de volgende factuur wordt ' + K.esc(fa.serie || "FA") + '-0025, daarna 0026 enz. Het hoogste bestaande nummer is nu ' + (fa.hoogste || 0) + '. Kiest u lager, dan worden de facturen vanaf dat nummer gewist: enkel als ze nooit naar een klant of de boekhouder zijn gegaan.</p>' +
+      '<div class="d-flex gap-8 f-wrap"><label for="tpVolg" class="sr-only">Volgend factuurnummer</label><input id="tpVolg" class="input" type="number" inputmode="numeric" min="1" max="99999" step="1" placeholder="' + ((fa.hoogste || 0) + 1) + '"><button type="button" class="btn btn-o btn-sm" id="tpVolgBtn"' + (fresh ? "" : ' disabled aria-describedby="tpVolgWhy"') + '>Instellen</button></div>' + why("tpVolgWhy", fresh ? "" : "Eerst een back-up maken (stap 3).") + '<div id="tpRes" class="mt-6"></div>';
     const res = out.querySelector("#tpRes");
     out.querySelectorAll("[data-behoud]").forEach(b => b.onclick = async () => {
       const id = b.dataset.behoud, on = !b.classList.contains("on");
@@ -847,6 +850,18 @@
       K.busy(nm, true, "Herstarten…");
       try { const r = await K.api("/api/onboarding", { json: { action: "testNummering", series: nodig.map(n => n.serie), confirm: typed.trim() } }); K.toast("Nummering herstart"); await again(K.c.ok("Herstart: " + r.herstart.map(h => K.esc(h.serie) + " → volgende " + K.esc(h.serie) + "-0001").join(" · ") + ".")); }
       catch (e) { fail(nm, e); }
+    };
+    const vb = out.querySelector("#tpVolgBtn");
+    if (vb && fresh) vb.onclick = async () => {
+      const n = Number(out.querySelector("#tpVolg").value);
+      if (!Number.isInteger(n) || n < 1 || n > 99999) { K.toast("Kies een geheel getal van 1 tot 99999."); return; }
+      const nr = fa.serie + "-" + String(n).padStart(4, "0"), vrij = n <= (fa.hoogste || 0);
+      const wis = vrij ? " LET OP: de facturen " + nr + " tot " + fa.serie + "-" + String(fa.hoogste).padStart(4, "0") + " en hun creditnota's verliezen hun nummer (de bestellingen blijven). Doe dit enkel als die facturen nooit naar een klant of de boekhouder zijn gegaan." : "";
+      const typed = await K.prompt({ title: "Volgende factuur: " + nr + "?", text: "De volgende factuur krijgt nummer " + nr + ", daarna gaat het in volgorde verder." + wis + " Vraag het na bij je boekhouder. Typ " + d.bevestig.nummering + " om te bevestigen.", placeholder: d.bevestig.nummering, yes: vrij ? "Wissen en instellen" : "Instellen" });
+      if (typed === null) return;
+      K.busy(vb, true, "Instellen…");
+      try { const r = await K.api("/api/onboarding", { json: { action: "testNummering", series: [fa.serie], confirm: typed.trim(), volgende: n, vrijgeven: vrij } }); K.toast("Volgende factuur: " + nr); await again(K.c.ok("Ingesteld: de volgende factuur is " + K.esc(nr) + "." + (r.vrijgegeven && r.vrijgegeven.length ? " Gewist: " + K.esc(nrList(r.vrijgegeven.map(v => v.nummer))) + (r.creditnotas && r.creditnotas.length ? ", creditnota's " + K.esc(nrList(r.creditnotas)) : "") + "." : ""))); }
+      catch (e) { fail(vb, e); }
     };
   }
 

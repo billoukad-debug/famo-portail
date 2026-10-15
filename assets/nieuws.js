@@ -6,6 +6,16 @@
   "use strict";
   var items = [
     {
+      id: "volgend-factuurnummer", datum: "2026-10-16", spec: "030",
+      titel: "Zelf het volgende factuurnummer kiezen",
+      wat: "U kiest met welk nummer de volgende factuur begint, bijvoorbeeld 25. Daarna gaan de nummers vanzelf in volgorde verder: 25, 26, 27. Bestaan er al hogere nummers die nooit verstuurd zijn, dan worden die gewist.",
+      doen: [
+        { tekst: "Ga naar Beheer, Systeemstatus, kaart „Testperiode afsluiten”. Klik op „Voorbeeld tonen” en maak een back-up.", link: "#/status", label: "Naar Systeemstatus" },
+        { tekst: "Vul 25 in bij „Volgend factuurnummer instellen” en klik op „Instellen”. Lees de waarschuwing en typ wat er gevraagd wordt." },
+        { tekst: "Vraag aan uw boekhouder of dat nummer klopt." }
+      ]
+    },
+    {
       id: "nieuw-lijst", datum: "2026-10-10", spec: "029",
       titel: "Nieuw: deze lijst",
       wat: "Bij elke verandering in het portaal ziet u hier wat er nieuw is en wat u moet doen. Klik op „Gezien” als u het gelezen hebt.",
