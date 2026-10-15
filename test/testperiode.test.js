@@ -376,3 +376,30 @@ test("nummering : refusée tant qu'un document numéroté existe ; après la pur
   assert.equal(await N.maxNumber("Creditnota nummer", "CN", Y), 0);
   assert.ok((await store().list("Journaal")).some((x) => x.fields.Actie === "Testperiode: nummering herstart"));
 });
+
+test("volgend nummer (retour Mohsen) : la prochaine facture prend le numéro choisi, jamais en dessous d'un numéro existant", async () => {
+  const N = require(path.join(ROOT, "lib", "commande", "nummering.js"));
+  const FA = "FA-" + Y;
+  await backup();
+  for (const v of [0, -3, 2.5, "abc", 100000]) assert.equal((await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: v })).statusCode, 400, "refusé : " + v);
+  assert.equal((await beheer({ action: "testNummering", series: [FA], confirm: "ja", volgende: 25 })).statusCode, 400, "confirmation tapée exigée");
+  // Un numéro existe déjà au-dessus : refus (pas de doublon possible).
+  const rec = (await store().list("Commandes")).find((r) => !r.fields["Factuurnummer"]);
+  assert.ok(await store().update("Commandes", rec.id, Object.assign({}, rec.fields, { Factuurnummer: FA + "-0030" }), rec.version));
+  const v = await voorbeeld();
+  assert.equal(v.body.nummering.find((n) => n.serie === FA).hoogste, 30);
+  const blocked = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 });
+  assert.equal(blocked.statusCode, 409); assert.match(blocked.body.error, /0030/);
+  const back = (await store().list("Commandes")).find((r) => r.id === rec.id);
+  assert.ok(await store().update("Commandes", rec.id, Object.assign({}, back.fields, { Factuurnummer: "" }), back.version));
+  // Back-up trop vieille : refus.
+  for (const s of await store().snapshots()) await store().deleteSnapshot(s.id);
+  assert.equal((await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 })).statusCode, 409);
+  await backup();
+  const ok = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 });
+  assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.herstart[0].volgende, FA + "-0025");
+  assert.equal(await N.nextNumber("Factuurnummer", "FA"), FA + "-0025", "la prochaine facture est 0025");
+  assert.equal(await N.nextNumber("Factuurnummer", "FA"), FA + "-0026", "puis la suite, dans l'ordre");
+  assert.ok((await store().list("Journaal")).some((x) => x.fields.Actie === "Nummering: volgend nummer ingesteld"));
+});
