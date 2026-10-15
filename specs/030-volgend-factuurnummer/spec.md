@@ -20,3 +20,14 @@ ensuite régler 25. Le comptable confirme qu'aucune facture de test n'a été en
 ## Tests
 `test/testperiode.test.js` : « volgend nummer (retour Mohsen) » — valeurs invalides 400, confirmation 400,
 numéro existant au-dessus 409, back-up vieille 409, puis 0025 et 0026 dans l'ordre, journal.
+
+## Ajout 2026-10-16 : vrijgeven
+Mohsen n'arrive pas à mettre 25 : le portail a déjà des factures jusqu'à FA-2026-0032. Le propriétaire confirme qu'AUCUNE
+facture du portail n'a été envoyée (Mohsen facturait à la main 2026001–2026024).
+- **FR-006** `vrijgeven: true` (FA seulement, avec `volgende`) : les commandes dont le numéro FA ≥ volgende perdent ce
+  numéro (les commandes restent), journal « Nummering: factuurnummers vrijgegeven » (référence + ancien numéro), puis
+  la série reprend à volgende. Leurs notes de crédit (jamais envoyées) sont libérées aussi et listées au journal. Back-up et confirmation tapée comme FR-003.
+- **FR-007** Écran : un nombre ≤ au plus haut existant déclenche un avertissement (« LET OP … nooit verstuurd ») et
+  l'appel avec `vrijgeven`.
+- Sans numéro : pas de rappel de paiement (`lib/reminders.js`), pas d'export UBL (`api/export.js`), document « — ».
+- Test : « nummers vrijgeven (retour Mohsen) » dans `test/testperiode.test.js`.

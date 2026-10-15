@@ -403,3 +403,30 @@ test("volgend nummer (retour Mohsen) : la prochaine facture prend le numéro cho
   assert.equal(await N.nextNumber("Factuurnummer", "FA"), FA + "-0026", "puis la suite, dans l'ordre");
   assert.ok((await store().list("Journaal")).some((x) => x.fields.Actie === "Nummering: volgend nummer ingesteld"));
 });
+
+test("nummers vrijgeven (retour Mohsen) : factures jamais envoyées ≥ 25 sans numéro, la prochaine est 0025", async () => {
+  const N = require(path.join(ROOT, "lib", "commande", "nummering.js"));
+  const FA = "FA-" + Y;
+  const set = async (id, nr) => { const r = (await store().list("Commandes")).find((x) => x.id === id); assert.ok(await store().update("Commandes", id, Object.assign({}, r.fields, { Factuurnummer: nr }), r.version)); };
+  const free = (await store().list("Commandes")).filter((r) => !r.fields["Factuurnummer"] && !(r.fields["Creditnota nummer"])).slice(0, 3);
+  await set(free[0].id, FA + "-0024"); await set(free[1].id, FA + "-0031"); await set(free[2].id, FA + "-0032");
+  // Une note de crédit (jamais envoyée non plus) sur FA-…-0032 : libérée avec sa facture.
+  { const r = (await store().list("Commandes")).find((x) => x.id === free[2].id); assert.ok(await store().update("Commandes", r.id, Object.assign({}, r.fields, { "Creditnota nummer": "CN-" + Y + "-0009", "Creditnota montant": -5, "Creditnota le": Y + "-10-01" }), r.version)); }
+  await backup();
+  const sans = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25 });
+  assert.equal(sans.statusCode, 409, "sans vrijgeven : refus comme avant");
+  assert.equal((await beheer({ action: "testNummering", series: ["CN-" + Y], confirm: "HERSTART NUMMERING", volgende: 25, vrijgeven: true })).statusCode, 400, "enkel FA");
+  const ok = await beheer({ action: "testNummering", series: [FA], confirm: "HERSTART NUMMERING", volgende: 25, vrijgeven: true });
+  assert.equal(ok.statusCode, 200, JSON.stringify(ok.body));
+  assert.deepEqual(ok.body.vrijgegeven.map((v) => v.nummer).sort(), [FA + "-0031", FA + "-0032"]);
+  const now = Object.fromEntries((await store().list("Commandes")).map((r) => [r.id, r.fields["Factuurnummer"] || ""]));
+  assert.equal(now[free[0].id], FA + "-0024", "en dessous de 25 : inchangé");
+  assert.equal(now[free[1].id], ""); assert.equal(now[free[2].id], "");
+  const cnRec = (await store().list("Commandes")).find((x) => x.id === free[2].id);
+  assert.equal(require(path.join(ROOT, "lib", "creditnota.js")).list(cnRec.fields).length, 0, "note de crédit libérée");
+  assert.deepEqual(ok.body.creditnotas, ["CN-" + Y + "-0009"]);
+  assert.equal(await N.nextNumber("Factuurnummer", "FA"), FA + "-0025");
+  const j = (await store().list("Journaal")).find((x) => x.fields.Actie === "Nummering: factuurnummers vrijgegeven");
+  assert.ok(j, "journal"); assert.match(JSON.stringify(j.fields), /0031/);
+  await set(free[0].id, "");
+});
