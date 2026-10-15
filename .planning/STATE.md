@@ -3,7 +3,7 @@ gsd_state_version: '1.0'
 milestone: v2.1
 milestone_name: Usage réel
 status: planning
-last_updated: '2026-10-02'
+last_updated: '2026-10-15'
 progress:
   total_phases: 4
   completed_phases: 0
@@ -26,7 +26,8 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 Phase: 1 of 4 (Mise en service propre)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-10-02 — onboarding brownfield : cartographie `.planning/codebase/`, ingestion de 37 documents, création du socle (non commité)
+Last activity: 2026-10-15 — livré : 027 vitrine (#39), 028 retours Mohsen (#39), 029 « Nieuw » dans Beheer (#40, fusionnée) ; en cours : 030 volgend factuurnummer (PR #41 brouillon, attend validation Mohsen). Règle : chaque changement a sa note `assets/nieuws.js`, aucune fusion sans validation de Mohsen. Prochaines étapes : Mohsen supprime les commandes de test puis règle FA-2026-0025 ; vérif prod (sur accord) ; maquette Figma ; flux « Goedkeuren » (spec à venir).
+Previous activity: 2026-10-02 — onboarding brownfield : cartographie `.planning/codebase/`, ingestion de 37 documents, création du socle (non commité)
 
 Progress: [░░░░░░░░░░] 0%
 
