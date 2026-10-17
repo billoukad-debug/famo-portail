@@ -54,14 +54,12 @@
       doen: []
     },
     {
-      id: "website", datum: "2026-10-10", spec: "027",
-      titel: "Uw producten staan nu op internet",
-      wat: "Iedereen kan op famoseafood.be/aanbod uw producten zien, met foto en een „vanaf”-prijs (uw basisprijs). Afgesproken prijzen blijven geheim. Nieuwe klanten klikken op „Klant worden”.",
+      id: "website", datum: "2026-10-17", spec: "027",
+      titel: "Uw aanbod op internet: nog verborgen",
+      wat: "De pagina met uw producten en prijzen is klaar, maar staat nog uit. Niemand kan ze zien. Nieuwe klanten zien enkel de startpagina en de knop „Klant worden”.",
       doen: [
-        { tekst: "Zet een mooie foto bij elk product. Producten zonder foto tonen alleen het logo.", link: "#/producten", label: "Naar Producten" },
-        { tekst: "Kijk of elke basisprijs klopt: die zien nieuwe klanten." },
-        { tekst: "Verkoopt u iets niet meer? Zet het product op „Inactief”, dan verdwijnt het van de website." },
-        { tekst: "Bekijk zelf hoe het eruitziet.", link: "/aanbod", label: "Website bekijken" }
+        { tekst: "Zet nu al een mooie foto en de juiste basisprijs bij elk product. Zo is alles klaar als we de pagina later openzetten.", link: "#/producten", label: "Naar Producten" },
+        { tekst: "Wilt u de pagina openzetten? Vraag het aan wie uw portaal bouwt." }
       ]
     }
   ];
