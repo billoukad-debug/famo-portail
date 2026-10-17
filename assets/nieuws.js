@@ -6,6 +6,15 @@
   "use strict";
   var items = [
     {
+      id: "backup-zonder-fotos", datum: "2026-10-17", spec: "031",
+      titel: "De nachtelijke back-up werkt weer",
+      wat: "Sinds 10 oktober kwam de back-up niet meer per e-mail: het bestand was te groot door de foto's. Nu krijgt u elke nacht weer een e-mail met al uw gegevens (bestellingen, klanten, facturen, producten). De foto's zitten er niet meer in.",
+      doen: [
+        { tekst: "Bewaar de e-mail „FAMO back-up” van elke nacht in een map buiten uw mailbox." },
+        { tekst: "Eén keer per maand: maak zelf een volledige back-up met foto's (knop „Back-up maken”).", link: "#/status", label: "Naar Systeemstatus" }
+      ]
+    },
+    {
       id: "volgend-factuurnummer", datum: "2026-10-16", spec: "030",
       titel: "Zelf het volgende factuurnummer kiezen",
       wat: "U kiest met welk nummer de volgende factuur begint, bijvoorbeeld 25. Daarna gaan de nummers vanzelf in volgorde verder: 25, 26, 27. Bestaan er al hogere nummers die nooit verstuurd zijn, dan worden die gewist.",

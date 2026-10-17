@@ -1,7 +1,8 @@
 // Sauvegarde nocturne (cron Vercel, vercel.json → crons) : export complet (lib/backup.js),
 // compressé gzip, envoyé en pièce jointe à la boîte ops (BACKUP_EMAIL, sinon Configuratie
-// → « Bestellingen e-mail »). Au-delà de 30 Mo compressés : résumé seul, téléchargement
-// manuel depuis Beheer → Systeemstatus.
+// → « Bestellingen e-mail »). Au-delà de 30 Mo compressés (photos) : les données SANS photos partent en pièce
+// jointe (restaurables, photos dans la base et la back-up manuelle) ; encore trop gros : résumé seul,
+// téléchargement manuel depuis Beheer → Systeemstatus.
 //
 // Protégé par CRON_SECRET : Vercel envoie « Authorization: Bearer <CRON_SECRET> » à chaque
 // déclenchement. Sans la variable, rien ne part (fail-closed, comme STAFF_CODE).
@@ -38,9 +39,15 @@ module.exports = async (req, res) => {
   let size = 0, sha = "";
   try {
     const b = store ? await backup.fromStore(store, ds.backend()) : await backup.fromAirtable();
-    const buf = backup.gzip(b), sum = backup.summary(b);
+    const sum = backup.summary(b);
+    let buf = backup.gzip(b), zonderFotos = false;
+    // Trop gros pour un e-mail (photos, 2026-10) : les données seules, toujours restaurables.
+    if (buf.length > backupmail.MAX_ATTACHMENT() && (b.files || []).length) {
+      const data = backup.gzip(Object.assign({}, b, { files: [] }));
+      if (data.length <= backupmail.MAX_ATTACHMENT()) { buf = data; zonderFotos = true; }
+    }
     size = buf.length; sha = backup.sha256(buf);
-    // Restauration testée sur une base jetable en mémoire : la sauvegarde se remonte-t-elle à l'identique ?
+    // Restauration testée sur une base jetable en mémoire : la pièce jointe se remonte-t-elle à l'identique ?
     const rt = await restoretest.verify(buf);
     const to = await recipient();
     if (!to) throw new Error("Geen ontvanger : zet BACKUP_EMAIL of Beheer → Bedrijfsgegevens → Bestellingen e-mail");
@@ -49,20 +56,21 @@ module.exports = async (req, res) => {
     const lines = Object.entries(sum.tables).map(([t, n]) => "  " + t + " : " + n);
     const text = "FAMO Portail — back-up van " + day + " (" + sum.backend + ")\n\n" + lines.join("\n") + "\n  Foto's (famo_files) : " + sum.files + "\n\n" +
       (big ? "Het bestand is te groot voor e-mail (" + Math.round(buf.length / 1048576) + " MB gecomprimeerd). Download het handmatig : Beheer → Systeemstatus → Database → Back-up maken.\n"
-        : "Bijlage : famo-backup-" + day + ".json.gz (" + Math.round(buf.length / 1024) + " kB, sha256 " + sha.slice(0, 16) + "…). Terugzetten : Beheer → Systeemstatus → Database → Back-up terugzetten.\n") +
+        : "Bijlage : famo-backup-" + day + ".json.gz (" + Math.round(buf.length / 1024) + " kB, sha256 " + sha.slice(0, 16) + "…). Terugzetten : Beheer → Systeemstatus → Database → Back-up terugzetten.\n" +
+        (zonderFotos ? "Zonder foto's: alle gegevens zitten in de bijlage, de " + sum.files + " foto's niet (te groot voor e-mail). Foto's bewaren: Beheer → Systeemstatus → Database → Back-up maken.\n" : "")) +
       "\nTerugzet-test (lege testdatabase): " + (rt.ok ? "geslaagd, " + rt.records + " records in " + Math.round(rt.ms / 100) / 10 + " s" : "MISLUKT — " + rt.error) + "\n" +
       "\nBewaar deze e-mail buiten de mailbox van het portaal (bv. een map in de cloud).";
     const r = await backupmail.send({
-      to, subject: (big ? "⚠ FAMO back-up te groot voor e-mail — " : "FAMO back-up ") + day, text,
+      to, subject: (big ? "⚠ FAMO back-up te groot voor e-mail — " : zonderFotos ? "FAMO back-up (zonder foto's) " : "FAMO back-up ") + day, text,
       attachment: big ? null : { filename: "famo-backup-" + day + ".json.gz", content: buf.toString("base64") },
       idempotencyKey: "famo-backup-" + day
     });
     const ok = !!r.ok && !big && rt.ok;
     const fout = !rt.ok ? "terugzet-test: " + rt.error : r.ok ? (big ? "te groot voor e-mail" : "") : (r.error || r.skipped || "");
-    if (store) await backup.recordRun(store, { ok, big, size, sha256: sha, error: fout });
+    if (store) await backup.recordRun(store, { ok, big, zonderFotos, size, sha256: sha, error: fout });
     if (!ok) await alarm.alert("back-up", "De nachtelijke back-up is niet in orde: " + fout + ". Zie Beheer → Systeemstatus.");
-    L[ok ? "info" : "error"]("nachtelijke back-up", { size, big, sent: !!r.ok, records: sum.records, files: sum.files, err: r.ok ? undefined : (r.error || r.skipped) });
-    return res.status(ok ? 200 : 502).json({ ok, sent: !!r.ok, big, size, summary: sum, error: r.ok ? undefined : (r.error || r.skipped) });
+    L[ok ? "info" : "error"]("nachtelijke back-up", { size, big, zonderFotos, sent: !!r.ok, records: sum.records, files: sum.files, err: r.ok ? undefined : (r.error || r.skipped) });
+    return res.status(ok ? 200 : 502).json({ ok, sent: !!r.ok, big, zonderFotos, size, summary: sum, error: r.ok ? undefined : (r.error || r.skipped) });
   } catch (e) {
     L.error("nachtelijke back-up mislukt", { err: e });
     if (store) { try { await backup.recordRun(store, { ok: false, size, sha256: sha, error: e.message || String(e) }); } catch (e2) { /* trace impossible : le log suffit */ } }

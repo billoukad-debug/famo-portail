@@ -161,7 +161,7 @@ test("D-01 : mode Airtable -> export seulement (lecture), restauration refusée"
   } finally { ds.state.backend = "sqlite"; }
 });
 
-test("D-01 : cron nocturne -> CRON_SECRET exigé, gzip en pièce jointe à la boîte ops, résumé si trop gros", async () => {
+test("D-01 : cron nocturne -> CRON_SECRET exigé, gzip en pièce jointe à la boîte ops, sans photos si trop gros, résumé si encore trop gros", async () => {
   const original = await populate();
   const cfg = (await ds.state.store.list("Configuratie"))[0];
   await ds.state.store.update("Configuratie", cfg.id, Object.assign({}, cfg.fields, { "Bestellingen e-mail": "ops@famo.test" }), cfg.version);
@@ -185,6 +185,24 @@ test("D-01 : cron nocturne -> CRON_SECRET exigé, gzip en pièce jointe à la bo
     const cmp = backup.compare(original, got);
     assert.deepEqual(cmp.tables.filter((t) => !t.ok).map((t) => t.table), ["Configuratie"], "tout identique sauf l'adresse ops ajoutée pour le test");
     assert.equal(cmp.files.ok, true);
+
+    // Trop gros avec les photos, assez petit sans : les données partent quand même (photos : back-up manuelle).
+    const full = await backup.fromStore(ds.state.store, "sqlite");
+    assert.ok(full.files.length > 0, "le jeu de test a des photos");
+    const zonder = backup.gzip(Object.assign({}, full, { files: [] })).length, met = backup.gzip(full).length;
+    assert.ok(zonder < met);
+    process.env.BACKUP_MAX_BYTES = String(Math.floor((zonder + met) / 2));
+    const data = await callApi("backup-cron", { headers: { authorization: "Bearer " + process.env.CRON_SECRET } });
+    assert.equal(data.statusCode, 200, JSON.stringify(data.body));
+    assert.equal(data.body.zonderFotos, true);
+    const dAtt = mails[1].attachments[0];
+    const dGot = backup.parse(Buffer.from(dAtt.content, "base64"));
+    assert.equal(dGot.files.length, 0, "pièce jointe sans photos");
+    assert.equal(dGot.tables.Commandes.length, original.tables.Commandes.length, "toutes les commandes");
+    assert.match(mails[1].text, /zonder foto/i);
+    assert.equal((await callApi("health", {})).body.checks.backup.ok, true, "données sauvegardées : santé OK");
+    assert.equal((await callApi("dbadmin", { headers: admin() })).body.lastBackup.zonderFotos, true);
+    mails.splice(1, 1);
 
     process.env.BACKUP_MAX_BYTES = "100";
     const big = await callApi("backup-cron", { headers: { authorization: "Bearer " + process.env.CRON_SECRET } });
