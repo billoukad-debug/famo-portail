@@ -104,7 +104,7 @@ module.exports = async (req, res) => {
             const snaps = await t.store.snapshots();
             out.snapshots = snaps.filter((s) => s.parts > 0).map(snapshotOut);
             const run = snaps.find((s) => s.kind === "nachtelijk");
-            if (run) { let n = {}; try { n = JSON.parse(run.note || "{}"); } catch (e) { n = {}; } out.lastBackup = { at: run.createdTime, size: run.size, ok: !!n.ok, big: !!n.big, error: n.error || "" }; }
+            if (run) { let n = {}; try { n = JSON.parse(run.note || "{}"); } catch (e) { n = {}; } out.lastBackup = { at: run.createdTime, size: run.size, ok: !!n.ok, big: !!n.big, zonderFotos: !!n.zonderFotos, error: n.error || "" }; }
           } catch (e) { L.warn("back-ups onleesbaar", { err: e }); }
         }
       }
