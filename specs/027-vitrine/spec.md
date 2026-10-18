@@ -29,3 +29,9 @@ Le portail était entièrement fermé (`robots.txt` : `Disallow: /`, page d'accu
 
 ## Hors périmètre
 Panier public, fidélité, avis clients, blog, newsletter (pas adaptés à 30–60 restaurants à prix négociés).
+
+## Correctif 2026-10-17 : vitrine fermée par défaut
+Le propriétaire : « personne ne doit le voir pour l'instant ». `api/vitrine.js` répond 404 + `X-Robots-Tag: noindex`
+(page minimale, aucune lecture du Catalogue) tant que `VITRINE_OPEN` ≠ `1` ; sitemap sans `/aanbod` ; liens retirés de
+l'accueil (`assets/pages/start.js`) ; `robots.txt` `Disallow: /aanbod`. Rouvrir : `VITRINE_OPEN=1` dans Vercel + remettre
+les liens + `Allow`. Test : dernier test de `test/vitrine.test.js`.

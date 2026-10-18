@@ -66,12 +66,13 @@ needs a recent Node 22.
   result in the backup mail and `/api/health` `checks.backup`), alarms by e-mail + push (`lib/alert.js`, one per type
   per hour), GitHub Actions probe every 15 min (`.github/workflows/watch.yml`), previews send no mail/push and show
   a « PREVIEW » band (`K.isPreview`), `scripts/security-check.js` (headers, internal paths) in check.js.
-  027 Vitrine « Ons aanbod »: public, indexable catalogue rendered on the server (`lib/vitrine.js` pure rendering,
+  027 Vitrine « Ons aanbod » (CLOSED by default since 2026-10-17: 404 noindex unless Vercel env `VITRINE_OPEN=1`, no link from the home page, robots `Disallow: /aanbod`): public, indexable catalogue rendered on the server (`lib/vitrine.js` pure rendering,
   `api/vitrine.js`; `vercel.json` `rewrites` `/aanbod`, `/aanbod/:slug`, `/sitemap.xml`, also applied by
   `scripts/dev-server.js`). Active products only, price « vanaf » = `Prix de base` HTVA per unit (never negotiated
   prices, stock or client data), JSON-LD Product, NL / FR (`?taal=fr`, hreflang), CDN cache 10 min, previews noindex.
   `robots.txt` opens `/`, `/aanbod`, `/aanvraag` and keeps `/api/`, `/klant`, `/team/`, `/beheer` closed;
   `check.js` accepts rewrite targets as pages; tests `test/vitrine.test.js`.
+  031 Back-up zonder foto's: when the nightly gzip exceeds the mail limit, `api/backup-cron.js` attaches the data without photos (`zonderFotos`), health stays OK.
   030 Volgend factuurnummer: `testNummering` accepts `volgende` (counter = volgende - 1, refused if a number ≥ it exists), field in « Testperiode afsluiten ».
   029 « Nieuw » in Beheer: `assets/nieuws.js` (one note per change, simple Dutch: what changed + « Wat moet u doen? »
   with links), tab « Nieuw » + banner on Overzicht, « Gezien » per device. `test/nieuws.test.js` FAILS if a spec ≥ 027

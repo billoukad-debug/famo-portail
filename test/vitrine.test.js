@@ -3,6 +3,7 @@
 process.env.DB_BACKEND = "sqlite";
 process.env.DB_SQLITE_FILE = ":memory:";
 delete process.env.VERCEL_ENV;
+process.env.VITRINE_OPEN = "1"; // la plupart des tests : vitrine ouverte ; fermée par défaut, voir le dernier test
 process.removeAllListeners("warning");
 global.fetch = async (u) => { throw new Error("Réseau interdit : " + u); };
 const test = require("node:test");
@@ -126,9 +127,9 @@ test("préversion Vercel : jamais indexée", async () => {
   try { const r = await get({ p: "aanbod" }); assert.match(r.body, /noindex/); } finally { delete process.env.VERCEL_ENV; }
 });
 
-test("robots.txt, accueil et routes : vitrine ouverte, portail fermé", () => {
+test("robots.txt, accueil et routes : portail fermé, aanbod fermé tant que la vitrine n'est pas ouverte", () => {
   const robots = fs.readFileSync(path.join(ROOT, "robots.txt"), "utf8");
-  assert.match(robots, /^Allow: \/aanbod/m); assert.match(robots, /^Disallow: \/api\//m); assert.match(robots, /^Disallow: \/klant/m);
+  assert.match(robots, /^Disallow: \/aanbod/m); assert.match(robots, /^Disallow: \/api\//m); assert.match(robots, /^Disallow: \/klant/m);
   assert.match(robots, /^Disallow: \/team\//m); assert.match(robots, /^Disallow: \/beheer/m); assert.match(robots, /^Sitemap: https:\/\/www\.famoseafood\.be\/sitemap\.xml/m);
   assert.doesNotMatch(robots, /^Disallow: \/$/m);
   assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "index.html"), "utf8"), /noindex/);
@@ -138,4 +139,23 @@ test("robots.txt, accueil et routes : vitrine ouverte, portail fermé", () => {
   assert.ok(rw.includes("/aanbod → /api/vitrine?p=aanbod"), rw.join("; "));
   assert.ok(rw.includes("/aanbod/:slug → /api/vitrine?p=product&slug=:slug"));
   assert.ok(rw.includes("/sitemap.xml → /api/vitrine?p=sitemap"));
+});
+
+test("vitrine fermée par défaut (propriétaire 2026-10-17) : 404 noindex, aucun produit, sitemap sans aanbod, aucun lien depuis l'accueil", async () => {
+  await seed();
+  delete process.env.VITRINE_OPEN;
+  try {
+    for (const q of [{ p: "aanbod" }, { p: "aanbod", taal: "fr" }, { p: "product", slug: "black-tiger-16-20" }]) {
+      const r = await get(q);
+      assert.equal(r.statusCode, 404, JSON.stringify(q));
+      assert.equal(r.headers["x-robots-tag"], "noindex, nofollow");
+      assert.equal(r.headers["cache-control"], "no-store");
+      assert.doesNotMatch(r.body, /Black Tiger|18[,.]5|vanaf/i, "aucun produit ni prix");
+    }
+    const sm = await get({ p: "sitemap" });
+    assert.equal(sm.statusCode, 200);
+    assert.doesNotMatch(sm.body, /\/aanbod/);
+    assert.match(sm.body, /www\.famoseafood\.be\/<\/loc>/);
+    assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "assets", "pages", "start.js"), "utf8"), /\/aanbod/, "accueil sans lien vers l'aanbod");
+  } finally { process.env.VITRINE_OPEN = "1"; }
 });

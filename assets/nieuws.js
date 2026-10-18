@@ -6,6 +6,15 @@
   "use strict";
   var items = [
     {
+      id: "backup-zonder-fotos", datum: "2026-10-17", spec: "031",
+      titel: "De nachtelijke back-up werkt weer",
+      wat: "Sinds 10 oktober kwam de back-up niet meer per e-mail: het bestand was te groot door de foto's. Nu krijgt u elke nacht weer een e-mail met al uw gegevens (bestellingen, klanten, facturen, producten). De foto's zitten er niet meer in.",
+      doen: [
+        { tekst: "Bewaar de e-mail „FAMO back-up” van elke nacht in een map buiten uw mailbox." },
+        { tekst: "Eén keer per maand: maak zelf een volledige back-up met foto's (knop „Back-up maken”).", link: "#/status", label: "Naar Systeemstatus" }
+      ]
+    },
+    {
       id: "volgend-factuurnummer", datum: "2026-10-16", spec: "030",
       titel: "Zelf het volgende factuurnummer kiezen",
       wat: "U kiest met welk nummer de volgende factuur begint, bijvoorbeeld 25. Daarna gaan de nummers vanzelf in volgorde verder: 25, 26, 27. Bestaan er al hogere nummers die nooit verstuurd zijn, dan worden die gewist.",
@@ -45,14 +54,12 @@
       doen: []
     },
     {
-      id: "website", datum: "2026-10-10", spec: "027",
-      titel: "Uw producten staan nu op internet",
-      wat: "Iedereen kan op famoseafood.be/aanbod uw producten zien, met foto en een „vanaf”-prijs (uw basisprijs). Afgesproken prijzen blijven geheim. Nieuwe klanten klikken op „Klant worden”.",
+      id: "website", datum: "2026-10-17", spec: "027",
+      titel: "Uw aanbod op internet: nog verborgen",
+      wat: "De pagina met uw producten en prijzen is klaar, maar staat nog uit. Niemand kan ze zien. Nieuwe klanten zien enkel de startpagina en de knop „Klant worden”.",
       doen: [
-        { tekst: "Zet een mooie foto bij elk product. Producten zonder foto tonen alleen het logo.", link: "#/producten", label: "Naar Producten" },
-        { tekst: "Kijk of elke basisprijs klopt: die zien nieuwe klanten." },
-        { tekst: "Verkoopt u iets niet meer? Zet het product op „Inactief”, dan verdwijnt het van de website." },
-        { tekst: "Bekijk zelf hoe het eruitziet.", link: "/aanbod", label: "Website bekijken" }
+        { tekst: "Zet nu al een mooie foto en de juiste basisprijs bij elk product. Zo is alles klaar als we de pagina later openzetten.", link: "#/producten", label: "Naar Producten" },
+        { tekst: "Wilt u de pagina openzetten? Vraag het aan wie uw portaal bouwt." }
       ]
     }
   ];

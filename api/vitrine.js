@@ -8,6 +8,9 @@ require("../lib/datastore"); // DB_BACKEND : Airtable (défaut) ou Postgres, voi
 const { at, atAll } = require("../lib/airtable");
 const V = require("../lib/vitrine");
 
+// Fermée par défaut (propriétaire 2026-10-17 : « personne ne doit le voir pour l'instant ») : ouverte seulement
+// avec VITRINE_OPEN=1 dans Vercel. Fermée : /aanbod et les fiches → 404 noindex, sitemap sans l'aanbod.
+const isOpen = () => String(process.env.VITRINE_OPEN || "").trim() === "1";
 const ORIGIN = String(process.env.SITE_ORIGIN || "https://www.famoseafood.be").replace(/\/+$/, "");
 const FIELDS = ["Produit", "Catégorie", "Unité", "Prix de base", "Kaliber", "Omschrijving", "Foto", "Actif", "Volgorde", "Per verpakking", "Verpakking", "Enkel per verpakking", "Stuks per verpakking"];
 
@@ -24,6 +27,12 @@ module.exports = async (req, res) => {
   const q = req.query || {};
   const p = String(q.p || "aanbod"), lang = V.langOf(q.taal);
   const noindex = process.env.VERCEL_ENV === "preview";
+  if (!isOpen() && p !== "sitemap") {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(404).send(V.renderClosed({ lang, origin: ORIGIN }));
+  }
   try {
     const qs = FIELDS.map((f) => "fields%5B%5D=" + encodeURIComponent(f)).join("&");
     const [cat, comp] = await Promise.all([atAll(`Catalogue?filterByFormula=${encodeURIComponent("{Actif}=1")}&${qs}`), company()]);
@@ -32,7 +41,7 @@ module.exports = async (req, res) => {
     res.setHeader("Cache-Control", "public, s-maxage=600, stale-while-revalidate=3600");
     if (p === "sitemap") {
       res.setHeader("Content-Type", "application/xml; charset=utf-8");
-      return res.status(200).send(V.sitemap(list, ORIGIN));
+      return res.status(200).send(V.sitemap(isOpen() ? list : [], ORIGIN, { aanbod: isOpen() }));
     }
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     const o = { lang, origin: ORIGIN, noindex };
