@@ -1043,4 +1043,9 @@
     return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + (k === "bestellingen" ? '<b class="nbadge" data-badge="bestellingen" hidden></b>' : "") + '</a>').join("") + '</nav>';
   };
   global.K = K;
+
+  // Initialize Vercel Speed Insights (vendor/speed-insights.js must be loaded first)
+  if (typeof global.famoSpeedInsights !== "undefined") {
+    global.famoSpeedInsights.inject();
+  }
 })(window);

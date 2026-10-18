@@ -1,0 +1,17 @@
+{
+  "name": "famo-portail",
+  "version": "2.0.0",
+  "description": "FAMO Seafood B2B portal",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "check": "node scripts/check.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.14"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
