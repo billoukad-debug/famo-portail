@@ -7,6 +7,10 @@ const __lev = require("../lib/levering");
 const __lj = require("../lib/lignesjson");
 const __bestelling = require("../lib/bestelling");
 const __push = require("../lib/push"); // pushmeldingen (specs/025)
+const __kw = require("../lib/klantwijziging"); // X3 : ajout à la commande du même jour (specs/036)
+const __testorders = require("../lib/testorders");
+// Clés d'idempotence d'une commande : une par panier envoyé (une commande complétée en garde plusieurs).
+const keysOf = f => String((f && f["Idempotentie"]) || "").split(/\s+/).filter(Boolean);
 // Anti-abus minimal (memoire d'instance, best-effort sur serverless).
 const _rl = new Map();
 function rateLimited(key, max, windowMs){
@@ -99,21 +103,49 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: String(e.message || e) });
     }
 
-    if (rules.minimum > 0 && order.total < rules.minimum) {
-      return res.status(400).json({ error: `Minimum bestelling: € ${rules.minimum.toFixed(2).replace(".", ",")} excl. btw (nu € ${order.total.toFixed(2).replace(".", ",")})` });
-    }
-
     // Idempotence et doublons (audit B-19, L-07) : le portail envoie une clé par panier.
     //  - même clé déjà enregistrée → la même commande est renvoyée, rien n'est recréé ;
     //  - mêmes articles, même client, même jour (clé différente) → confirmation demandée.
     const key = /^[A-Za-z0-9-]{8,64}$/.test(String(body.idempotencyKey || "")) ? String(body.idempotencyKey) : "";
+    // X3 (specs/036) : le client a déjà une commande « Reçue », encore modifiable, pour ce jour de livraison → ce
+    // panier s'y AJOUTE (au lieu de la question « doublon »). Mêmes contrôles qu'une modification (lib/klantwijziging) ;
+    // la commande existante change de lignes, de total et garde son numéro. Un panier déjà ajouté (même clé) n'est
+    // jamais ajouté deux fois. Si la commande ne se laisse plus compléter (produit retiré, magasin plus rapide),
+    // une nouvelle commande est créée comme avant.
+    if (dateLivraison) {
+      const fo = encodeURIComponent(`AND({Statut}='Reçue',{Date livraison souhaitée}='${dateLivraison}')`);
+      const open = await at(`Commandes?filterByFormula=${fo}`);
+      const target = __testorders.real(open && open.records).filter(r => (r.fields["Client"] || []).includes(clientId))
+        .sort((a, b) => String(b.fields["Date"] || "").localeCompare(String(a.fields["Date"] || "")))[0];
+      if (target && key && keysOf(target.fields).includes(key)) {
+        return res.status(200).json({ ref: target.fields["Référence"], id: target.id, total: target.fields["Total"], duplicate: true, samengevoegd: true });
+      }
+      if (target && !__kw.refusal(target.fields, rules)) {
+        const cat = await __bestelling.catalogueFor(clientId);
+        const bestaand = __kw.itemsOf(target.fields, cat.products);
+        if (bestaand) {
+          const extra = { "Idempotentie": keysOf(target.fields).concat(key ? [key] : []).join(" ").slice(-1000) };
+          if (notes) extra["Notes"] = [target.fields["Notes"], String(notes)].filter(Boolean).join("\n").slice(0, 1000);
+          const r = await __kw.apply(client, target, bestaand.concat(body.items), rules, { actie: "Aangevuld door klant", fields: extra });
+          if (r.status === 200) {
+            await require("../lib/revision").bump();
+            return res.status(200).json({ ref: r.fields["Référence"], id: target.id, total: r.fields["Total"], samengevoegd: true, toegevoegd: new Set(body.items.map(i => String(i && i.productId))).size, vorige: r.vorige || [], dateLivraison, mail: null });
+          }
+          if (r.status === 400) return res.status(400).json({ error: r.error });
+        }
+      }
+    }
+    // Minimum : sur une NOUVELLE commande (un ajout à la commande du jour est jugé sur le total complété, plus haut).
+    if (rules.minimum > 0 && order.total < rules.minimum) {
+      return res.status(400).json({ error: `Minimum bestelling: € ${rules.minimum.toFixed(2).replace(".", ",")} excl. btw (nu € ${order.total.toFixed(2).replace(".", ",")})` });
+    }
     if (key) {
       const today0 = __lev.brusselsToday();
       const f = encodeURIComponent(`AND({Date}='${today0}',{Statut}!='Annulée')`);
       const recent = await at(`Commandes?filterByFormula=${f}`);
       // Une commande d'essai archivée (specs/021) n'est ni un doublon ni une réponse idempotente.
       const mine = require("../lib/testorders").real(recent && recent.records).filter(r => (r.fields["Client"] || []).includes(clientId));
-      const same = mine.find(r => r.fields["Idempotentie"] === key);
+      const same = mine.find(r => keysOf(r.fields).includes(key));
       if (same) return res.status(200).json({ ref: same.fields["Référence"], id: same.id, total: same.fields["Total"], duplicate: true });
       const twin = mine.find(r => r.fields["Lignes (produits / quantités)"] === order.lignes && (r.fields["Date livraison souhaitée"] || "") === dateLivraison);
       if (twin && body.confirm !== true) return res.status(409).json({ error: "U plaatste vandaag al dezelfde bestelling (" + (twin.fields["Référence"] || "") + "). Nogmaals bestellen?", needConfirm: true });

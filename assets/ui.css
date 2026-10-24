@@ -23,6 +23,8 @@
   --shadow:0 1px 2px rgba(14,34,41,.06),0 12px 32px rgba(14,34,41,.16);
   --lift:0 1px 2px rgba(14,34,41,.05),0 4px 12px rgba(14,34,41,.08);
   --sans:"Atkinson Hyperlegible Next",-apple-system,"Segoe UI",system-ui,sans-serif;--monof:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  /* x30 lot A (specs/036) : voix éditoriale (titres, grands chiffres), badge « Rauw OK », bandeau de l'heure */
+  --serif:"Instrument Serif",ui-serif,Georgia,"Times New Roman",serif;--rauw:#1F6B3A;--rauw-bg:#DCEFE2;--tide-ok:#7FE0A8;--tide-amber:#F2B84B;
 }
 
 /* Hoog contrast (knop in de bovenbalk, K.contrast ; volgt « meer contrast » van het toestel zolang er geen keuze is) :
@@ -39,6 +41,7 @@
   --danger:#841F11;--danger-bg:#F8E4DF;--klei:#8A3210;--gold:#8A3210;
   --th-bg:#EEF3F3;--row-hover:#EAF0F0;--chart-prev:#66787E;
   --deep:#03161C;--deep-2:#0C2A33;--deep-ink:#FFFFFF;--deep-ink-2:#D2DFE2;
+  --rauw:#124A26;--rauw-bg:#DCEFE2;
 }
 :root[data-contrast="hoog"] body{font-size:15.5px}
 :root[data-contrast="hoog"] :focus-visible{outline-width:3px}
@@ -1056,3 +1059,145 @@ a.kp-link:hover{background:var(--row-hover)}
 .vis-alg>legend{font-size:13px;font-weight:600;padding:0;margin-bottom:6px}
 .vis-alg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px}
 .vis-alg-grid>label{min-height:44px}
+
+/* =====================================================================================================
+   x30 lot A (specs/036) — écran « Bestellen » du portail client : bandeau de l'heure, carte « Zoals elke maandag »,
+   une seule vue de catalogue (plaques d'espèce, « + » qui devient un stepper, Rauw OK), voix serif des titres.
+   Tout est préfixé .x30 (la coque client) ou par des classes x-* nouvelles : aucune règle partagée n'est réécrite.
+   Jetons ajoutés au :root (--serif, --rauw, --rauw-bg, --tide-ok, --tide-amber) : contrôlés par contrast-check.js.
+   ===================================================================================================== */
+/* Instrument Serif (SIL OFL 1.1, assets/fonts/OFL-instrument-serif.txt), paquet npm @fontsource/instrument-serif 5.2.8,
+   hébergée sur le site (CSP font-src 'self' : Google Fonts est bloqué). Titres et grands chiffres seulement. */
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-normal.woff2?v=5eb09b5ac0) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-ext-400-normal.woff2?v=290e6267dd) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-italic.woff2?v=5a51946dff) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+.x30{--x-tide-h:41px}
+/* Voix éditoriale : titres de page, titre de la carte, confirmation. Atkinson reste pour les données et les prix. */
+.x30 .ktitle{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.05;letter-spacing:-.005em}
+.x30 .ok-head .h1{font-family:var(--serif);font-weight:400;font-size:36px;letter-spacing:-.005em}
+.x30 .ksub{font-size:12.5px}
+
+/* ---- X2 bandeau de l'heure (timonerie) : collé en haut, jamais tronqué (le texte passe à la ligne) ---- */
+.x-tide{position:sticky;top:0;z-index:25;background:var(--deep);color:var(--deep-ink)}
+.x-tide-t{display:flex;align-items:center;gap:10px;margin:0;padding:9px 16px 8px;min-height:38px;font-size:13.5px;line-height:1.35}
+.x-tide-t b{color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
+.x-dot{width:8px;height:8px;border-radius:50%;background:var(--tide-ok);box-shadow:0 0 0 4px rgba(127,224,168,.18);flex:none}
+.x-bar{display:block;height:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.x-bar i{display:block;height:100%;background:var(--tide-ok);transform-origin:left center}
+.x-tide.x-amber .x-dot{background:var(--tide-amber);box-shadow:0 0 0 4px rgba(242,184,75,.22)}
+.x-tide.x-amber .x-bar i{background:var(--tide-amber)}
+@media (prefers-reduced-motion:no-preference){.x-bar i{transition:transform .6s cubic-bezier(.23,1,.32,1)}}
+@media (max-width:719px){
+  .x30 .mtop{top:var(--x-tide-h)}
+  .x30 .kt-s{top:var(--x-tide-h)}
+  .x30 .kt-c{top:calc(var(--x-tide-h) + 62px)}
+  .x30 .kl>.sec{top:calc(var(--x-tide-h) + 107px)}
+  html:has(.x30.kv-catalogus){scroll-padding-top:calc(156px + 41px)}
+}
+@media (min-width:720px){
+  .x-tide{top:64px;margin:0 -24px;padding:0 8px}
+  .x30 .ktools{top:calc(64px + var(--x-tide-h))}
+  .x30 .kl>.sec{top:calc(64px + var(--x-tide-h) + var(--kt-h,112px))}
+  html:has(.x30.kv-catalogus){scroll-padding-top:calc(64px + 41px + var(--kt-h,112px) + 48px)}
+}
+@media (min-width:1240px){.x-tide{margin:0 -32px;padding:0 16px}}
+
+/* ---- X1 carte « Zoals elke maandag » / « Uw bestelling » ---- */
+.x-usual{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);overflow:hidden;margin:12px 16px 8px}
+.x-usual[hidden]{display:none}
+.x-uh{padding:16px 16px 8px}
+.x-uh small{display:block;color:var(--ink-2);font-size:13px}
+.x-uh h2{font:400 34px/1.02 var(--serif);letter-spacing:-.01em;margin:4px 0 0;text-wrap:balance}
+.x-ul{list-style:none;margin:0;padding:0 16px}
+.x-ul li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line-soft)}
+.x-un{min-width:0}.x-un b{display:block;font-size:14.5px;line-height:1.25;font-weight:600;overflow-wrap:anywhere}.x-un small{color:var(--ink-2);font-size:12.5px}
+.x-ul li.x-off .x-un b{text-decoration:line-through;color:var(--ink-2)}
+.x-ul .stepper .st-u{padding-right:0}
+.x-uq{font-weight:700;padding:0 8px}
+.x-ul-p{padding:0;margin-top:8px}
+.x-uf{padding:12px 16px 16px;display:grid;gap:8px}
+.x-go{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:56px;padding:0 18px;border:0;border-radius:var(--r-lg);background:var(--p);color:#fff;font:700 16px/1.2 var(--sans);text-align:left;cursor:pointer}
+.x-go:hover{background:var(--p-deep)}
+.x-go:focus-visible{outline:2px solid var(--p);outline-offset:3px}
+.x-go:disabled{background:var(--soft);color:var(--ink-2);cursor:not-allowed}
+.x-go[hidden]{display:none}
+.x-go.x-danger{background:var(--danger)}
+.x-go .mono{white-space:nowrap}
+.x-help{margin:0;font-size:12.5px;color:var(--ink-2);text-align:center;text-wrap:balance}.x-help[hidden]{display:none}
+.x-state{margin:0;text-align:center}
+.ok-head .x-state{margin-top:10px}
+.x-uf .kc-min{margin:0;text-align:center}
+
+/* ---- Plaques d'espèce (sans photo) : aplat + forme ; jamais un pictogramme gris ---- */
+.x-pl{position:relative;display:block;flex:none;width:56px;height:56px;border-radius:var(--r-lg);overflow:hidden}
+.x-pl svg{position:absolute;right:-10px;bottom:-8px;width:76px;height:46px}
+.x-pl.x-uth,.pthumb.x-uth{width:40px;height:40px;border-radius:8px}.x-pl.x-uth svg{right:-8px;bottom:-6px;width:56px;height:34px}
+.pthumb.x-th{width:56px;height:56px;border-radius:var(--r-lg)}
+.x-pl-zalm{background:#F6DCD2}.x-pl-tonijn{background:#F0D5D7}.x-pl-garnaal{background:#F5E4DD}.x-pl-tiger{background:#E3E6EA}
+.x-pl-zeewier{background:#DDE9D5}.x-pl-inktvis,.x-pl-tube{background:#EEE8DF}.x-pl-ei{background:#F3EDE2}
+.x-pl-schelp{background:#E2E4EE}.x-pl-kreeft{background:#F6DDD6}.x-pl-vis{background:#DCE6EA}
+.x-plate-l{position:relative;flex:none;width:200px;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;align-self:flex-start}
+.x-plate-l svg{position:absolute;right:-6%;bottom:-14%;width:78%;height:auto}
+.x-plate-l i{position:absolute;left:12px;top:10px;right:12px;font:italic 400 21px/1.1 var(--serif);color:var(--ink)}
+@media (max-width:480px){.x-plate-l{width:100%}}
+
+/* ---- X6 catalogue : une seule vue (.kl[data-view=x30]) ---- */
+.kl[data-view=x30]{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:0 12px}
+.kl[data-view=x30] .prod{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"x ad" "pp ad" "d d";column-gap:12px;padding-top:10px;padding-bottom:10px;contain-intrinsic-size:auto 96px}
+.kl[data-view=x30] .pr-x{gap:12px;align-items:flex-start;padding:0}
+.kl[data-view=x30] .pr-t{padding-top:2px;gap:3px}
+.kl[data-view=x30] .pn{font-size:15px}
+.x-o{display:block;font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.x-o i{font-style:italic}
+.kl[data-view=x30] .prod>.pp{grid-area:pp;padding-left:68px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin-top:2px}
+.kl[data-view=x30] .prod>.x-add{grid-area:ad;align-self:center}
+.kl[data-view=x30] .prod>.stepper{grid-area:ad;align-self:center;display:none}
+.kl[data-view=x30] .pr-d{padding:10px 0 6px}
+.kl[data-view=x30] .prod.on{background:transparent}.kl[data-view=x30] .prod.on .pn{color:var(--ink)}
+.x-add{min-width:44px;height:44px;padding:0 10px;border:1px solid var(--p);border-radius:var(--r);background:var(--card);color:var(--p);font:600 22px/1 var(--sans);display:inline-flex;align-items:center;justify-content:center;gap:3px;cursor:pointer;white-space:nowrap}
+.x-add:hover{background:var(--p-soft)}
+.x-add.x-on{background:var(--p);color:#fff;font-size:15px;font-weight:700}.x-add.x-on:hover{background:var(--p-deep)}
+.x-add small{font-size:12px;font-weight:600}
+.x-add:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.x-dact{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.x-dact .fav{display:inline-flex;align-items:center;gap:6px}.x-dact .fav svg{width:18px;height:18px}
+.tag.x-tag-raw{background:var(--rauw-bg);color:var(--rauw);border-color:transparent;font-weight:700}
+.tag.x-tag-frz{background:var(--st-road-bg);color:var(--st-road-ink);border-color:transparent}
+.x30 .cats button.x-raw{color:var(--rauw)}.x30 .cats button.x-raw.on{border-bottom-color:var(--rauw)}
+.x30 .kside button.x-raw{color:var(--rauw)}.x30 .kside button.x-raw.on{background:var(--rauw-bg);color:var(--rauw)}
+@container kl (min-width:540px){
+  .kl[data-view=x30] .prod{grid-template-columns:minmax(0,1fr) minmax(110px,auto) auto;grid-template-areas:"x pp ad" "d d d";align-items:center}
+  .kl[data-view=x30] .prod>.pp{padding-left:0;margin:0;flex-direction:column;align-items:flex-end;gap:0}
+  .kl[data-view=x30] .prod.on>.x-add{display:none}
+  .kl[data-view=x30] .prod.on>.stepper{display:inline-flex}
+  .kl[data-view=x30] .x-dact .stepper{display:none}
+  .kl[data-view=x30] .pr-d{padding-left:68px}
+}
+@media (max-width:719px){
+  .kl[data-view=x30]{border-left:0;border-right:0;border-radius:0;padding:0 16px}
+  .x30.kv-catalogus .mtop{padding-top:14px}
+}
+
+/* ---- Mise en page : carte au-dessus de la liste (téléphone, tablette) ; à droite, avec le panier (≥ 1100) ---- */
+@media (min-width:720px){.x-usual{margin:4px 0 16px}}
+@media (min-width:1100px){
+  .x30 .kgrid{grid-template-columns:minmax(0,1fr) 360px}
+  .x30 .kgrid>.kcat{grid-column:1;grid-row:1}
+  .x30 .x-right{grid-column:2;grid-row:1;position:sticky;top:calc(64px + var(--x-tide-h) + 16px);display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 64px - var(--x-tide-h) - 32px);overflow:auto}
+  .x30 .x-right .kcart{position:static;max-height:none}
+  .x30 .x-usual{margin:0}
+  .x30 .x-uh h2{font-size:32px}
+}
+@media (min-width:1240px){
+  .x30 .kgrid{grid-template-columns:190px minmax(0,1fr) 360px}
+  .x30 .kside{grid-column:1;grid-row:1;top:calc(64px + var(--x-tide-h) + 16px)}
+  .x30 .kgrid>.kcat{grid-column:2}
+  .x30 .x-right{grid-column:3}
+}
+@media (min-width:1440px){.x30 .kgrid{grid-template-columns:210px minmax(0,1fr) 380px}}
+/* Pastille « Bevestigd · aanpasbaar tot … » : elle passe à la ligne plutôt que d'écraser la date (390 px). */
+.x30 .orow-st .cell-st,.x30 .x-state .cell-st{white-space:normal;text-align:left}
+@media (max-width:1023px){.x30 .orow-st{max-width:170px}}
+/* Facturen : même mise en page que Leveringen (≥ 1024 : lignes en tableau) */
+@media (min-width:720px){.kv-facturen .mtop .cats{margin:0;padding:0;flex:none}}
+@media (min-width:1024px){.kv-facturen .mlist.grid{display:flex;flex-direction:column;gap:16px;align-items:stretch}}

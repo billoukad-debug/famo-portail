@@ -198,6 +198,31 @@
   // Pied de page public commun (spec 032) : identité légale (WVV art. 2:20), contact, WhatsApp, liens.
   // K.publicFooter() rend la coquille ; K.fillPublicFooter(config) la remplit avec la réponse de
   // /api/config?public=1 (contactOnly) ; K.loadPublicFooter() fait les deux pour une page qui n'a pas déjà cette réponse.
+  // x30 lot A (specs/036) : Bestellen, bandeau de l'heure, « Zoals elke maandag », modifier sans annuler, Facturen.
+  Object.assign(K.FR, {
+    "Bestellen": "Commander", "Leveringen": "Livraisons", "Facturen": "Factures", "Uw vaste producten": "Vos habituels", "Rauw OK": "Cru OK",
+    "Vis": "Poissons", "Garnalen": "Crevettes", "Schaaldieren": "Crustacés", "Schelpdieren": "Coquillages", "Inktvis": "Céphalopodes", "Zeewier en overig": "Algues et autres",
+    "Uw bestelling voor {d}": "Votre commande pour {d}", "Zoals elke {dag}": "Comme chaque {dag}", "Zoals de vorige keer": "Comme la dernière fois",
+    "Bestellen voor {d}": "Commander pour {d}", "Gebaseerd op uw laatste {n} {dag}en": "D'après vos {n} derniers {dag}s",
+    "Gebaseerd op uw laatste {dag}": "D'après votre dernier {dag}", "Gebaseerd op uw laatste bestelling": "D'après votre dernière commande", "Aan te passen {tot}": "Modifiable {tot}",
+    "Besteld voor {d}": "Commandé pour {d}", "Ongedaan maken": "Annuler", "Besteld": "Commandé", "Bestelling aangepast": "Commande modifiée",
+    "Uw bestelling": "Votre commande", "Bevestigd · aanpasbaar {tot}": "Confirmée · modifiable {tot}", "Wijziging opslaan": "Enregistrer la modification",
+    "Iets vergeten? Tik + in de lijst hieronder: het komt bij deze bestelling.": "Un oubli ? Touchez + dans la liste ci-dessous : il s'ajoute à cette commande.",
+    "Wordt klaargezet. Bel Famo om nog iets te wijzigen.": "En préparation. Appelez Famo pour modifier encore.",
+    "Bestelling annuleren": "Annuler la commande", "Aangepast": "Modifié", "Ongedaan gemaakt": "Annulé",
+    "{n} artikelen toegevoegd aan uw bestelling van {d}": "{n} articles ajoutés à votre commande du {d}", "1 artikel toegevoegd aan uw bestelling van {d}": "1 article ajouté à votre commande du {d}",
+    "Toegevoegd aan uw bestelling": "Ajouté à votre commande", "Wijzigen {tot}": "Modifier {tot}",
+    "Toevoegen": "Ajouter", "In winkelmand": "Dans le panier", "Diepvries": "Surgelé", "Vers": "Frais", "Kaliber": "Calibre",
+    "Bij uw vaste producten": "Dans vos habituels", "Uit uw vaste producten": "Retirer de vos habituels", "Prijzen excl. btw, afgesproken prijzen": "Prix HTVA, prix négociés",
+    "Bestellingen en documenten": "Commandes et documents", "Te betalen": "À payer", "Alle facturen": "Toutes les factures",
+    "Geen facturen": "Aucune facture", "Na levering vindt u hier elke factuur.": "Après livraison, chaque facture apparaît ici.",
+    "Favorieten en standaardbestelling": "Favoris et commande type", "Snel opnieuw bestellen": "Recommander rapidement",
+    "Facturen en leveringsbonnen": "Factures et bons de livraison", "Tijd om te bestellen": "Temps pour commander", "Opslaan…": "Enregistrement…",
+    "Bestellen…": "Commande…", "Minimumbestelling {m} excl. btw": "Commande minimum {m} HTVA", "aanpasbaar": "modifiable", "Bestelling wijzigen": "Modifier la commande",
+    "Pas aantallen aan of zet op 0 om te schrappen. Toevoegen doet u in Bestellen.": "Ajustez les quantités ou mettez 0 pour retirer. Pour ajouter, passez par Commander.",
+    "Zoek: zalm, 16/20, inktvis…": "Chercher : saumon, 16/20, calamar…", "Totaal van de bestelling excl. btw": "Total de la commande HTVA",
+    "U hebt al een bestelling voor {d} ({r}). Deze artikelen komen erbij.": "Vous avez déjà une commande pour le {d} ({r}). Ces articles s'y ajoutent."
+  });
   // Visfiche (spec 035) : details van een product in de klantcatalogus.
   Object.assign(K.FR, { "Wetenschappelijke naam": "Nom scientifique", "Herkomst": "Origine", "Staat": "État", "Allergenen": "Allergènes", "Bewaren": "Conservation", "Rauw te eten": "Consommation crue", "ontdooid": "décongelé" });
   Object.assign(K.FR, { "Colofon": "Mentions légales", "Ondernemingsnummer": "N° d'entreprise", "Btw": "TVA", "FAVV": "AFSCA", "WhatsApp": "WhatsApp", "Stuur ons een bericht op WhatsApp": "Envoyez-nous un message sur WhatsApp", "Wij gebruiken deze gegevens enkel om uw aanvraag te behandelen en u te contacteren.": "Nous utilisons ces données uniquement pour traiter votre demande et vous contacter.", "Privacyverklaring": "Déclaration de confidentialité" });
@@ -608,6 +633,8 @@
     orders: '<path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6"/>',
     box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
     truck: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+    receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+    counter: '<path d="M3 12c3-5 9-7 14-4l4-3v14l-4-3c-5 3-11 1-14-4z"/><circle cx="15" cy="11" r="1"/>',
     mail: '<path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>',
     doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
@@ -937,7 +964,7 @@
   // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
   // Les derniers chiffres restent en session : la page suivante les affiche avant d'avoir rechargé.
   // [enkelvoud, meervoud] : « 1 onbetaalde factuur », « 2 onbetaalde facturen ».
-  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
+  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"], "facturen": ["factuur te betalen", "facturen te betalen"] };
   K.plural = (n, one, many) => n + " " + (Number(n) === 1 ? one : (many || one));
   // Pastilles lues (spec 001) : chaque valeur est un nombre ou une liste d'identifiants.
   // Mode par appareil : « nieuw » (défaut) = pas encore vus ici ; « alles » = tout ce qui reste ; « uit » = rien.
@@ -1093,9 +1120,12 @@
     document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer/aanmelden" : "/team/aanmelden"), 1200); }, { once: true });
     return true;
   };
+  // x30 (specs/036) : Bestellen · Leveringen · Facturen · Account. Les adresses restent (#/catalogus, #/bestellingen :
+  // liens des e-mails) ; « Facturen » est une vue des commandes livrées, avec la pastille des factures à payer.
+  // Favorieten reste joignable depuis Account (#/favorieten).
   K.klantTabs = active => {
-    const tabs = [["catalogus", "Catalogus", "list"], ["bestellingen", "Bestellingen", "orders"], ["favorieten", "Favorieten", "star"], ["account", "Account", "user"]];
-    return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + (k === "bestellingen" ? '<b class="nbadge" data-badge="bestellingen" hidden></b>' : "") + '</a>').join("") + '</nav>';
+    const tabs = [["catalogus", "Bestellen", "counter"], ["bestellingen", "Leveringen", "truck"], ["facturen", "Facturen", "receipt"], ["account", "Account", "user"]];
+    return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + (k === "facturen" ? '<b class="nbadge" data-badge="facturen" hidden></b>' : "") + '</a>').join("") + '</nav>';
   };
   global.K = K;
 })(window);

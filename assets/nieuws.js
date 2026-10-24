@@ -6,6 +6,17 @@
   "use strict";
   var items = [
     {
+      id: "bestellen-x30", datum: "2026-10-24", spec: "036",
+      titel: "Uw klanten bestellen hun gewone bestelling met één tik",
+      wat: "Bovenaan Bestellen ziet de klant „Zoals elke maandag”: zijn gewone bestelling, met de prijzen van vandaag. Eén tik en ze staat erin. Hij ziet ook hoeveel tijd er nog is. Hij past zijn bestelling zelf aan tot de deadline. Een tweede bestelling voor dezelfde dag komt bij de eerste.",
+      doen: [
+        { tekst: "Kijk op de proefversie hoe het scherm Bestellen eruitziet, op uw telefoon en op de computer. Is de nieuwe letter voor de titels goed voor u? Zeg het aan Bilal." },
+        { tekst: "Het groene „Rauw OK” staat alleen bij een product als u in de visfiche „Bestemd om rauw te eten” aanzet én kiest hoe de vis diepgevroren werd. Controleer dat voor uw sushi- en pokevis.", link: "#/producten", label: "Naar Producten" },
+        { tekst: "Er wordt nog geen leveruur getoond (bijvoorbeeld tussen 6 en 8 uur). Wilt u dat? Zeg aan Bilal welk uur altijd klopt." },
+        { tekst: "Kijk bij een bestelling naar Correcties: daar ziet u wat de klant zelf veranderde of toevoegde." }
+      ]
+    },
+    {
       id: "visfiche-en-loten", datum: "2026-10-24", spec: "035",
       titel: "Visfiche per product en meer gegevens per lot",
       wat: "Bij elk product kunt u nu de Latijnse naam, de herkomst, de staat (vers, diepgevroren of ontdooid) en de allergenen invullen. Uw klanten zien dat in hun catalogus en op de leveringsbon. Bij elk lot vult u ook de vangstdatum en het nummer van de vangstreis in.",

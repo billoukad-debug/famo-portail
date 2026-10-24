@@ -57,7 +57,7 @@ node scripts/assets-version.js && node scripts/check.js && npx -y eslint@9.39.5 
 
 ## Parcours d'une commande
 
-1. Le client commande (`/api/order`) — le serveur recalcule les prix.
+1. Le client commande (`/api/order`) — le serveur recalcule les prix. Portail x30 (spec 036) : la carte « Zoals elke maandag » propose la commande probable (médiane des 8 dernières livraisons du même jour de semaine) en un geste ; un 2e panier pour le même jour de livraison s'ajoute à la commande « Reçue » ; le client la modifie lui-même (`/api/klantorder` `wijzig`) jusqu'à l'heure limite de la veille, chaque changement est journalisé dans `Correcties`.
 2. Personnel : **valider article par article** puis Klaarzetten (`Prête`).
 3. **Vertrekt** (`Sortie en livraison`) — la commande est verrouillée.
 4. **Ontvangst bevestigen** (nom du réceptionnaire obligatoire, éventuellement une exception : Afwezig / Geweigerd / Gedeeltelijk / Beschadigd + note) → `Facturée`, numéro interne `FA-AAAA-0001`, document « factuur » du portail disponible pour le personnel et le client ; e-mail « geleverd » au client avec échéance et communication. Ce document n'est pas la facture légale (émise par le comptable via Billtobox).
@@ -112,7 +112,7 @@ Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Le
 
 - **Changer son mot de passe** : Klant → Account → Wachtwoord → Wijzigen (`/api/klantwachtwoord`). Le client retape son mot de passe actuel, vérifié côté serveur ; seul le compte qui vient d'être vérifié est modifié, jamais un identifiant envoyé par le navigateur. Nouveau mot de passe : 8 à 80 caractères, différent de l'actuel ; 5 essais ratés par 30 s.
 - **Mot de passe oublié** : `/wachtwoord` → gebruikersnaam + e-mail connu → nouveau mot de passe envoyé par e-mail (`/api/klantorder`, action `reset`, réponse neutre, 3 demandes par heure). Sans `RESEND_API_KEY`, Famo le remet depuis Beheer.
-- **Compte** : e-mail et téléphone modifiables par le client ; favoris et « standaardbestelling » synchronisés entre appareils (`Favorieten`, JSON) ; relevé des factures ouvertes avec IBAN/BIC et communication (mode Portaal : échéance, reste à payer et QR de virement EPC, specs/034) ; détail de chaque commande (statut, facture, livraison, exception, creditnota) ; annulation ou modification (annule + remet au panier) tant que la commande est « Reçue ».
+- **Compte** : e-mail et téléphone modifiables par le client ; favoris et « standaardbestelling » synchronisés entre appareils (`Favorieten`, JSON) ; relevé des factures ouvertes avec IBAN/BIC et communication (mode Portaal : échéance, reste à payer et QR de virement EPC, specs/034) ; détail de chaque commande (statut, facture, livraison, exception, creditnota) ; annulation tant que la commande est « Reçue » ou « Prête » ; modification **sans annulation** (ajouter, retirer, changer une quantité) tant qu'elle est « Reçue » et avant l'heure limite de la veille de la livraison (spec 036).
 - **Anti-force brute** : 5 échecs par 30 s par gebruikersnaam (et 30 par 5 min par IP) à la connexion (`authClient` partagé). Le compteur est en mémoire de chaque instance serverless : sur Vercel, c'est un frein, pas une limite globale garantie. Un client archivé ne peut plus se connecter.
 - **Mots de passe** : stockés hachés (scrypt, `scrypt$<sel>$<empreinte>`) dans `Wachtwoord`. Un ancien mot de passe encore en clair est accepté une fois puis remplacé par son empreinte à la connexion.
 
