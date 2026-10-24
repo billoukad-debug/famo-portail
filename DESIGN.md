@@ -62,9 +62,11 @@ Rayons hiérarchisés : **6** ce qu'on touche (boutons, champs), **10** ce qui c
 
 `assets/brand/famo-mark.svg` (fond clair : carré Noordzee, F blanc) et `famo-mark-light.svg` (timonerie : carré clair, F Diepzee) : un **F sobre**, dessiné en tracés (pas une lettre de police), coins arrondis 7/32. Choix du client le 30/09/2026 (le poisson de la spec 002 est retiré, spec 007). Utilisée par `.logo` (CSS), le favicon, les icônes PWA (`assets/icons/`) et l'en-tête des documents (`assets/docs/documents.js`). Le nom « FAMO Seafood » est écrit à côté.
 
+**Amendement x30 (spec 037, 24/10/2026) : une deuxième voix, éditoriale.** **Instrument Serif** (OFL, `assets/fonts/`, paquet officiel `@fontsource/instrument-serif`, auto-hébergée : la CSP `font-src 'self'` bloque Google Fonts) pour les titres et les grands chiffres de l'accueil public seulement (variable `--serif`). Elle supprime le « 22:ØØ » barré du titre. Atkinson reste pour les données, les prix, les formulaires et l'équipe. Décision de marque à confirmer par le gérant.
+
 ## Accueil client
 
-Titre « Vóór 22:00 besteld, morgen in uw keuken. » (heure limite lue dans la configuration), texte de service, formulaire de connexion. Pas de minuteur (retiré à la demande du client, spec 007), pas de trio de chiffres, pas de slogan.
+Spec 037 « De avondtoonbank » (classes `ac-*` dans `ui.css`) : en-tête timonerie avec « Aanmelden », bandeau vivant (heure limite, prochain jour livré, à l'heure de Bruxelles, `assets/tij.js` ; aucun créneau tant qu'il n'est pas configuré), titre serif « Vóór 22:00 besteld, *morgen in uw keuken.* » (heure lue dans la configuration), comptoir de six plaques d'espèces (aplats et formes SVG, « ter illustratie », jamais de photo copiée), fiche « Voorbeeld » de la carte d'identité d'un lot (mentions de la spec 035), « Zo werkt het » en 3 étapes vraies, connexion et « Een vraag vanavond? » (WhatsApp seulement si configuré), pied de page commun. Pas d'avis, de labels ni de chiffres inventés.
 
 ## Nom
 

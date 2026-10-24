@@ -490,6 +490,51 @@
   };
   S.slotBtn = (o, label) => o.statut !== "Facturée" && o.statut !== "Annulée" ? '<button type="button" class="btn btn-ghost btn-sm" data-act="slot" data-id="' + o.id + '" aria-label="Leveruur ' + K.esc(o.client) + '">' + K.esc(label || "Uur") + '</button>' : "";
   // Zelfde knop overal (fiche, tabel, magazijn, leveringen) : ghost, nooit de hoofdactie.
+  /* ---------- verzending naar boekhouder / Peppol (specs/034) ---------- */
+  // Per document (factuur + elke creditnota) : met de hand ingevuld door de beheerder ; de server controleert en
+  // schrijft het in het journal (Correcties). Er wordt niets verstuurd vanuit het portaal.
+  S.verzDocs = o => o.statut === "Facturée" && o.factuurnummer ? [{ nummer: o.factuurnummer, soort: "Factuur" }].concat(S.cns(o).map(cn => ({ nummer: cn.nummer, soort: "Creditnota" }))) : [];
+  S.verzOf = (o, nr) => (o.verzending && o.verzending[nr]) || { boekhouder: null, peppol: null };
+  S.verzTxt = e => [e.boekhouder ? "Naar boekhouder " + K.date(e.boekhouder.op) : "", e.peppol ? "Peppol " + String(e.peppol.status).toLowerCase() + " " + K.date(e.peppol.op) + (e.peppol.reden ? " · " + e.peppol.reden : "") : ""].filter(Boolean).join(" · ");
+  // Tag compact voor de lijst Bestellingen : status van de factuur zelf.
+  S.verzTag = o => {
+    if (o.statut !== "Facturée" || !o.factuurnummer) return "";
+    const e = S.verzOf(o, o.factuurnummer);
+    if (e.peppol && e.peppol.status === "Geweigerd") return '<span class="tag t-danger bc-danger" title="' + K.esc(S.verzTxt(e)) + '">Peppol geweigerd</span>';
+    if (e.peppol) return '<span class="tag" title="' + K.esc(S.verzTxt(e)) + '">Peppol ' + K.esc(String(e.peppol.status).toLowerCase()) + '</span>';
+    if (e.boekhouder) return '<span class="tag" title="' + K.esc(S.verzTxt(e)) + '">Bij boekhouder</span>';
+    return "";
+  };
+  S.verzendingHtml = o => {
+    const docs = S.verzDocs(o); if (!docs.length) return "";
+    return '<div class="card card-b"><h2 class="h2 mb-8">Boekhouder en Peppol</h2><div class="stack-6 fs-13">' + docs.map(d => { const e = S.verzOf(o, d.nummer), t = S.verzTxt(e); return '<div class="doc-row"><span class="minw-0"><b class="mono">' + K.esc(d.nummer) + '</b><small class="d-block quiet">' + K.esc(t || "Nog niet naar de boekhouder") + '</small></span>' + (K.staff.isAdmin() ? '<button type="button" class="btn btn-o btn-sm" data-act="verzending" data-id="' + o.id + '" data-nr="' + K.esc(d.nummer) + '" aria-label="Verzending ' + K.esc(d.nummer) + ' aanpassen">Aanpassen</button>' : "") + '</div>'; }).join("") + '</div>' +
+      (K.staff.isAdmin() ? '<p class="quiet fs-12 mt-8">Alle facturen van een periode: <a href="/beheer/boekhouder">Beheer → Boekhouder</a>.</p>' : "") + '</div>';
+  };
+  S.verzendingPanel = function (o, nr, onDone) {
+    const e = S.verzOf(o, nr), pe = e.peppol || {};
+    const opt = (v, l) => '<option value="' + v + '"' + ((pe.status || "") === v ? " selected" : "") + '>' + l + '</option>';
+    const p = K.panel({ title: "Verzending " + nr, sub: o.client + " · " + o.ref, body:
+      K.c.field("Naar boekhouder gestuurd op", '<input type="date" class="input" id="vBoek" value="' + K.esc((e.boekhouder && e.boekhouder.op) || "") + '" max="' + K.today() + '">', { id: "fVBoek", hint: "Leeg = nog niet gestuurd." }) +
+      K.c.field("Peppol", '<select class="input" id="vPep">' + opt("", "Nog niet verstuurd") + opt("Verstuurd", "Verstuurd") + opt("Aanvaard", "Aanvaard") + opt("Geweigerd", "Geweigerd") + '</select>', { id: "fVPep", for: "vPep" }) +
+      K.c.field("Datum Peppol", '<input type="date" class="input" id="vPepOp" value="' + K.esc(pe.op || "") + '" max="' + K.today() + '">', { id: "fVPepOp" }) +
+      K.c.field("Reden (bij geweigerd)", K.c.input("vReden", { value: pe.reden || "", placeholder: "bv. btw-nummer van de klant onbekend…", attrs: ' maxlength="200" autocomplete="off"' }), { id: "fVReden" }) +
+      '<p class="quiet fs-125">Het portaal verstuurt zelf niets: u noteert hier wat u of de boekhouder gedaan heeft. Elke wijziging komt in het journaal.</p><div id="vErr"></div>',
+      footer: '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="vOk">Opslaan</button>' });
+    p.el.querySelector("[data-cancel]").onclick = p.close;
+    const val = id => p.el.querySelector("#" + id).value.trim();
+    p.el.querySelector("#vOk").onclick = async () => {
+      const boek = val("vBoek"), status = val("vPep"), op = val("vPepOp"), reden = val("vReden");
+      K.setErr("fVPepOp", status && !op ? "Vul de datum in." : ""); K.setErr("fVReden", status === "Geweigerd" && !reden ? "Waarom geweigerd?" : "");
+      if ((status && !op) || (status === "Geweigerd" && !reden)) return;
+      const v = { nummer: nr };
+      if (boek !== ((e.boekhouder && e.boekhouder.op) || "")) v.boekhouder = boek || null;
+      if (status !== (pe.status || "") || op !== (pe.op || "") || (status === "Geweigerd" && reden !== (pe.reden || ""))) v.peppol = status ? { status, op, reden } : null;
+      if (v.boekhouder === undefined && v.peppol === undefined) { p.el.querySelector("#vErr").innerHTML = K.c.error("Niets gewijzigd."); return; }
+      const btn = p.el.querySelector("#vOk"); K.busy(btn, true, "Opslaan…");
+      try { await S.update(o.id, { verzending: v }); p.close(); K.toast("Verzending " + nr + " bewaard"); if (onDone) onDone(); }
+      catch (err) { p.el.querySelector("#vErr").innerHTML = K.c.error(err.message); K.busy(btn, false); }
+    };
+  };
   S.correctBtn = (o, label) => '<button type="button" class="btn btn-ghost btn-sm" data-act="correct" data-id="' + o.id + '" title="Corrigeren">' + K.esc(label || "Corrigeren") + '</button>';
 
   // Snelle actieknop volgens status.
@@ -518,6 +563,7 @@
       else if (act === "correct") S.correctPanel(o, refresh);
       else if (act === "edit") S.editPanel(o, refresh);
       else if (act === "slot") S.slotPanel(o, refresh);
+      else if (act === "verzending") S.verzendingPanel(o, t.dataset.nr, refresh);
       else if (act === "open") location.href = "/team/bestelling?id=" + encodeURIComponent(o.id);
     });
   };

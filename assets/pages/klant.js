@@ -60,6 +60,8 @@
   /* ---------- beschikbaarheid (enkel als de server een voorraad meestuurt) ---------- */
   const stock = p => (typeof p.voorraad === "number" ? p.voorraad : null);
   const capQty = (p, v) => { const s = stock(p); if (s == null) return v; const n = stepUnits(p); return Math.min(v, Math.max(0, n > 1 ? Math.floor(s / n + 1e-9) * n : s)); };
+  // Visfiche (spec 035) : « ontdooid » is een verplichte vermelding, dus zichtbaar op de regel zelf ; de rest in de details.
+  const thawTag = p => p.vis && p.vis.staat === "Ontdooid" ? '<span class="tag">' + K.t("ontdooid") + '</span>' : "";
   const stockTag = p => { const s = stock(p); if (s == null) return ""; return s > 0 ? '<span class="tag">' + K.esc(K.tt("Nog {n}", { n: K.qty(s) })) + '</span>' : '<span class="tag t-danger">' + K.t("Uitverkocht") + '</span>'; };
 
   /* ---------- favorieten : server (Clients.Favorieten) eerst, localStorage als cache ---------- */
@@ -146,7 +148,7 @@
     // de eenheid staat bij de prijs (« / kassa »), behalve in Compact (eenheid in de metakolom). Compact op een
     // smalle lijst : ook de prijs in de metaregel (de prijskolom verschijnt pas op een brede lijst).
     const kal = p.kaliber && K.searchKey(p.nom).indexOf(K.searchKey(p.kaliber)) < 0 ? p.kaliber : "";
-    const meta = [kal, compact ? unitLabel(p) : "", compact && pakP(p) ? K.pakOne(pakP(p), p.unite) : ""].filter(Boolean).map(K.esc).join(" · ") + stockTag(p) +
+    const meta = [kal, compact ? unitLabel(p) : "", compact && pakP(p) ? K.pakOne(pakP(p), p.unite) : ""].filter(Boolean).map(K.esc).join(" · ") + thawTag(p) + stockTag(p) +
       (compact ? '<span class="pm-p"><b class="mono">' + K.eur(p.prix) + '</b>' + (p.prix < p.base ? ' <small>' + K.t("uw prijs") + '</small>' : "") + '</span>' : "");
     // Vignet in de knop : een tik erop opent de details. alt leeg : de naam staat ernaast in dezelfde knop.
     const btn = '<button type="button" class="pr-x" data-x="' + p.id + '"' + (tiles ? ' aria-haspopup="dialog"' : ' aria-expanded="' + open + '" aria-controls="pd-' + p.id + '"') + '>' +
@@ -199,6 +201,16 @@
       });
     });
   }
+  // Visfiche (spec 035) : enkel wat ingevuld is ; labels via K.t, waarden in de taal van de klant (assets/visfiche.js).
+  function visRows(p, row) {
+    const VI = window.FamoVis, v = p.vis || {};
+    if (!VI || !Object.keys(v).length) return "";
+    const fz = VI.freezeText(v, K.lang);
+    return row(K.t("Wetenschappelijke naam"), v.wetenschappelijkeNaam ? "<i>" + K.esc(v.wetenschappelijkeNaam) + "</i>" + (v.faoCode ? " (" + K.esc(v.faoCode) + ")" : "") : "") +
+      row(K.t("Herkomst"), K.esc(VI.originParts(v, K.lang).join(" · "))) + row(K.t("Staat"), K.esc(VI.stateLabel(v.staat, K.lang))) +
+      row(K.t("Allergenen"), K.esc(VI.allergenList(v.allergenen, K.lang))) + row(K.t("Bewaren"), K.esc(v.bewaring || "")) +
+      row(K.t("Rauw te eten"), fz ? K.esc(fz.replace(/^[^:]+:\s*/, "")) : "");
+  }
   function detailHtml(p) {
     const s = stock(p), neg = p.prix < p.base;
     const row = (k, v) => v ? '<div><dt>' + K.esc(k) + '</dt><dd>' + v + '</dd></div>' : "";
@@ -208,7 +220,7 @@
       row(K.t("Prijs excl. btw"), '<span class="mono">' + K.eur(p.prix) + '</span> / ' + K.esc(unitLabel(p)) + (neg ? ' <s class="mono quiet">' + K.eur(p.base) + '</s> · ' + K.t("uw prijs") : "")) +
       row(K.t("Beschikbaar"), s == null ? "" : s > 0 ? K.esc(K.qty(s)) + " " + K.esc(unitLabel(p)) : '<span class="t-danger">' + K.t("Uitverkocht") + '</span>') +
       (pakP(p) ? row(K.t("Verpakking"), K.esc(K.pakOne(pakP(p), p.unite)) + ' = <span class="mono">' + K.eur(window.FamoVat.r2(p.prix * pakP(p).per)) + '</span>') : "") +
-      (pakP(p) && pakP(p).only ? row(K.t("Bestellen per"), K.esc(K.pakOne(pakP(p), p.unite))) : pakP(p) ? row(K.t("Bestellen per"), K.esc(K.t("per stuk of per verpakking"))) : isKg(p) ? row(K.t("Bestellen per"), K.t("0,5 kg")) : "") + '</dl>' +
+      (pakP(p) && pakP(p).only ? row(K.t("Bestellen per"), K.esc(K.pakOne(pakP(p), p.unite))) : pakP(p) ? row(K.t("Bestellen per"), K.esc(K.t("per stuk of per verpakking"))) : isKg(p) ? row(K.t("Bestellen per"), K.t("0,5 kg")) : "") + visRows(p, row) + '</dl>' +
       '<label class="pr-c"><span>' + K.t("Opmerking bij dit artikel") + '</span><input class="input" data-comment="' + p.id + '" value="' + K.esc(cart.comments[p.id] || "") + '" maxlength="120" placeholder="' + K.t("bv. dikke moot…") + '"></label></div>';
   }
   // Winkelmand naast de catalogus (computer) en balk onderaan (telefoon) : bijgewerkt zonder de lijst opnieuw te tekenen.
@@ -525,6 +537,9 @@
       '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") + row(K.t("Verwacht leveruur"), slotTxt(o)) +
       row(K.t("Factuurnummer"), o.factuurnummer) + row(K.t("Gefactureerd op"), stamp(o.factureeLe)) + row(K.t("Geleverd op"), stamp(o.livreeLe)) + row(K.t("Ontvangen door"), o.receptionnePar) +
       (o.paiement === "Payé" ? row(K.t("Betaald op"), stamp(o.payeLe) || K.t("Betaald")) : "") +
+      // Facture du portail (mode Portaal) : échéance et reste à payer (specs/034). Mode boekhouder : rien de plus, l'échéance
+      // est celle de la facture du comptable.
+      (portaal() && o.statut === "Facturée" ? row(K.t("Vervaldatum"), o.vervaldatum ? K.dateLong(o.vervaldatum) : "") + (o.paiement !== "Payé" && o.openstaand != null ? row(K.t("Nog te betalen"), K.eur(o.openstaand) + " " + K.t("incl. btw")) : "") : "") +
       // Alle creditnota's (C-08), elk als document in de taal van de klant (FR/NL).
       (o.creditnotas && o.creditnotas.length ? o.creditnotas : o.creditnota ? [o.creditnota] : []).map(n => '<div class="row"><div>' + K.esc(K.t("Creditnota") + " " + n.nummer) + '<small>' + K.esc([K.eur(n.montant) + " " + K.t("excl. btw"), stamp(n.le)].filter(Boolean).join(" · ")) + '</small></div><button type="button" class="btn btn-o btn-sm" data-doc="credit" data-ref="' + K.esc(o.ref) + '" data-cn="' + K.esc(n.nummer) + '">' + K.t("Openen") + '</button></div>').join("") +
       row(K.t("Uw opmerking"), o.notes) + '</div>';
@@ -558,7 +573,9 @@
     K.on(root, "click", "[data-copy]", async (e, t) => { try { await navigator.clipboard.writeText(t.dataset.copy); K.toast(K.t("Gekopieerd")); } catch (err) { K.toast(K.t("Kopiëren lukt niet op dit toestel."), { kind: "err" }); } });
   }
   // Document « factuur » van het portaal : pro forma zolang de boekhouding factureert (lib/billing.js).
-  const invLabel = () => ((cat && cat.company && cat.company.facturatie) === "portaal" ? K.t("Factuur") : K.t("Pro forma"));
+  const portaal = () => (cat && cat.company && cat.company.facturatie) === "portaal";
+  const invLabel = () => (portaal() ? K.t("Factuur") : K.t("Pro forma"));
+  const dueTxt = o => portaal() && unpaid(o) && o.vervaldatum ? (o.vervaldatum < K.today() ? K.t("Vervallen") + " " + K.date(o.vervaldatum) : K.t("vervalt op") + " " + K.date(o.vervaldatum)) : "";
   // Openstaande facturen. Modus « boekhouder » (standaard) : de factuur én de betaalgegevens komen van
   // de boekhouding (Peppol) ; het portaal toont dan geen kaart en geen bedrag « te betalen » (anders twee facturen).
   // Modus « portaal » : totaal INCL. btw (zelfde regel als de factuur) en gestructureerde mededeling.
@@ -567,13 +584,16 @@
     const co = cat.company || {};
     // Modus « boekhouder » : geen kaart meer (de vermelding « via de boekhouding (Peppol) » is weg sinds 2026-10-08).
     if (co.facturatie !== "portaal") return "";
-    const due = o => Number(o.totalIncl != null ? o.totalIncl : o.total || 0);
+    // Reste à payer calculé par le serveur (facture TVAC moins notes de crédit, /api/orders) ; sinon la facture TVAC.
+    const due = o => Number(o.openstaand != null ? o.openstaand : o.totalIncl != null ? o.totalIncl : o.total || 0);
     const sum = list.reduce((s, o) => s + due(o), 0);
     const bank = [co.iban ? "IBAN " + co.iban : "", co.bic ? "BIC " + co.bic : ""].filter(Boolean).join(" · ");
     const ref = o => ogm(o.factuurnummer) || o.factuurnummer || o.ref;
     const payText = o => [co.bedrijfsnaam || "FAMO Seafood", co.iban ? "IBAN " + co.iban : "", co.bic ? "BIC " + co.bic : "", K.eur(due(o)) + " " + K.t("incl. btw"), K.t("Mededeling") + ": " + ref(o)].filter(Boolean).join(" · ");
     return '<div class="mcard card-tint d-flex f-col gap-8"><div class="spread-c"><b>' + K.t("Openstaande facturen") + '</b><span class="fs-125">' + K.t("Totaal openstaand") + ' <b class="mono">' + K.eur(sum) + '</b> ' + K.t("incl. btw") + '</span></div>' +
-      list.map(o => '<div class="d-flex jc-sb ai-c gap-8 fs-125"><div class="minw-0"><b class="mono">' + K.esc(o.factuurnummer || o.ref) + '</b><div class="quiet fs-12">' + K.esc(K.date(o.factureeLe || o.date)) + ' · ' + K.t("Mededeling") + ': <span class="mono">' + K.esc(ref(o)) + '</span></div></div><span class="mono">' + K.eur(due(o)) + '</span><button type="button" class="btn btn-o btn-sm" data-copy="' + K.esc(payText(o)) + '">' + K.t("Kopiëren") + '</button></div>').join("") +
+      list.map(o => '<div class="d-flex jc-sb ai-c gap-8 fs-125"><div class="minw-0"><b class="mono">' + K.esc(o.factuurnummer || o.ref) + '</b><div class="quiet fs-12">' + K.esc(K.date(o.factureeLe || o.date)) + (dueTxt(o) ? ' · <span class="' + (o.vervaldatum < K.today() ? "t-danger" : "") + '">' + K.esc(dueTxt(o)) + '</span>' : "") + ' · ' + K.t("Mededeling") + ': <span class="mono">' + K.esc(ref(o)) + '</span></div></div><span class="mono">' + K.eur(due(o)) + '</span><button type="button" class="btn btn-o btn-sm" data-copy="' + K.esc(payText(o)) + '">' + K.t("Kopiëren") + '</button></div>' +
+        // QR de virement (specs/034) : place réservée, remplie après chargement du module (fillQr) si l'IBAN est réel.
+        '<div class="kqr-slot" data-qr-ref="' + K.esc(o.ref) + '" data-qr-amount="' + K.esc(String(due(o))) + '" hidden></div>').join("") +
       (bank ? '<div class="quiet fs-12 d-flex jc-sb ai-c gap-8 f-wrap"><span>' + K.t("Betaalgegevens") + ': <span class="mono">' + K.esc(bank) + '</span></span><button type="button" class="btn btn-ghost btn-sm" data-copy="' + K.esc(co.iban) + '">' + K.t("Kopiëren") + '</button></div>' : "") + '</div>';
   }
   async function renderBestellingen() {
@@ -588,7 +608,7 @@
     // Une ligne par commande (et plus une carte) : date, articles, statut, montant ; sur ordinateur les documents
     // et « Opnieuw bestellen » restent sur la ligne. Tout le reste (wijzigen, annuleren, détail) : clic sur la ligne.
     const quick = o => { const r = ' data-ref="' + K.esc(o.ref) + '"'; return (o.statut === "Facturée" ? '<button type="button" class="btn btn-o btn-sm" data-doc="invoice"' + r + '>' + invLabel() + '</button>' : "") + (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<button type="button" class="btn btn-o btn-sm" data-doc="delivery"' + r + '>' + K.t("Leveringsbon") + '</button>' : "") + '<button type="button" class="btn btn-ghost btn-sm" data-reorder="' + K.esc(o.ref) + '">' + K.t("Opnieuw bestellen") + '</button>'; };
-    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + (slotTxt(o) ? " · " + slotTxt(o) : "") : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes, o.verpakking)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
+    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + (slotTxt(o) ? " · " + slotTxt(o) : "") : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + (dueTxt(o) ? " · " + K.esc(dueTxt(o)) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes, o.verpakking)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
     const empty = ordFilter === "lopend" ? K.c.empty(K.t("Geen lopende bestellingen"), K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) }), '<a class="btn btn-p btn-sm mt-6" href="#/catalogus">' + K.t("Naar de catalogus") + '</a>') : ordFilter === "tebetalen" ? K.c.empty(K.t("Geen openstaande facturen"), K.t("Alles is betaald. Dank u wel.")) : K.c.empty(K.t("Niets in deze lijst"));
     // G-13 : la pastille de l'onglet compte les factures à payer ; la vue qui s'ouvre le dit et y mène en un geste.
     const payHint = ordFilter !== "tebetalen" && nUnpaid ? '<div class="full">' + K.c.warn('<span>' + K.esc(nUnpaid + " " + K.t(nUnpaid === 1 ? "factuur te betalen" : "facturen te betalen")) + '</span> <button type="button" class="linkbtn" data-of="tebetalen">' + K.t("Bekijken") + '</button>') + '</div>' : "";
@@ -597,6 +617,21 @@
     const ofGroup = app.querySelector("[data-of]") && app.querySelector("[data-of]").parentElement; if (ofGroup) ofGroup.setAttribute("aria-label", K.t("Filter")); // G-06 : groupe de filtres nommé (aria-pressed : K.syncStates)
     K.on(app, "click", "[data-of]", (e, t) => { ordFilter = t.dataset.of; K.keep(app, renderOrderList); });
     bindOrderActions(app);
+    if (st) fillQr();
+  }
+  // QR de virement européen dans le relevé (specs/034, assets/epc.js) : uniquement en mode Portaal (le relevé n'existe
+  // pas en mode boekhouder) et avec un IBAN réel ; FamoEpc.forInvoice refuse l'IBAN d'exemple et un montant nul.
+  async function fillQr() {
+    const slots = K.$$("[data-qr-ref]", app); if (!slots.length) return;
+    try { await K.docs(); } catch (e) { return; } // sans module : le relevé garde IBAN et communication, sans QR
+    const co = cat.company || {}, company = { facturatie: co.facturatie, iban: co.iban, bic: co.bic, legal: co.legal, nom: co.bedrijfsnaam };
+    slots.forEach(el => {
+      const o = (orders || []).find(x => x.ref === el.dataset.qrRef); if (!o || !window.FamoEpc) return;
+      const qr = window.FamoEpc.forInvoice({ company, bedrag: Number(el.dataset.qrAmount), mededeling: ogm(o.factuurnummer), factuurnummer: o.factuurnummer, label: K.t("QR-code voor overschrijving") + " " + (o.factuurnummer || o.ref) });
+      if (!qr) return;
+      el.innerHTML = '<details class="kqr"><summary class="btn btn-ghost btn-sm">' + K.t("Betalen met QR-code") + '</summary><figure class="kqr-fig">' + qr.svg + '<figcaption class="quiet fs-12">' + K.t("Scan met uw bank-app om te betalen") + '</figcaption></figure></details>';
+      el.hidden = false;
+    });
   }
 
   /* ---------- favorieten / standaard ---------- */
