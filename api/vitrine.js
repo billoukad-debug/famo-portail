@@ -12,7 +12,9 @@ const V = require("../lib/vitrine");
 // avec VITRINE_OPEN=1 dans Vercel. Fermée : /aanbod et les fiches → 404 noindex, sitemap sans l'aanbod.
 const isOpen = () => String(process.env.VITRINE_OPEN || "").trim() === "1";
 const ORIGIN = String(process.env.SITE_ORIGIN || "https://www.famoseafood.be").replace(/\/+$/, "");
-const FIELDS = ["Produit", "Catégorie", "Unité", "Prix de base", "Kaliber", "Omschrijving", "Foto", "Actif", "Volgorde", "Per verpakking", "Verpakking", "Enkel per verpakking", "Stuks per verpakking"];
+const FIELDS = ["Produit", "Catégorie", "Unité", "Prix de base", "Kaliber", "Omschrijving", "Foto", "Actif", "Volgorde", "Per verpakking", "Verpakking", "Enkel per verpakking", "Stuks per verpakking",
+  // Visfiche (specs/035) : publique (mentions de l'art. 35 et allergènes), jamais un lot ni un client.
+  "Wetenschappelijke naam", "FAO-code", "Productiemethode", "Vangstgebied", "Land van kweek", "Vistuig", "Staat", "Allergenen", "Bewaring"];
 
 async function company() {
   try {
