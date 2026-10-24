@@ -45,6 +45,8 @@ const pages = {
     // Rapportage (spec 022) : page à part ; vue de base, filtre client + trimestre (drill-down), tableau mensuel ouvert
     // avec info-bulle (focus), hoog contrast. Le téléphone (390 px) est couvert par la boucle des largeurs.
     "/beheer/rapportage",
+    // Export boekhouder (spec 034) : période, documents, UBL, statut d'envoi.
+    "/beheer/boekhouder",
     // Vandaag (spec 024) : écran, menu ⋯, + Bestelling (client choisi), et le menu court du mode Eenvoudig.
     "/team/vandaag",
     { name: "/team/vandaag · menu ⋯", url: "/team/vandaag", after: clickAndWait(".vd-card [data-more]", 600) },

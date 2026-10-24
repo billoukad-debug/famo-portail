@@ -3,7 +3,7 @@
   // Ancien lien (#/rapportage) : la Rapportage est une page à part depuis la spec 022.
   if (K.hashParams().path === "rapportage") { location.replace("/beheer/rapportage"); return; }
   const page = K.shell({ portal: "beheer" });
-  const TABS = [["overzicht", "Overzicht"], ["nieuw", "Nieuw"], ["aanvragen", "Aanvragen"], ["klanten", "Klanten"], ["producten", "Producten"], ["prijzen", "Prijzen"], ["rapportage", "Rapportage"], ["journaal", "Journaal"], ["bedrijf", "Bedrijfsgegevens"], ["toegang", "Toegang"], ["status", "Systeemstatus"]];
+  const TABS = [["overzicht", "Overzicht"], ["nieuw", "Nieuw"], ["aanvragen", "Aanvragen"], ["klanten", "Klanten"], ["producten", "Producten"], ["prijzen", "Prijzen"], ["rapportage", "Rapportage"], ["boekhouder", "Boekhouder"], ["journaal", "Journaal"], ["bedrijf", "Bedrijfsgegevens"], ["toegang", "Toegang"], ["status", "Systeemstatus"]];
   const DAGEN = [["ma", "maandag"], ["di", "dinsdag"], ["wo", "woensdag"], ["do", "donderdag"], ["vr", "vrijdag"], ["za", "zaterdag"], ["zo", "zondag"]];
   // pendingCreds : net aangemaakt wachtwoord, één keer getoond bovenaan de klantfiche (overleeft de hash-herrender).
   let D = null, tab = K.hashParams().path || "overzicht", sel = K.hashParams().params.klant || "", pendingCreds = null;
@@ -13,7 +13,7 @@
   // Index client|product reconstruit seulement quand D.prices change (grille produits × klanten : O(1) par cellule).
   let priceIdx = null, priceSrc = null;
   const priceOf = (cid, pid) => { if (priceSrc !== D.prices) { priceSrc = D.prices; priceIdx = new Map((D.prices || []).filter(p => !p.van && !p.tot).map(p => [p.clientId + "|" + p.productId, p])); } return priceIdx.get(cid + "|" + pid); };
-  const head = (sub, right) => '<div class="page-h"><div><h1 class="h1">' + K.esc((TABS.find(t => t[0] === tab) || ["", "Beheer"])[1]) + '</h1><p class="sub">' + K.esc(sub) + '</p></div><span class="spacer"></span>' + (right || "") + '</div><nav class="tabs" aria-label="Beheer">' + TABS.map(([k, l]) => '<a href="' + (k === "rapportage" ? "/beheer/rapportage" : "#/" + k) + '"' + (tab === k ? ' class="on"' : "") + '>' + l + (k === "aanvragen" ? '<b class="nbadge" data-badge="aanvragen"' + (D.status.aanvragen ? "" : " hidden") + ' aria-label="' + K.plural(D.status.aanvragen, "nieuwe aanvraag", "nieuwe aanvragen") + '">' + D.status.aanvragen + '</b>' : "") + (k === "nieuw" && nieuwOpen().length ? '<b class="nbadge" aria-label="' + K.plural(nieuwOpen().length, "nieuw bericht", "nieuwe berichten") + '">' + nieuwOpen().length + '</b>' : "") + '</a>').join("") + '</nav>';
+  const head = (sub, right) => '<div class="page-h"><div><h1 class="h1">' + K.esc((TABS.find(t => t[0] === tab) || ["", "Beheer"])[1]) + '</h1><p class="sub">' + K.esc(sub) + '</p></div><span class="spacer"></span>' + (right || "") + '</div><nav class="tabs" aria-label="Beheer">' + TABS.map(([k, l]) => '<a href="' + (k === "rapportage" ? "/beheer/rapportage" : k === "boekhouder" ? "/beheer/boekhouder" : "#/" + k) + '"' + (tab === k ? ' class="on"' : "") + '>' + l + (k === "aanvragen" ? '<b class="nbadge" data-badge="aanvragen"' + (D.status.aanvragen ? "" : " hidden") + ' aria-label="' + K.plural(D.status.aanvragen, "nieuwe aanvraag", "nieuwe aanvragen") + '">' + D.status.aanvragen + '</b>' : "") + (k === "nieuw" && nieuwOpen().length ? '<b class="nbadge" aria-label="' + K.plural(nieuwOpen().length, "nieuw bericht", "nieuwe berichten") + '">' + nieuwOpen().length + '</b>' : "") + '</a>').join("") + '</nav>';
   const credsBox = c => K.c.ok('<b>Toegang voor ' + K.esc(c.nom) + '</b><div class="mt-6 d-grid gc-a-1 gap-4-12 fs-13"><span class="quiet">Gebruikersnaam</span><b class="mono us-all">' + K.esc(c.user) + '</b><span class="quiet">Wachtwoord</span><b class="mono us-all">' + K.esc(c.password) + '</b></div><div class="quiet fs-12 mt-6">Wordt maar één keer getoond. Geef het door aan de klant (telefoon of WhatsApp), niet per onbeveiligde mail.</div>');
   // Ingeklapte groep (gearchiveerde klanten, verwerkte aanvragen) : zelfde kop als een .grp.
   const fold = (title, n, inner) => '<details class="grp mt-14"><summary class="grp-h c-pointer ls-none blc-line">' + K.icon("chev") + K.esc(title) + ' <small>' + n + '</small></summary>' + inner + '</details>';
@@ -309,6 +309,37 @@
     });
     draw();
   }
+  // Visfiche (spec 035) : herkomst, staat, allergenen, bewaring, rauw te eten. Alles optioneel ; vaste lijsten uit
+  // assets/visfiche.js (dezelfde lijsten als de server). Wat hier staat, ziet de klant en staat op de leveringsbon.
+  function visHtml(vs) {
+    const VI = window.FamoVis; if (!VI) return "";
+    vs = vs || {};
+    const alg = new Set(vs.allergenen || []);
+    const opt = (list, cur, lab) => '<option value="">—</option>' + list.map(x => { const k = typeof x === "string" ? x : (x.key || x.code); return '<option value="' + K.esc(k) + '"' + (k === cur ? " selected" : "") + '>' + K.esc(lab ? lab(x) : k) + '</option>'; }).join("");
+    const filled = Object.keys(vs).length > 0;
+    return '<details class="fbox vis-box" id="pVis"' + (filled ? " open" : "") + '><summary>Visfiche: herkomst, allergenen, bewaring <span class="quiet fs-12">(optioneel)</span></summary>' +
+      '<p class="quiet fs-12 m-0">De klant ziet dit in de catalogus en op de leveringsbon. Neem het over van het etiket of het document van de leverancier. Wat u leeg laat, wordt nergens getoond.</p>' +
+      '<div class="grid-2">' + K.c.field("Wetenschappelijke naam", K.c.input("vSci", { value: vs.wetenschappelijkeNaam || "", placeholder: "bv. Solea solea" })) + K.c.field("FAO-code (3 letters)", K.c.input("vFao", { value: vs.faoCode || "", placeholder: "bv. SOL", attrs: ' maxlength="3" autocapitalize="characters" autocomplete="off"' }), { id: "fVFao", hint: "Code van de soort in de FAO-lijst (ASFIS), bv. SOL = tong." }) + '</div>' +
+      '<div class="grid-2">' + K.c.field("Productiemethode", '<select class="input" id="vMeth">' + opt(VI.METHODS, vs.productiemethode) + '</select>') + K.c.field("Staat", '<select class="input" id="vStaat">' + opt(VI.STATES, vs.staat) + '</select>', { hint: "Ontdooid? De klant ziet dan „ontdooid”." }) + '</div>' +
+      '<div class="grid-2">' + K.c.field("Vangstgebied (FAO-zone)", '<select class="input" id="vZone">' + opt(VI.ZONES, vs.vangstgebied, z => z.code + " " + z.nl) + '</select>', { hint: "Bij gevangen vis." }) + K.c.field("Land van kweek (of rivier, meer)", K.c.input("vLand", { value: vs.landVanKweek || "", placeholder: "bv. Noorwegen", attrs: ' maxlength="80"' }), { hint: "Bij gekweekte vis of zoet water." }) + '</div>' +
+      K.c.field("Vistuig (categorie)", '<select class="input" id="vGear">' + opt(VI.GEARS, vs.vistuig, g => g.nl + " (" + g.fr + ")") + '</select>', { id: "fVGear", hint: "Enkel bij gevangen vis, niet bij kweek." }) +
+      '<fieldset class="vis-alg"><legend>Allergenen (aanvinken wat erin zit)</legend><div class="vis-alg-grid">' + VI.ALLERGENS.map(a => '<label class="row-10 fs-13">' + K.c.check(alg.has(a.key), 'data-alg="' + a.key + '"', { label: a.nl }) + K.esc(a.nl) + '</label>').join("") + '</div></fieldset>' +
+      K.c.field("Bewaren", K.c.input("vKeep", { value: vs.bewaring || "", placeholder: "bv. tussen 0 en 2 °C, onder ijs", attrs: ' maxlength="80"' })) +
+      '<label class="row-10 fs-13 mh-44"><button type="button" class="toggle' + (vs.rauw ? " on" : "") + '" id="vRauw" aria-pressed="' + (vs.rauw ? "true" : "false") + '"></button>Bestemd om rauw te eten (sushi, poke, tartaar)</label>' +
+      '<div id="vFreezeBox"' + (vs.rauw ? "" : " hidden") + '>' + K.c.field("Behandeling tegen parasieten (diepvriezen)", '<select class="input" id="vFreeze">' + opt(VI.FREEZES, vs.vriesbehandeling, x => x.key === "Niet van toepassing" ? x.key : x.key.replace("-", "−").replace(" h", " uur")) + '</select>', { id: "fVFreeze", hint: "Staat op de leveringsbon. Vraag het document aan de leverancier die diepvroor." }) + '</div>' +
+      '</details>';
+  }
+  function visWire(pn) {
+    if (!pn.el.querySelector("#pVis")) return () => undefined;
+    let rauw = pn.el.querySelector("#vRauw").classList.contains("on");
+    const tr = pn.el.querySelector("#vRauw");
+    tr.onclick = () => { rauw = !rauw; K.setOn(tr, rauw); pn.el.querySelector("#vFreezeBox").hidden = !rauw; };
+    K.$$("[data-alg]", pn.el).forEach(b => { b.onclick = () => K.setOn(b, !b.classList.contains("on")); });
+    const fao = pn.el.querySelector("#vFao"); fao.addEventListener("input", () => { const c = fao.selectionStart; fao.value = fao.value.toUpperCase(); fao.setSelectionRange(c, c); });
+    const val = id => pn.el.querySelector("#" + id).value.trim();
+    return () => ({ wetenschappelijkeNaam: val("vSci"), faoCode: val("vFao"), productiemethode: val("vMeth"), staat: val("vStaat"), vangstgebied: val("vZone"), landVanKweek: val("vLand"), vistuig: val("vGear"),
+      allergenen: K.$$("[data-alg]", pn.el).filter(b => b.classList.contains("on")).map(b => b.dataset.alg), bewaring: val("vKeep"), rauw, vriesbehandeling: rauw ? val("vFreeze") : "" });
+  }
   function productPanel(p) {
     const v = Object.assign({ nom: "", cat: "", unite: "caisse", base: "", kaliber: "", btwTarief: null, foto: "", actif: true }, p || {});
     const stockRow = (D.stock || []).find(s => s.product.toLowerCase() === String(v.nom).toLowerCase());
@@ -324,10 +355,12 @@
       '<div class="grid-2">' + K.c.field("Categorie", K.c.input("pCat", { value: v.cat, placeholder: "bv. Vis, Schelpdieren, Schaaldieren…", attrs: ' list="cats"' }) + '<datalist id="cats">' + Array.from(new Set((D.products || []).map(x => x.cat).filter(Boolean))).map(x => '<option value="' + K.esc(x) + '">').join("") + '</datalist>', {}) + K.c.field("BTW-tarief (%)", K.c.input("pBtw", { value: v.btwTarief == null ? "" : v.btwTarief, placeholder: "standaard " + D.config.btwTarief + " %", attrs: ' inputmode="decimal"' }), { id: "fPBtw", hint: "Leeg = standaardtarief uit Bedrijfsgegevens." }) + '</div>' +
       '<div class="grid-2">' + K.c.field("Voorraad (optioneel)", K.c.input("pStock", { value: stockRow ? K.num(stockRow.quantity) : "", attrs: ' inputmode="decimal"' }), { id: "fPStock", hint: D.config.voorraadAfboeken ? "Wordt bij vertrek automatisch afgeboekt." : "Wordt niet automatisch afgetrokken (instelbaar in Bedrijfsgegevens)." }) + K.c.field("Drempel", K.c.input("pLow", { value: stockRow ? K.num(stockRow.lowThreshold) : "", attrs: ' inputmode="decimal"' }), { id: "fPLow" }) + '</div>' +
       K.c.field("Omschrijving voor de klant (optioneel)", '<textarea class="input" id="pDesc" rows="2" maxlength="400" placeholder="bv. Wilde zeebaars uit de Noordzee, gevangen met de lijn…">' + K.esc(v.omschrijving || "") + '</textarea>', { for: "pDesc", hint: "Verschijnt wanneer de klant het product openklapt." }) +
+      visHtml(v.vis) +
       '<label class="row-10 fs-13"><button type="button" class="toggle' + (v.actif ? " on" : "") + '" id="pActif" aria-pressed="' + (v.actif ? "true" : "false") + '"></button>Actief in de catalogus</label>' +
       '<div class="fbox" id="pFotoBox">' + (p ? "" : '<b>Foto\'s</b><p class="quiet fs-12 nw-date">Sla het product eerst op, daarna kunt u tot ' + MAX_FOTOS + ' foto\'s toevoegen.</p>') + '</div>' + '<div id="pErr"></div>',
       footer: (p ? '<button type="button" class="btn btn-ghost t-danger mr-auto" id="pDel">Verwijderen</button>' : "") + '<button type="button" class="btn btn-o" data-cancel>Annuleren</button><button type="button" class="btn btn-p" id="pOk">Opslaan</button>' });
     let actif = !!v.actif; const tg = pn.el.querySelector("#pActif"); tg.onclick = () => { actif = !actif; K.setOn(tg, actif); };
+    const visOf = visWire(pn);
     // Verpakking : voorbeeld van wat de klant ziet (« doos van 6 = € 6,00 », prijs per stuk blijft).
     let enkel = !!v.enkel; const te = pn.el.querySelector("#pEnkel");
     const pakHint = () => { const g = id => pn.el.querySelector("#" + id).value.trim(), pp = K.pakParse(g("pPer")), base = K.parseNum(g("pBase")), unit = g("pUnit"); const k = K.pakOf({ per: pp ? pp.per : NaN, stuks: pp && unit === "kg" ? pp.stuks : undefined, verpakking: g("pPak"), enkel }); if (!k && g("pPer") !== "" && g("pPer") !== "1") { pn.el.querySelector("#pPakHint").textContent = "Niet begrepen of buiten 2 tot " + window.FamoVat.PAK_MAX + ": geef bv. 6, of per kg 12 x 0,8."; return; } pn.el.querySelector("#pPakHint").textContent = k ? "De klant ziet: " + K.eur(Number.isFinite(base) ? base : 0) + " / " + K.unit(unit) + " · " + K.pakOne(k, unit, "nl") + " = " + K.eur(window.FamoVat.r2((Number.isFinite(base) ? base : 0) * k.per)) + (enkel ? " · bestellen enkel per " + k.label : " · ook per stuk te bestellen") : (enkel ? "Vul eerst het aantal per verpakking in." : "Per verpakking leeg = per stuk verkocht. Bv. 6 en doos: de klant ziet de prijs per stuk en per doos."); };
@@ -347,8 +380,8 @@
       const numBad = id => val(id) !== "" && !(Number.isFinite(K.parseNum(val(id))) && K.parseNum(val(id)) >= 0), stockBad = numBad("pStock"), lowBad = numBad("pLow"); K.setErr("fPStock", stockBad ? "Geef een geldig getal (bv. 12,5)." : ""); K.setErr("fPLow", lowBad ? "Geef een geldig getal (bv. 2,5)." : ""); if (stockBad || lowBad) return;
       K.setErr("fPNom", nom ? "" : "Verplicht."); K.setErr("fPBase", Number.isFinite(base) && val("pBase") !== "" ? "" : "Geef een prijs."); K.setErr("fPBtw", btw === "" || (Number.isFinite(btwN) && btwN >= 0 && btwN <= 100) ? "" : "0 tot 100."); if (!nom || !Number.isFinite(base) || val("pBase") === "" || (btw !== "" && !(Number.isFinite(btwN) && btwN >= 0 && btwN <= 100))) return;
       const btn = pn.el.querySelector("#pOk"); K.busy(btn, true, "Opslaan…");
-      try { await post({ action: "saveProduct", id: p ? p.id : undefined, nom, cat: val("pCat"), unite: val("pUnit"), base, kaliber: val("pKal"), omschrijving: val("pDesc"), btwTarief: btw === "" ? "" : btwN, actif, perVerpakking: val("pPer"), verpakking: val("pPak"), enkelPerVerpakking: enkel, stock: val("pStock") === "" ? undefined : K.parseNum(val("pStock")), lowThreshold: val("pLow") === "" ? undefined : K.parseNum(val("pLow")) }); pn.close(); K.toast("Product opgeslagen"); render(); }
-      catch (err) { if (err.status === 409) K.setErr("fPNom", "Die naam bestaat al."); if (/verpakking/i.test(err.message)) K.setErr("fPPer", err.message); pn.el.querySelector("#pErr").innerHTML = K.c.error(err.status === 409 ? "Er bestaat al een product met die naam. Kies een andere naam (of pas dat product aan)." : err.message); K.busy(btn, false); }
+      try { await post({ action: "saveProduct", id: p ? p.id : undefined, nom, cat: val("pCat"), unite: val("pUnit"), base, kaliber: val("pKal"), omschrijving: val("pDesc"), btwTarief: btw === "" ? "" : btwN, actif, perVerpakking: val("pPer"), verpakking: val("pPak"), enkelPerVerpakking: enkel, vis: visOf(), stock: val("pStock") === "" ? undefined : K.parseNum(val("pStock")), lowThreshold: val("pLow") === "" ? undefined : K.parseNum(val("pLow")) }); pn.close(); K.toast("Product opgeslagen"); render(); }
+      catch (err) { if (err.status === 409) K.setErr("fPNom", "Die naam bestaat al."); if (/verpakking/i.test(err.message)) K.setErr("fPPer", err.message); if (/^FAO-code/.test(err.message)) K.setErr("fVFao", err.message); if (/^Vistuig/.test(err.message)) K.setErr("fVGear", err.message); if (/^Vriesbehandeling/.test(err.message)) K.setErr("fVFreeze", err.message); pn.el.querySelector("#pErr").innerHTML = K.c.error(err.status === 409 ? "Er bestaat al een product met die naam. Kies een andere naam (of pas dat product aan)." : err.message); K.busy(btn, false); }
     };
   }
   let orderMode = false;

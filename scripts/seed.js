@@ -112,6 +112,16 @@ function seed(db, opts) {
   // Spec 023 : les huîtres (à la pièce) ont une kist de 12, sans obligation (vente à l'unité permise).
   db.update("Catalogue", [{ id: products.find((p) => p.fields["Produit"] === "Oesters Zeeuwse creuse nr. 3").id, fields: { "Per verpakking": 12, "Verpakking": "kist" } }], false);
   if (opts && opts.fotos) addDemoFotos(db, products);
+  // Spec 035 (portail de dev seulement) : quelques visfiches de démonstration, valeurs fictives mais plausibles.
+  if (opts && opts.visfiche) {
+    const V = (name, f) => ({ id: products.find((p) => p.fields["Produit"] === name).id, fields: f });
+    db.update("Catalogue", [
+      V("Saumon frais", { "Wetenschappelijke naam": "Salmo salar", "FAO-code": "SAL", "Productiemethode": "Gekweekt", "Land van kweek": "Noorwegen", "Staat": "Vers", "Allergenen": "vis", "Bewaring": "tussen 0 en 2 °C", "Rauw te eten": true, "Vriesbehandeling": "-20 °C 24 h" }),
+      V("Cabillaud", { "Wetenschappelijke naam": "Gadus morhua", "FAO-code": "COD", "Productiemethode": "Gevangen op zee", "Vangstgebied": "27.I", "Vistuig": "Chaluts", "Staat": "Ontdooid", "Allergenen": "vis" }),
+      V("Moules (caisse)", { "Wetenschappelijke naam": "Mytilus edulis", "FAO-code": "MUS", "Productiemethode": "Gekweekt", "Land van kweek": "Nederland", "Staat": "Vers", "Allergenen": "weekdieren" }),
+      V("Tonijn sashimi blok", { "Wetenschappelijke naam": "Thunnus albacares", "FAO-code": "YFT", "Productiemethode": "Gevangen op zee", "Vangstgebied": "71", "Vistuig": "Lignes et hameçons", "Staat": "Diepgevroren", "Allergenen": "vis", "Bewaring": "-18 °C of kouder", "Rauw te eten": true, "Vriesbehandeling": "-35 °C 15 h" })
+    ], false);
+  }
   const P = (name) => products.find((p) => p.fields["Produit"] === name);
   db.create("Stock", products.filter((p) => p.fields["Actif"]).map((p, i) => ({ "Produit": p.fields["Produit"], "Quantité disponible": p.fields["Produit"] === "Eieren" ? 120 : [12, 8, 6, 3, 1, 20, 14, 9, 7, 5, 200, 4][i] || 5, "Seuil bas": 4 })));
   const clients = db.create("Clients", [

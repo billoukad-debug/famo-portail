@@ -43,7 +43,8 @@ test("numéro d'entreprise belge (modulo 97)", () => {
 
 test("export réservé au beheerder", async () => {
   await seed(CLIENT("BE0417497106"));
-  assert.equal((await exp({ format: "ubl", id: "recORD1" }, cookie("staff"))).statusCode, 401);
+  assert.equal((await exp({ format: "ubl", id: "recORD1" }, cookie("staff"))).statusCode, 403); // specs/034 : 403 pour le personnel
+  assert.equal((await exp({ format: "ubl", id: "recORD1" }, {})).statusCode, 401, "sans session");
 });
 
 test("n° TVA client manquant → 422 avec la liste des manques (pas de fichier refusé par Billtobox)", async () => {

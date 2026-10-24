@@ -10,7 +10,7 @@ Les documents FA-/CN- du portail sont des documents internes : la facture légal
 |---|---|---|
 | **Klant** | `/` (accueil + connexion), `/klant` (catalogus, winkelmand, bestellingen, favorieten, account), `/aanvraag`, `/wachtwoord` | gebruikersnaam + wachtwoord |
 | **Personeel** | `/team/aanmelden` (connexion), `/team/bestellingen` (tabel · bord · kalender), `/team/bestelling`, `/team/magazijn` (dag · bord), `/team/leveringen`, `/team/documenten`, `/team/invoeren`, `/team/voorraad` | `STAFF_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN personnel (cookie 8 h) |
-| **Beheer** | `/beheer/aanmelden`, `/beheer` (overzicht, aanvragen, klanten, producten, prijzen, journaal, bedrijf, toegang, status), `/beheer/rapportage` + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
+| **Beheer** | `/beheer/aanmelden`, `/beheer` (overzicht, aanvragen, klanten, producten, prijzen, journaal, bedrijf, toegang, status), `/beheer/rapportage`, `/beheer/boekhouder` (export pour le comptable, statut d'envoi) + tout le personnel | `ADMIN_CODE` (ou code enregistré dans Beheer → Toegang) ou PIN beheerder |
 
 Une seule peau « Vismijn » pour les trois portails (voir `DESIGN.md`) : fond froid, une couleur d'action (Noordzee), la barre de l'équipe en bleu-noir, un F sobre comme marque, la police Atkinson Hyperlegible Next. Les couleurs de statut sont identiques partout : ambre ontvangen, Noordzee klaar, bleu onderweg, vert geleverd, gris gefactureerd, rouge te laat.
 
@@ -112,7 +112,7 @@ Le client se connecte avec `Gebruikersnaam` + `Wachtwoord` (table `Clients`). Le
 
 - **Changer son mot de passe** : Klant → Account → Wachtwoord → Wijzigen (`/api/klantwachtwoord`). Le client retape son mot de passe actuel, vérifié côté serveur ; seul le compte qui vient d'être vérifié est modifié, jamais un identifiant envoyé par le navigateur. Nouveau mot de passe : 8 à 80 caractères, différent de l'actuel ; 5 essais ratés par 30 s.
 - **Mot de passe oublié** : `/wachtwoord` → gebruikersnaam + e-mail connu → nouveau mot de passe envoyé par e-mail (`/api/klantorder`, action `reset`, réponse neutre, 3 demandes par heure). Sans `RESEND_API_KEY`, Famo le remet depuis Beheer.
-- **Compte** : e-mail et téléphone modifiables par le client ; favoris et « standaardbestelling » synchronisés entre appareils (`Favorieten`, JSON) ; relevé des factures ouvertes avec IBAN/BIC et communication ; détail de chaque commande (statut, facture, livraison, exception, creditnota) ; annulation ou modification (annule + remet au panier) tant que la commande est « Reçue ».
+- **Compte** : e-mail et téléphone modifiables par le client ; favoris et « standaardbestelling » synchronisés entre appareils (`Favorieten`, JSON) ; relevé des factures ouvertes avec IBAN/BIC et communication (mode Portaal : échéance, reste à payer et QR de virement EPC, specs/034) ; détail de chaque commande (statut, facture, livraison, exception, creditnota) ; annulation ou modification (annule + remet au panier) tant que la commande est « Reçue ».
 - **Anti-force brute** : 5 échecs par 30 s par gebruikersnaam (et 30 par 5 min par IP) à la connexion (`authClient` partagé). Le compteur est en mémoire de chaque instance serverless : sur Vercel, c'est un frein, pas une limite globale garantie. Un client archivé ne peut plus se connecter.
 - **Mots de passe** : stockés hachés (scrypt, `scrypt$<sel>$<empreinte>`) dans `Wachtwoord`. Un ancien mot de passe encore en clair est accepté une fois puis remplacé par son empreinte à la connexion.
 

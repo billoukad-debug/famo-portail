@@ -1,8 +1,8 @@
 /* Atkinson Hyperlegible Next (SIL OFL 1.1, assets/fonts/OFL-atkinson.txt), hébergée sur le site (RGPD, C-11).
    Dessinée par le Braille Institute pour distinguer chaque caractère (1/l/I, 0/O, 5/S, 8/B) : lisible dans la
    chambre froide, avec des gants, sur une tablette mouillée. Police variable 200–800. */
-@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
-@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin-ext.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin.woff2?v=18b2a1a39a) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin-ext.woff2?v=7dae0c6c66) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 /* FAMO · Vismijn (spec 002, 30/09/2026) — le monde du produit : la criée, la glace, l'inox, la mer du Nord.
    IJs (fond froid) · Diepzee (encre, timonerie de l'équipe) · Noordzee (toute action). Marque : un F sobre (assets/brand/).
    Rayons hiérarchisés : 6 ce qu'on touche · 10 ce qui contient · 14 ce qui flotte. Ombres seulement sur ce qui flotte.
@@ -1041,3 +1041,18 @@ a.kp-link:hover{background:var(--row-hover)}
 .nw-invite{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .notice a.btn-p{color:#fff}
 .nw-date{margin:0}.nw-todo{margin-bottom:4px}
+/* QR de virement dans le relevé client (specs/034) : replié par défaut, ≥ 2 × 2 cm, fond blanc (lisible en mode sombre). */
+.kqr summary{list-style:none;cursor:pointer;min-height:44px;display:inline-flex;align-items:center}
+.kqr summary::-webkit-details-marker{display:none}
+.kqr-fig{margin:8px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.kqr-fig svg{display:block;width:168px;height:168px;flex:none;border-radius:6px}
+/* Visfiche (spec 035) : Beheer → Product, ingeklapt deel met herkomst en allergenen */
+.vis-box>summary{min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:var(--p);list-style:none}
+.vis-box>summary::-webkit-details-marker{display:none}
+.vis-box>summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);flex:none}
+.vis-box[open]>summary::before{transform:rotate(45deg)}
+.vis-box>summary:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.vis-alg{border:0;padding:0;margin:0;min-width:0}
+.vis-alg>legend{font-size:13px;font-weight:600;padding:0;margin-bottom:6px}
+.vis-alg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px}
+.vis-alg-grid>label{min-height:44px}
