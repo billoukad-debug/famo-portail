@@ -1206,8 +1206,6 @@ a.kp-link:hover{background:var(--row-hover)}
    5.3.0, hébergée sur le site : CSP font-src 'self') pour les titres et les grands chiffres de l'accueil ; Atkinson
    Hyperlegible Next pour tout le reste. Classes ac-* (accueil) : aucune collision avec .hero, .steps, .login du portail.
    Plaques d'espèces : aplats et formes dessinés en SVG, aucune photo. */
-@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-normal.woff2?v=5eb09b5ac0) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
-@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-italic.woff2?v=5a51946dff) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 :root{--serif:"Instrument Serif",ui-serif,Georgia,"Times New Roman",serif;--ac-ice:#DCE7E8;--ac-sea:#9FD3DE}
 .ac{min-height:100vh;display:flex;flex-direction:column;background:var(--canvas)}
 .ac main{flex:1}.ac main:focus{outline:none}
