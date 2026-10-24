@@ -31,6 +31,13 @@ function write(rel, next) {
 const docsVer = hashOf(Buffer.concat(DOCS.map(read)));
 write("assets/ui.js", read("assets/ui.js").toString("utf8").replace(/K\.DOCS_VER = "[^"]*";/, `K.DOCS_VER = "${docsVer}";`));
 
+// 1b. Polices dans assets/ui.css (spec 033) : la même adresse ?v= que le préchargement des pages, sinon le
+// navigateur télécharge la police deux fois (deux URL différentes). Avant l'empreinte de ui.css elle-même.
+write("assets/ui.css", read("assets/ui.css").toString("utf8").replace(/url\((\/assets\/fonts\/[^)?]+\.woff2)(?:\?v=[0-9a-f]+)?\)/g, (all, url) => {
+  const file = path.join(ROOT, url.slice(1));
+  return fs.existsSync(file) ? "url(" + url + "?v=" + hashOf(fs.readFileSync(file)) + ")" : all;
+}));
+
 // 2. Références dans les pages.
 const sub = d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).filter(f => f.endsWith(".html")).map(f => d + "/" + f) : [];
 const pages = [...fs.readdirSync(ROOT).filter(f => f.endsWith(".html")), ...sub("team"), ...sub("beheer")];
