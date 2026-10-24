@@ -157,6 +157,9 @@
     "incl. btw": "TVAC", "Pro forma": "Pro forma",
     "Openstaande facturen": "Factures ouvertes", "Totaal openstaand": "Total à payer", "Mededeling": "Communication", "Kopiëren": "Copier", "Gekopieerd": "Copié", "Betaalgegevens": "Coordonnées de paiement",
     "Kopiëren lukt niet op dit toestel.": "La copie n'est pas possible sur cet appareil.", "Geen openstaande facturen": "Aucune facture ouverte", "Alles is betaald. Dank u wel.": "Tout est payé. Merci.",
+    // factures du portail : échéance, reste à payer, QR de virement (specs/034)
+    "Vervaldatum": "Échéance", "vervalt op": "échéance le", "Vervallen": "Échue", "Nog te betalen": "Reste à payer", "Betalen met QR-code": "Payer avec le code QR",
+    "Scan met uw bank-app om te betalen": "Scannez avec votre app bancaire pour payer", "QR-code voor overschrijving": "Code QR pour virement",
     // favorieten synchronisatie
     "Favorieten bewaren mislukt. Ze blijven op dit toestel.": "Enregistrement des favoris impossible. Ils restent sur cet appareil.",
     // account
@@ -494,7 +497,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "62739d040c";
+  K.DOCS_VER = "79e3498208";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -505,7 +508,8 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    docsLoading = ["/assets/vat.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
+    // QR de virement (specs/034) : bibliothèque figée (vendor/, MIT) puis assets/epc.js, avant documents.js.
+    docsLoading = ["/assets/vat.js", "/vendor/qrcode-generator.js", "/assets/epc.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;

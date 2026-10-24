@@ -15,14 +15,14 @@ window.FamoDocuments=(()=>{
       paid:"Betaald",paidOn:"Betaald op",creditOn:"Creditnota op factuur",reason:"Reden",creditDate:"Creditnotadatum",invoiceDate:"Factuurdatum",dueDate:"Vervaldatum",deliveryDate:"Leverdatum",
       date:"Datum",document:"Document",order:"Bestelling",invoiceNo:"Factuur",customerNo:"Klantnummer",payStatus:"Betaalstatus",customer:"Klant",vat:"BTW",desc:"Beschrijving",qty:"Aantal",unit:"Eenheid",
       unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",rateCol:"Btw-tarief",baseCol:"Maatstaf",vatCol:"Btw",amount:"Bedrag",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
-      exampleBanner:"Voorbeeld bankgegevens.",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
+      exampleBanner:"Voorbeeld bankgegevens.",qrScan:"Scan met uw bank-app om te betalen",qrLabel:"QR-code voor overschrijving",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
       lot:"Lot",tht:"THT",thawed:"ontdooid",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
       proforma:"PRO FORMA",retour:"RETOURBON",receivedBy:"Ontvangen door",signed:"ondertekend",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
       unitPrice:"Prix unitaire",subtotal:"Sous-total",rateCol:"Taux TVA",baseCol:"Base",vatCol:"TVA",amount:"Montant",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
-      exampleBanner:"Coordonnées bancaires d'exemple.",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
+      exampleBanner:"Coordonnées bancaires d'exemple.",qrScan:"Scannez avec votre app bancaire pour payer",qrLabel:"Code QR pour virement",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
       lot:"Lot",tht:"DLC",thawed:"décongelé",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
       proforma:"PRO FORMA",retour:"BON DE RETOUR",receivedBy:"Réceptionné par",signed:"signé",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
   };
@@ -253,16 +253,22 @@ window.FamoDocuments=(()=>{
       groups.map(g=>'<div class="trow"><span>'+L.vatLine+' '+esc(String(g.rate).replace(".",","))+'%'+(groups.length>1?' <small>('+L.on+' '+esc(eur(g.base))+')</small>':'')+'</span><span>'+eur(g.tva)+'</span></div>').join("")+
       '<div class="trow grand"><span>'+L.totalInc+'</span><span>'+eur(total)+'</span></div>'+
       '</div></section>'+(regimeTxt?'<div class="regime">'+esc(regimeTxt)+'</div>':'');
+    // QR de virement européen (specs/034, assets/epc.js) : facture du portail seulement (jamais en pro forma), IBAN réel
+    // (jamais l'IBAN d'exemple), facture encore ouverte et sans note de crédit (le reste à payer serait autre que le montant).
+    const hasCn=!!((order.creditnotas&&order.creditnotas.length)||(order.creditnota&&order.creditnota.nummer));
+    const qr=invoice&&!pro&&!paid&&!hasCn&&typeof window!=="undefined"&&window.FamoEpc?window.FamoEpc.forInvoice({company:COMPANY,bedrag:total,mededeling:ogm,factuurnummer:order.factuurnummer,label:L.qrLabel}):null;
+    // Bénéficiaire = titulaire du compte (nom juridique + forme, comme dans le QR : vérification du nom par la banque), sinon nom commercial.
+    const payee=(lg.naam?(lg.naam+(lg.rechtsvorm&&!String(lg.naam).toLowerCase().split(/[^a-z0-9.]+/).includes(String(lg.rechtsvorm).toLowerCase())?" "+lg.rechtsvorm:"")):"")||COMPANY.nom;
     // Paiement (facture du portail) : montant, échéance, puis où et avec quelle communication.
-    const bank='<section class="bank"><div class="banklabel">'+L.bank+'</div>'+
+    const bank='<section class="bank'+(qr?' has-qr':'')+'"><div class="bankinfo"><div class="banklabel">'+L.bank+'</div>'+
       '<div class="bankrow"><span>'+L.amount+'</span><b class="mono">'+eur(total)+'</b></div>'+
       '<div class="bankrow"><span>'+L.dueDate+'</span><b>'+date(vervaldatum)+'</b></div>'+
-      '<div class="bankrow"><span>'+L.beneficiary+'</span><b>'+esc(COMPANY.nom)+'</b></div>'+
+      '<div class="bankrow"><span>'+L.beneficiary+'</span><b>'+esc(payee)+'</b></div>'+
       '<div class="bankrow"><span>IBAN</span><b class="mono">'+esc(ibanFmt(COMPANY.iban))+'</b></div>'+
       (COMPANY.bic?'<div class="bankrow"><span>BIC</span><b class="mono">'+esc(COMPANY.bic)+'</b></div>':'')+
       (ogm?'<div class="bankrow"><span>'+L.ref+'</span><b class="mono">'+esc(ogm)+'</b></div>':'')+
       (COMPANY.exampleBank?'<div class="bankexample"><em>'+L.example+'</em></div>':'')+
-      '</section>';
+      '</div>'+(qr?'<figure class="qr">'+qr.svg+'<figcaption>'+esc(L.qrScan)+'</figcaption></figure>':'')+'</section>';
     const ink="#0E2229",muted="#475A61",line="#D3DDDF",soft="#E3EAEB",ijs="#EFF3F3";
     const css='@page{size:A4;margin:14mm 16mm 16mm}'+
       '*{box-sizing:border-box}'+
@@ -316,6 +322,9 @@ window.FamoDocuments=(()=>{
       '.bankrow{display:flex;gap:12px;padding:1px 0}'+
       '.bankrow span{flex:none;width:128px;color:'+muted+'}'+
       '.bankexample{margin-top:6px;color:#7A5410}'+
+      '.bank.has-qr{display:flex;justify-content:space-between;align-items:center;gap:16px}'+
+      '.qr{margin:0;flex:none;text-align:center}.qr svg{display:block;width:30mm;height:30mm;margin:0 auto}'+
+      '.qr figcaption{margin-top:4px;max-width:36mm;font-size:9.5px;line-height:1.35;color:'+muted+'}'+
       '.foot{margin-top:24px;font-size:10px;line-height:1.55}'+
       '.legal{margin-top:14px;padding-top:8px;border-top:1px solid '+line+';font-size:9px;line-height:1.5;color:'+muted+'}'+
       '.doc+.doc{margin-top:48px}'+

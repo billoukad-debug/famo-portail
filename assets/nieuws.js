@@ -6,6 +6,16 @@
   "use strict";
   var items = [
     {
+      id: "boekhouder-en-qr", datum: "2026-10-24", spec: "034",
+      titel: "Facturen voor de boekhouder, per maand",
+      wat: "Bij Beheer staat nu Boekhouder: kies een maand en u ziet alle facturen en creditnota's, met een bestand om aan uw boekhouder te geven. U noteert zelf wanneer u ze gestuurd hebt. Het portaal stuurt niets. Maakt het portaal ooit zelf de facturen, dan krijgt elke factuur een QR-code om te betalen.",
+      doen: [
+        { tekst: "Vraag aan uw boekhouder: kan Billtobox de facturen van het portaal inlezen, of wil hij ze anders ontvangen?" },
+        { tekst: "Open Boekhouder, kies vorige maand en geef de lijst aan uw boekhouder. Klik daarna op Gestuurd vandaag.", link: "/beheer/boekhouder", label: "Naar Boekhouder" },
+        { tekst: "Staat er Onvolledig bij een factuur? Vul dan bij de klant het btw-nummer en het adres in.", link: "#/klanten", label: "Naar Klanten" }
+      ]
+    },
+    {
       id: "vindbaar-op-google", datum: "2026-10-24", spec: "033",
       titel: "Beter te vinden op Google",
       wat: "Google kan nu de tekst van uw website lezen: wie u bent, wat u verkoopt, waar u levert en hoe klanten u bereiken. Stuurt u een link naar uw website op WhatsApp, dan ziet men uw naam, een korte tekst en uw logo. De website heeft ook een eigen link in het Frans.",
