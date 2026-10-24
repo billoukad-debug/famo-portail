@@ -8,6 +8,7 @@ const { applyCorrection } = require("../lib/commande/corrigeren");
 const { makeCreditnota } = require("../lib/commande/creditnota");
 const { sendCorrectieMail } = require("../lib/commande/correctiemail");
 const { update } = require("../lib/commande/bijwerken");
+const { setVerzending } = require("../lib/commande/verzending");
 function staffCodeReady(res){
   if (__auth.hasCode()) return true;
   res.status(500).json({ error: "Server niet geconfigureerd: STAFF_CODE ontbreekt. Stel de omgevingsvariabele in op Vercel." });
@@ -48,6 +49,7 @@ async function handle(req, res, body, id){
   if (body.correction !== undefined) return applyCorrection(req, res, id, f, body, STATUSES);
   if (body.creditnota && typeof body.creditnota === "object") return makeCreditnota(req, res, id, f, body.creditnota);
   if (body.correctieMail === true) return sendCorrectieMail(req, res, id, f);
+  if (body.verzending && typeof body.verzending === "object") return setVerzending(req, res, id, f, body.verzending); // specs/034
   return update(req, res, id, f, body);
 }
 
@@ -63,10 +65,10 @@ module.exports = async (req, res) => {
   if (res.statusCode === 200) await require("../lib/revision").bump();
   if (!before || res.statusCode !== 200) return;
   const after = await __journal.get("Commandes", id);
-  const actie = body.correction ? "Correctie: " + body.correction : body.creditnota ? "Creditnota" : body.correctieMail === true ? "Correctiemail" : body.paiement ? "Betaalstatus: " + body.paiement
+  const actie = body.correction ? "Correctie: " + body.correction : body.creditnota ? "Creditnota" : body.correctieMail === true ? "Correctiemail" : body.verzending ? "Verzending boekhouder/Peppol" : body.paiement ? "Betaalstatus: " + body.paiement
     : body.statut ? "Status → " + body.statut : typeof body.lignes === "string" ? "Lijnen gewijzigd" : body.volgorde !== undefined ? "Volgorde levering" : body.leverslot !== undefined ? "Leverslot" : "Bestelling bijgewerkt";
   await __journal.log({ wie: __auth.actorOf(req), rol: __auth.roleOf(req), actie, object: "Commandes", record: id, referentie: (after || before)["Référence"] || "",
-    wijzigingen: __journal.diff(before, after), reden: body.reden || (body.creditnota && body.creditnota.motif) || body.uitzonderingNota || "" });
+    wijzigingen: __journal.diff(before, after), reden: body.reden || (body.creditnota && body.creditnota.motif) || (body.verzending && body.verzending.reden) || body.uitzonderingNota || "" });
 };
 module.exports.parseLines = parseLines;
 module.exports.formatLine = formatLine;
