@@ -43,6 +43,8 @@ module.exports = async (req, res) => {
       btw: c["BTW-nummer"] || "",
       telefoon: c["Telefoon"] || "",
       email: c["E-mail"] || "",
+      whatsapp: (c["WhatsApp"] || "").trim(), // spec 032 : pied de page public
+      favv: (c["FAVV-nummer"] || "").trim(),
       iban: (c["IBAN"] || "").trim(),
       bic: (c["BIC"] || "").trim(),
       btwTarief: Number(c["BTW-tarief"]) > 0 ? Number(c["BTW-tarief"]) : 6,
@@ -69,6 +71,8 @@ module.exports = async (req, res) => {
       btw: config.btw,
       telefoon: config.telefoon,
       email: config.email,
+      whatsapp: config.whatsapp,
+      favv: config.favv,
       levering: config.levering,
       legal: config.legal,
       // Conditions générales (C-12) : version publiée ; le texte via ?voorwaarden=1.

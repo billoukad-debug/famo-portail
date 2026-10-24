@@ -6,6 +6,16 @@
   "use strict";
   var items = [
     {
+      id: "contact-en-colofon", datum: "2026-10-24", spec: "032",
+      titel: "Uw gegevens en contact onderaan elke pagina",
+      wat: "Onderaan de website staan nu uw bedrijfsgegevens, uw e-mail, uw telefoon en een knop WhatsApp. Er is ook een nieuwe pagina Colofon. De privacytekst is aangevuld.",
+      doen: [
+        { tekst: "Vul bij Bedrijf uw juridische naam (Famo Trading), rechtsvorm (BV) en RPR in.", link: "#/bedrijf", label: "Naar Bedrijf" },
+        { tekst: "Vul uw WhatsApp-nummer en uw FAVV-nummer in. Leeg laten mag: dan verschijnt er niets." },
+        { tekst: "Lees de pagina Colofon en de privacytekst na.", link: "/colofon", label: "Naar Colofon" }
+      ]
+    },
+    {
       id: "backup-zonder-fotos", datum: "2026-10-17", spec: "031",
       titel: "De nachtelijke back-up werkt weer",
       wat: "Sinds 10 oktober kwam de back-up niet meer per e-mail: het bestand was te groot door de foto's. Nu krijgt u elke nacht weer een e-mail met al uw gegevens (bestellingen, klanten, facturen, producten). De foto's zitten er niet meer in.",

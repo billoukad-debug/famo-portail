@@ -200,7 +200,7 @@ test("D-01 : cron nocturne -> CRON_SECRET exigé, gzip en pièce jointe à la bo
     assert.equal(dGot.files.length, 0, "pièce jointe sans photos");
     assert.equal(dGot.tables.Commandes.length, original.tables.Commandes.length, "toutes les commandes");
     assert.match(mails[1].text, /zonder foto/i);
-    assert.equal((await callApi("health", {})).body.checks.backup.ok, true, "données sauvegardées : santé OK");
+    assert.equal((await callApi("health", { headers: admin() })).body.checks.backup.ok, true, "données sauvegardées : santé OK");
     assert.equal((await callApi("dbadmin", { headers: admin() })).body.lastBackup.zonderFotos, true);
     mails.splice(1, 1);
 
@@ -211,7 +211,7 @@ test("D-01 : cron nocturne -> CRON_SECRET exigé, gzip en pièce jointe à la bo
     assert.match(mails[1].text, /handmatig/);
     const st = await callApi("dbadmin", { headers: admin() });
     assert.equal(st.body.lastBackup.big, true);
-    const h = await callApi("health", {});
+    const h = await callApi("health", { headers: admin() });
     assert.equal(h.body.checks.backup.ok, false, "la santé montre le dernier envoi raté");
   } finally {
     globalThis.fetch = prev;
@@ -284,7 +284,13 @@ test("D-03 : /api/health -> 200 sain, 503 base injoignable, aucune donnée perso
   await populate();
   process.env.VERCEL_GIT_COMMIT_SHA = "abcdef1234567890";
   try {
-    const h = await callApi("health", {});
+    // Spec 032 : sans session, seulement { ok, time } ; le détail avec une session équipe.
+    const pub = await callApi("health", {});
+    assert.equal(pub.statusCode, 200, JSON.stringify(pub.body));
+    assert.deepEqual(Object.keys(pub.body).sort(), ["checks", "ok", "time"]);
+    assert.deepEqual(Object.keys(pub.body.checks).filter((k) => k !== "backup"), [], "public : seulement l'état de la back-up");
+    assert.equal(pub.body.version, undefined);
+    const h = await callApi("health", { headers: admin() });
     assert.equal(h.statusCode, 200, JSON.stringify(h.body));
     assert.equal(h.body.ok, true);
     assert.equal(h.body.version, "abcdef1");
@@ -300,7 +306,10 @@ test("D-03 : /api/health -> 200 sain, 503 base injoignable, aucune donnée perso
     ds.state.store.ping = async () => { throw new Error("connect ECONNREFUSED"); };
     const lines = [], prevSink = log._setSink(lines);
     try {
-      const down = await callApi("health", {});
+      const downPub = await callApi("health", {});
+      assert.equal(downPub.statusCode, 503);
+      assert.equal(downPub.body.ok, false);
+      const down = await callApi("health", { headers: admin() });
       assert.equal(down.statusCode, 503);
       assert.equal(down.body.checks.database.ok, false);
       assert.equal(lines[0].niveau, "error");

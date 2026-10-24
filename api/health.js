@@ -1,13 +1,16 @@
 // Santé du portail pour une sonde externe (UptimeRobot, Better Stack…) et Systeemstatus.
 // GET ou HEAD, sans authentification, sans aucune donnée personnelle ni secret :
-//   200 { ok: true, … }  base joignable ET configuration lisible
+//   200 { ok: true, time, checks: { backup } }  base joignable ET configuration lisible
 //   503 { ok: false, … } sinon (la sonde alerte)
+// Spec 032 : le détail (version, base, région, temps de réponse) n'est renvoyé qu'avec une session équipe
+// (Beheer → Systeemstatus) ; le public et la sonde ne reçoivent que ok, l'heure et l'état de la back-up.
 // Contrôles légers : SELECT 1 (SQL) et lecture d'un seul enregistrement Configuratie, un seul
 // champ. E-mail : seulement « configuré ou non » (aucun envoi). version = commit déployé.
 const ds = require("../lib/datastore");
 const { at } = require("../lib/airtable");
 const mail = require("../lib/mail");
 const log = require("../lib/log");
+const auth = require("../lib/staffauth");
 
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout " + ms + " ms")), ms))]);
 
@@ -47,5 +50,9 @@ module.exports = async (req, res) => {
   if (!out.ok) L.error("health : niet gezond", { database: out.checks.database, config: out.checks.config });
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "HEAD") { res.statusCode = out.ok ? 200 : 503; return res.end(); }
-  return res.status(out.ok ? 200 : 503).json(out);
+  const team = await auth.staffSession(req).catch(() => null);
+  if (team) return res.status(out.ok ? 200 : 503).json(out);
+  // Public : ok, heure et état de la dernière back-up (lu par la sonde .github/workflows/watch.yml), rien d'autre.
+  const bk = out.checks.backup;
+  return res.status(out.ok ? 200 : 503).json({ ok: out.ok, time: out.time, checks: bk ? { backup: { ok: bk.ok, ageHours: bk.ageHours } } : {} });
 };

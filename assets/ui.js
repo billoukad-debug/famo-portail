@@ -174,6 +174,22 @@
   K.tt = (s, vars) => Object.entries(vars || {}).reduce((out, [k, v]) => out.split("{" + k + "}").join(String(v)), K.t(s));
   K.langSwitch = () => '<div class="lang" role="group" aria-label="Taal / Langue">' + ["nl", "fr"].map(l => '<button type="button" data-lang="' + l + '"' + (K.lang === l ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + l.toUpperCase() + '</button>').join("") + '</div>';
   const doc = global.document;
+  // Pied de page public commun (spec 032) : identité légale (WVV art. 2:20), contact, WhatsApp, liens.
+  // K.publicFooter() rend la coquille ; K.fillPublicFooter(config) la remplit avec la réponse de
+  // /api/config?public=1 (contactOnly) ; K.loadPublicFooter() fait les deux pour une page qui n'a pas déjà cette réponse.
+  Object.assign(K.FR, { "Colofon": "Mentions légales", "Ondernemingsnummer": "N° d'entreprise", "Btw": "TVA", "FAVV": "AFSCA", "WhatsApp": "WhatsApp", "Stuur ons een bericht op WhatsApp": "Envoyez-nous un message sur WhatsApp", "Wij gebruiken deze gegevens enkel om uw aanvraag te behandelen en u te contacteren.": "Nous utilisons ces données uniquement pour traiter votre demande et vous contacter.", "Privacyverklaring": "Déclaration de confidentialité" });
+  K.waLink = n => { let d = String(n || "").replace(/\D/g, ""); if (d.startsWith("00")) d = d.slice(2); else if (d.startsWith("0")) d = "32" + d.slice(1); return d.length >= 9 && d.length <= 15 ? "https://wa.me/" + d : ""; };
+  K.legalNameOf = c => { const l = (c && c.legal) || {}; return l.naam ? l.naam + (l.rechtsvorm && !l.naam.toLowerCase().split(/\s+/).includes(l.rechtsvorm.toLowerCase()) ? " " + l.rechtsvorm : "") : ""; };
+  K.publicFooter = () => '<footer class="pub-ft" id="pubFt"><div class="pub-ft-id"><b>FAMO Seafood</b><span class="quiet" id="pubFtLegal"></span></div><div class="pub-ft-contact" id="pubFtContact"></div>' +
+    '<nav class="mini" aria-label="' + K.t("Meer links") + '"><a class="tlink" href="/privacy">' + K.t("Privacy") + '</a><a class="tlink" href="/voorwaarden">' + K.t("Voorwaarden") + '</a><a class="tlink" href="/colofon">' + K.t("Colofon") + '</a><a class="tlink quiet" href="/team/aanmelden">' + K.t("Personeel") + '</a></nav></footer>';
+  K.fillPublicFooter = c => {
+    c = c || {}; const l = c.legal || {}, legal = doc && doc.getElementById("pubFtLegal"), contact = doc && doc.getElementById("pubFtContact");
+    if (!legal || !contact) return;
+    legal.textContent = [K.legalNameOf(c), [c.adres, c.plaats].filter(Boolean).join(", "), l.ondernemingsnummer ? K.t("Ondernemingsnummer") + " " + l.ondernemingsnummer : "", c.btw ? K.t("Btw") + " " + c.btw : "", l.rpr, c.favv ? K.t("FAVV") + " " + c.favv : ""].filter(Boolean).join(" · ");
+    const wa = K.waLink(c.whatsapp);
+    contact.innerHTML = [c.email ? '<a class="tlink" href="mailto:' + K.esc(c.email) + '">' + K.esc(c.email) + "</a>" : "", c.telefoon ? '<a class="tlink" href="tel:' + K.esc(String(c.telefoon).replace(/[^\d+]/g, "")) + '">' + K.esc(c.telefoon) + "</a>" : "", wa ? '<a class="btn btn-o btn-sm" href="' + K.esc(wa) + '" target="_blank" rel="noopener" aria-label="' + K.t("Stuur ons een bericht op WhatsApp") + '">' + K.t("WhatsApp") + "</a>" : ""].filter(Boolean).join("");
+  };
+  K.loadPublicFooter = () => K.api("/api/config?public=1").then(d => { K.fillPublicFooter((d && d.config) || {}); return d; }).catch(() => null);
   if (doc && doc.documentElement) doc.documentElement.lang = K.lang;
   if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => { const b = e.target && e.target.closest && e.target.closest("[data-lang]"); if (b && b.dataset.lang !== K.lang) K.setLang(b.dataset.lang); });
   const DAYS_BY = { nl: ["zo", "ma", "di", "wo", "do", "vr", "za"], fr: ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"] };
