@@ -5,20 +5,26 @@ const __bill = require("../lib/billing");
 const __ubl = require("../lib/ubl");
 const __cn = require("../lib/creditnota");
 const { parseLines } = require("./updateorder");
+const __boek = require("../lib/boekhouder"); // export par période (specs/034)
 
 // Export pour le comptable (Billtobox / Peppol) — beheerder uniquement.
 //   GET /api/export?format=ubl&id=<recId>[&type=credit[&cn=<CN-AAAA-NNNN>]]
 //     → facture (ou note de crédit : la note cn, sinon la première) UBL 2.1 Peppol BIS Billing 3.0, en pièce jointe.
 //     → 422 { problems:[…] } si une donnée obligatoire manque (n° TVA du client, adresse…) :
 //       mieux vaut le dire ici que de voir Billtobox refuser le fichier.
-//   Le CSV (une ligne par facture et par taux) est construit dans le navigateur à partir des
-//   mêmes montants (assets/vat.js, taux figés) : assets/pages/team/documenten.js.
+//   GET /api/export?format=lijst&van=JJJJ-MM-DD&tot=JJJJ-MM-DD  (specs/034, écran Beheer → Boekhouder)
+//     → { van, tot, documenten:[{ soort, nummer, datum, klant, excl, btw, incl, betaald, verzending, problemen, ubl }] }
+//   GET /api/export?format=csv&van=…&tot=…  → le même récapitulatif en CSV (une ligne par document + total).
+//   Le CSV « Boekhouding » par taux reste construit dans le navigateur (assets/pages/team/documenten.js).
+//   Sans session : 401 ; personnel sans droit beheerder : 403. Lecture seule : rien n'est écrit, rien n'est envoyé.
 module.exports = async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ error: "Gebruik GET." });
-  if (!(await __auth.adminSession(req))) return res.status(401).json({ error: "Enkel voor de beheerder" });
+  if (!(await __auth.staffSession(req))) return res.status(401).json({ error: "Niet aangemeld" });
+  if (!(await __auth.adminSession(req))) return res.status(403).json({ error: "Enkel voor de beheerder" });
   try {
     const q = req.query || {};
-    if (String(q.format || "") !== "ubl") return res.status(400).json({ error: "Onbekend formaat (ubl)" });
+    if (q.format === "lijst" || q.format === "csv") return await periodList(req, res, q);
+    if (String(q.format || "") !== "ubl") return res.status(400).json({ error: "Onbekend formaat (ubl, lijst of csv)" });
     const id = String(q.id || "");
     if (!REC.test(id)) return res.status(400).json({ error: "Ongeldige bestelling" });
     const kind = String(q.type || "") === "credit" ? "credit" : "invoice";
@@ -54,3 +60,20 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "Serverfout. Probeer opnieuw." });
   }
 };
+
+// Récapitulatif d'une période pour le comptable (lib/boekhouder.js).
+async function periodList(req, res, q) {
+  const p = __boek.periode(q);
+  if (p.error) return res.status(400).json({ error: p.error });
+  const [cmd, cl, cat, conf] = await Promise.all([atAll("Commandes?filterByFormula=" + encodeURIComponent("{Statut}='Facturée'")), atAll("Clients"), atAll("Catalogue"), at(`${encodeURIComponent("Configuratie")}?maxRecords=1`)]);
+  if (cmd.error || cl.error || cat.error) return res.status(500).json({ error: "Gegevens onleesbaar. Probeer opnieuw." });
+  const config = (((conf && conf.records) || [])[0] || {}).fields || {};
+  const documenten = __boek.documenten({ orders: cmd.records || [], clients: new Map((cl.records || []).map((r) => [r.id, r])), config, catalogueRates: __bill.ratesFromCatalogue(cat.records || []), van: p.van, tot: p.tot });
+  res.setHeader("Cache-Control", "private, no-store");
+  if (q.format === "lijst") return res.status(200).json({ van: p.van, tot: p.tot, facturatie: __bill.modeOf(config), documenten });
+  const csv = __boek.csvOf(documenten);
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="Famo-boekhouder-${p.van}-${p.tot}.csv"`);
+  if (typeof res.send === "function") return res.status(200).send(csv);
+  res.statusCode = 200; return res.end(csv);
+}

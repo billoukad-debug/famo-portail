@@ -50,6 +50,8 @@ const SCHEMA = {
       "Creditnotas": "text",
       // Dernier e-mail de correction au client (L-08) : JSON { le, lignes, cn, sleutel } de l'état envoyé.
       "Correctiemail": "text",
+      // Statut d'envoi par document (specs/034, lib/verzending.js) : JSON { "FA-…": { boekhouder, peppol } }.
+      "Verzending": "text",
       // Taux de TVA figés par ligne au passage en « Facturée » (JSON { produit: taux }, lib/billing.js).
       "BTW per lijn": "text",
       // Clé d'idempotence envoyée par le portail client (api/order.js) : pas de doublon sur un renvoi.

@@ -10,7 +10,9 @@ const __bill = require("../lib/billing");
 const __cn = require("../lib/creditnota");
 const __lj = require("../lib/lignesjson");
 const { parseLines } = require("./updateorder");
-const __test = require("../lib/testorders"); // commandes d'essai archivées : invisibles pour le client (specs/021)
+const __test = require("../lib/testorders");
+const __lev = require("../lib/levering");
+const __rem = require("../lib/reminders"); // échéance et reste à payer, même règle que les relances (specs/034) // commandes d'essai archivées : invisibles pour le client (specs/021)
 
 // Ouvert + 365 jours d'historique (voir api/allorders.js).
 const WINDOW = `OR(AND({Statut}!='Facturée',{Statut}!='Annulée'),IS_AFTER({Date},DATEADD(TODAY(),-365,'days')))`;
@@ -50,6 +52,10 @@ module.exports = async (req, res) => {
     const [conf, catl] = await Promise.all([atAll(encodeURIComponent("Configuratie") + "?maxRecords=1"), atAll("Catalogue")]);
     const cf = ((conf.records || [])[0] || {}).fields || {};
     const fallback = __bill.defaultRate(cf), rates = __bill.ratesFromCatalogue(catl.records || []);
+    // Échéance et reste à payer (specs/034) : mêmes règles que les relances (lib/reminders.js) — échéance =
+    // « Facturée le » (Bruxelles) + Betaaltermijn dagen ; reste = facture TVAC moins les notes de crédit TVAC.
+    const termijn = __lev.rulesFrom(cf).betaaltermijn;
+    const verval = f => (f["Statut"] === "Facturée" && f["Factuurnummer"] && f["Facturée le"] ? __rem.levelFor(Object.assign({}, f, { "Statut paiement": "" }), termijn, "").verval || "" : "");
     const tvac = f => { const l = parseLines(f["Lignes (produits / quantités)"]); return l.some(x => x.price != null) ? __bill.orderTotals(l, __bill.linesRates(l, f, rates, fallback, __bill.regimeOf(f, client.fields)), fallback).total : __bill.vat.r2((Number(f["Total"]) || 0) * (1 + fallback / 100)); };
     const orders = __test.real(cmd.records)
       .filter(r => (r.fields["Client"] || []).includes(clientId))
@@ -65,6 +71,8 @@ module.exports = async (req, res) => {
         verpakking: __lj.pakMap(r.fields[__lj.FIELD]),
         total: r.fields["Total"] || 0,
         totalIncl: tvac(r.fields),
+        vervaldatum: verval(r.fields),
+        openstaand: r.fields["Statut"] === "Facturée" ? __rem.amounts(r.fields, rates, fallback).open : null,
         statut: r.fields["Statut"] || "",
         paiement: r.fields["Statut paiement"] || "",
         payeLe: r.fields["Payé le"] || "",
