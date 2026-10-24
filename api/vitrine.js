@@ -27,7 +27,13 @@ module.exports = async (req, res) => {
   const q = req.query || {};
   const p = String(q.p || "aanbod"), lang = V.langOf(q.taal);
   const noindex = process.env.VERCEL_ENV === "preview";
-  if (!isOpen() && p !== "sitemap") {
+  // Spec 033 : vitrine fermée → sitemap des pages publiques seulement, sans lire le Catalogue.
+  if (!isOpen() && p === "sitemap") {
+    res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    return res.status(200).send(V.sitemap([], ORIGIN, { aanbod: false }));
+  }
+  if (!isOpen()) {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
     res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -41,7 +47,7 @@ module.exports = async (req, res) => {
     res.setHeader("Cache-Control", "public, s-maxage=600, stale-while-revalidate=3600");
     if (p === "sitemap") {
       res.setHeader("Content-Type", "application/xml; charset=utf-8");
-      return res.status(200).send(V.sitemap(isOpen() ? list : [], ORIGIN, { aanbod: isOpen() }));
+      return res.status(200).send(V.sitemap(list, ORIGIN, { aanbod: true }));
     }
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     const o = { lang, origin: ORIGIN, noindex };

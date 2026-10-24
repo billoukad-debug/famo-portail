@@ -2,12 +2,13 @@ User-agent: *
 Allow: /$
 Disallow: /aanbod
 Allow: /aanvraag
+Allow: /api/config?public=1
+Allow: /api/config?voorwaarden=1
 Disallow: /api/
 Disallow: /klant
 Disallow: /team/
 Disallow: /beheer
 Disallow: /wachtwoord
 Disallow: /offline
-Disallow: /assets/pages/
 
 Sitemap: https://www.famoseafood.be/sitemap.xml

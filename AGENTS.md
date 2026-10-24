@@ -72,6 +72,12 @@ needs a recent Node 22.
   prices, stock or client data), JSON-LD Product, NL / FR (`?taal=fr`, hreflang), CDN cache 10 min, previews noindex.
   `robots.txt` opens `/`, `/aanbod`, `/aanvraag` and keeps `/api/`, `/klant`, `/team/`, `/beheer` closed;
   `check.js` accepts rewrite targets as pages; tests `test/vitrine.test.js`.
+  033 Vague 2 « trouvable » : text in the HTML of `/`, `/aanvraag`, `/privacy`, `/voorwaarden`, `/colofon` (replaced by the page
+  script; only sentences from the existing scripts + public contact data, guarded by `test/vague2.test.js`), title /
+  description / canonical / hreflang / Open Graph with `data-fr` variants applied by `K.applyLangMeta`, JSON-LD
+  `LocalBusiness` on the home page (`check.js` allows only an exact `<script type="application/ld+json">` with valid JSON,
+  `scripts/inline-scripts.js`), language from the URL `?taal=fr|nl` (`K.lang`, `K.setLang`, `K.langHref`), sitemap NL/FR with
+  `xhtml:link` alternates, `robots.txt` opens `/assets/pages/` and `/api/config?public=1`, font URL versioned in `ui.css`.
   031 Back-up zonder foto's: when the nightly gzip exceeds the mail limit, `api/backup-cron.js` attaches the data without photos (`zonderFotos`), health stays OK.
   030 Volgend factuurnummer: `testNummering` accepts `volgende` (counter = volgende - 1, refused if a number ≥ it exists), field in « Testperiode afsluiten ».
   029 « Nieuw » in Beheer: `assets/nieuws.js` (one note per change, simple Dutch: what changed + « Wat moet u doen? »
