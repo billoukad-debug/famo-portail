@@ -1060,7 +1060,8 @@ a.kp-link:hover{background:var(--row-hover)}
 .vis-alg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px}
 .vis-alg-grid>label{min-height:44px}
 
-/* ==============================================================================================   x30 lot A (specs/036) — écran « Bestellen » du portail client : bandeau de l'heure, carte « Zoals elke maandag »,
+/* =====================================================================================================
+   x30 lot A (specs/036) — écran « Bestellen » du portail client : bandeau de l'heure, carte « Zoals elke maandag »,
    une seule vue de catalogue (plaques d'espèce, « + » qui devient un stepper, Rauw OK), voix serif des titres.
    Tout est préfixé .x30 (la coque client) ou par des classes x-* nouvelles : aucune règle partagée n'est réécrite.
    Jetons ajoutés au :root (--serif, --rauw, --rauw-bg, --tide-ok, --tide-amber) : contrôlés par contrast-check.js.
@@ -1200,7 +1201,6 @@ a.kp-link:hover{background:var(--row-hover)}
 /* Facturen : même mise en page que Leveringen (≥ 1024 : lignes en tableau) */
 @media (min-width:720px){.kv-facturen .mtop .cats{margin:0;padding:0;flex:none}}
 @media (min-width:1024px){.kv-facturen .mlist.grid{display:flex;flex-direction:column;gap:16px;align-items:stretch}}
-=======
 /* ========== x30 lot C : accueil public « De avondtoonbank » (specs/037-x30-accueil) ==========
    Deux voix : Instrument Serif (SIL OFL 1.1, assets/fonts/OFL-instrument-serif.txt, paquet @fontsource/instrument-serif
    5.3.0, hébergée sur le site : CSP font-src 'self') pour les titres et les grands chiffres de l'accueil ; Atkinson
