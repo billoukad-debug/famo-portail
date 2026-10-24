@@ -1,8 +1,22 @@
 (function () {
   const app = document.getElementById("app");
-  app.innerHTML = '<div class="wrap-560"><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + K.t("Verse vis en zeevruchten, Antwerpen") + '</small></span></a>' +
-    '<div class="d-flex ai-c gap-10 mt-14 f-wrap"><h1 class="h1 flex-1">' + K.t("Toegang aanvragen") + '</h1>' + K.langSwitch() + '</div><p class="sub ws-normal">' + K.t("Voor horeca en handel. Wij bellen u binnen 1 werkdag met uw prijzen en uw toegang.") + '</p>' +
-    '<form id="f" class="card card-b mt-16 stack-12" novalidate>' +
+  // Spec 038 : zelfde familie als de startpagina (kopbalk « timonerie », titel in serif), drie redenen die vandaag waar zijn
+  // (uur en leverdagen uit de publieke configuratie, afgesproken prijzen, visfiche) en een rechtstreeks nummer.
+  const DEF = { deadline: "22:00", leverdagen: ["ma", "di", "wo", "do", "vr", "za"] };
+  const KEYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+  const daysTxt = lev => { const d = (lev.leverdagen || DEF.leverdagen).filter(k => KEYS.includes(k)).sort((a, b) => (KEYS.indexOf(a) || 7) - (KEYS.indexOf(b) || 7)), i = d.map(k => KEYS.indexOf(k) || 7); return d.length > 1 && i.every((v, n) => n === 0 || v === i[n - 1] + 1) ? K.t(d[0]) + "–" + K.t(d[d.length - 1]) : d.map(K.t).join(", "); };
+  const why = lev => [
+    [K.tt("Vóór {t} besteld", { t: lev.deadline || DEF.deadline }), K.tt("Geleverd op de eerstvolgende leverdag: {d}, in Antwerpen en omstreken.", { d: daysTxt(lev) })],
+    [K.t("Uw afgesproken prijzen"), K.t("Uw afgesproken prijzen staan erbij. U kiest zelf de leverdag.")],
+    [K.t("Elk lot heeft een identiteitskaart"), K.t("Herkomst, staat en allergenen per product; lotnummer op de leveringsbon.")]
+  ].map(([h, t], n) => '<li><span class="ac-n" aria-hidden="true">' + (n + 1) + '</span><div><h2 class="av-wh">' + K.esc(h) + '</h2><p>' + K.esc(t) + '</p></div></li>').join("");
+  app.innerHTML = '<div class="ac av">' +
+    '<header class="ac-hd"><div class="ac-w ac-hd-in"><a class="brand ac-brand" href="' + K.langHref("/") + '"><span class="logo" aria-hidden="true"></span><span><b>FAMO Seafood</b><small>' + K.t("Verse vis en zeevruchten, Antwerpen") + '</small></span></a>' +
+    '<nav class="ac-nav" aria-label="' + K.t("Taal en aanmelden") + '">' + K.langSwitch() + '<a class="btn ac-btn-light ac-hd-login" href="/#aanmelden">' + K.t("Aanmelden") + '</a></nav></div></header>' +
+    '<section class="ac-hero av-hero" aria-labelledby="avT"><div class="ac-w"><p class="ac-eyebrow">' + K.t("Klant worden") + '</p><h1 class="ac-h1 av-h1" id="avT">' + K.t("Toegang aanvragen") + '</h1>' +
+    '<p class="ac-lead">' + K.t("Voor horeca en handel. Wij bellen u binnen 1 werkdag met uw prijzen en uw toegang.") + '</p><ol class="av-why" id="avWhy">' + why(DEF) + '</ol></div></section>' +
+    '<section class="ac-sec ac-meet" aria-label="' + K.t("Toegang aanvragen") + '"><div class="ac-w ac-split">' +
+    '<form id="f" class="ac-login av-form stack-12" novalidate><h2 class="ac-h3">' + K.t("Uw gegevens") + '</h2>' +
     K.c.field(K.t("Bedrijfsnaam"), K.c.input("bedrijfsnaam", { attrs: ' autocomplete="organization" required' }), { id: "fBedrijf", req: true }) +
     K.c.field(K.t("Contactpersoon"), K.c.input("contactpersoon", { attrs: ' autocomplete="name" required' }), { id: "fContact", req: true }) +
     '<div class="grid-2">' + K.c.field(K.t("Telefoon"), K.c.input("telefoon", { type: "tel", attrs: ' autocomplete="tel" required' }), { id: "fTel", req: true }) + K.c.field(K.t("E-mail"), K.c.input("email", { type: "email", attrs: ' autocomplete="email" required' }), { id: "fMail", req: true }) + '</div>' +
@@ -13,13 +27,19 @@
     '<div aria-hidden="true" class="offscreen"><label for="bijkomend">Laat dit veld leeg</label><input id="bijkomend" name="bijkomend" type="text" tabindex="-1" autocomplete="off"></div>' +
     '<div id="terms"></div><div id="msg"></div><button type="submit" class="btn btn-p btn-tall" id="btn">' + K.t("Aanvraag versturen") + '</button>' +
     '<p class="quiet fs-12 m-0">' + K.t("Wij gebruiken deze gegevens enkel om uw aanvraag te behandelen en u te contacteren.") + ' <a class="tlink" href="/privacy">' + K.t("Privacyverklaring") + '</a></p>' +
-    '<p class="quiet fs-12 ta-c m-0">' + K.t("Al klant?") + ' <a href="/">' + K.t("Aanmelden") + '</a></p></form></div>';
+    '<p class="quiet fs-12 ta-c m-0">' + K.t("Al klant?") + ' <a href="/#aanmelden">' + K.t("Aanmelden") + '</a></p></form>' +
+    '<aside class="ac-help" aria-labelledby="avQ"><h2 class="ac-h3" id="avQ">' + K.t("Liever even bellen?") + '</h2><p>' + K.t("Bel of mail Famo.") + '</p><div class="ac-contact" id="avContact"></div></aside></div></section></div>';
   let taal = K.lang === "fr" ? "FR" : "NL";
   // Conditions générales (C-12) : case obligatoire dès qu'une version est publiée.
   let versie = "";
   K.mountPublicFooter();
   K.api("/api/config?public=1").then(d => {
-    K.fillPublicFooter(d.config || {});
+    const cfg = d.config || {};
+    K.fillPublicFooter(cfg);
+    if (cfg.levering) document.getElementById("avWhy").innerHTML = why(Object.assign({}, DEF, cfg.levering));
+    // Rechtstreeks contact : WhatsApp enkel als er een nummer ingesteld is.
+    const wa = K.waLink(cfg.whatsapp), item = (href, ico, big, small, ext) => '<a class="ac-cbtn" href="' + K.esc(href) + '"' + (ext ? ' target="_blank" rel="noopener"' : "") + ">" + ico + "<span><b>" + K.esc(big) + "</b><small>" + K.esc(small) + "</small></span></a>";
+    document.getElementById("avContact").innerHTML = [wa ? item(wa, K.icon("wa"), K.t("WhatsApp"), K.t("Stuur ons een bericht op WhatsApp"), true) : "", cfg.telefoon ? item("tel:" + K.telHref(cfg.telefoon), K.icon("phone"), cfg.telefoon, K.t("Bellen")) : "", cfg.email ? item("mailto:" + cfg.email, K.icon("mail"), cfg.email, K.t("E-mail")) : ""].join("");
     versie = (d.config && d.config.voorwaardenVersie) || "";
     if (!versie) return;
     document.getElementById("terms").innerHTML = '<div class="field" id="fTerms"><label class="d-flex gap-10 ai-fs fs-135 mh-44"><input type="checkbox" id="akkoord" class="chk-22"><span>' + K.esc(K.t("Ik aanvaard de algemene verkoopsvoorwaarden")) + ' · <a class="tlink" href="/voorwaarden" target="_blank" rel="noopener">' + K.esc(K.t("lezen")) + '</a></span></label><span class="err" data-err role="alert"></span></div>';

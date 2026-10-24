@@ -296,7 +296,7 @@ test("catalogue : groupes métier, casse normale, plaques, « Rauw OK » seuleme
   assert.equal(FB.naam("BLACK TIGER GARNALEN 8-12"), "Black tiger garnalen 8-12");
   assert.equal(FB.naam("VANNAMEI GARNALEN 16-20 EP"), "Vannamei garnalen 16-20 EP");
   assert.equal(FB.naam("INKTVIS TUBES U5"), "Inktvis tubes U5");
-  assert.equal(FB.naam("ZEEWIERSALADE 1KG"), "Zeewiersalade 1KG");
+  assert.equal(FB.naam("ZEEWIERSALADE 1KG"), "Zeewiersalade 1 kg", "spec 038 : poids collé détaché, unité en minuscules");
   assert.equal(FB.naam("Oesters Zeeuwse creuse nr. 3"), "Oesters Zeeuwse creuse nr. 3", "casse mixte : intacte");
   assert.equal(FB.naam("<b>EVIL</b>"), "<b>EVIL</b>", "rien d'interprété (l'échappement se fait à l'affichage)");
   assert.equal(FB.soort({ nom: "Saumon frais" }), "zalm"); assert.equal(FB.soort({ nom: "BLACK TIGER GARNALEN 8-12" }), "tiger");

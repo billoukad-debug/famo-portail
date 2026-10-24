@@ -122,7 +122,8 @@
 
   /**
    * Casse normale pour l'affichage : un nom saisi en CAPITALES devient « Black tiger garnalen 8-12 ».
-   * Les mots avec un chiffre (« U5 », « 1KG », « 8-12 ») et les sigles de deux lettres (« EP ») restent tels quels.
+   * Les mots avec un chiffre (« U5 », « 8-12 ») et les sigles de deux lettres (« EP ») restent tels quels ; un poids collé
+   * (« 1KG ») devient « 1 kg » (spec 038).
    * Un nom déjà en casse mixte n'est pas touché.
    */
   function naam(nom) {
@@ -131,6 +132,9 @@
     if (letters.length < 4 || letters !== letters.toUpperCase()) return s;
     let first = true;
     return s.split(" ").map((w) => {
+      // Spec 038 : un poids collé (« 1KG », « 500G ») devient « 1 kg », « 500 g ».
+      const unit = /^(\d+(?:[.,]\d+)?)(KG|G|L|CL|ML)$/i.exec(w);
+      if (unit) { first = false; return unit[1] + " " + unit[2].toLowerCase(); }
       if (/\d/.test(w) || /^[A-ZÀ-Ý]{1,2}$/.test(w)) { first = false; return w; }
       const low = w.toLowerCase();
       if (first) { first = false; return low.charAt(0).toUpperCase() + low.slice(1); }

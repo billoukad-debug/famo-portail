@@ -301,11 +301,14 @@ test("portail client : échéance et reste à payer par facture (serveur), même
   assert.ok(!("verzending" in o1), "statut d'envoi interne : pas chez le client");
 });
 
-test("portail client : relevé et QR seulement en mode Portaal ; mode boekhouder inchangé (relevé caché, pas d'échéance)", () => {
+test("portail client : relevé, QR et montant dû seulement en mode Portaal ; mode boekhouder : relevé caché, échéance affichée (spec 038)", () => {
   const src = read("assets/pages/klant.js");
   // Le relevé reste vide en mode boekhouder (demande du gérant du 08/10/2026, ADR 0005).
   assert.match(src, /function statement\(list\) \{\n\s*const co = cat\.company \|\| \{\};\n[^\n]*\n\s*if \(co\.facturatie !== "portaal"\) return "";/);
-  assert.match(src, /portaal\(\) && o\.statut === "Facturée" \? row\(K\.t\("Vervaldatum"\)/, "échéance seulement en mode Portaal");
+  // Spec 038 (décision du 25/10/2026) : l'échéance calculée par le serveur s'affiche dans les deux modes ; le montant
+  // « nog te betalen » (TVAC) reste réservé au mode Portaal (en mode boekhouder il vient de la facture du comptable).
+  assert.match(src, /portaal\(\) && o\.openstaand != null \? row\(K\.t\("Nog te betalen"\)/, "montant dû seulement en mode Portaal");
+  assert.match(src, /row\(K\.t\("Te betalen vóór"\), o\.vervaldatum/, "échéance dans les deux modes");
   assert.match(src, /window\.FamoEpc\.forInvoice\(\{ company,/, "QR par la règle commune (refuse boekhouder et IBAN d'exemple)");
   assert.match(src, /if \(st\) fillQr\(\);/, "QR seulement quand le relevé est affiché");
   // Le module QR est chargé avec les documents (même version K.DOCS_VER).

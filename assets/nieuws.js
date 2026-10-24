@@ -6,6 +6,16 @@
   "use strict";
   var items = [
     {
+      id: "klantportaal-afwerking", datum: "2026-10-25", spec: "038",
+      titel: "Klantportaal: sneller aanmelden, duidelijke facturen",
+      wat: "Wie het portaal sluit en binnen 12 uur terugkomt, blijft aangemeld; daarna staat het aanmelden bovenaan. Facturen tonen „Overzicht · pro forma” en „Te betalen vóór …”, ook leesbaar op de telefoon. De knop Bestelling plaatsen blijft in beeld. Account toont uw telefoon en e-mail.",
+      doen: [
+        { tekst: "Vul uw WhatsApp-nummer in bij Bedrijfsgegevens: dan verschijnt de knop WhatsApp ook in het klantportaal en op Toegang aanvragen.", link: "#/bedrijf", label: "Naar Bedrijfsgegevens" },
+        { tekst: "Klopt de betaaltermijn bij Bedrijfsgegevens met die van uw boekhouder? De datum „Te betalen vóór” wordt ermee berekend.", link: "#/bedrijf", label: "Naar Bedrijfsgegevens" },
+        { tekst: "Wilt u dat klanten langer dan 12 uur aangemeld blijven (bijvoorbeeld een dag)? Dat is een keuze tussen gemak en veiligheid. Zeg het aan Bilal." }
+      ]
+    },
+    {
       id: "nieuwe-startpagina", datum: "2026-10-24", spec: "037",
       titel: "Nieuwe startpagina van famoseafood.be",
       wat: "De startpagina is vernieuwd: een balk die toont hoe lang klanten nog kunnen bestellen en wanneer er geleverd wordt, zes soorten vis als illustratie, een voorbeeld van de visfiche en uw contactgegevens. Aanmelden en Klant worden blijven zoals ze waren.",

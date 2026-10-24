@@ -1,6 +1,6 @@
 (function () {
   const sess = K.klant.get();
-  if (!sess || !sess.user) { location.replace("/"); return; }
+  if (!sess || !sess.user) { location.replace("/#aanmelden"); return; } // spec 038 : droit naar het formulier
   const app = document.getElementById("app");
   const FAV_KEY = "famoFav:" + sess.user, CART_KEY = "famoCart:" + sess.user, STD_KEY = "famoStd:" + sess.user, CAT_KEY = "famoKlantCatalogus";
   let cat = null; // {products, client, company}
@@ -11,6 +11,23 @@
   // x30 (specs/036) : règles pures de l'écran Bestellen (assets/bestellen.js) — bandeau, groupes, noms, plaques, Rauw OK.
   const FB = window.FamoBestellen;
   const toon = p => FB.naam(p.nom); // nom affiché en casse normale ; la donnée (p.nom) reste intacte
+  // Ligne de commande lisible (spec 038) : « Saumon frais 4,5 kg », « 3× Zeewiersalade 1 kg » ; noms en casse normale.
+  const kgUnit = u => /^kg$/i.test(String(u || "").trim());
+  const lineTxt = (qty, name, unit) => kgUnit(unit) ? FB.naam(name) + " " + K.qty(qty) + " kg" : K.qty(qty) + "× " + FB.naam(name);
+  const sumTxt = o => K.parseLines(o.lignes).map(l => { const n = K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)); return lineTxt(l.qty, l.name, l.unit) + (n ? " (" + n + ")" : ""); }).join(" · ");
+  // « Een vraag? » (spec 038) : WhatsApp enkel als er een nummer ingesteld is (publieke configuratie), telefoon, e-mail.
+  let pub = null;
+  const loadPub = () => (pub ? Promise.resolve(pub) : K.api("/api/config?public=1").then(d => { pub = (d && d.config) || {}; return pub; }).catch(() => ({})));
+  function contactBtns() {
+    const co = Object.assign({}, (cat && cat.company) || {}, pub || {}), wa = K.waLink(co.whatsapp);
+    return [wa ? '<a class="btn btn-o kq-btn" href="' + K.esc(wa) + '" target="_blank" rel="noopener">' + K.icon("wa") + K.t("WhatsApp") + '</a>' : "",
+      co.telefoon ? '<a class="btn btn-o kq-btn" href="tel:' + K.esc(K.telHref(co.telefoon)) + '">' + K.icon("phone") + '<span>' + K.esc(co.telefoon) + '</span></a>' : "",
+      co.email ? '<a class="btn btn-o kq-btn" href="mailto:' + K.esc(co.email) + '">' + K.icon("mail") + '<span>' + K.esc(co.email) + '</span></a>' : ""].join("");
+  }
+  const contactTxt = () => K.t(K.waLink(Object.assign({}, (cat && cat.company) || {}, pub || {}).whatsapp) ? "Bel, stuur een WhatsApp of mail Famo." : "Bel of mail Famo.");
+  const contactCard = () => '<section class="mcard kq" data-kq aria-labelledby="kqT"><h2 class="kq-h" id="kqT">' + K.t("Een vraag?") + '</h2><p class="quiet fs-13 m-0 kq-t">' + contactTxt() + '</p><div class="kq-b">' + contactBtns() + '</div></section>';
+  // Na het laden van de publieke configuratie : de knoppen opnieuw (WhatsApp verschijnt als er een nummer is).
+  const fillContact = () => loadPub().then(() => K.$$("[data-kq]", app).forEach(b => { b.querySelector(".kq-b").innerHTML = contactBtns(); b.querySelector(".kq-t").textContent = contactTxt(); }));
   const saveCart = () => K.store.set(CART_KEY, cart);
   const byId = id => (cat.products || []).find(p => p.id === id);
   const cartCount = () => Object.values(cart.items).reduce((a, b) => a + (Number(b) > 0 ? 1 : 0), 0);
@@ -27,7 +44,7 @@
   const pakCaption = (p, q) => (pakP(p) && Number(q) > 0 ? '<div class="pak-q" data-pakq="' + p.id + '">' + K.esc(K.pakQty(q, p.unite, pakP(p))) + '</div>' : "");
   const creds = () => K.klant.creds();
   // 401 op eender welke klant-API : opgeslagen gegevens wissen en terug naar de aanmelding (met melding).
-  function expire() { K.klant.clear(); K.session.del(CAT_KEY); location.replace("/?sessie=verlopen"); }
+  function expire() { K.klant.clear(); K.session.del(CAT_KEY); location.replace("/?sessie=verlopen#aanmelden"); }
   // Na een geslaagd verzoek staat de sessie in de HttpOnly-cookie : een oud token in dit tabblad (overgang) wordt gewist.
   const api = async (url, opts) => { try { const d = await K.api(url, opts); K.klant.forgetToken(); return d; } catch (err) { if (err.status === 401) expire(); throw err; } };
 
@@ -259,8 +276,20 @@
       (pakP(p) ? row(K.t("Verpakking"), K.esc(K.pakOne(pakP(p), p.unite)) + ' = <span class="mono">' + K.eur(window.FamoVat.r2(p.prix * pakP(p).per)) + '</span>') : "") +
       (pakP(p) && pakP(p).only ? row(K.t("Bestellen per"), K.esc(K.pakOne(pakP(p), p.unite))) : pakP(p) ? row(K.t("Bestellen per"), K.esc(K.t("per stuk of per verpakking"))) : isKg(p) ? row(K.t("Bestellen per"), K.t("0,5 kg")) : "") + '</dl>' +
       '<div class="x-dact">' + stepperOf(p, cart.items[p.id]) + '<button type="button" class="btn btn-ghost btn-sm fav' + (favs[p.id] ? " on" : "") + '" data-fav="' + p.id + '" aria-pressed="' + (favs[p.id] ? "true" : "false") + '">' + K.icon("star") + '<span>' + K.t(favs[p.id] ? "Uit uw vaste producten" : "Bij uw vaste producten") + '</span></button></div>' +
-      '<label class="pr-c"><span>' + K.t("Opmerking bij dit artikel") + '</span><input class="input" data-comment="' + p.id + '" value="' + K.esc(cart.comments[p.id] || "") + '" maxlength="120" placeholder="' + K.t("bv. dikke moot…") + '"></label></div>';
+      noteHtml(p.id, K.t("Opmerking bij dit artikel"), "pr-c") + '</div>';
   }
+  // Opmerking per artikel (spec 038) : een stippellijn « + opmerking » die pas bij een tik een veld opent ; een bestaande
+  // opmerking staat meteen open.
+  function noteHtml(id, label, cls) {
+    const v = cart.comments[id] || "";
+    return '<div class="' + cls + ' kn" data-note="' + id + '">' + (v ? "" : '<button type="button" class="kn-add" data-note-open="' + id + '" aria-expanded="false">+ ' + K.t("opmerking") + '</button>') +
+      '<label class="kn-f"' + (v ? "" : " hidden") + '><span>' + K.esc(label) + '</span><input class="input" data-comment="' + id + '" value="' + K.esc(v) + '" maxlength="120" placeholder="' + K.t("bv. dikke moot…") + '"></label></div>';
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest && e.target.closest("[data-note-open]"); if (!b || !app.contains(b)) return;
+    const box = b.closest("[data-note]"), f = box && box.querySelector(".kn-f"); if (!f) return;
+    f.hidden = false; b.remove(); const i = f.querySelector("input"); if (i) i.focus();
+  });
   // Winkelmand naast de catalogus (computer) en balk onderaan (telefoon) : bijgewerkt zonder de lijst opnieuw te tekenen.
   function cartPanelHtml() {
     const ids = Object.keys(cart.items).filter(id => byId(id) && Number(cart.items[id]) > 0), total = cartTotal(), min = minimum();
@@ -300,7 +329,9 @@
     const hay = new Map(products.map(p => [p.id, K.searchKey([p.nom, p.kaliber, groupOf(p), K.t(groupOf(p)), p.omschrijving, p.vis && p.vis.wetenschappelijkeNaam].filter(Boolean).join(" "))]));
     const count = c => all.filter(match(c)).length;
     const cats = [ALL].concat(all.some(p => vast.has(p.id)) ? [VAST] : [], all.some(rawOk) ? [RAW] : [], present);
-    return { all, cats, count, products, groups, order: gorder, fams, famOf, hay };
+    // Spec 038 : bij « Alles » staan uw vaste producten bovenaan ; de vakgroep zegt hoeveel er daar al staan (zelfde telling als de filter).
+    const vastIn = g => (catFilter === ALL && g !== VAST ? all.filter(p => groupOf(p) === g && vast.has(p.id)).length : 0);
+    return { all, cats, count, products, groups, order: gorder, fams, famOf, hay, vastIn };
   }
   const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on' + (c === RAW ? " x-raw" : "") + '" aria-pressed="true"' : (c === RAW ? ' class="x-raw"' : "") + ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + CS.count(c) + '</span></button>';
   // Werkbalk (blijft bovenaan) : zoeken (× wist), naar boven, filters ; het aantal enkel voor schermlezers.
@@ -320,7 +351,7 @@
   }
   function listHtml() {
     if (!CS.products.length) return K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product om het hier te zien."));
-    return CS.order.map(g => '<h2 class="sec">' + K.esc(K.t(g)) + ' <span class="quiet" data-gn>' + CS.groups[g].length + '</span></h2>' + CS.groups[g].map(productRow).join("")).join("") + '<div id="noHit" role="status"></div>';
+    return CS.order.map(g => '<h2 class="sec">' + K.esc(K.t(g)) + ' <span class="quiet" data-gn>' + CS.groups[g].length + '</span>' + (CS.vastIn(g) ? ' <small class="quiet fs-12 fw-400">' + K.esc(K.tt("+ {n} bij uw vaste", { n: CS.vastIn(g) })) + '</small>' : "") + '</h2>' + CS.groups[g].map(productRow).join("")).join("") + '<div id="noHit" role="status"></div>';
   }
   // Zoeken × familie : regels verbergen of tonen, groepen zonder treffer verbergen, aantal en melding bijwerken.
   function applyFilter() {
@@ -522,7 +553,7 @@
       const basis = usual.basis === "weekdag" ? (usual.n === 1 ? K.tt("Gebaseerd op uw laatste {dag}", { dag }) : K.tt("Gebaseerd op uw laatste {n} {dag}en", { n: usual.n, dag })) : K.t("Gebaseerd op uw laatste bestelling");
       foot = '<button type="button" class="x-go" id="xGo"><span>' + K.esc(K.tt("Bestellen voor {d}", { d })) + '</span><span class="mono" id="xGoT"></span></button><p class="x-help" id="xHelp">' + K.esc(basis) + '<br>' + K.esc(K.tt("Aan te passen {tot}", { tot })) + '</p>';
     } else if (usual.mode === "bestaand") {
-      foot = '<p class="x-state"><span class="cell-st c-new">' + K.esc(K.tt("Bevestigd · aanpasbaar {tot}", { tot })) + '</span></p><button type="button" class="x-go" id="xGo" hidden><span id="xGoL">' + K.t("Wijziging opslaan") + '</span><span class="mono" id="xGoT"></span></button><p class="x-help" id="xHelp">' + K.t("Iets vergeten? Tik + in de lijst hieronder: het komt bij deze bestelling.") + '</p>';
+      foot = '<p class="x-state"><span class="cell-st c-new">' + K.esc(K.tt("Bevestigd · aanpasbaar {tot}", { tot })) + '</span></p><button type="button" class="x-go" id="xGo" hidden><span id="xGoL">' + K.t("Wijziging opslaan") + '</span><span class="mono" id="xGoT"></span></button><p class="x-help" id="xHelp">' + K.t("Iets vergeten? Tik + in de lijst hieronder en bestel uw winkelmand: het komt bij deze bestelling.") + '</p>';
     } else {
       foot = '<p class="x-state">' + K.stCell(usual.order.statut) + '</p><p class="x-help">' + K.t("Wordt klaargezet. Bel Famo om nog iets te wijzigen.") + '</p>';
     }
@@ -625,9 +656,10 @@
     const bij = openFor(cart.day), erbij = !!(bij && bij.aanpasbaar);
     const total = cartTotal(), min = minimum(), below = ids.length > 0 && min > 0 && total < min && !erbij;
     if (!orders) ensureOrders().then(() => { if (K.hashParams().path === "winkelmand" && openFor(cart.day)) K.keep(app, renderWinkelmand); }).catch(() => {});
-    const body = ids.length ? '<div class="kcols"><div class="kc-main"><div class="mcard">' + ids.map(id => { const p = byId(id); return '<div class="li"><div class="n"><b>' + K.esc(toon(p)) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + (pakP(p) ? " · " + K.esc(K.pakOne(pakP(p), p.unite)) : "") + '</span>' + stockTag(p) + '</div>' + pakCaption(p, cart.items[id]) + '</div>' + stepperOf(p, cart.items[id]) + '<b class="mono t">' + K.eur(p.prix * cart.items[id]) + '</b><input class="input c mh-44 fs-12" placeholder="' + K.t("Opmerking (bv. dikke moot)") + '" aria-label="' + K.esc(K.t("Opmerking bij") + " " + toon(p)) + '" data-comment="' + p.id + '" value="' + K.esc(cart.comments[id] || "") + '" maxlength="120"></div>'; }).join("") + '</div></div><div class="kc-side">' +
-      '<div class="mcard stack-10"><div class="field"><label id="lDay">' + K.t("Leverdag") + '</label><div class="opt" role="group" aria-labelledby="lDay">' + days.map(d => '<button type="button" data-day="' + d + '"' + (d === cart.day ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.date(d)) + '</button>').join("") + '</div>' +
-      '<div class="d-flex ai-c gap-10 mt-8 f-wrap"><label for="otherDay" class="fs-13 m-0">' + K.t("Andere dag") + '</label><input type="date" class="input flex-1 minw-160" id="otherDay"' + (otherDay ? ' style="border-color:var(--p);color:var(--p)"' : "") + ' min="' + firstDay() + '" max="' + lastDay() + '" value="' + (otherDay ? cart.day : "") + '"></div><div id="dayErr" role="alert"></div><span class="quiet fs-12">' + K.esc(K.tt("Levering op {d}. Vóór {t} besteld = geleverd op de eerstvolgende leverdag.", { d: daysLabel(), t: deadline() })) + '</span></div>' +
+    const body = ids.length ? '<div class="kcols"><div class="kc-main"><div class="mcard">' + ids.map(id => { const p = byId(id); return '<div class="li"><div class="n"><b>' + K.esc(toon(p)) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + (pakP(p) ? " · " + K.esc(K.pakOne(pakP(p), p.unite)) : "") + '</span>' + stockTag(p) + '</div>' + pakCaption(p, cart.items[id]) + '</div>' + stepperOf(p, cart.items[id]) + '<b class="mono t">' + K.eur(p.prix * cart.items[id]) + '</b>' + noteHtml(p.id, K.t("Opmerking bij") + " " + toon(p), "c") + '</div>'; }).join("") + '</div></div><div class="kc-side">' +
+      '<div class="mcard stack-10"><div class="field"><label id="lDay">' + K.t("Leverdag") + '</label><div class="opt" role="group" aria-labelledby="lDay">' + days.concat(otherDay && cart.day ? [cart.day] : []).map(d => '<button type="button" data-day="' + d + '"' + (d === cart.day ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.date(d)) + '</button>').join("") + '</div>' +
+      // Spec 038 : de datumkiezer van het toestel (« jj/mm/aaaa ») zit achter « Andere dag… » ; de gekozen dag verschijnt als knop, in het Belgische formaat.
+      '<details class="kday mt-8"><summary class="tlink tap-44">' + K.t("Andere dag…") + '</summary><div class="d-flex ai-c gap-10 mt-8 f-wrap"><label for="otherDay" class="fs-13 m-0">' + K.t("Andere dag") + '</label><input type="date" class="input flex-1 minw-160" id="otherDay" min="' + firstDay() + '" max="' + lastDay() + '" value=""></div></details><div id="dayErr" role="alert"></div><span class="quiet fs-12">' + K.esc(K.tt("Levering op {d}. Vóór {t} besteld = geleverd op de eerstvolgende leverdag.", { d: daysLabel(), t: deadline() })) + '</span></div>' +
       '<div class="field" role="group" aria-labelledby="lAdr"><span class="flabel" id="lAdr">' + K.t("Leveradres") + '</span><div class="input d-flex ai-c ws-pre mh-44 p-8-12 fs-13">' + K.esc(cat.client.adresse || K.t("Adres bij Famo bekend")) + '</div><span class="quiet fs-12">' + K.t("Ander adres? Zet het in de opmerking.") + '</span></div>' +
       '<div class="field"><label for="note">' + K.t("Opmerking voor Famo") + '</label><textarea class="input" id="note" rows="2" placeholder="' + K.t("bv. graag achteraan bellen…") + '">' + K.esc(cart.note || "") + '</textarea></div></div>' +
       (erbij ? K.c.ok(K.esc(K.tt("U hebt al een bestelling voor {d} ({r}). Deze artikelen komen erbij.", { d: K.date(cart.day), r: bij.ref }))) : "") +
@@ -635,7 +667,7 @@
       (below ? K.c.warn(K.esc(K.tt("Minimumbestelling {m} excl. btw · nog {r} toe te voegen.", { m: K.eur(min), r: K.eur(min - total) }))) : "") +
       (fitted.length ? K.c.warn(fitted.map(K.esc).join("<br>")) : "") +
       '<div id="orderErr"></div>' +
-      '<button type="button" class="btn btn-p btn-block btn-tall" id="placeOrder"' + (below ? " disabled" : "") + '>' + K.t("Bestelling plaatsen") + ' · ' + K.eur(total) + '</button></div></div>'
+      '<div class="kplace"><button type="button" class="btn btn-p btn-block btn-tall" id="placeOrder"' + (below ? " disabled" : "") + '>' + K.t("Bestelling plaatsen") + ' · ' + K.eur(total) + '</button></div></div></div>'
       : K.c.empty(K.t("Uw winkelmand is leeg"), K.t("Kies producten in de catalogus."), '<a class="btn btn-p btn-sm mt-6" href="#/catalogus">' + K.t("Naar de catalogus") + '</a>');
     shell("catalogus", '<div class="mlist">' + body + '</div>', '<div class="mtop"><div class="mrow"><a href="#/catalogus" class="fs-13">' + K.icon("back") + ' ' + K.t("Catalogus") + '</a><span class="spacer"></span><h1 class="ktitle">' + K.t("Winkelmand") + '</h1><span class="spacer"></span>' + (ids.length ? '<button type="button" class="btn btn-ghost btn-sm" id="clearCart">' + K.t("Leegmaken") + '</button>' : "") + '</div></div>');
     bindSteppers(app, () => K.keep(app, renderWinkelmand)); // le focus reste sur le − / + du même article
@@ -703,12 +735,12 @@
     // X3 : un panier pour un jour qui avait déjà une commande s'y est ajouté (api/order.js « samengevoegd »).
     const added = o.samengevoegd ? K.tt(o.toegevoegd === 1 ? "1 artikel toegevoegd aan uw bestelling van {d}" : "{n} artikelen toegevoegd aan uw bestelling van {d}", { n: o.toegevoegd || o.items.length, d: K.date(o.day) }) : "";
     const tot = o.day && o.day > K.today() ? '<p class="x-state"><span class="cell-st c-new">' + K.esc(K.tt("Bevestigd · aanpasbaar {tot}", { tot: totTxt(o.day) })) + '</span></p>' : "";
-    shell("bestellingen", '<div class="ok-head"><div class="ok-ring">' + K.icon("check", "") + '</div><h1 class="h1">' + (o.samengevoegd ? K.t("Toegevoegd aan uw bestelling") : K.t("Bestelling ontvangen")) + '</h1><p class="sub ws-normal fs-14">' + (added ? K.esc(added) + "." : K.t("Dank u wel. We zetten alles klaar voor") + ' <b>' + K.esc(K.dateLong(o.day)) + '</b>.') + '</p><span class="tag mono">' + K.esc(o.ref) + '</span>' + tot + '</div>' +
+    shell("catalogus", '<div class="ok-head"><div class="ok-ring">' + K.icon("check", "ok-ico") + '</div><h1 class="h1">' + (o.samengevoegd ? K.t("Toegevoegd aan uw bestelling") : K.t("Bestelling ontvangen")) + '</h1><p class="sub ws-normal fs-14">' + (added ? K.esc(added) + "." : K.t("Dank u wel. We zetten alles klaar voor") + ' <b>' + K.esc(K.dateLong(o.day)) + '</b>.') + '</p><span class="tag mono">' + K.esc(o.ref) + '</span>' + tot + '</div>' +
       '<div class="mlist pt-0"><div class="mcard"><ol class="tl" aria-label="' + K.t("Verloop") + '"><li aria-current="step"><i class="on" aria-hidden="true"></i><div><b>' + K.t("Ontvangen") + '</b><small>' + K.esc(K.date(K.isoDay(new Date(o.at).toISOString())) + " " + K.time(new Date(o.at).toISOString())) + '</small></div></li><li><i aria-hidden="true"></i><div>' + K.t("Wordt klaargezet") + '<small>' + K.t("de dag vóór levering") + '</small></div></li><li><i aria-hidden="true"></i><div>' + K.t("Onderweg") + '<small>' + K.esc(K.date(o.day)) + ' ' + K.t("ochtend") + '</small></div></li><li><i aria-hidden="true"></i><div>' + K.t("Geleverd → leveringsbon en factuur bij uw bestellingen") + '</div></li></ol></div>' +
-      '<div class="mcard stack-6 fs-13">' + o.items.map(i => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(K.qty(i.qty) + "× " + i.nom + (K.pakCount(i.qty, i.unite, i.pak || null) ? " (" + K.pakCount(i.qty, i.unite, i.pak) + ")" : "")) + '</span><span class="mono">' + K.eur(i.prix * i.qty) + '</span></div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t(o.samengevoegd ? "Totaal van de bestelling excl. btw" : "Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div>' +
+      '<div class="mcard stack-6 fs-13">' + o.items.map(i => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(lineTxt(i.qty, i.nom, i.unite) + (K.pakCount(i.qty, i.unite, i.pak || null) ? " (" + K.pakCount(i.qty, i.unite, i.pak) + ")" : "")) + '</span><span class="mono">' + K.eur(i.prix * i.qty) + '</span></div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t(o.samengevoegd ? "Totaal van de bestelling excl. btw" : "Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div>' +
       (o.samengevoegd ? "" : mailNote(o)) +
-      '<a class="btn btn-p btn-block" href="#/bestellingen">' + K.t("Naar mijn bestellingen") + '</a><a class="btn btn-o btn-block" href="#/catalogus">' + K.t("Verder bestellen") + '</a></div>');
-    const ic = app.querySelector(".ico"); if (ic) { ic.style.width = "34px"; ic.style.height = "34px"; ic.style.stroke = "var(--st-done)"; ic.style.strokeWidth = "2.2"; }
+      '<a class="btn btn-p btn-block" href="#/bestellingen">' + K.t("Naar mijn bestellingen") + '</a><a class="btn btn-o btn-block" href="#/catalogus">' + K.t("Verder bestellen") + '</a>' + contactCard() + '</div>');
+    fillContact();
   }
 
   /* ---------- bestellingen ---------- */
@@ -730,12 +762,15 @@
   function actions(o) {
     const r = ' data-ref="' + K.esc(o.ref) + '"';
     return (o.statut === "Facturée" ? btn('data-doc="invoice"' + r, invLabel()) + btn('data-doc="delivery"' + r, K.t("Leveringsbon")) : o.statut === "Sortie en livraison" ? btn('data-doc="delivery"' + r, K.t("Leveringsbon")) : "") +
-      btn('data-reorder="' + K.esc(o.ref) + '"', K.t("Opnieuw bestellen")) +
-      (o.aanpasbaar ? btn('data-edit-order="' + K.esc(o.ref) + '"', K.t("Wijzigen"), "btn-p") : "") +
-      (o.statut === "Reçue" || o.statut === "Prête" ? btn('data-cancel-order="' + K.esc(o.ref) + '"', K.t("Annuleren"), "btn-ghost") : "");
+      // Spec 038 : een bestelling die nog aanpasbaar is, bestelt u niet « opnieuw » ; annuleren zit dan in « Wijzigen ».
+      (o.aanpasbaar ? btn('data-edit-order="' + K.esc(o.ref) + '"', K.t("Wijzigen"), "btn-p") : btn('data-reorder="' + K.esc(o.ref) + '"', K.t("Opnieuw bestellen"))) +
+      (!o.aanpasbaar && (o.statut === "Reçue" || o.statut === "Prête") ? btn('data-cancel-order="' + K.esc(o.ref) + '"', K.t("Annuleren"), "btn-ghost") : "");
   }
   // X3 : « bevestigd, aanpasbaar tot 22:00 » tant que la commande se modifie (statut Reçue, avant l'heure limite).
-  const badge = o => o.aanpasbaar && o.dateLiv ? '<span class="cell-st c-new">' + K.esc(K.tt("Bevestigd · aanpasbaar {tot}", { tot: totTxt(o.dateLiv) })) + '</span>' : o.statut === "Facturée" ? (o.paiement === "Payé" ? K.stCell("Facturée", K.t("Geleverd · betaald")) : '<span class="cell-st c-inv">' + K.t("Geleverd · openstaand") + '</span>') : K.isLate(o) ? '<span class="cell-st c-late">' + K.t("Te laat") + '</span>' : K.stCell(o.statut);
+  // Spec 038 : in de lijst kort (« Aanpasbaar tot 22:00 »), in het detail volledig. Geleverd en niet betaald : met vervaldatum
+  // (« Te betalen vóór 06/11 », ambre ; « Vervallen sinds … », rood) ; zonder vervaldatum « Geleverd · niet betaald ».
+  const badge = (o, kort) => o.aanpasbaar && o.dateLiv ? '<span class="cell-st c-new">' + K.esc(kort ? K.tt("Aanpasbaar {tot}", { tot: totTxt(o.dateLiv) }) : K.tt("Bevestigd · aanpasbaar {tot}", { tot: totTxt(o.dateLiv) })) + '</span>' : o.statut === "Facturée" ? (o.paiement === "Payé" ? K.stCell("Facturée", K.t("Geleverd · betaald")) : payBadge(o)) : K.isLate(o) ? '<span class="cell-st c-late">' + K.t("Te laat") + '</span>' : K.stCell(o.statut);
+  const payBadge = o => !o.vervaldatum ? '<span class="cell-st c-new">' + K.t("Geleverd · niet betaald") + '</span>' : o.vervaldatum < K.today() ? '<span class="cell-st c-late">' + K.esc(K.tt("Vervallen sinds {d}", { d: K.date(o.vervaldatum) })) + '</span>' : '<span class="cell-st c-new">' + K.esc(K.tt("Te betalen vóór {d}", { d: K.date(o.vervaldatum) })) + '</span>';
   const stamp = iso => iso ? K.dateLong(iso) + (String(iso).includes("T") ? " " + K.time(iso) : "") : "";
   // Leveruur gezet door Famo (D4) : enkel tot de levering, in de taal van de klant.
   const slotTxt = o => { const sl = o.statut !== "Facturée" && o.statut !== K.CANCELLED ? K.slot(o.leverslot) : null; return sl ? K.tt("tussen {van} en {tot}", sl) : ""; };
@@ -743,7 +778,7 @@
     const o = (orders || []).find(x => x.ref === ref); if (!o) return;
     closePanel();
     const cancelled = o.statut === K.CANCELLED, idx = K.STATUSES.indexOf(o.statut), lines = K.parseLines(o.lignes);
-    const when = { "Reçue": o.date ? K.dateLong(o.date) : "", "Sortie en livraison": o.livreeLe ? stamp(o.livreeLe) + (o.receptionnePar ? " · " + o.receptionnePar : "") : (idx < 3 && o.dateLiv ? K.date(o.dateLiv) + " " + (slotTxt(o) || K.t("ochtend")) : ""), "Facturée": o.factureeLe ? stamp(o.factureeLe) + (o.factuurnummer ? " · " + o.factuurnummer : "") : "" };
+    const when = { "Reçue": o.date ? K.dateLong(o.date) : "", "Sortie en livraison": o.livreeLe ? stamp(o.livreeLe) + (o.receptionnePar ? " · " + o.receptionnePar : "") : (idx < 3 && o.dateLiv ? K.date(o.dateLiv) + " " + (slotTxt(o) || K.t("ochtend")) : ""), "Facturée": o.factureeLe ? stamp(o.factureeLe) + (docNr(o) ? " · " + docNr(o) : "") : "" };
     const tl = cancelled
       ? '<ol class="tl" aria-label="' + K.t("Verloop") + '"><li><i class="on" aria-hidden="true"></i><div><b>' + K.t("Ontvangen") + '</b><small>' + K.esc(when["Reçue"]) + '</small></div></li><li aria-current="step"><i class="on bg-danger" aria-hidden="true"></i><div><b>' + K.t("Geannuleerd") + '</b><small>' + K.esc([stamp(o.annuleeLe), o.motifAnnulation ? K.t("Reden") + ": " + K.t(o.motifAnnulation) : ""].filter(Boolean).join(" · ")) + '</small></div></li></ol>'
       // G-24 : le suivi est une liste ordonnée, l'étape atteinte porte aria-current="step".
@@ -751,13 +786,17 @@
     const row = (label, value) => value ? '<div class="row"><div>' + K.esc(label) + '<small class="ws-pre">' + K.esc(value) + '</small></div></div>' : "";
     const body = '<div class="mcard mb-10">' + tl + '</div>' + "" +
       (o.uitzondering ? K.c.warn('<b>' + K.t("Uitzondering levering") + '</b> ' + K.esc(o.uitzondering)) + '<div class="h-10"></div>' : "") +
-      '<div class="mcard mb-10"><div class="sec m-0 mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => '<div class="d-flex jc-sb gap-10"><span>' + K.esc(K.qty(l.qty) + "× " + l.name + (l.unit ? " · " + K.unit(l.unit) : "") + (K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) ? " · " + K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) : "") + (l.comment ? " (" + l.comment + ")" : "")) + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>').join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div></div></div>' +
+      '<div class="mcard mb-10"><div class="sec m-0 mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => { const pr = prodOf(o, l.name), og = pr ? originHtml(pr) : ""; return '<div class="d-flex jc-sb gap-10"><span class="minw-0">' + K.esc(lineTxt(l.qty, l.name, l.unit) + (l.unit && !kgUnit(l.unit) && !/^(pi[eè]ce|stuk)$/i.test(l.unit) ? " · " + K.unit(l.unit) : "") + (K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) ? " · " + K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) : "") + (l.comment ? " (" + l.comment + ")" : "")) + (og ? '<small class="x-o d-block">' + og + '</small>' : "") + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>'; }).join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div>' +
+      // Spec 038 : de herkomst hierboven komt uit de productfiche ; het lot per artikel staat op de leveringsbon (spec 035).
+      (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<p class="quiet fs-12 m-0">' + K.t("Lotnummer en herkomst per lot: zie de leveringsbon.") + '</p>' : "") + '</div></div>' +
       '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") + row(K.t("Verwacht leveruur"), slotTxt(o)) +
-      row(K.t("Factuurnummer"), o.factuurnummer) + row(K.t("Gefactureerd op"), stamp(o.factureeLe)) + row(K.t("Geleverd op"), stamp(o.livreeLe)) + row(K.t("Ontvangen door"), o.receptionnePar) +
+      row(portaal() ? K.t("Factuurnummer") : K.t("Overzicht · pro forma"), docNr(o)) + row(K.t("Gefactureerd op"), portaal() ? stamp(o.factureeLe) : "") + row(K.t("Geleverd op"), stamp(o.livreeLe)) + row(K.t("Ontvangen door"), o.receptionnePar) +
       (o.paiement === "Payé" ? row(K.t("Betaald op"), stamp(o.payeLe) || K.t("Betaald")) : "") +
       // Facture du portail (mode Portaal) : échéance et reste à payer (specs/034). Mode boekhouder : rien de plus, l'échéance
       // est celle de la facture du comptable.
-      (portaal() && o.statut === "Facturée" ? row(K.t("Vervaldatum"), o.vervaldatum ? K.dateLong(o.vervaldatum) : "") + (o.paiement !== "Payé" && o.openstaand != null ? row(K.t("Nog te betalen"), K.eur(o.openstaand) + " " + K.t("incl. btw")) : "") : "") +
+      // Spec 038 : de vervaldatum (Facturée le + betaaltermijn, berekend door de server) in beide modi ; het bedrag « nog te
+      // betalen » enkel in modus Portaal (in modus boekhouder komt het bedrag van de factuur van de boekhouding, ADR 0005).
+      (o.statut === "Facturée" && o.paiement !== "Payé" ? row(K.t("Te betalen vóór"), o.vervaldatum ? K.dateLong(o.vervaldatum) : "") + (portaal() && o.openstaand != null ? row(K.t("Nog te betalen"), K.eur(o.openstaand) + " " + K.t("incl. btw")) : "") : "") +
       // Alle creditnota's (C-08), elk als document in de taal van de klant (FR/NL).
       (o.creditnotas && o.creditnotas.length ? o.creditnotas : o.creditnota ? [o.creditnota] : []).map(n => '<div class="row"><div>' + K.esc(K.t("Creditnota") + " " + n.nummer) + '<small>' + K.esc([K.eur(n.montant) + " " + K.t("excl. btw"), stamp(n.le)].filter(Boolean).join(" · ")) + '</small></div><button type="button" class="btn btn-o btn-sm" data-doc="credit" data-ref="' + K.esc(o.ref) + '" data-cn="' + K.esc(n.nummer) + '">' + K.t("Openen") + '</button></div>').join("") +
       row(K.t("Uw opmerking"), o.notes) + '</div>';
@@ -765,12 +804,16 @@
     const st = panel.el.querySelector(".panel-h .h2"); if (st) st.insertAdjacentHTML("afterend", '<div class="mt-6">' + badge(o) + '</div>');
     bindOrderActions(panel.el);
   }
+  // Product van een regel : op referentie (o.items), anders op naam.
+  const prodOf = (o, name) => { const it = (o.items || []).find(i => String(i.naam || "").toLowerCase() === String(name || "").toLowerCase()); return (it && it.productId && byId(it.productId)) || (cat.products || []).find(x => x.nom.toLowerCase() === String(name || "").toLowerCase()) || null; };
   function editOrder(o) {
     closePanel();
     const lines = linesOfOrder(o);
     if (lines.length !== (o.items || []).length) { K.toast(K.t("Wordt klaargezet. Bel Famo om nog iets te wijzigen."), { kind: "err" }); return; }
     const st = { lines };
-    const body = '<p class="quiet fs-13 m-0">' + K.t("Pas aantallen aan of zet op 0 om te schrappen. Toevoegen doet u in Bestellen.") + '</p><ul class="x-ul x-ul-p">' + lines.map(l => usualLineHtml(l, false).replace('data-stepper="u:', 'data-stepper="e:')).join("") + '</ul><div id="eErr"></div>';
+    const body = '<p class="quiet fs-13 m-0">' + K.t("Pas aantallen aan of zet op 0 om te schrappen. Toevoegen doet u in Bestellen.") + '</p><ul class="x-ul x-ul-p">' + lines.map(l => usualLineHtml(l, false).replace('data-stepper="u:', 'data-stepper="e:')).join("") + '</ul><div id="eErr"></div>' +
+      // Spec 038 : annuleren is een uitzondering, dus een discrete link onderaan het paneel (niet naast « Wijzigen »).
+      '<p class="mt-14 m-0"><button type="button" class="linkbtn t-danger tap-44" data-cancel-order="' + K.esc(o.ref) + '">' + K.t("Hele bestelling annuleren") + '</button></p>';
     panel = K.panel({ title: K.t("Bestelling wijzigen"), sub: o.ref + (o.dateLiv ? " · " + K.t("Levering") + " " + K.date(o.dateLiv) + " · " + K.tt("Wijzigen {tot}", { tot: totTxt(o.dateLiv) }) : ""), body, footer: '<a class="btn btn-o" href="#/catalogus">' + K.t("Toevoegen") + '</a><button type="button" class="btn btn-p" id="eSave"><span>' + K.t("Wijziging opslaan") + '</span> <span class="mono" id="eTot"></span></button>', onClose: () => { panel = null; } });
     const tot = () => { const t = st.lines.reduce((s2, l) => s2 + window.FamoVat.r2(l.p.prix * l.qty), 0); panel.el.querySelector("#eTot").textContent = K.eur(t); panel.el.querySelector("#eSave").disabled = !st.lines.some(l => Math.abs(l.qty - l.orig) > 1e-9) || !st.lines.some(l => l.qty > 0); };
     K.$$(".stepper", panel.el).forEach(stp => {
@@ -782,6 +825,7 @@
       inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0));
     });
     tot();
+    bindOrderActions(panel.el);
     panel.el.querySelector("#eSave").onclick = e => saveOrder(o.ref, st.lines.filter(l => l.qty > 0).map(l => ({ productId: l.p.id, quantity: l.qty })), e.currentTarget, () => { closePanel(); if (K.hashParams().path === "bestellingen" || K.hashParams().path === "facturen") renderOrderList(); });
   }
   // Zelfde knoppen op de kaart en in het paneel : één binding per host.
@@ -803,7 +847,11 @@
   }
   // Document « factuur » van het portaal : pro forma zolang de boekhouding factureert (lib/billing.js).
   const portaal = () => (cat && cat.company && cat.company.facturatie) === "portaal";
-  const invLabel = () => (portaal() ? K.t("Factuur") : K.t("Pro forma"));
+  // Spec 038 : modus boekhouder → « Overzicht · pro forma » (zelfde titel als het document, nooit « factuur » : de wettelijke
+  // factuur komt van de boekhouding, ADR 0005) ; de vervaldatum staat in de statusbadge (badge/payBadge), niet nog eens hier.
+  const invLabel = () => (portaal() ? K.t("Factuur") : K.t("Overzicht · pro forma"));
+  // Zelfde nummer als op het document (FamoDocuments.number) : FA- in modus Portaal, PF- in modus boekhouder.
+  const docNr = o => (o.factuurnummer ? (portaal() ? o.factuurnummer : "PF-" + String(o.factuurnummer).replace(/^FA-/i, "")) : "");
   const dueTxt = o => portaal() && unpaid(o) && o.vervaldatum ? (o.vervaldatum < K.today() ? K.t("Vervallen") + " " + K.date(o.vervaldatum) : K.t("vervalt op") + " " + K.date(o.vervaldatum)) : "";
   // Openstaande facturen. Modus « boekhouder » (standaard) : de factuur én de betaalgegevens komen van
   // de boekhouding (Peppol) ; het portaal toont dan geen kaart en geen bedrag « te betalen » (anders twee facturen).
@@ -843,13 +891,14 @@
     const chips = '<div class="cats">' + (fac ? [["tebetalen", K.t("Te betalen") + (nUnpaid ? " · " + nUnpaid : "")], ["alle", K.t("Alle facturen")]] : [["lopend", K.t("Lopend")], ["geleverd", K.t("Geleverd · documenten")], ["alles", K.t("Alles")]]).map(([k, l]) => '<button type="button" data-of="' + k + '"' + (k === flt ? ' class="on"' : "") + '>' + l + '</button>').join("") + '</div>';
     // Une ligne par commande (et plus une carte) : date, articles, statut, montant ; sur ordinateur les documents
     // et « Opnieuw bestellen » restent sur la ligne. Tout le reste (wijzigen, annuleren, détail) : clic sur la ligne.
-    const quick = o => { const r = ' data-ref="' + K.esc(o.ref) + '"'; return (o.statut === "Facturée" ? '<button type="button" class="btn btn-o btn-sm" data-doc="invoice"' + r + '>' + invLabel() + '</button>' : "") + (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<button type="button" class="btn btn-o btn-sm" data-doc="delivery"' + r + '>' + K.t("Leveringsbon") + '</button>' : "") + '<button type="button" class="btn btn-ghost btn-sm" data-reorder="' + K.esc(o.ref) + '">' + K.t("Opnieuw bestellen") + '</button>'; };
-    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + (slotTxt(o) ? " · " + slotTxt(o) : "") : K.date(o.date)) + '</b><small class="mono">' + K.esc(o.ref) + (o.factuurnummer ? " · " + K.esc(o.factuurnummer) : "") + (dueTxt(o) ? " · " + K.esc(dueTxt(o)) : "") + '</small></span><span class="orow-s">' + K.esc(K.linesSummary(o.lignes, o.verpakking)) + '</span><span class="orow-st">' + badge(o) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
+    // Facturen : één actie, het document. Leveringen : bon (geleverd) en « Opnieuw bestellen » (niet bij een aanpasbare bestelling).
+    const quick = o => { const r = ' data-ref="' + K.esc(o.ref) + '"'; if (fac) return '<button type="button" class="btn btn-o btn-sm" data-doc="invoice"' + r + '>' + K.t("Bekijken") + '</button>'; return (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<button type="button" class="btn btn-o btn-sm" data-doc="delivery"' + r + '>' + K.t("Leveringsbon") + '</button>' : "") + (o.aanpasbaar ? "" : '<button type="button" class="btn btn-ghost btn-sm" data-reorder="' + K.esc(o.ref) + '">' + K.t("Opnieuw bestellen") + '</button>'); };
+    const card = o => '<div class="orow' + (o.statut === K.CANCELLED ? " is-cancel" : "") + '"><button type="button" class="orow-main" data-open="' + K.esc(o.ref) + '" aria-label="' + K.esc(K.t("Bestelling") + " " + o.ref + ", " + K.t("details")) + '"><span class="orow-d"><b>' + K.esc(o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + (slotTxt(o) ? " · " + slotTxt(o) : "") : K.date(o.date)) + '</b><small class="mono">' + K.esc(fac && docNr(o) ? docNr(o) : o.ref) + '</small></span><span class="orow-s">' + K.esc(sumTxt(o)) + '</span><span class="orow-st">' + badge(o, true) + '</span><b class="mono orow-t">' + K.eur(o.total) + '</b>' + K.icon("chev", "orow-chev") + '</button><span class="orow-a">' + quick(o) + '</span></div>';
     const empty = fac ? (flt === "tebetalen" ? K.c.empty(K.t("Geen openstaande facturen"), K.t("Alles is betaald. Dank u wel.")) : K.c.empty(K.t("Geen facturen"), K.t("Na levering vindt u hier elke factuur."))) : flt === "lopend" ? K.c.empty(K.t("Geen lopende bestellingen"), K.tt("Bestel vóór {t} voor levering op {d}.", { t: deadline(), d: K.dateLong(firstDay()) }), '<a class="btn btn-p btn-sm mt-6" href="#/catalogus">' + K.t("Naar de catalogus") + '</a>') : ordFilter === "tebetalen" ? K.c.empty(K.t("Geen openstaande facturen"), K.t("Alles is betaald. Dank u wel.")) : K.c.empty(K.t("Niets in deze lijst"));
     // G-13 : la pastille de l'onglet compte les factures à payer ; la vue qui s'ouvre le dit et y mène en un geste.
     const payHint = !fac && nUnpaid ? '<div class="full">' + K.c.warn('<span>' + K.esc(nUnpaid + " " + K.t(nUnpaid === 1 ? "factuur te betalen" : "facturen te betalen")) + '</span> <a class="linkbtn" href="#/facturen">' + K.t("Bekijken") + '</a>') + '</div>' : "";
     const st = fac && flt === "tebetalen" && list.length ? statement(list) : ""; // modus boekhouder : leeg, geen kaart
-    shell(fac ? "facturen" : "bestellingen", '<div class="mlist grid">' + payHint + (st ? '<div class="full">' + st + '</div>' : "") + (list.length ? '<div class="olist full">' + list.map(card).join("") + '</div>' : '<div class="full">' + empty + '</div>') + '</div>', topbar(K.t(fac ? "Facturen" : "Leveringen"), cat.client.nom).slice(0, -6) + chips + "</div>");
+    shell(fac ? "facturen" : "bestellingen", '<div class="mlist grid">' + payHint + (st ? '<div class="full">' + st + '</div>' : "") + (list.length ? '<div class="olist full">' + list.map(card).join("") + '</div>' : '<div class="full">' + empty + '</div>') + '</div>', topbar(K.t(fac ? "Facturen" : "Leveringen"), (cat.client.nom ? cat.client.nom + " · " : "") + K.t("Bedragen excl. btw")).slice(0, -6) + chips + "</div>");
     const ofGroup = app.querySelector("[data-of]") && app.querySelector("[data-of]").parentElement; if (ofGroup) ofGroup.setAttribute("aria-label", K.t("Filter")); // G-06 : groupe de filtres nommé (aria-pressed : K.syncStates)
     K.on(app, "click", "[data-of]", (e, t) => { if (isFac()) facFilter = t.dataset.of; else ordFilter = t.dataset.of; K.keep(app, renderOrderList); });
     bindOrderActions(app);
@@ -872,15 +921,18 @@
 
   /* ---------- favorieten / standaard ---------- */
   function renderFavorieten() {
-    const favList = (cat.products || []).filter(p => favs[p.id]);
+    // Spec 038 : dezelfde « vaste producten » als in Bestellen (wat u vaak neemt, server) + uw sterren.
+    const vast = new Set((ordersMeta.vaste || []).concat(Object.keys(favs)));
+    const favList = (cat.products || []).filter(p => vast.has(p.id)).sort(K.catalogSort("standaard"));
+    if (!orders) ensureOrders().then(() => { if (K.hashParams().path === "favorieten") K.keep(app, renderFavorieten); }).catch(() => {});
     const stdList = std ? Object.entries(std).map(([id, qv]) => ({ p: byId(id), qty: qv })).filter(x => x.p) : [];
     const stdTotal = stdList.reduce((s, x) => s + x.p.prix * x.qty, 0);
     const stdCard = '<div class="mcard card-tint"><div class="spread-c"><div><b>' + K.t("Mijn standaardbestelling") + '</b><div class="quiet fs-12">' + (stdList.length ? stdList.length + " " + K.t("artikelen") + " · " + K.eur(stdTotal) : K.t("Nog niet ingesteld")) + '</div></div></div>' +
-      (stdList.length ? '<div class="mt-8 fs-125 t-ink2">' + stdList.map(x => K.qty(x.qty) + "× " + K.esc(x.p.nom) + (K.pakCount(x.qty, x.p.unite, pakP(x.p)) ? " (" + K.esc(K.pakCount(x.qty, x.p.unite, pakP(x.p))) + ")" : "")).join(" · ") + '</div><div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdToCart">' + K.t("In winkelmand zetten") + '</button><button type="button" class="btn btn-o btn-sm" id="stdSave">' + K.t("Vervang door winkelmand") + '</button></div>' : '<div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdSave">' + K.t("Huidige winkelmand opslaan als standaard") + '</button></div>') + '</div>';
-    const body = '<div class="kcols"><div class="kc-main"><h2 class="sec mt-0">' + K.t("Favorieten") + '</h2>' + (favList.length ? '<div class="mcard">' + favList.map(p => '<div class="li"><div class="n"><b>' + K.esc(p.nom) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + '</span>' + stockTag(p) + '</div>' + pakCaption(p, cart.items[p.id]) + '</div>' + stepperOf(p, cart.items[p.id]) + '<button type="button" class="ibtn fav on" data-fav="' + p.id + '" aria-label="' + K.esc(K.t("Uit favorieten") + ": " + p.nom) + '">' + K.icon("star") + '</button></div>').join("") + '</div>' : K.c.empty(K.t("Nog geen favorieten"), K.t("Tik op de ster bij een product in de catalogus."))) + '</div><div class="kc-side">' + stdCard + '</div></div>';
-    shell("favorieten", '<div class="mlist">' + body + '</div>', topbar(K.t("Favorieten"), K.t("Snel opnieuw bestellen")));
+      (stdList.length ? '<div class="mt-8 fs-125 t-ink2">' + stdList.map(x => K.qty(x.qty) + "× " + K.esc(toon(x.p)) + (K.pakCount(x.qty, x.p.unite, pakP(x.p)) ? " (" + K.esc(K.pakCount(x.qty, x.p.unite, pakP(x.p))) + ")" : "")).join(" · ") + '</div><div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdToCart">' + K.t("In winkelmand zetten") + '</button><button type="button" class="btn btn-o btn-sm" id="stdSave">' + K.t("Vervang door winkelmand") + '</button></div>' : '<div class="d-flex gap-8 mt-10"><button type="button" class="btn btn-p btn-sm flex-1" id="stdSave">' + K.t("Huidige winkelmand opslaan als standaard") + '</button></div>') + '</div>';
+    const body = '<div class="kcols"><div class="kc-main"><h2 class="sec mt-0">' + K.t("Uw vaste producten") + '</h2>' + (favList.length ? '<div class="mcard">' + favList.map(p => '<div class="li"><div class="n"><b>' + K.esc(toon(p)) + '</b><div class="quiet fs-12 d-flex gap-6 ai-c f-wrap"><span>' + K.esc((p.kaliber ? p.kaliber + " · " : "") + unitLabel(p)) + ' · ' + K.eur(p.prix) + '</span>' + stockTag(p) + '</div>' + pakCaption(p, cart.items[p.id]) + '</div>' + stepperOf(p, cart.items[p.id]) + '<button type="button" class="ibtn fav' + (favs[p.id] ? " on" : "") + '" data-fav="' + p.id + '" aria-pressed="' + !!favs[p.id] + '" aria-label="' + K.esc(K.t("Ster") + ": " + toon(p)) + '">' + K.icon("star") + '</button></div>').join("") + '</div>' : K.c.empty(K.t("Nog geen vaste producten"), K.t("Wat u vaak bestelt, komt hier vanzelf. U kunt ook een ster zetten bij een product in Bestellen."))) + '</div><div class="kc-side">' + stdCard + '</div></div>';
+    shell("account", '<div class="mlist">' + body + '</div>', topbar(K.t("Uw vaste producten"), K.t("Snel opnieuw bestellen")));
     bindSteppers(app);
-    K.on(app, "click", "[data-fav]", (e, t) => { setFav(t.dataset.fav, false); K.keep(app, renderFavorieten); });
+    K.on(app, "click", "[data-fav]", (e, t) => { setFav(t.dataset.fav, !favs[t.dataset.fav]); K.keep(app, renderFavorieten); });
     const s = document.getElementById("stdSave"); if (s) s.onclick = () => { const items = Object.fromEntries(Object.entries(cart.items).filter(([id, qv]) => byId(id) && Number(qv) > 0)); if (!Object.keys(items).length) { K.toast(K.t("Zet eerst artikelen in de winkelmand."), { kind: "err" }); return; } setStd(items); K.toast(K.t("Standaardbestelling opgeslagen")); renderFavorieten(); };
     const c2 = document.getElementById("stdToCart"); if (c2) c2.onclick = () => { Object.entries(std).forEach(([id, qv]) => { const p = byId(id); if (p) { const v = capQty(p, fitQty(p, Number(qv))); if (v > 0) cart.items[id] = v; } }); saveCart(); K.go("winkelmand"); };
   }
@@ -956,15 +1008,17 @@
   }
   function renderAccount() {
     const cl = cat.client || {}, co = cat.company || {};
-    const body = '<div class="mcard"><div class="row"><div>' + K.t("Zaak") + '<small>' + K.esc(cl.nom || "") + '</small></div></div><div class="row"><div>' + K.t("Leveradres") + '<small class="ws-pre">' + K.esc(cl.adresse || "—") + '</small></div></div>' + (cl.klantnr ? '<div class="row"><div>' + K.t("Klantnummer") + '<small class="mono">' + K.esc(cl.klantnr) + '</small></div></div>' : "") + (cl.btw ? '<div class="row"><div>' + K.t("Btw-nummer") + '<small class="mono">' + K.esc(cl.btw) + '</small></div></div>' : "") + '<div class="row"><div>' + K.t("Gebruikersnaam") + '<small>' + K.esc(sess.user) + '</small></div></div><div class="row"><div>' + K.t("Taal") + '<small>' + K.t("Nederlands of Frans, voor dit toestel") + '</small></div>' + K.langSwitch() + '</div><div class="row wrap"><div>' + K.t("Tellers in het menu") + '<small>' + K.badgeHelp() + '</small></div>' + K.badgeSwitch() + '</div></div>' +
+    // Spec 038 : « Een vraag? » bovenaan (WhatsApp als er een nummer is, telefoon, e-mail) ; geen tellerinstelling meer (ontwikkelaarsinstelling).
+    const body = '<div class="full">' + contactCard() + '</div><div class="mcard"><div class="row"><div>' + K.t("Zaak") + '<small>' + K.esc(cl.nom || "") + '</small></div></div><div class="row"><div>' + K.t("Leveradres") + '<small class="ws-pre">' + K.esc(cl.adresse || "—") + '</small></div></div>' + (cl.klantnr ? '<div class="row"><div>' + K.t("Klantnummer") + '<small class="mono">' + K.esc(cl.klantnr) + '</small></div></div>' : "") + (cl.btw ? '<div class="row"><div>' + K.t("Btw-nummer") + '<small class="mono">' + K.esc(cl.btw) + '</small></div></div>' : "") + '<div class="row"><div>' + K.t("Gebruikersnaam") + '<small>' + K.esc(sess.user) + '</small></div></div><div class="row"><div>' + K.t("Taal") + '<small>' + K.t("Nederlands of Frans, voor dit toestel") + '</small></div>' + K.langSwitch() + '</div></div>' +
       '<div class="mcard"><div class="row"><div>' + K.t("E-mail") + '<small>' + K.esc(cl.email || "—") + '</small></div><button type="button" class="btn btn-o btn-sm" data-profile>' + K.t("Wijzigen") + '</button></div><div class="row"><div>' + K.t("Telefoon") + '<small>' + K.esc(cl.tel || "—") + '</small></div><button type="button" class="btn btn-o btn-sm" data-profile>' + K.t("Wijzigen") + '</button></div></div>' +
-      '<div class="mcard"><div class="row"><div>' + K.t("Documenten") + '<small>' + K.t("Leveringsbonnen en facturen per bestelling") + '</small></div><a href="#/facturen" class="btn btn-o btn-sm">' + K.t("Openen") + '</a></div><div class="row"><div>' + K.t("Favorieten en standaardbestelling") + '<small>' + K.t("Snel opnieuw bestellen") + '</small></div><a href="#/favorieten" class="btn btn-o btn-sm">' + K.t("Openen") + '</a></div></div><div class="mcard"><div class="row"><div>' + K.t("Gegevens wijzigen") + '<small>' + K.t("Leveradres wijzigen: bel of mail Famo") + '</small></div></div><div class="row"><div>' + K.t("Wachtwoord") + '<small>' + K.t("Wijzig uw wachtwoord zelf, met uw huidige wachtwoord") + '</small></div><button type="button" class="btn btn-o btn-sm" id="pwChange">' + K.t("Wijzigen") + '</button></div></div>' +
-      '<div class="mcard"><b>' + K.esc(co.bedrijfsnaam || "FAMO Seafood") + '</b><div class="quiet fs-125 mt-4">' + K.esc([co.adres, co.plaats].filter(Boolean).join(", ")) + '</div><div class="d-flex gap-8 mt-10 f-wrap">' + (co.telefoon ? '<a class="btn btn-o btn-sm" href="tel:' + K.esc(co.telefoon.replace(/\s+/g, "")) + '">' + K.icon("phone") + K.esc(co.telefoon) + '</a>' : "") + (co.email ? '<a class="btn btn-o btn-sm" href="mailto:' + K.esc(co.email) + '">' + K.esc(co.email) + '</a>' : "") + '</div></div>' +
-      '<button type="button" class="btn btn-o btn-block full t-danger maxw-320" id="logout">' + K.t("Uitloggen") + '</button>';
+      '<div class="mcard"><div class="row"><div>' + K.t("Documenten") + '<small>' + K.t("Leveringsbonnen en facturen per bestelling") + '</small></div><a href="#/facturen" class="btn btn-o btn-sm">' + K.t("Openen") + '</a></div><div class="row"><div>' + K.t("Uw vaste producten en standaardbestelling") + '<small>' + K.t("Snel opnieuw bestellen") + '</small></div><a href="#/favorieten" class="btn btn-o btn-sm">' + K.t("Openen") + '</a></div></div><div class="mcard"><div class="row"><div>' + K.t("Gegevens wijzigen") + '<small>' + K.t("Leveradres wijzigen: bel of mail Famo") + '</small></div></div><div class="row"><div>' + K.t("Wachtwoord") + '<small>' + K.t("Wijzig uw wachtwoord zelf, met uw huidige wachtwoord") + '</small></div><button type="button" class="btn btn-o btn-sm" id="pwChange">' + K.t("Wijzigen") + '</button></div></div>' +
+      '<button type="button" class="btn btn-o btn-block full t-danger" id="logout">' + K.t("Uitloggen") + '</button>' +
+      '<p class="quiet fs-12 full m-0">' + K.esc([co.bedrijfsnaam || "FAMO Seafood", co.adres, co.plaats].filter(Boolean).join(" · ")) + '</p>';
     shell("account", '<div class="mlist grid">' + body + '</div>', topbar(K.t("Account"), cl.nom || ""));
     K.on(app, "click", "[data-profile]", openProfilePanel);
+    fillContact();
     document.getElementById("pwChange").onclick = openPasswordPanel;
-    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { try { await K.api("/api/klantwachtwoord", { json: { action: "logout", token: (K.klant.creds() || {}).token } }); } catch (e) { /* hors ligne : les données locales sont quand même effacées */ } K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1"; } };
+    document.getElementById("logout").onclick = async () => { if (await K.confirm({ title: K.t("Uitloggen?"), text: K.t("Uw winkelmand blijft bewaard op dit toestel."), yes: K.t("Uitloggen") })) { try { await K.api("/api/klantwachtwoord", { json: { action: "logout", token: (K.klant.creds() || {}).token } }); } catch (e) { /* hors ligne : les données locales sont quand même effacées */ } K.klant.clear(); K.session.del(CAT_KEY); location.href = "/?uit=1#aanmelden"; } };
   }
 
   /* ---------- router ---------- */

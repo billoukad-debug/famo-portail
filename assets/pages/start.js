@@ -50,6 +50,17 @@
     '<figure class="ac-counter" aria-labelledby="counterCap"><ul class="ac-plates">' +
     PLATES.map(([k, nl, la]) => '<li class="ac-plate ac-c-' + k + '"><span class="ac-pn">' + K.t(nl) + '</span><i class="ac-la" lang="la">' + la + "</i>" + svg(SHAPES[k]) + "</li>").join("") +
     '</ul><figcaption id="counterCap">' + K.t("Ter illustratie. Het actuele aanbod en uw prijzen ziet u na het aanmelden.") + "</figcaption></figure></div></section>" +
+    // Connexion + vraag : juste sous le héros (spec 038 : sur téléphone le formulaire était à 2 656 px, sous la vitrine).
+    '<section class="ac-sec ac-meet" id="aanmelden" aria-label="' + K.t("Aanmelden") + '"><div class="ac-w ac-split">' +
+    '<form class="ac-login" id="loginForm" novalidate><div><h2 class="ac-h3">' + K.t("Klantportaal") + '</h2><p class="sub">' + K.t("Aanmelden met uw gebruikersnaam") + "</p></div>" +
+    (expired ? K.c.warn(K.t("Sessie verlopen, meld u opnieuw aan.")) : loggedOut ? K.c.ok(K.t("U bent afgemeld.")) : "") +
+    K.c.field(K.t("Gebruikersnaam"), K.c.input("user", { attrs: ' autocomplete="username" autocapitalize="none" spellcheck="false" required' }), { id: "fUser", for: "user" }) +
+    K.c.field(K.t("Wachtwoord"), '<div class="pwwrap">' + K.c.input("pw", { type: "password", attrs: ' autocomplete="current-password" required' }) + '<button type="button" class="btn btn-ghost" id="togglePw" aria-controls="pw">' + K.t("Tonen") + "</button></div>", { id: "fPw", for: "pw" }) +
+    '<div id="loginErr"></div>' +
+    '<button type="submit" class="btn btn-p btn-lg" id="loginBtn">' + K.t("Aanmelden") + "</button>" +
+    '<div class="login-links"><a class="tlink" href="/wachtwoord">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag">' + K.t("Nog geen klant? Toegang aanvragen") + "</a></div></form>" +
+    '<div class="ac-help"><h2 class="ac-h3">' + K.t("Een vraag vanavond?") + "</h2><p>" + K.t("Bel of mail ons. Nog geen klant? Vraag toegang aan.") + "</p>" +
+    '<div class="ac-contact" id="acContact"></div><a class="btn btn-o ac-join" href="/aanvraag">' + K.t("Klant worden") + "</a></div></div></section>" +
     // Identiteitskaart (voorbeeld)
     '<section class="ac-sec" aria-labelledby="idT"><div class="ac-w"><div class="ac-sec-hd"><h2 class="ac-h2" id="idT">' + K.t("Elk lot heeft een identiteitskaart") + "</h2>" +
     '<p class="ac-sub">' + K.t("Wetenschappelijke naam, herkomst, vistuig, staat en allergenen: per product in uw catalogus, per lot op uw leveringsbon. U ziet enkel wat echt ingevuld is.") + "</p></div>" +
@@ -67,17 +78,6 @@
     '<ol class="ac-steps"><li><span class="ac-n" aria-hidden="true">1</span><div><h3>' + K.t("Bestel in uw klantportaal") + "</h3><p>" + K.t("Uw afgesproken prijzen staan erbij. U kiest zelf de leverdag.") + "</p></div></li>" +
     '<li><span class="ac-n" aria-hidden="true">2</span><div><h3 id="step2T"></h3><p id="step2"></p></div></li>' +
     '<li><span class="ac-n" aria-hidden="true">3</span><div><h3>' + K.t("Bon en factuur in uw account") + "</h3><p>" + K.t("Leveringsbon en factuur vindt u terug bij uw bestellingen.") + "</p></div></li></ol></div></section>" +
-    // Connexion + vraag
-    '<section class="ac-sec ac-meet" id="aanmelden" aria-label="' + K.t("Aanmelden") + '"><div class="ac-w ac-split">' +
-    '<form class="ac-login" id="loginForm" novalidate><div><h2 class="ac-h3">' + K.t("Klantportaal") + '</h2><p class="sub">' + K.t("Aanmelden met uw gebruikersnaam") + "</p></div>" +
-    (expired ? K.c.warn(K.t("Sessie verlopen, meld u opnieuw aan.")) : loggedOut ? K.c.ok(K.t("U bent afgemeld.")) : "") +
-    K.c.field(K.t("Gebruikersnaam"), K.c.input("user", { attrs: ' autocomplete="username" autocapitalize="none" spellcheck="false" required' }), { id: "fUser", for: "user" }) +
-    K.c.field(K.t("Wachtwoord"), '<div class="pwwrap">' + K.c.input("pw", { type: "password", attrs: ' autocomplete="current-password" required' }) + '<button type="button" class="btn btn-ghost btn-sm" id="togglePw" data-ux-exempt>' + K.t("Tonen") + "</button></div>", { id: "fPw", for: "pw" }) +
-    '<div id="loginErr"></div>' +
-    '<button type="submit" class="btn btn-p btn-lg" id="loginBtn">' + K.t("Aanmelden") + "</button>" +
-    '<div class="login-links"><a class="tlink" href="/wachtwoord">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag">' + K.t("Nog geen klant? Toegang aanvragen") + "</a></div></form>" +
-    '<div class="ac-help"><h2 class="ac-h3">' + K.t("Een vraag vanavond?") + "</h2><p>" + K.t("Bel of mail ons. Nog geen klant? Vraag toegang aan.") + "</p>" +
-    '<div class="ac-contact" id="acContact"></div><a class="btn btn-o ac-join" href="/aanvraag">' + K.t("Klant worden") + "</a></div></div></section>" +
     "</main>" + K.publicFooter() + "</div>";
 
   function contact() {
@@ -121,7 +121,7 @@
 
   // « Aanmelden » (en-tête, héros) : naar het formulier en de cursor in het veld Gebruikersnaam.
   const toLogin = smooth => {
-    const sec = document.getElementById("aanmelden"), user = document.getElementById("user");
+    const sec = document.getElementById("loginForm"), user = document.getElementById("user");
     let calm = false; try { calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (err) { calm = false; }
     if (sec && sec.scrollIntoView) sec.scrollIntoView({ behavior: smooth && !calm ? "smooth" : "auto", block: "start" });
     if (user && user.focus) user.focus({ preventScroll: true });
@@ -146,7 +146,8 @@
       K.session.set("famoKlantCatalogus", { at: Date.now(), products: d.products, client: d.client, company: d.company });
       location.href = "/klant#/catalogus";
     } catch (err) {
-      document.getElementById("loginErr").innerHTML = K.c.error(err.status === 401 ? K.t("Gebruikersnaam of wachtwoord klopt niet.") : err.message);
+      // 401 : un seul message, sans « Er ging iets mis. » devant (spec 038).
+      document.getElementById("loginErr").innerHTML = err.status === 401 ? '<div class="notice err" role="alert"><i>!</i><div><b>' + K.t("Gebruikersnaam of wachtwoord klopt niet.") + "</b></div></div>" : K.c.error(err.message);
       K.busy(btn, false);
     }
   });

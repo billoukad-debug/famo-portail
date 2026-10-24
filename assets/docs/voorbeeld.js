@@ -86,7 +86,6 @@
           "</div>" +
           '<div class="famo-doc-actions">' +
             '<button type="button" class="famo-doc-btn" data-famo-doc="close" aria-label="' + esc(t("Sluiten")) + '">×</button>' +
-            '<button type="button" class="famo-doc-btn" data-famo-doc="cancel">' + esc(t("Annuleren")) + '</button>' +
             '<button type="button" class="famo-doc-btn" data-famo-doc="print">' + esc(t("Afdrukken")) + '</button>' +
             '<button type="button" class="famo-doc-btn primary" data-famo-doc="download">' + esc(t("PDF downloaden")) + '</button>' +
           "</div>" +
@@ -112,7 +111,7 @@
       const btn = e.target.closest("[data-famo-doc]");
       if (!btn) return;
       const action = btn.getAttribute("data-famo-doc");
-      if (action === "close" || action === "cancel") close();
+      if (action === "close") close();
       else if (action === "print") print();
       else if (action === "download") downloadPdf();
     });
@@ -147,6 +146,29 @@
       close();
     }
   }
+
+  // Spec 038 : op een telefoon (aperçu smaller dan 600 px) werd de A4 op 366 px opgemaakt — blokken over elkaar,
+  // kolommen weg. Deze stijl, enkel in het aperçu en enkel onder 600 px, zet de inhoud onder elkaar : wie, welk
+  // document, elke regel met aantal en bedrag, btw en totaal. Dezelfde gegevens, geen tweede berekening. Afdrukken
+  // (@media print) en de PDF (die deze stijl overslaat, zie scopedCss) blijven het A4-document.
+  const NARROW_ID = "famo-narrow";
+  const NARROW_CSS = "@media screen and (max-width:600px){" +
+    "body{padding:16px 16px 24px!important;font-size:14px!important;line-height:1.5!important}" +
+    ".mast{flex-direction:column!important;gap:10px!important}.doctype{text-align:left!important}h1{font-size:20px!important}" +
+    ".coords{font-size:12px!important}.wordmark{font-size:16px!important}" +
+    ".head{flex-direction:column!important;gap:14px!important;margin-top:16px!important}.metaband{width:100%!important}" +
+    ".metalabel{width:116px!important;font-size:12.5px!important;line-height:22px!important}.metavalue{font-size:14px!important;line-height:22px!important}" +
+    "h2,.banklabel{font-size:12px!important}.partyname{font-size:16px!important}.partymeta{font-size:13.5px!important}" +
+    ".lines{margin-top:18px!important}.lines thead{display:none!important}.lines,.lines tbody{display:block!important}" +
+    ".lines tr{display:grid!important;grid-template-columns:auto auto auto auto 1fr;column-gap:8px;align-items:baseline;padding:10px 0;border-bottom:1px solid #E3EAEB}" +
+    ".lines td{display:block!important;padding:0!important;border:0!important;font-size:14px!important;text-align:left!important}" +
+    ".lines td.desc{grid-column:1/-1;margin-bottom:4px}.lines td:nth-child(6){justify-self:end;font-weight:700}.lines td.rate{color:#475A61}.lines td:nth-child(4)::before{content:'× ';color:#475A61}" +
+    "td small{font-size:12.5px!important}.item{font-size:15px!important}" +
+    ".sum{flex-direction:column!important;gap:14px!important}.vatsum,.totals{width:100%!important}.vatsum td{font-size:13px!important}" +
+    ".trow{font-size:14.5px!important}.grand{font-size:18px!important}" +
+    ".bank.has-qr{flex-direction:column!important;align-items:flex-start!important}.bankrow{font-size:13.5px}.bankrow span{width:104px!important}" +
+    ".foot,.legal{font-size:12px!important}.regime,.banner{font-size:13px!important}}";
+  const withNarrow = html => { const tag = '<style id="' + NARROW_ID + '">' + NARROW_CSS + "</style>"; return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, tag + "</head>") : tag + html; };
 
   function open(opts) {
     opts = opts || {};
@@ -188,7 +210,7 @@
       if (!host.contains(document.activeElement) && closeBtn) closeBtn.focus();
     };
     frame.addEventListener("load", onLoad);
-    frame.srcdoc = state.html;
+    frame.srcdoc = withNarrow(state.html);
   }
 
   function close() {
@@ -291,7 +313,7 @@
       }
       return "";
     }).filter(Boolean).join("\n");
-    return Array.from((doc && doc.styleSheets) || []).map(sheet => {
+    return Array.from((doc && doc.styleSheets) || []).filter(sheet => !(sheet.ownerNode && sheet.ownerNode.id === NARROW_ID)).map(sheet => {
       try { return walk(sheet.cssRules); } catch (e) { return ""; }
     }).filter(Boolean).join("\n");
   }
@@ -359,6 +381,7 @@
     filenameFor,
     scopeSelector,
     scopedCss,
-    esc
+    esc,
+    withNarrow
   };
 })(typeof window !== "undefined" ? window : global);

@@ -249,6 +249,19 @@
     "Bestel vandaag vóór {t} · geleverd {d}": "Commandez aujourd'hui avant {t} · livré {d}", "Bestel vóór {o}, {t} · geleverd {d}": "Commandez avant {o}, {t} · livré {d}",
     "Bestel vóór {t} · levering {d}": "Commandez avant {t} · livraison {d}"
   });
+  // Spec 038 (correctifs x30) : contact, opmerking, factuurstatus, vaste producten.
+  Object.assign(K.FR, {
+    "Een vraag?": "Une question ?", "Bel of mail Famo.": "Appelez ou écrivez à Famo.", "Uw gegevens": "Vos coordonnées", "Bedragen excl. btw": "Montants HTVA", "Liever even bellen?": "Vous préférez appeler ?", "Uw afgesproken prijzen": "Vos prix négociés", "Herkomst, staat en allergenen per product; lotnummer op de leveringsbon.": "Origine, état et allergènes par produit ; numéro de lot sur le bon de livraison.", "Bel, stuur een WhatsApp of mail Famo.": "Appelez, envoyez un WhatsApp ou un e-mail à Famo.",
+    "opmerking": "remarque", "Andere dag…": "Autre jour…", "Aanpasbaar {tot}": "Modifiable {tot}",
+    "Geleverd · niet betaald": "Livré · non payé", "Vervallen sinds {d}": "Échue depuis le {d}", "Te betalen vóór {d}": "À payer avant le {d}",
+    "Te betalen vóór": "À payer avant le", "Overzicht · pro forma": "Récapitulatif · pro forma",
+    "Lotnummer en herkomst per lot: zie de leveringsbon.": "Numéro de lot et origine par lot : voir le bon de livraison.",
+    "Hele bestelling annuleren": "Annuler toute la commande", "Uw vaste producten en standaardbestelling": "Vos habituels et commande type",
+    "Ster": "Étoile", "Nog geen vaste producten": "Pas encore d'habituels",
+    "Wat u vaak bestelt, komt hier vanzelf. U kunt ook een ster zetten bij een product in Bestellen.": "Ce que vous commandez souvent apparaît ici tout seul. Vous pouvez aussi mettre une étoile à un produit dans Commander.",
+    "Iets vergeten? Tik + in de lijst hieronder en bestel uw winkelmand: het komt bij deze bestelling.": "Un oubli ? Touchez + dans la liste ci-dessous puis commandez votre panier : il s'ajoute à cette commande.",
+    "+ {n} bij uw vaste": "+ {n} dans vos habituels"
+  });
   K.waLink = n => { let d = String(n || "").replace(/\(0\)/g, "").replace(/\D/g, ""); if (d.startsWith("00")) d = d.slice(2); else if (d.startsWith("0")) d = "32" + d.slice(1); return d.length >= 9 && d.length <= 15 ? "https://wa.me/" + d : ""; };
   K.telHref = n => String(n || "").replace(/\(0\)/g, "").replace(/[^\d+]/g, "");
   K.legalNameOf = c => { const l = (c && c.legal) || {}; return l.naam ? l.naam + (l.rechtsvorm && !l.naam.toLowerCase().split(/\s+/).includes(l.rechtsvorm.toLowerCase()) ? " " + l.rechtsvorm : "") : ""; };
@@ -547,7 +560,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "b47ca4e267";
+  K.DOCS_VER = "c12817cff2";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -636,14 +649,26 @@
   K.takeReturn = fb => { const v = K.session.get(K.RETURN, null); K.session.del(K.RETURN); return v && v.startsWith("/") && !v.startsWith("//") ? v : (fb || null); };
 
   /* ---------- klant sessie : HttpOnly-cookie van de server (famo_klant, IDEAS B3) ---------- */
-  // Het sessietoken zit in een cookie die JavaScript niet kan lezen. Dit tabblad bewaart enkel
+  // Het sessietoken zit in een cookie die JavaScript niet kan lezen. Dit toestel bewaart enkel
   // weergavegegevens : gebruikersnaam + id, naam en taal van de zaak. Nooit een token of wachtwoord.
+  // Spec 038 : die weergavegegevens staan in localStorage (ze overleven het sluiten van het tabblad, net als de cookie
+  // famo_klant, Max-Age = resterende duur van het jeton) ; zonder localStorage (privévenster) in sessionStorage.
+  // Een oud tabblad (sessionStorage) wordt overgenomen. Uitloggen en een verlopen sessie wissen beide.
   K.klant = {
     KEY: "famoKlant",
     safe(v) { if (!v || !v.user) return null; const c = v.client || {}; return { user: String(v.user), client: { id: String(c.id || ""), nom: String(c.nom || ""), taal: c.taal === "FR" ? "FR" : "NL" } }; },
-    get() { return K.session.get(K.klant.KEY, null); },
-    set(v) { const s = K.klant.safe(v); if (s) K.session.set(K.klant.KEY, s); else K.klant.clear(); },
-    clear() { K.session.del(K.klant.KEY); },
+    get() {
+      const local = K.store.get(K.klant.KEY, null); if (local && local.user) return local;
+      const tab = K.session.get(K.klant.KEY, null); if (!tab || !tab.user) return null;
+      // Overname van een tabblad van vóór spec 038 (zonder token of wachtwoord : enkel wat safe() bewaart).
+      if (!tab.token && !tab.pw) { try { localStorage.setItem(K.klant.KEY, JSON.stringify(K.klant.safe(tab))); sessionStorage.removeItem(K.klant.KEY); } catch (e) { /* geen localStorage : het tabblad houdt ze */ } }
+      return tab;
+    },
+    set(v) {
+      const s = K.klant.safe(v); if (!s) { K.klant.clear(); return; }
+      try { localStorage.setItem(K.klant.KEY, JSON.stringify(s)); K.session.del(K.klant.KEY); } catch (e) { K.session.set(K.klant.KEY, s); }
+    },
+    clear() { K.store.del(K.klant.KEY); K.session.del(K.klant.KEY); },
     // Elke klant-API krijgt de gebruikersnaam mee : de server controleert dat de cookie bij dezelfde login hoort.
     // Overgang (tot 31/10/2026) : een token van vóór de cookie gaat nog mee tot het eerste geslaagde verzoek
     // (de server zet dan de cookie) ; forgetToken() wist het daarna.
@@ -693,6 +718,7 @@
     up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
     fish: '<path d="M3 12c3-4 7-6 11-6 3 0 5 2 7 6-2 4-4 6-7 6-4 0-8-2-11-6z"/><path d="M3 12l-1-4M3 12l-1 4"/><circle cx="15" cy="11" r="1"/>',
     phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',
+    wa: '<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.1L4 20z"/><path d="M9 9.5c.5 2 2.5 4 4.5 4.5l1.2-1.2 2 .8v1.6c-4.4.6-8.8-3.8-8.2-8.2h1.6l.8 2z"/>',
     pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
     logout: '<path d="M10 17l5-5-5-5M15 12H3M13 3h6v18h-6"/>',
     warn: '<path d="M12 3l10 18H2z"/><path d="M12 9v5M12 17h.01"/>',

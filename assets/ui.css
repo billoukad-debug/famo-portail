@@ -1297,3 +1297,46 @@ a.kp-link:hover{background:var(--row-hover)}
 @media (min-width:900px){.ac-steps{grid-template-columns:repeat(3,minmax(0,1fr))}.ac-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
 @media (min-width:1100px){.ac-w{padding:0 48px}.ac-hero{padding-top:64px}.ac-hero-in{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:end;gap:48px}
   .ac-copy{padding-bottom:52px}.ac-h1{font-size:76px}.ac-h2{font-size:52px}.ac-counter{padding:20px 20px 16px}.ac-plates{gap:12px}.ac-plate{aspect-ratio:1/1}.ac-plate svg{width:86%}}
+
+/* ---------- x30 correctifs (spec 038) : contact, opmerking, winkelmand, fiche, toast, accueil ---------- */
+.kq{display:flex;flex-direction:column;gap:8px}
+.kq-h{margin:0;font:400 26px/1.1 var(--serif);color:var(--ink)}
+.kq-b{display:flex;flex-wrap:wrap;gap:8px}.kq-b:empty{display:none}
+.kq-btn{min-height:44px;gap:8px;min-width:0}.kq-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kn{display:flex;flex-direction:column;gap:4px;min-width:0}
+.kn-add{align-self:flex-start;min-height:44px;padding:0 2px;border:0;background:transparent;color:var(--p);font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:4px}
+.kn-add:focus-visible{outline:2px solid var(--p);outline-offset:2px;border-radius:var(--r-xs)}
+.kn-f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2)}.kn-f[hidden]{display:none}
+.kn-f .input{min-height:44px;font-size:13px}
+.kday summary{display:inline-flex;align-items:center;min-height:44px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--p)}
+.ok-ring .ok-ico{width:36px;height:36px;stroke:var(--st-done);stroke-width:2.4}
+@media (max-width:430px){.li{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n n" "s t" "c c"}.li>.stepper{justify-self:start}}
+/* Winkelmand op de telefoon : « Bestelling plaatsen » altijd onder de duim, boven de tabbalk. */
+@media (max-width:719px){
+  .kplace{position:fixed;left:0;right:0;bottom:calc(68px + env(safe-area-inset-bottom,0px));z-index:90;padding:10px 16px;background:var(--card);border-top:1px solid var(--line-soft);box-shadow:0 -6px 18px rgba(14,34,41,.08)}
+  .kv-winkelmand .kmain{padding-bottom:84px}
+  .toasts{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  body:has(.cartbar) .toasts,body:has(.kplace) .toasts{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+}
+@media (min-width:600px) and (max-width:719px){.kplace{left:50%;right:auto;transform:translateX(-50%);width:min(560px,100%)}}
+/* Fiche op de telefoon : eerst de identiteitskaart, daarna een kleine galerij. */
+@media (max-width:480px){
+  .kl[data-view=x30] .pr-d>.pr-info{order:1}
+  .kl[data-view=x30] .pr-d>.gal,.kl[data-view=x30] .pr-d>.x-plate-l{order:2;width:min(180px,56%)}
+}
+/* Connexion : « Tonen » 44 px. */
+.ac-login .pwwrap .input{min-height:48px;padding-right:96px}.ac-login .pwwrap .btn{top:2px;bottom:2px;min-height:44px;min-width:80px}
+/* Comptoir : vormen heel en gecentreerd ; op de telefoon drie kleine platen per rij. */
+.ac-plate svg{left:50%;right:auto;bottom:8%;transform:translateX(-50%);width:74%}
+@media (max-width:559px){.ac-plates{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.ac-plate{aspect-ratio:1/1;padding:8px 9px}.ac-pn{font-size:13px}.ac-la{font-size:12.5px}.ac-plate svg{width:80%;bottom:6%}}
+#loginForm{scroll-margin-top:12px}
+/* Leveringen / Facturen op de telefoon : de status onder de titel, zodat de titel niet breekt. */
+@media (max-width:480px){.x30 .orow-main{grid-template-areas:"d d c" "st st c" "s t c"}.x30 .orow-st{justify-self:start;max-width:none}}
+/* Toegang aanvragen (spec 038) : familie van de startpagina. */
+.av-hero{padding-bottom:28px}.av-h1{font-size:46px}
+.av-why{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.av-why>li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start}
+.av-why .ac-n{color:var(--ac-sea);font-size:36px}
+.av-wh{margin:2px 0 2px;font-size:16px;line-height:1.3;color:#fff}.av-why p{margin:0;color:var(--deep-ink);font-size:14.5px;line-height:1.5}
+.av .ac-meet{padding-top:28px}
+@media (min-width:900px){.av-why{grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.av-h1{font-size:64px}.av .ac-split{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}}
