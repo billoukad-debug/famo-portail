@@ -12,11 +12,14 @@
     // Pot de miel (api/signup.js) : invisible et hors tabulation pour un humain, rempli par les robots.
     '<div aria-hidden="true" class="offscreen"><label for="bijkomend">Laat dit veld leeg</label><input id="bijkomend" name="bijkomend" type="text" tabindex="-1" autocomplete="off"></div>' +
     '<div id="terms"></div><div id="msg"></div><button type="submit" class="btn btn-p btn-tall" id="btn">' + K.t("Aanvraag versturen") + '</button>' +
+    '<p class="quiet fs-12 m-0">' + K.t("Wij gebruiken deze gegevens enkel om uw aanvraag te behandelen en u te contacteren.") + ' <a class="tlink" href="/privacy">' + K.t("Privacyverklaring") + '</a></p>' +
     '<p class="quiet fs-12 ta-c m-0">' + K.t("Al klant?") + ' <a href="/">' + K.t("Aanmelden") + '</a></p></form></div>';
   let taal = K.lang === "fr" ? "FR" : "NL";
   // Conditions générales (C-12) : case obligatoire dès qu'une version est publiée.
   let versie = "";
+  K.mountPublicFooter();
   K.api("/api/config?public=1").then(d => {
+    K.fillPublicFooter(d.config || {});
     versie = (d.config && d.config.voorwaardenVersie) || "";
     if (!versie) return;
     document.getElementById("terms").innerHTML = '<div class="field" id="fTerms"><label class="d-flex gap-10 ai-fs fs-135 mh-44"><input type="checkbox" id="akkoord" class="chk-22"><span>' + K.esc(K.t("Ik aanvaard de algemene verkoopsvoorwaarden")) + ' · <a class="tlink" href="/voorwaarden" target="_blank" rel="noopener">' + K.esc(K.t("lezen")) + '</a></span></label><span class="err" data-err role="alert"></span></div>';

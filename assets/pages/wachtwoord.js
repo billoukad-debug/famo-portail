@@ -18,6 +18,8 @@ document.addEventListener("DOMContentLoaded", function () { // na de uitgestelde
     "Wachtwoord opslaan mislukt. Probeer het later opnieuw.": "L'enregistrement du mot de passe a échoué. Réessayez plus tard."
   });
   const app = document.getElementById("app");
+  K.mountPublicFooter(); // spec 032
+  K.loadPublicFooter();
   const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   const KEY = "famoResetToken";
   let token = new URLSearchParams(location.search).get("t") || "";

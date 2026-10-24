@@ -20,7 +20,7 @@ jobs:
       - name: Interroger /api/health
         run: |
           for i in 1 2; do
-            body=$(curl -s -m 20 https://www.famoseafood.be/api/health) && echo "$body" | grep -q '"ok":true' && break
+            body=$(curl -s -m 20 https://www.famoseafood.be/api/health) && node -e 'process.exit(JSON.parse(process.argv[1]).ok === true ? 0 : 1)' "$body" 2>/dev/null && break
             [ "$i" = 2 ] && { echo "::error::Portaal onbereikbaar of niet gezond: $body"; exit 1; }
             sleep 60
           done
@@ -28,6 +28,6 @@ jobs:
           node -e '
             const b = JSON.parse(process.argv[1]).checks.backup;
             if (!b) process.exit(0);
-            if (!b.ok) { console.log("::error::Laatste back-up mislukt: " + (b.error || "")); process.exit(1); }
+            if (!b.ok) { console.log("::error::Laatste back-up mislukt (details: Beheer, Systeemstatus)"); process.exit(1); }
             if (b.ageHours > 26) { console.log("::error::Laatste back-up is " + b.ageHours + " uur oud"); process.exit(1); }
           ' "$body"

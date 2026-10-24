@@ -16,7 +16,7 @@
     '<div id="loginErr"></div>' +
     '<button type="submit" class="btn btn-p btn-lg" id="loginBtn">' + K.t("Aanmelden") + '</button>' +
     '<div class="login-links"><a class="tlink" href="/wachtwoord">' + K.t("Wachtwoord vergeten?") + '</a><a class="tlink" href="/aanvraag">' + K.t("Nog geen klant? Toegang aanvragen") + '</a></div></form></main>' +
-    '<footer class="start-ft"><span class="quiet" id="foot">FAMO Seafood</span><nav class="mini" aria-label="' + K.t("Meer links") + '"><a class="tlink" href="/privacy">' + K.t("Privacy") + '</a><a class="tlink" href="/voorwaarden">' + K.t("Voorwaarden") + '</a><span class="ft-sep"></span><span>' + K.t("Werkt u bij Famo?") + '</span><a class="btn btn-o btn-sm" href="/team/aanmelden">' + K.t("Personeel") + '</a><a class="btn btn-o btn-sm" href="/beheer/aanmelden">' + K.t("Beheer") + '</a></nav></footer></div>';
+    K.publicFooter() + '</div>';
 
   const KEYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
   function daysLabel() {
@@ -31,7 +31,7 @@
   draw();
   K.api("/api/config?public=1").then(d => {
     const c = d.config || {};
-    document.getElementById("foot").textContent = [c.bedrijfsnaam, c.adres, c.plaats, c.btw].filter(Boolean).join(", ");
+    K.fillPublicFooter(c);
     if (c.levering) { lev = Object.assign({}, DEF, c.levering); draw(); }
   }).catch(() => {});
 

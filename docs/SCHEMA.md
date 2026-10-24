@@ -142,6 +142,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | Champ | Type | Écrit par | Lu par | Remarque |
 |---|---|---|---|---|
 | `Bedrijfsnaam`, `Adres`, `Postcode en plaats`, `BTW-nummer`, `Telefoon`, `E-mail` | texte | onboarding (saveConfig) | config, catalogue, klantdoc, ordermail | Bloc public (`/api/config?public=1`). |
+| `WhatsApp`, `FAVV-nummer` | texte | onboarding (saveConfig) | config | Spec 032 : pied de page public et Colofon (`whatsapp`, `favv` dans `/api/config?public=1`). Vide = rien d'affiché. |
 | `IBAN`, `BIC` | texte | onboarding | config (personnel et beheerder), catalogue (relevé client), klantdoc, ordermail | **Jamais** dans la réponse publique. |
 | `BTW-tarief` | nombre (%) | onboarding | allorders, config, klantdoc | Taux par défaut (6 si vide). |
 | `Betalingsvoorwaarden`, `Leveringsvoorwaarden` | texte | onboarding | config, klantdoc | |
