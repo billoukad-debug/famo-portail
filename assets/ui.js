@@ -499,7 +499,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "28c241a75c";
+  K.DOCS_VER = "b47ca4e267";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -511,7 +511,7 @@
       document.head.appendChild(el);
     });
     // QR de virement (specs/034) : bibliothèque figée (vendor/, MIT) puis assets/epc.js ; visfiche (specs/035) ; avant documents.js.
-    docsLoading = ["/assets/vat.js", "/vendor/qrcode-generator.js", "/assets/epc.js", "/assets/visfiche.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
+    docsLoading = ["/assets/vat.js", "/assets/visfiche.js", "/vendor/qrcode-generator.js", "/assets/epc.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;
