@@ -74,6 +74,7 @@ needs a recent Node 22.
   `check.js` accepts rewrite targets as pages; tests `test/vitrine.test.js`.
   031 Back-up zonder foto's: when the nightly gzip exceeds the mail limit, `api/backup-cron.js` attaches the data without photos (`zonderFotos`), health stays OK.
   030 Volgend factuurnummer: `testNummering` accepts `volgende` (counter = volgende - 1, refused if a number ≥ it exists), field in « Testperiode afsluiten ».
+  034 Vague 3 facturation: Beheer → Boekhouder `/beheer/boekhouder` (period list + CSV `GET /api/export?format=lijst|csv`, `lib/boekhouder.js`, UBL problems shown; export now 401 / 403 staff), per-document sending status `Commandes.Verzending` (`lib/verzending.js`, `/api/updateorder { verzending }`, admin, journalled, blocks undo of receipt; future auto-send writes the same field with `bron: "automatisch"`), EPC069-12 transfer QR (`assets/epc.js` + `vendor/qrcode-generator.js` 2.0.4 MIT, loaded by `K.docs`) on the portal invoice and the client statement only in « Portaal » mode with a real IBAN (never pro forma, never the example IBAN), `/api/orders` `vervaldatum` / `openstaand`. Nothing is sent to Peppol or the accountant.
   029 « Nieuw » in Beheer: `assets/nieuws.js` (one note per change, simple Dutch: what changed + « Wat moet u doen? »
   with links), tab « Nieuw » + banner on Overzicht, « Gezien » per device. `test/nieuws.test.js` FAILS if a spec ≥ 027
   has no note, or a note contains technical jargon.

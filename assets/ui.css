@@ -1041,3 +1041,8 @@ a.kp-link:hover{background:var(--row-hover)}
 .nw-invite{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .notice a.btn-p{color:#fff}
 .nw-date{margin:0}.nw-todo{margin-bottom:4px}
+/* QR de virement dans le relevé client (specs/034) : replié par défaut, ≥ 2 × 2 cm, fond blanc (lisible en mode sombre). */
+.kqr summary{list-style:none;cursor:pointer;min-height:44px;display:inline-flex;align-items:center}
+.kqr summary::-webkit-details-marker{display:none}
+.kqr-fig{margin:8px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.kqr-fig svg{display:block;width:168px;height:168px;flex:none;border-radius:6px}
