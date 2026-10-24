@@ -20,14 +20,16 @@ const jsFiles = [...list("api", /\.js$/), ...list("lib", /\.js$/), ...list("lib/
 // 1. Syntaxe de tout le JS et des <script> inline.
 let synErr = 0;
 for (const f of jsFiles) { try { new vm.Script(read(f), { filename: f }); } catch (e) { synErr++; fail("Syntaxe " + f + " : " + e.message); } }
-for (const f of htmlPages) { const html = read(f); const re = /<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi; let m; while ((m = re.exec(html))) { try { new vm.Script(m[1], { filename: f }); } catch (e) { synErr++; fail("Syntaxe inline " + f + " : " + e.message); } } }
+const INLINE = require("./inline-scripts"); // spec 033 : blocs JSON-LD exclus de la compilation, vérifiés comme JSON
+for (const f of htmlPages) { for (const body of INLINE.inlineScripts(read(f))) { try { new vm.Script(body, { filename: f }); } catch (e) { synErr++; fail("Syntaxe inline " + f + " : " + e.message); } } }
 if (!synErr) ok("Syntaxe : " + jsFiles.length + " fichiers JS + scripts inline de " + htmlPages.length + " pages");
 // 1b. CSP stricte (vercel.json : script-src 'self', sans 'unsafe-inline') : un script inline ou
-// un attribut on*= serait bloqué en production sans erreur visible en local.
+// un attribut on*= serait bloqué en production sans erreur visible en local. Seule exception (spec 033) : un bloc
+// <script type="application/ld+json"> au JSON valide, jamais exécuté (scripts/inline-scripts.js).
 let inl = 0;
-for (const f of htmlPages) { const html = read(f); if (/<script(?![^>]*\bsrc=)[^>]*>/i.test(html) || /<[a-z][^>]*\son[a-z]+\s*=/i.test(html)) { inl++; fail("Script inline ou attribut on*= dans " + f + " (bloqué par la CSP)"); } }
+for (const f of htmlPages) { const pb = INLINE.inlineProblems(read(f)); if (pb.length) { inl++; fail("Script inline ou attribut on*= dans " + f + " : " + pb.join(", ")); } }
 if (/script-src[^;"]*'unsafe-inline'/.test(read("vercel.json"))) { inl++; fail("vercel.json : 'unsafe-inline' de retour dans script-src"); }
-if (!inl) ok("CSP : aucun script inline ni on*= dans les pages, script-src sans 'unsafe-inline'");
+if (!inl) ok("CSP : aucun script inline ni on*= dans les pages (JSON-LD seul permis), script-src sans 'unsafe-inline'");
 
 // 2. API : jamais de secret ni de code de secours en dur.
 const apiFiles = list("api", /\.js$/);

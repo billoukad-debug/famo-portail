@@ -6,6 +6,17 @@
   "use strict";
   var items = [
     {
+      id: "vindbaar-op-google", datum: "2026-10-24", spec: "033",
+      titel: "Beter te vinden op Google",
+      wat: "Google kan nu de tekst van uw website lezen: wie u bent, wat u verkoopt, waar u levert en hoe klanten u bereiken. Stuurt u een link naar uw website op WhatsApp, dan ziet men uw naam, een korte tekst en uw logo. De website heeft ook een eigen link in het Frans.",
+      doen: [
+        { tekst: "Maak met uw eigen Google-account een Search Console aan voor famoseafood.be. Bilal helpt u, het duurt een kwartier." },
+        { tekst: "Maak een gratis Google Bedrijfsprofiel voor FAMO Seafood, met uw telefoon, uw website en de gemeenten waar u levert." },
+        { tekst: "Wilt u dat iedereen uw producten ziet op de pagina Ons aanbod? Zeg het aan Bilal: hij zet ze dan aan." },
+        { tekst: "Verandert uw telefoon, e-mail of adres? Pas het aan bij Bedrijf en zeg het ook aan Bilal: het staat nu ook vast op de website.", link: "#/bedrijf", label: "Naar Bedrijf" }
+      ]
+    },
+    {
       id: "contact-en-colofon", datum: "2026-10-24", spec: "032",
       titel: "Uw gegevens en contact onderaan elke pagina",
       wat: "Onderaan de website staan nu uw bedrijfsgegevens, uw e-mail, uw telefoon en een knop WhatsApp. Er is ook een nieuwe pagina Colofon. De privacytekst is aangevuld.",
