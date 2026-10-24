@@ -25,7 +25,7 @@ Support des fournisseurs : Vercel (vercel.com/help), Neon (console → Support),
 2. Vercel → projet → **Deployments** : le dernier déploiement de production est-il « Ready » ? Date du dernier déploiement = heure du début de l'incident ?
 3. Vercel → projet → **Logs** (Runtime Logs) : filtrer sur 5xx ; chercher `DATABASE_NOT_CONFIGURED`, `[mail]`, `[updateorder]`, `Error`.
 4. Beheer → **Systeemstatus** → Database : backend `postgres`, « bereikbaar ».
-5. `GET /api/health` (sans connexion) : version déployée, backend, base joignable, e-mail configuré ou non, dernière sauvegarde. C'est la première vérification, à brancher sur une sonde externe.
+5. `GET /api/health` : sans connexion, seulement `ok`, l'heure et l'état de la dernière sauvegarde (spec 032) ; connecté à Beheer (Systeemstatus, ou la même adresse dans le même navigateur), version déployée, backend, base joignable, e-mail configuré ou non. C'est la première vérification, à brancher sur une sonde externe.
 6. Pages d'état des fournisseurs (Vercel, Neon, Resend : lien « Status » en pied de leur site) : panne générale en cours ?
 
 ## 2. Mauvais déploiement → rollback Vercel

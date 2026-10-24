@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ]);
     document.getElementById("contactKv").innerHTML = kv([
       [T.mail, c.email ? '<a class="tlink" href="mailto:' + K.esc(c.email) + '">' + K.esc(c.email) + "</a>" : ""],
-      [T.tel, c.telefoon ? '<a class="tlink" href="tel:' + K.esc(String(c.telefoon).replace(/[^\d+]/g, "")) + '">' + K.esc(c.telefoon) + "</a>" : ""],
+      [T.tel, c.telefoon ? '<a class="tlink" href="tel:' + K.esc(K.telHref(c.telefoon)) + '">' + K.esc(c.telefoon) + "</a>" : ""],
       [T.wa, wa ? '<a class="tlink" href="' + K.esc(wa) + '" target="_blank" rel="noopener">' + K.esc(c.whatsapp) + "</a>" : ""]
     ]);
   }).catch(err => { document.getElementById("editor").innerHTML = K.c.error(err.message); document.getElementById("contactKv").innerHTML = ""; });

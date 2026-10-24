@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
   if (!out.ok) L.error("health : niet gezond", { database: out.checks.database, config: out.checks.config });
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "HEAD") { res.statusCode = out.ok ? 200 : 503; return res.end(); }
-  const team = await auth.staffSession(req).catch(() => null);
+  const team = await withTimeout(auth.staffSession(req), 2000).catch(() => null);
   if (team) return res.status(out.ok ? 200 : 503).json(out);
   // Public : ok, heure et état de la dernière back-up (lu par la sonde .github/workflows/watch.yml), rien d'autre.
   const bk = out.checks.backup;

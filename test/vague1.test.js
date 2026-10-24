@@ -46,6 +46,8 @@ test("K.waLink : numéros belges et internationaux, rien si illisible", () => {
   assert.equal(K.waLink("+32 470 12 34 56"), "https://wa.me/32470123456");
   assert.equal(K.waLink("0032 470 12 34 56"), "https://wa.me/32470123456");
   assert.equal(K.waLink("0470/12.34.56"), "https://wa.me/32470123456");
+  assert.equal(K.waLink("+32 (0)470 12 34 56"), "https://wa.me/32470123456", "« (0) » retiré");
+  assert.equal(K.telHref("+32 (0)3 231 45 67"), "+3232314567");
   for (const bad of ["", null, "12345", "abc", "+1234567890123456"]) assert.equal(K.waLink(bad), "", JSON.stringify(bad));
 });
 
@@ -80,6 +82,9 @@ test("Beheer → Bedrijf : WhatsApp et FAVV enregistrés, publiés avec le conta
   assert.equal(pub.payload.config.favv, "2.123.456");
   assert.equal(pub.payload.config.legal.naam, "Famo Trading");
   assert.equal(pub.payload.config.iban, undefined, "IBAN jamais public");
+  const bad = await beheer({ action: "saveConfig", bedrijfsnaam: "FAMO Seafood", btw: "BE0788705713", whatsapp: "12345", leverdagen: "1,2,3,4,5" });
+  assert.equal(bad.statusCode, 400, "numéro WhatsApp illisible refusé");
+  assert.match(bad.payload.error, /WhatsApp/);
 });
 
 test("/api/health : le public ne voit que ok et l'heure, l'équipe voit le détail", async () => {
