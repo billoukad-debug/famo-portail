@@ -14,7 +14,7 @@ const path = require("path");
 const ROOT = path.join(__dirname, "..");
 const DIR = path.join(ROOT, "lib", "commande");
 const ENTRY = path.join(ROOT, "api", "updateorder.js");
-const MODULES = ["common", "lignes", "stock", "nummering", "corrigeren", "creditnota", "correctiemail", "bijwerken"];
+const MODULES = ["common", "lignes", "stock", "nummering", "corrigeren", "creditnota", "correctiemail", "bijwerken", "verzending"]; // verzending : specs/034
 const read = (p) => fs.readFileSync(p, "utf8");
 
 test("api/updateorder.js reste un aiguillage court, avec la garde en première ligne", () => {
