@@ -17,7 +17,7 @@
   let taal = K.lang === "fr" ? "FR" : "NL";
   // Conditions générales (C-12) : case obligatoire dès qu'une version est publiée.
   let versie = "";
-  document.body.insertAdjacentHTML("beforeend", K.publicFooter());
+  K.mountPublicFooter();
   K.api("/api/config?public=1").then(d => {
     K.fillPublicFooter(d.config || {});
     versie = (d.config && d.config.voorwaardenVersie) || "";

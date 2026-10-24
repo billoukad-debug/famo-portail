@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
     sec(T.what, list(T.whatList)) + sec(T.why, list(T.whyList)) + sec(T.rec, list(T.recList)) + sec(T.transfer, "<p>" + K.esc(T.transferTxt) + "</p>") + sec(T.keep, list(T.keepList)) +
     sec(T.rights, "<p>" + K.esc(T.rightsTxt) + "</p>") + sec(T.cookies, "<p>" + K.esc(T.cookiesTxt) + "</p>") +
     sec(T.contact, '<p id="contact" class="muted">…</p>');
-  document.body.insertAdjacentHTML("beforeend", K.publicFooter()); // spec 032
+  K.mountPublicFooter(); // spec 032
   K.api("/api/config?public=1").then(d => {
     const c = d.config || {}, l = c.legal || {};
     K.fillPublicFooter(c);

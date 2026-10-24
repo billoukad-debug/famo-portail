@@ -3,7 +3,7 @@
 // tel quel (échappé, retours à la ligne conservés) ; un titre « # … » devient un intertitre.
 document.addEventListener("DOMContentLoaded", function () {
   const app = document.getElementById("app");
-  document.body.insertAdjacentHTML("beforeend", K.publicFooter()); // spec 032
+  K.mountPublicFooter(); // spec 032
   K.loadPublicFooter();
   const T = K.lang === "fr" ? { title: "Conditions générales de vente", version: "Version", none: "Les conditions générales ne sont pas encore publiées. Contactez-nous pour les recevoir.", back: "← Portail", other: "Nederlandse versie" } : { title: "Algemene verkoopsvoorwaarden", version: "Versie", none: "De algemene voorwaarden zijn nog niet gepubliceerd. Neem contact met ons op om ze te ontvangen.", back: "← Portaal", other: "Version française" };
   const body = txt => txt.split(/\n{2,}/).map(par => /^#\s+/.test(par) ? '<h2 class="h2 mt-18">' + K.esc(par.replace(/^#\s+/, "")) + "</h2>" : '<p class="ws-pre lh-155">' + K.esc(par) + "</p>").join("");

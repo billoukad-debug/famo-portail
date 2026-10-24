@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
     sec(T.host, "<ul>" + T.hostList.map(x => "<li>" + K.esc(x) + "</li>").join("") + "</ul>") +
     sec(T.ip, "<p>" + K.esc(T.ipTxt) + "</p>") +
     sec(T.more, '<p class="mini"><a class="tlink" href="/privacy">' + K.t("Privacyverklaring") + '</a><a class="tlink" href="/voorwaarden">' + K.t("Algemene voorwaarden") + "</a></p>");
-  document.body.insertAdjacentHTML("beforeend", K.publicFooter());
+  K.mountPublicFooter();
   const kv = rows => rows.filter(r => r[1]).map(r => "<div><small>" + K.esc(r[0]) + "</small>" + r[1] + "</div>").join("") || '<p class="muted">' + K.esc(T.none) + "</p>";
   K.api("/api/config?public=1").then(d => {
     const c = d.config || {}, l = c.legal || {};

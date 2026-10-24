@@ -191,6 +191,13 @@
     const wa = K.waLink(c.whatsapp);
     contact.innerHTML = [c.email ? '<a class="tlink" href="mailto:' + K.esc(c.email) + '">' + K.esc(c.email) + "</a>" : "", c.telefoon ? '<a class="tlink" href="tel:' + K.esc(K.telHref(c.telefoon)) + '">' + K.esc(c.telefoon) + "</a>" : "", wa ? '<a class="btn btn-o btn-sm" href="' + K.esc(wa) + '" target="_blank" rel="noopener" aria-label="' + K.t("Stuur ons een bericht op WhatsApp") + '">' + K.t("WhatsApp") + "</a>" : ""].filter(Boolean).join("");
   };
+  // Pages publiques simples (main#app) : pied de page en bas du body + lien d'évitement (ACC-04, la nav du pied de page en exige un).
+  K.mountPublicFooter = () => {
+    if (!doc || !doc.body) return;
+    const main = doc.querySelector("main");
+    if (main && !doc.querySelector(".skip")) { if (!main.id) main.id = "app"; main.setAttribute("tabindex", "-1"); doc.body.insertAdjacentHTML("afterbegin", '<a class="skip" href="#' + main.id + '">' + K.t("Naar de inhoud") + "</a>"); }
+    if (!doc.getElementById("pubFt")) doc.body.insertAdjacentHTML("beforeend", K.publicFooter());
+  };
   K.loadPublicFooter = () => K.api("/api/config?public=1").then(d => { K.fillPublicFooter((d && d.config) || {}); return d; }).catch(() => null);
   if (doc && doc.documentElement) doc.documentElement.lang = K.lang;
   if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => { const b = e.target && e.target.closest && e.target.closest("[data-lang]"); if (b && b.dataset.lang !== K.lang) K.setLang(b.dataset.lang); });
