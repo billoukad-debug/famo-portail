@@ -1060,8 +1060,7 @@ a.kp-link:hover{background:var(--row-hover)}
 .vis-alg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px}
 .vis-alg-grid>label{min-height:44px}
 
-/* =====================================================================================================
-   x30 lot A (specs/036) — écran « Bestellen » du portail client : bandeau de l'heure, carte « Zoals elke maandag »,
+/* ==============================================================================================   x30 lot A (specs/036) — écran « Bestellen » du portail client : bandeau de l'heure, carte « Zoals elke maandag »,
    une seule vue de catalogue (plaques d'espèce, « + » qui devient un stepper, Rauw OK), voix serif des titres.
    Tout est préfixé .x30 (la coque client) ou par des classes x-* nouvelles : aucune règle partagée n'est réécrite.
    Jetons ajoutés au :root (--serif, --rauw, --rauw-bg, --tide-ok, --tide-amber) : contrôlés par contrast-check.js.
@@ -1201,3 +1200,102 @@ a.kp-link:hover{background:var(--row-hover)}
 /* Facturen : même mise en page que Leveringen (≥ 1024 : lignes en tableau) */
 @media (min-width:720px){.kv-facturen .mtop .cats{margin:0;padding:0;flex:none}}
 @media (min-width:1024px){.kv-facturen .mlist.grid{display:flex;flex-direction:column;gap:16px;align-items:stretch}}
+=======
+/* ========== x30 lot C : accueil public « De avondtoonbank » (specs/037-x30-accueil) ==========
+   Deux voix : Instrument Serif (SIL OFL 1.1, assets/fonts/OFL-instrument-serif.txt, paquet @fontsource/instrument-serif
+   5.3.0, hébergée sur le site : CSP font-src 'self') pour les titres et les grands chiffres de l'accueil ; Atkinson
+   Hyperlegible Next pour tout le reste. Classes ac-* (accueil) : aucune collision avec .hero, .steps, .login du portail.
+   Plaques d'espèces : aplats et formes dessinés en SVG, aucune photo. */
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-normal.woff2?v=5eb09b5ac0) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-italic.woff2?v=5a51946dff) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{--serif:"Instrument Serif",ui-serif,Georgia,"Times New Roman",serif;--ac-ice:#DCE7E8;--ac-sea:#9FD3DE}
+.ac{min-height:100vh;display:flex;flex-direction:column;background:var(--canvas)}
+.ac main{flex:1}.ac main:focus{outline:none}
+.ac-w{width:100%;max-width:1200px;margin:0 auto;padding:0 16px}
+/* en-tête timonerie */
+.ac-hd{background:var(--deep);color:#fff}
+.ac-hd-in{display:flex;align-items:center;gap:10px;min-height:64px}
+.ac-brand{padding:0;gap:10px;min-height:44px;color:#fff}.ac-brand:hover{color:#fff}
+.ac-brand b{color:#fff;font-size:16px}.ac-brand small{color:var(--deep-ink-2)}
+.ac-hd .logo{background-image:url(/assets/brand/famo-mark-light.svg)}
+.ac-nav{margin-left:auto;display:flex;align-items:center;gap:8px}
+.ac-hd .lang{background:transparent;border-color:rgba(255,255,255,.3)}
+.ac-hd .lang>*{color:var(--deep-ink)}.ac-hd .lang>*+*{border-left:1px solid rgba(255,255,255,.3)}
+.ac-hd .lang>.on{background:#fff;color:var(--deep)}
+.lang>a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:40px;padding:0 10px;font-size:12.5px;font-weight:600;letter-spacing:.04em;text-decoration:none}
+.lang>a:hover{text-decoration:none}
+.ac-btn-light{background:#fff;border-color:#fff;color:var(--deep)}.ac-btn-light:hover{background:var(--p-soft);border-color:var(--p-soft);color:var(--deep)}
+.ac-btn-ghost{background:transparent;border-color:rgba(255,255,255,.5);color:#fff}.ac-btn-ghost:hover{background:rgba(255,255,255,.1);color:#fff}
+.ac-hd :focus-visible,.ac-tide :focus-visible,.ac-hero :focus-visible{outline-color:var(--ac-sea)}
+/* bandeau vivant (assets/tij.js) */
+.ac-tide{background:var(--p-deep);color:#fff}
+.ac-tide-in{display:flex;align-items:center;gap:12px;min-height:44px;padding-top:10px;padding-bottom:10px}
+.ac-tide p{margin:0;font-size:14px;line-height:1.4;text-wrap:pretty}.ac-tide b{font-weight:700;font-variant-numeric:tabular-nums}
+.ac-dot{width:8px;height:8px;border-radius:50%;background:#7FE0A8;box-shadow:0 0 0 4px rgba(127,224,168,.2);flex:none}
+.ac-tide.is-soon{background:#6E4300}.ac-tide.is-soon .ac-dot{background:#FFC861;box-shadow:0 0 0 4px rgba(255,200,97,.25)}
+/* héros */
+.ac-hero{background:var(--deep);color:#fff;padding-top:28px;overflow:hidden}
+.ac-hero-in{display:grid;gap:28px}
+.ac-eyebrow{margin:0;color:var(--deep-ink-2);font-size:13.5px}
+.ac-h1{font-family:var(--serif);font-weight:400;font-size:48px;line-height:1;letter-spacing:-.01em;margin:12px 0 18px;color:#fff;text-wrap:balance}
+.ac-h1 em{font-style:italic;color:var(--ac-sea)}
+.ac-lead{margin:0 0 24px;font-size:16.5px;line-height:1.55;color:var(--deep-ink);max-width:34em;text-wrap:pretty}
+.ac-cta{display:flex;flex-wrap:wrap;gap:10px;margin:0}.ac-cta .btn{min-height:48px;padding:0 22px;font-size:15px}
+.ac-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.14);border-radius:var(--r-lg);overflow:hidden;margin:28px 0 0;max-width:34em}
+.ac-facts>div{background:var(--deep);padding:14px 16px 16px}
+.ac-facts dt{font-family:var(--serif);font-size:34px;line-height:1;color:#fff}
+.ac-facts dd{margin:6px 0 0;color:var(--deep-ink-2);font-size:13px;line-height:1.35}
+/* le comptoir : plaques d'espèces */
+.ac-counter{margin:0;background:var(--ac-ice);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:14px 14px 12px}
+.ac-plates{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ac-plate{position:relative;aspect-ratio:4/3;border-radius:var(--r-lg);padding:10px 12px;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.ac-plate svg{position:absolute;right:-8%;bottom:-12%;width:76%;height:auto}
+.ac-pn{position:relative;font-weight:700;font-size:14px;line-height:1.2;color:var(--ink)}
+.ac-la{position:relative;font-family:var(--serif);font-size:15.5px;line-height:1.15;color:var(--ink-2)}
+.ac-counter figcaption{margin:10px 2px 0;color:var(--ink-2);font-size:12.5px;line-height:1.4}
+.ac-c-zalm{background:#F6DCD2}.ac-c-tonijn{background:#F0D5D7}.ac-c-garnalen{background:#F5E4DD}.ac-c-inktvis{background:#EEE8DF}.ac-c-octopus{background:#EFE2E8}.ac-c-sintjakobs{background:#F4EBDC}
+/* sections */
+.ac-sec{padding:56px 0 0}
+.ac-sec-hd{margin:0 0 22px;max-width:46em}
+.ac-h2{font-family:var(--serif);font-weight:400;font-size:38px;line-height:1.04;letter-spacing:-.01em;color:var(--ink)}
+.ac-sub{margin:12px 0 0;color:var(--ink-2);font-size:15.5px;line-height:1.55;text-wrap:pretty}
+/* identiteitskaart (voorbeeld) */
+.ac-id{display:grid;background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);overflow:hidden}
+.ac-id-pl{position:relative;min-height:168px}
+.ac-id-pl svg{position:absolute;right:7%;bottom:-6%;width:72%;max-width:340px;height:auto}
+.ac-ex{position:absolute;left:14px;top:14px;background:var(--ink);color:#fff;font-size:12.5px;font-weight:700;line-height:1;border-radius:var(--r-xs);padding:6px 9px}
+.ac-id-b{padding:20px}
+.ac-id-n{font-family:var(--serif);font-weight:400;font-size:32px;line-height:1.08;letter-spacing:0}
+.ac-id-la{margin:4px 0 0;color:var(--ink-2);font-size:14.5px}.ac-id-la i{font-family:var(--serif);font-size:19px;color:var(--ink)}
+.ac-spec{margin:16px 0 0}
+.ac-spec>div{display:grid;grid-template-columns:minmax(96px,30%) minmax(0,1fr);gap:14px;padding:10px 0;border-top:1px solid var(--line-soft)}
+.ac-spec dt{color:var(--ink-2);font-size:14px}.ac-spec dd{margin:0;font-weight:600;font-size:14.5px;line-height:1.45}
+.ac-note{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line-soft);color:var(--ink-3);font-size:13px;line-height:1.45}
+/* zo werkt het */
+.ac-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.ac-steps>li{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+.ac-n{font-family:var(--serif);font-size:42px;line-height:.9;color:var(--p)}
+.ac-steps h3{font-size:16px;line-height:1.3;margin:2px 0 4px}.ac-steps p{margin:0;color:var(--ink-2);font-size:14.5px;line-height:1.5}
+/* aanmelden + een vraag */
+.ac-meet{padding-bottom:56px;scroll-margin-top:12px}
+.ac-split{display:grid;gap:16px}
+.ac-login,.ac-help{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ac-login{box-shadow:var(--lift)}
+.ac-h3{font-size:21px;line-height:1.25}
+.ac-help>p{margin:0;color:var(--ink-2);line-height:1.5}
+.ac-contact{display:grid;gap:8px}.ac-contact:empty{display:none}
+.ac-cbtn{display:flex;align-items:center;gap:12px;min-height:58px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--th-bg);color:var(--ink);text-decoration:none;min-width:0}
+.ac-cbtn:hover{border-color:var(--line-strong);background:var(--row-hover);color:var(--ink);text-decoration:none}
+.ac-cbtn .ico{width:22px;height:22px;color:var(--p)}
+.ac-cbtn b{display:block;font-size:15px;overflow-wrap:anywhere}.ac-cbtn small{display:block;color:var(--ink-2);font-size:13px}
+.ac .pub-ft{margin-top:0;padding-left:max(16px,calc((100% - 1200px) / 2 + 16px));padding-right:max(16px,calc((100% - 1200px) / 2 + 16px))}
+@media (min-width:720px){.ac .pub-ft{padding-left:max(32px,calc((100% - 1200px) / 2 + 32px));padding-right:max(32px,calc((100% - 1200px) / 2 + 32px))}}
+@media (min-width:1100px){.ac .pub-ft{padding-left:max(48px,calc((100% - 1200px) / 2 + 48px));padding-right:max(48px,calc((100% - 1200px) / 2 + 48px))}}
+@media (max-width:559px){.ac-brand small{display:none}.ac-brand b{font-size:15px}.ac-nav{gap:6px}.ac-hd-login{padding:0 12px}.ac-hd-in{gap:8px}}
+@media (pointer:coarse){.lang>a{min-height:44px}}
+@media (min-width:560px){.ac-plates{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:720px){.ac-w{padding:0 32px}.ac-hero{padding-top:44px}.ac-h1{font-size:70px}.ac-h2{font-size:44px}.ac-sec{padding-top:72px}.ac-meet{padding-bottom:72px}
+  .ac-id{grid-template-columns:minmax(0,4fr) minmax(0,7fr)}.ac-id-pl{min-height:100%}.ac-id-pl svg{top:50%;bottom:auto;right:50%;transform:translate(50%,-50%);width:76%}.ac-id-b{padding:28px 32px}.ac-login,.ac-help{padding:28px}}
+@media (min-width:900px){.ac-steps{grid-template-columns:repeat(3,minmax(0,1fr))}.ac-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+@media (min-width:1100px){.ac-w{padding:0 48px}.ac-hero{padding-top:64px}.ac-hero-in{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:end;gap:48px}
+  .ac-copy{padding-bottom:52px}.ac-h1{font-size:76px}.ac-h2{font-size:52px}.ac-counter{padding:20px 20px 16px}.ac-plates{gap:12px}.ac-plate{aspect-ratio:1/1}.ac-plate svg{width:86%}}
