@@ -30,7 +30,10 @@ const SCHEMA = {
     // BTW-tarief : taux par produit (6 / 21) ; vide = taux de Configuratie.
     fields: { "Produit": "text", "Prix de base": "number", "Unité": "select", "Catégorie": "text", "Actif": "checkbox", "Stock": "links", "Prix négociés": "links", "Kaliber": "text", "Foto": "attachments", "BTW-tarief": "number", "Volgorde": "number", "Omschrijving": "text",
       // Verpakking (specs/023) : unités par conditionnement (vide/1 = à l'unité), libellé (« doos »), commande par conditionnement seulement.
-      "Per verpakking": "number", "Stuks per verpakking": "number", "Verpakking": "text", "Enkel per verpakking": "checkbox" },
+      "Per verpakking": "number", "Stuks per verpakking": "number", "Verpakking": "text", "Enkel per verpakking": "checkbox",
+      // Visfiche (specs/035, assets/visfiche.js) : tout facultatif, listes fermées contrôlées par le serveur.
+      "Wetenschappelijke naam": "text", "FAO-code": "text", "Productiemethode": "text", "Vangstgebied": "text", "Land van kweek": "text",
+      "Vistuig": "text", "Staat": "text", "Allergenen": "text", "Bewaring": "text", "Rauw te eten": "checkbox", "Vriesbehandeling": "text" },
     selects: { "Unité": ["kg", "pièce", "caisse", "carton"] }, primary: "Produit"
   },
   Commandes: {
@@ -66,6 +69,8 @@ const SCHEMA = {
       "Besteld door": "text",
       // Lots livrés par article (JSON { produit: [instantané du lot] }), posés à la préparation (api/lots.js).
       "Lots": "text",
+      // Visfiche des produits figée à la préparation (specs/035, TRACE-02) : JSON { "nom de ligne": { productId, … } }.
+      "Productfiche": "text",
       // Régime de TVA du client figé au passage en « Facturée » (C-10) ; absent = Normal.
       "Régime TVA": "select",
       // Bestellen per e-mail (specs/020) : « E-mail » + id de l'enregistrement « Inkomende mails » d'origine.
@@ -108,7 +113,9 @@ const SCHEMA = {
   // Lots (traçabilité, règl. CE 178/2002 art. 18, règl. UE 1379/2013 art. 35) : un pas en amont
   // (fournisseur, réception) et, par les commandes, un pas en aval (qui a reçu le lot).
   Lots: {
-    fields: { "Lotnummer": "text", "Produit": "text", "Leverancier": "text", "Ontvangen op": "date", "Wetenschappelijke naam": "text", "Vangstgebied": "text", "Vistuig": "text", "Productiemethode": "text", "Ontdooid": "checkbox", "THT": "date", "Hoeveelheid": "number", "Aankoopprijs": "number", "Actief": "checkbox", "Nota": "text" },
+    fields: { "Lotnummer": "text", "Produit": "text", "Leverancier": "text", "Ontvangen op": "date", "Wetenschappelijke naam": "text", "Vangstgebied": "text", "Vistuig": "text", "Productiemethode": "text", "Ontdooid": "checkbox", "THT": "date", "Hoeveelheid": "number", "Aankoopprijs": "number", "Actief": "checkbox", "Nota": "text",
+      // specs/035 : produit par identifiant (TRACE-04), date de capture, n° de sortie de pêche / unité aquacole, kg net reçus.
+      "Product-id": "text", "Vangstdatum": "date", "Vangst-id": "text", "Netto kg": "number" },
     primary: "Lotnummer"
   },
   // Utilisateurs supplémentaires d'un client (H-08) : identifiant et mot de passe propres.

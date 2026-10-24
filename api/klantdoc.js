@@ -48,6 +48,7 @@ module.exports = async (req, res) => {
         // Notes de crédit (C-08), chacune imprimable dans la langue du client ; seulement sur une facture.
         creditnotas: invoiced ? __cn.list(f).map(n => ({ nummer: n.nummer, lignes: n.lignes, montant: n.montant, le: n.le, motif: n.motif })) : [],
         lots: (() => { try { return f["Lots"] ? JSON.parse(f["Lots"]) : null; } catch (e) { return null; } })(),
+        fiche: require("../lib/trace").parseLots(f["Productfiche"]), // visfiche figée (specs/035)
         // Conditionnement figé par ligne (specs/023) : « 2 doos × 6 st = 12 st » sur le document.
         verpakking: require("../lib/lignesjson").pakMap(f["Lignes JSON"])
       },

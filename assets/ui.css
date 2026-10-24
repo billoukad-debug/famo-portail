@@ -1041,3 +1041,13 @@ a.kp-link:hover{background:var(--row-hover)}
 .nw-invite{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .notice a.btn-p{color:#fff}
 .nw-date{margin:0}.nw-todo{margin-bottom:4px}
+/* Visfiche (spec 035) : Beheer → Product, ingeklapt deel met herkomst en allergenen */
+.vis-box>summary{min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:var(--p);list-style:none}
+.vis-box>summary::-webkit-details-marker{display:none}
+.vis-box>summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);flex:none}
+.vis-box[open]>summary::before{transform:rotate(45deg)}
+.vis-box>summary:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.vis-alg{border:0;padding:0;margin:0;min-width:0}
+.vis-alg>legend{font-size:13px;font-weight:600;padding:0;margin-bottom:6px}
+.vis-alg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px}
+.vis-alg-grid>label{min-height:44px}
