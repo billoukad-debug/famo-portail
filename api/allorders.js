@@ -4,6 +4,7 @@ const __rev = require("../lib/revision");
 const __auth = require("../lib/staffauth");
 const __bill = require("../lib/billing");
 const __cn = require("../lib/creditnota");
+const __verz = require("../lib/verzending"); // specs/034
 const __corr = require("../lib/correctie");
 const __lj = require("../lib/lignesjson");
 const __test = require("../lib/testorders"); // commandes d'essai archivées : jamais listées (specs/021)
@@ -100,6 +101,8 @@ module.exports = async (req, res) => {
       bestelddoor: r.fields["Besteld door"] || "",
       herinneringen: [r.fields["Herinnering 1 op"] || "", r.fields["Herinnering 2 op"] || ""].filter(Boolean),
       lots: (() => { try { return r.fields["Lots"] ? JSON.parse(r.fields["Lots"]) : null; } catch (e) { return null; } })(),
+      // Visfiche figée à la préparation (specs/035) : { "nom de ligne": { … } } pour les documents.
+      fiche: require("../lib/trace").parseLots(r.fields["Productfiche"]),
       // Conditionnement figé par ligne (specs/023) : { "nom": { per, verpakking } } — documents, Magazijn, Leveringen.
       verpakking: __lj.pakMap(r.fields[__lj.FIELD]),
       // Régime de TVA (C-10) : figé sur une facture émise, sinon celui du client (documents, montants).
@@ -113,6 +116,7 @@ module.exports = async (req, res) => {
         le: r.fields["Creditnota le"] || "", motif: r.fields["Creditnota motif"] || ""
       } : null,
       // Toutes les notes de crédit (C-08) ; « creditnota » ci-dessus = la première, pour la compatibilité.
+      verzending: __verz.all(r.fields), // specs/034 : statut boekhouder / Peppol par document
       creditnotas: __cn.list(r.fields).map(n => ({ nummer: n.nummer, lignes: n.lignes, montant: n.montant, le: n.le, motif: n.motif, retour: n.retour })),
       // Dernier e-mail de correction au client (L-08) : ce qu'il a reçu, pour « Correctie mailen ».
       correctiemail: (() => { const c = __corr.lastSent(r.fields); return c ? { le: c.le || "", lignes: c.lignes || "", cn: Array.isArray(c.cn) ? c.cn : [] } : null; })()

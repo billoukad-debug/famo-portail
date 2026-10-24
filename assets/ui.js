@@ -26,8 +26,26 @@
   /* ---------- taal / langue (klantportaal : NL of FR ; personeel en beheer : altijd NL) ----------
      Eén schakelaar (K.langSwitch), één woordenboek (K.FR, sleutel = de Nederlandse tekst), één
      functie (K.t). Een ontbrekende vertaling valt terug op het Nederlands, nooit op een lege string. */
-  K.lang = (() => { try { return localStorage.getItem("famoLang") === "fr" ? "fr" : "nl"; } catch (e) { return "nl"; } })();
-  K.setLang = l => { try { localStorage.setItem("famoLang", l === "fr" ? "fr" : "nl"); } catch (e) { /* privé venster */ } location.reload(); };
+  // Spec 033 : ?taal=fr / ?taal=nl in het adres (zoals de vitrine) gaat voor op de bewaarde keuze en wordt bewaard.
+  K.lang = (() => {
+    let q = ""; try { q = String(new URLSearchParams(location.search || "").get("taal") || "").toLowerCase(); } catch (e) { q = ""; }
+    if (q === "fr" || q === "nl") { try { localStorage.setItem("famoLang", q); } catch (e) { /* privé venster */ } return q; }
+    try { return localStorage.getItem("famoLang") === "fr" ? "fr" : "nl"; } catch (e) { return "nl"; }
+  })();
+  // Publieke pagina (met hreflang) : de taal zit in het adres (?taal=fr ; Nederlands zonder parameter). Elders : herladen.
+  K.setLang = l => {
+    l = l === "fr" ? "fr" : "nl";
+    try { localStorage.setItem("famoLang", l); } catch (e) { /* privé venster */ }
+    try {
+      const u = new URL(location.href);
+      if (u.searchParams.has("taal") || (global.document && global.document.querySelector('link[rel="alternate"][hreflang]'))) {
+        if (l === "fr") u.searchParams.set("taal", "fr"); else u.searchParams.delete("taal");
+        location.assign(u.toString()); return;
+      }
+    } catch (e) { /* oude browser : herladen */ }
+    location.reload();
+  };
+  K.langHref = p => (K.lang === "fr" ? p + (p.includes("?") ? "&" : "?") + "taal=fr" : p);
   K.t = s => (K.lang === "fr" && K.FR[s]) ? K.FR[s] : s;
   // Woordenboek klantportaal. Ook de foutmeldingen van de server (in het Nederlands) staan
   // erin : de API blijft eentalig, de vertaling gebeurt bij het tonen (K.errText).
@@ -139,6 +157,9 @@
     "incl. btw": "TVAC", "Pro forma": "Pro forma",
     "Openstaande facturen": "Factures ouvertes", "Totaal openstaand": "Total à payer", "Mededeling": "Communication", "Kopiëren": "Copier", "Gekopieerd": "Copié", "Betaalgegevens": "Coordonnées de paiement",
     "Kopiëren lukt niet op dit toestel.": "La copie n'est pas possible sur cet appareil.", "Geen openstaande facturen": "Aucune facture ouverte", "Alles is betaald. Dank u wel.": "Tout est payé. Merci.",
+    // factures du portail : échéance, reste à payer, QR de virement (specs/034)
+    "Vervaldatum": "Échéance", "vervalt op": "échéance le", "Vervallen": "Échue", "Nog te betalen": "Reste à payer", "Betalen met QR-code": "Payer avec le code QR",
+    "Scan met uw bank-app om te betalen": "Scannez avec votre app bancaire pour payer", "QR-code voor overschrijving": "Code QR pour virement",
     // favorieten synchronisatie
     "Favorieten bewaren mislukt. Ze blijven op dit toestel.": "Enregistrement des favoris impossible. Ils restent sur cet appareil.",
     // account
@@ -177,12 +198,39 @@
   // Pied de page public commun (spec 032) : identité légale (WVV art. 2:20), contact, WhatsApp, liens.
   // K.publicFooter() rend la coquille ; K.fillPublicFooter(config) la remplit avec la réponse de
   // /api/config?public=1 (contactOnly) ; K.loadPublicFooter() fait les deux pour une page qui n'a pas déjà cette réponse.
+  // x30 lot A (specs/036) : Bestellen, bandeau de l'heure, « Zoals elke maandag », modifier sans annuler, Facturen.
+  Object.assign(K.FR, {
+    "Bestellen": "Commander", "Leveringen": "Livraisons", "Facturen": "Factures", "Uw vaste producten": "Vos habituels", "Rauw OK": "Cru OK",
+    "Vis": "Poissons", "Garnalen": "Crevettes", "Schaaldieren": "Crustacés", "Schelpdieren": "Coquillages", "Inktvis": "Céphalopodes", "Zeewier en overig": "Algues et autres",
+    "Uw bestelling voor {d}": "Votre commande pour {d}", "Zoals elke {dag}": "Comme chaque {dag}", "Zoals de vorige keer": "Comme la dernière fois",
+    "Bestellen voor {d}": "Commander pour {d}", "Gebaseerd op uw laatste {n} {dag}en": "D'après vos {n} derniers {dag}s",
+    "Gebaseerd op uw laatste {dag}": "D'après votre dernier {dag}", "Gebaseerd op uw laatste bestelling": "D'après votre dernière commande", "Aan te passen {tot}": "Modifiable {tot}",
+    "Besteld voor {d}": "Commandé pour {d}", "Ongedaan maken": "Annuler", "Besteld": "Commandé", "Bestelling aangepast": "Commande modifiée",
+    "Uw bestelling": "Votre commande", "Bevestigd · aanpasbaar {tot}": "Confirmée · modifiable {tot}", "Wijziging opslaan": "Enregistrer la modification",
+    "Iets vergeten? Tik + in de lijst hieronder: het komt bij deze bestelling.": "Un oubli ? Touchez + dans la liste ci-dessous : il s'ajoute à cette commande.",
+    "Wordt klaargezet. Bel Famo om nog iets te wijzigen.": "En préparation. Appelez Famo pour modifier encore.",
+    "Bestelling annuleren": "Annuler la commande", "Aangepast": "Modifié", "Ongedaan gemaakt": "Annulé",
+    "{n} artikelen toegevoegd aan uw bestelling van {d}": "{n} articles ajoutés à votre commande du {d}", "1 artikel toegevoegd aan uw bestelling van {d}": "1 article ajouté à votre commande du {d}",
+    "Toegevoegd aan uw bestelling": "Ajouté à votre commande", "Wijzigen {tot}": "Modifier {tot}",
+    "Toevoegen": "Ajouter", "In winkelmand": "Dans le panier", "Diepvries": "Surgelé", "Vers": "Frais", "Kaliber": "Calibre",
+    "Bij uw vaste producten": "Dans vos habituels", "Uit uw vaste producten": "Retirer de vos habituels", "Prijzen excl. btw, afgesproken prijzen": "Prix HTVA, prix négociés",
+    "Bestellingen en documenten": "Commandes et documents", "Te betalen": "À payer", "Alle facturen": "Toutes les factures",
+    "Geen facturen": "Aucune facture", "Na levering vindt u hier elke factuur.": "Après livraison, chaque facture apparaît ici.",
+    "Favorieten en standaardbestelling": "Favoris et commande type", "Snel opnieuw bestellen": "Recommander rapidement",
+    "Facturen en leveringsbonnen": "Factures et bons de livraison", "Tijd om te bestellen": "Temps pour commander", "Opslaan…": "Enregistrement…",
+    "Bestellen…": "Commande…", "Minimumbestelling {m} excl. btw": "Commande minimum {m} HTVA", "aanpasbaar": "modifiable", "Bestelling wijzigen": "Modifier la commande",
+    "Pas aantallen aan of zet op 0 om te schrappen. Toevoegen doet u in Bestellen.": "Ajustez les quantités ou mettez 0 pour retirer. Pour ajouter, passez par Commander.",
+    "Zoek: zalm, 16/20, inktvis…": "Chercher : saumon, 16/20, calamar…", "Totaal van de bestelling excl. btw": "Total de la commande HTVA",
+    "U hebt al een bestelling voor {d} ({r}). Deze artikelen komen erbij.": "Vous avez déjà une commande pour le {d} ({r}). Ces articles s'y ajoutent."
+  });
+  // Visfiche (spec 035) : details van een product in de klantcatalogus.
+  Object.assign(K.FR, { "Wetenschappelijke naam": "Nom scientifique", "Herkomst": "Origine", "Staat": "État", "Allergenen": "Allergènes", "Bewaren": "Conservation", "Rauw te eten": "Consommation crue", "ontdooid": "décongelé" });
   Object.assign(K.FR, { "Colofon": "Mentions légales", "Ondernemingsnummer": "N° d'entreprise", "Btw": "TVA", "FAVV": "AFSCA", "WhatsApp": "WhatsApp", "Stuur ons een bericht op WhatsApp": "Envoyez-nous un message sur WhatsApp", "Wij gebruiken deze gegevens enkel om uw aanvraag te behandelen en u te contacteren.": "Nous utilisons ces données uniquement pour traiter votre demande et vous contacter.", "Privacyverklaring": "Déclaration de confidentialité" });
   K.waLink = n => { let d = String(n || "").replace(/\(0\)/g, "").replace(/\D/g, ""); if (d.startsWith("00")) d = d.slice(2); else if (d.startsWith("0")) d = "32" + d.slice(1); return d.length >= 9 && d.length <= 15 ? "https://wa.me/" + d : ""; };
   K.telHref = n => String(n || "").replace(/\(0\)/g, "").replace(/[^\d+]/g, "");
   K.legalNameOf = c => { const l = (c && c.legal) || {}; return l.naam ? l.naam + (l.rechtsvorm && !l.naam.toLowerCase().split(/\s+/).includes(l.rechtsvorm.toLowerCase()) ? " " + l.rechtsvorm : "") : ""; };
   K.publicFooter = () => '<footer class="pub-ft" id="pubFt"><div class="pub-ft-id"><b id="pubFtName">FAMO Seafood</b><span class="quiet" id="pubFtLegal"></span></div><div class="pub-ft-contact" id="pubFtContact"></div>' +
-    '<nav class="mini" aria-label="' + K.t("Meer links") + '"><a class="tlink" href="/privacy">' + K.t("Privacy") + '</a><a class="tlink" href="/voorwaarden">' + K.t("Voorwaarden") + '</a><a class="tlink" href="/colofon">' + K.t("Colofon") + '</a><a class="tlink quiet" href="/team/aanmelden">' + K.t("Personeel") + '</a></nav></footer>';
+    '<nav class="mini" aria-label="' + K.t("Meer links") + '"><a class="tlink" href="' + K.langHref("/privacy") + '">' + K.t("Privacy") + '</a><a class="tlink" href="' + K.langHref("/voorwaarden") + '">' + K.t("Voorwaarden") + '</a><a class="tlink" href="' + K.langHref("/colofon") + '">' + K.t("Colofon") + '</a><a class="tlink quiet" href="/team/aanmelden">' + K.t("Personeel") + '</a></nav></footer>';
   K.fillPublicFooter = c => {
     c = c || {}; const l = c.legal || {}, legal = doc && doc.getElementById("pubFtLegal"), contact = doc && doc.getElementById("pubFtContact");
     if (!legal || !contact) return;
@@ -200,6 +248,12 @@
   };
   K.loadPublicFooter = () => K.api("/api/config?public=1").then(d => { K.fillPublicFooter((d && d.config) || {}); return d; }).catch(() => null);
   if (doc && doc.documentElement) doc.documentElement.lang = K.lang;
+  // Spec 033 : in het Frans nemen de tags van de <head> (titel, beschrijving, canonical, og:*) hun data-fr-variant.
+  K.applyLangMeta = () => {
+    if (K.lang !== "fr" || !doc || typeof doc.querySelectorAll !== "function") return;
+    doc.querySelectorAll("head [data-fr]").forEach(el => { const v = el.getAttribute("data-fr"), t = String(el.tagName).toUpperCase(); if (t === "TITLE") doc.title = v; else if (t === "LINK") el.setAttribute("href", v); else el.setAttribute("content", v); });
+  };
+  K.applyLangMeta();
   if (doc && typeof doc.addEventListener === "function") doc.addEventListener("click", e => { const b = e.target && e.target.closest && e.target.closest("[data-lang]"); if (b && b.dataset.lang !== K.lang) K.setLang(b.dataset.lang); });
   const DAYS_BY = { nl: ["zo", "ma", "di", "wo", "do", "vr", "za"], fr: ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"] };
   const MONTHS_BY = { nl: ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"], fr: ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"] };
@@ -470,7 +524,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "62739d040c";
+  K.DOCS_VER = "b47ca4e267";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -481,7 +535,8 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    docsLoading = ["/assets/vat.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
+    // QR de virement (specs/034) : bibliothèque figée (vendor/, MIT) puis assets/epc.js ; visfiche (specs/035) ; avant documents.js.
+    docsLoading = ["/assets/vat.js", "/assets/visfiche.js", "/vendor/qrcode-generator.js", "/assets/epc.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;
@@ -578,6 +633,8 @@
     orders: '<path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6"/>',
     box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
     truck: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+    receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+    counter: '<path d="M3 12c3-5 9-7 14-4l4-3v14l-4-3c-5 3-11 1-14-4z"/><circle cx="15" cy="11" r="1"/>',
     mail: '<path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/>',
     doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
@@ -907,7 +964,7 @@
   // Pastilles de la navigation (« 3 » à côté de Bestellingen…) : { "bestellingen.html": 3, … }.
   // Les derniers chiffres restent en session : la page suivante les affiche avant d'avoir rechargé.
   // [enkelvoud, meervoud] : « 1 onbetaalde factuur », « 2 onbetaalde facturen ».
-  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"] };
+  const BADGE_TXT = { "bestellingen.html": ["nieuw te bevestigen"], "entrepot.html": ["klaar te zetten (vandaag en morgen)"], "leveringen.html": ["vandaag te leveren"], "documenten.html": ["onbetaalde factuur", "onbetaalde facturen"], "stock.html": ["onder de drempel"], "beheer.html": ["nieuwe aanvraag", "nieuwe aanvragen"], "aanvragen": ["nieuwe aanvraag", "nieuwe aanvragen"], "bestellingen": ["factuur te betalen", "facturen te betalen"], "facturen": ["factuur te betalen", "facturen te betalen"] };
   K.plural = (n, one, many) => n + " " + (Number(n) === 1 ? one : (many || one));
   // Pastilles lues (spec 001) : chaque valeur est un nombre ou une liste d'identifiants.
   // Mode par appareil : « nieuw » (défaut) = pas encore vus ici ; « alles » = tout ce qui reste ; « uit » = rien.
@@ -1063,9 +1120,12 @@
     document.addEventListener("famo:session-expired", () => { K.saveReturn(); K.toast("Sessie verlopen. Meld u opnieuw aan.", { kind: "err" }); setTimeout(() => location.replace(o.admin ? "/beheer/aanmelden" : "/team/aanmelden"), 1200); }, { once: true });
     return true;
   };
+  // x30 (specs/036) : Bestellen · Leveringen · Facturen · Account. Les adresses restent (#/catalogus, #/bestellingen :
+  // liens des e-mails) ; « Facturen » est une vue des commandes livrées, avec la pastille des factures à payer.
+  // Favorieten reste joignable depuis Account (#/favorieten).
   K.klantTabs = active => {
-    const tabs = [["catalogus", "Catalogus", "list"], ["bestellingen", "Bestellingen", "orders"], ["favorieten", "Favorieten", "star"], ["account", "Account", "user"]];
-    return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + (k === "bestellingen" ? '<b class="nbadge" data-badge="bestellingen" hidden></b>' : "") + '</a>').join("") + '</nav>';
+    const tabs = [["catalogus", "Bestellen", "counter"], ["bestellingen", "Leveringen", "truck"], ["facturen", "Facturen", "receipt"], ["account", "Account", "user"]];
+    return '<nav class="mtabs" aria-label="' + K.t("Hoofdnavigatie") + '">' + tabs.map(([k, l, i]) => '<a class="mtab' + (active === k ? " on" : "") + '" href="#/' + k + '"' + (active === k ? ' aria-current="page"' : "") + '>' + K.icon(i) + K.t(l) + (k === "facturen" ? '<b class="nbadge" data-badge="facturen" hidden></b>' : "") + '</a>').join("") + '</nav>';
   };
   global.K = K;
 })(window);

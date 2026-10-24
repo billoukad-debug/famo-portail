@@ -6,6 +6,8 @@ const __ca = require("../lib/clientauth");
 // qu'à ses enregistrements (lien « Client »), jamais à un identifiant envoyé par le
 // navigateur. Actions :
 //   cancel    {ref}                  annule tant que la commande est « Reçue »
+//   wijzig    {ref, items[, notes]}  modifie la commande « Reçue » SANS l'annuler, jusqu'à l'heure limite de la
+//                                    veille de la livraison (specs/036, X3 ; lib/klantwijziging.js)
 //   profile   {email, tel}           met à jour e-mail et téléphone de contact
 //   favorites {favorieten, standaard} sauvegarde favoris + commande type (JSON) — synchro entre appareils
 //   reset     (sans pw) {user, email} lien « choisir un mot de passe » (30 min, usage unique)
@@ -106,6 +108,19 @@ const handler = async (req, res) => {
         })().catch(() => null);
       }
       return res.status(200).json({ ok: true, ref: f["Référence"] || "", statut: "Annulée", mail });
+    }
+
+    // Modifier sans annuler (specs/036, X3) : items = TOUTES les lignes voulues (pas un delta). Vide → refus :
+    // supprimer tout, c'est annuler (action « cancel », qui prévient l'équipe).
+    if (action === "wijzig") {
+      const rec = await findOwnOrder(client, q.ref);
+      if (!rec) return res.status(404).json({ error: "Bestelling niet gevonden" });
+      const rules = await require("../lib/levering").loadRules(at);
+      const extra = typeof q.notes === "string" ? { "Notes": q.notes.slice(0, 1000) } : null;
+      const r = await require("../lib/klantwijziging").apply(client, rec, q.items, rules, { actie: "Gewijzigd door klant", fields: extra });
+      if (r.status !== 200) return res.status(r.status).json({ error: r.error });
+      const f = r.fields;
+      return res.status(200).json({ ok: true, ref: f["Référence"] || "", total: f["Total"], lignes: f["Lignes (produits / quantités)"], ongewijzigd: !!r.ongewijzigd, vorige: r.vorige || [] });
     }
 
     // Conditions générales (C-12) : le client accepte la version EN VIGUEUR (celle qu'il a lue).
