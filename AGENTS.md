@@ -81,6 +81,15 @@ needs a recent Node 22.
   031 Back-up zonder foto's: when the nightly gzip exceeds the mail limit, `api/backup-cron.js` attaches the data without photos (`zonderFotos`), health stays OK.
   030 Volgend factuurnummer: `testNummering` accepts `volgende` (counter = volgende - 1, refused if a number ≥ it exists), field in « Testperiode afsluiten ».
   034 Vague 3 facturation: Beheer → Boekhouder `/beheer/boekhouder` (period list + CSV `GET /api/export?format=lijst|csv`, `lib/boekhouder.js`, UBL problems shown; export now 401 / 403 staff), per-document sending status `Commandes.Verzending` (`lib/verzending.js`, `/api/updateorder { verzending }`, admin, journalled, blocks undo of receipt; future auto-send writes the same field with `bron: "automatisch"`), EPC069-12 transfer QR (`assets/epc.js` + `vendor/qrcode-generator.js` 2.0.4 MIT, loaded by `K.docs`) on the portal invoice and the client statement only in « Portaal » mode with a real IBAN (never pro forma, never the example IBAN), `/api/orders` `vervaldatum` / `openstaand`. Nothing is sent to Peppol or the accountant.
+  036 x30 lot A « la commande » (branch `x30-a-commande`): client portal « Bestellen » — probable order per weekday
+  (`lib/gewoonte.js`: median of the last 8 delivered orders on the same weekday, fallback last order, server prices via
+  `lib/bestelling.js`; `/api/orders` returns `gewoonte`, `vaste`, per-order `aanpasbaar`), one-tap order card with 8 s undo,
+  time banner on every client view (`assets/bestellen.js` `klok`: Brussels time, amber last 30 min; no delivery slot is
+  shown until a future `Levervenster` setting exists), modify without cancelling until the cut-off
+  (`/api/klantorder` action `wijzig`, `lib/klantwijziging.js`, journal in `Correcties`), a 2nd basket for the same delivery
+  day is merged into the open order (`/api/order`, cumulative idempotency keys), single catalogue view (business groups,
+  display case, species plates, one 44 px « + », Rauw OK only with a chosen freeze treatment), tabs Bestellen · Leveringen ·
+  Facturen (`#/facturen`) · Account, Instrument Serif self-hosted for headings (`--serif`). Tests `test/x30-commande.test.js`.
   029 « Nieuw » in Beheer: `assets/nieuws.js` (one note per change, simple Dutch: what changed + « Wat moet u doen? »
   with links), tab « Nieuw » + banner on Overzicht, « Gezien » per device. `test/nieuws.test.js` FAILS if a spec ≥ 027
   has no note, or a note contains technical jargon.
