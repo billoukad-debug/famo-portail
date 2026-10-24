@@ -6,6 +6,16 @@
   "use strict";
   var items = [
     {
+      id: "nieuwe-startpagina", datum: "2026-10-24", spec: "037",
+      titel: "Nieuwe startpagina van famoseafood.be",
+      wat: "De startpagina is vernieuwd: een balk die toont hoe lang klanten nog kunnen bestellen en wanneer er geleverd wordt, zes soorten vis als illustratie, een voorbeeld van de visfiche en uw contactgegevens. Aanmelden en Klant worden blijven zoals ze waren.",
+      doen: [
+        { tekst: "Kijk of de zes soorten (zalm, tonijn, garnalen, inktvis, octopus, sint-jakobsvrucht) passen bij wat u verkoopt. Zo niet, zeg welke het moeten zijn." },
+        { tekst: "Vul uw WhatsApp-nummer in bij Bedrijfsgegevens: dan verschijnt de knop WhatsApp op de startpagina.", link: "#/bedrijf", label: "Naar Bedrijfsgegevens" },
+        { tekst: "Een vast leveruur (bijvoorbeeld tussen 6 en 8 uur) tonen we pas als u het zeker kunt beloven. Laat het ons weten." }
+      ]
+    },
+    {
       id: "visfiche-en-loten", datum: "2026-10-24", spec: "035",
       titel: "Visfiche per product en meer gegevens per lot",
       wat: "Bij elk product kunt u nu de Latijnse naam, de herkomst, de staat (vers, diepgevroren of ontdooid) en de allergenen invullen. Uw klanten zien dat in hun catalogus en op de leveringsbon. Bij elk lot vult u ook de vangstdatum en het nummer van de vangstreis in.",

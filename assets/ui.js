@@ -201,6 +201,29 @@
   // Visfiche (spec 035) : details van een product in de klantcatalogus.
   Object.assign(K.FR, { "Wetenschappelijke naam": "Nom scientifique", "Herkomst": "Origine", "Staat": "État", "Allergenen": "Allergènes", "Bewaren": "Conservation", "Rauw te eten": "Consommation crue", "ontdooid": "décongelé" });
   Object.assign(K.FR, { "Colofon": "Mentions légales", "Ondernemingsnummer": "N° d'entreprise", "Btw": "TVA", "FAVV": "AFSCA", "WhatsApp": "WhatsApp", "Stuur ons een bericht op WhatsApp": "Envoyez-nous un message sur WhatsApp", "Wij gebruiken deze gegevens enkel om uw aanvraag te behandelen en u te contacteren.": "Nous utilisons ces données uniquement pour traiter votre demande et vous contacter.", "Privacyverklaring": "Déclaration de confidentialité" });
+  // x30 lot C (spec 037) : accueil public « De avondtoonbank » (assets/pages/start.js, bandeau assets/tij.js).
+  Object.assign(K.FR, {
+    "Taal en aanmelden": "Langue et connexion", "Groothandel vis en zeevruchten · Antwerpen": "Grossiste en poissons et fruits de mer · Anvers",
+    "Voor horeca, poke- en sushizaken.": "Pour l'horeca, les restaurants poke et sushi.", "uiterste besteltijd, de avond vóór levering": "heure limite de commande, la veille de la livraison",
+    "levering in Antwerpen en omstreken": "livraison à Anvers et environs",
+    "Zalm": "Saumon", "Tonijn": "Thon", "Garnalen": "Crevettes", "Inktvis": "Calmar", "Octopus": "Poulpe", "Sint-jakobsvrucht": "Saint-Jacques",
+    "Ter illustratie. Het actuele aanbod en uw prijzen ziet u na het aanmelden.": "À titre d'illustration. L'offre du moment et vos prix sont visibles après connexion.",
+    "Elk lot heeft een identiteitskaart": "Chaque lot a sa carte d'identité",
+    "Wetenschappelijke naam, herkomst, vistuig, staat en allergenen: per product in uw catalogus, per lot op uw leveringsbon. U ziet enkel wat echt ingevuld is.": "Nom scientifique, origine, engin de pêche, état et allergènes : par produit dans votre catalogue, par lot sur votre bon de livraison. Vous ne voyez que ce qui est réellement rempli.",
+    "Voorbeeld": "Exemple", "Tonijn, diepgevroren": "Thon, surgelé", "Gevangen op zee, Westelijke Indische Oceaan (FAO 51)": "Pêché en mer, océan Indien occidental (FAO 51)",
+    "Vistuig": "Engin de pêche", "Lijnen en haken": "Lignes et hameçons", "Diepgevroren": "Surgelé", "Vis": "Poisson", "Lot": "Lot",
+    "lotnummer, houdbaarheidsdatum en vangstdatum op de leveringsbon": "numéro de lot, date de durabilité et date de capture sur le bon de livraison",
+    "diepgevroren op −20 °C of kouder, minstens 24 uur in alle delen (behandeling tegen parasieten)": "congelé à −20 °C ou moins, au moins 24 heures en tous points (traitement contre les parasites)",
+    "Voorbeeld met fictieve waarden. De regel « Rauw te eten » verschijnt enkel als de vriesbehandeling voor dat product of lot geregistreerd is.": "Exemple aux valeurs fictives. La ligne « Consommation crue » n'apparaît que si le traitement par congélation est enregistré pour ce produit ou ce lot.",
+    "Zo werkt het": "Comment ça marche", "Bestel in uw klantportaal": "Commandez dans votre portail client",
+    "Uw afgesproken prijzen staan erbij. U kiest zelf de leverdag.": "Vos prix négociés sont affichés. Vous choisissez vous-même le jour de livraison.",
+    "Vóór {t} besteld": "Commandé avant {t}", "Geleverd op de eerstvolgende leverdag: {d}, in Antwerpen en omstreken.": "Livré au prochain jour de livraison : {d}, à Anvers et environs.",
+    "Bon en factuur in uw account": "Bon et facture dans votre compte", "Leveringsbon en factuur vindt u terug bij uw bestellingen.": "Vous retrouvez bon de livraison et facture dans vos commandes.",
+    "Een vraag vanavond?": "Une question ce soir ?", "Bel of mail ons. Nog geen klant? Vraag toegang aan.": "Appelez-nous ou écrivez-nous. Pas encore client ? Demandez un accès.", "Bellen": "Appeler",
+    "Vanavond nog {n} om te bestellen · geleverd {d}": "Ce soir encore {n} pour commander · livré {d}", "Vandaag nog {n} om te bestellen · geleverd {d}": "Encore {n} aujourd'hui pour commander · livré {d}",
+    "Bestel vandaag vóór {t} · geleverd {d}": "Commandez aujourd'hui avant {t} · livré {d}", "Bestel vóór {o}, {t} · geleverd {d}": "Commandez avant {o}, {t} · livré {d}",
+    "Bestel vóór {t} · levering {d}": "Commandez avant {t} · livraison {d}"
+  });
   K.waLink = n => { let d = String(n || "").replace(/\(0\)/g, "").replace(/\D/g, ""); if (d.startsWith("00")) d = d.slice(2); else if (d.startsWith("0")) d = "32" + d.slice(1); return d.length >= 9 && d.length <= 15 ? "https://wa.me/" + d : ""; };
   K.telHref = n => String(n || "").replace(/\(0\)/g, "").replace(/[^\d+]/g, "");
   K.legalNameOf = c => { const l = (c && c.legal) || {}; return l.naam ? l.naam + (l.rechtsvorm && !l.naam.toLowerCase().split(/\s+/).includes(l.rechtsvorm.toLowerCase()) ? " " + l.rechtsvorm : "") : ""; };

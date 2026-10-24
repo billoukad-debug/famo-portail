@@ -78,6 +78,10 @@ needs a recent Node 22.
   `LocalBusiness` on the home page (`check.js` allows only an exact `<script type="application/ld+json">` with valid JSON,
   `scripts/inline-scripts.js`), language from the URL `?taal=fr|nl` (`K.lang`, `K.setLang`, `K.langHref`), sitemap NL/FR with
   `xhtml:link` alternates, `robots.txt` opens `/assets/pages/` and `/api/config?public=1`, font URL versioned in `ui.css`.
+  037 x30 lot C « accueil public » : new home page (`index.html` static NL + `assets/pages/start.js`), classes `ac-*` in the « x30 lot C » block of
+  `ui.css`, self-hosted Instrument Serif (`assets/fonts/`, OFL) for headings, live banner from the public config at Brussels time (pure module
+  `assets/tij.js`, `window.FamoTij`; a delivery window appears only if `levering.levervenster` is ever configured, it is not today), species plates
+  (SVG, « ter illustratie »), example lot card « Voorbeeld », WhatsApp only via `K.waLink`; login unchanged; guarded by `test/x30-accueil.test.js`.
   031 Back-up zonder foto's: when the nightly gzip exceeds the mail limit, `api/backup-cron.js` attaches the data without photos (`zonderFotos`), health stays OK.
   030 Volgend factuurnummer: `testNummering` accepts `volgende` (counter = volgende - 1, refused if a number ≥ it exists), field in « Testperiode afsluiten ».
   034 Vague 3 facturation: Beheer → Boekhouder `/beheer/boekhouder` (period list + CSV `GET /api/export?format=lijst|csv`, `lib/boekhouder.js`, UBL problems shown; export now 401 / 403 staff), per-document sending status `Commandes.Verzending` (`lib/verzending.js`, `/api/updateorder { verzending }`, admin, journalled, blocks undo of receipt; future auto-send writes the same field with `bron: "automatisch"`), EPC069-12 transfer QR (`assets/epc.js` + `vendor/qrcode-generator.js` 2.0.4 MIT, loaded by `K.docs`) on the portal invoice and the client statement only in « Portaal » mode with a real IBAN (never pro forma, never the example IBAN), `/api/orders` `vervaldatum` / `openstaand`. Nothing is sent to Peppol or the accountant.
