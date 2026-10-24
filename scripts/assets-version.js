@@ -15,7 +15,7 @@ const crypto = require("crypto");
 
 const ROOT = path.join(__dirname, "..");
 const CHECK = process.argv.includes("--check");
-const DOCS = ["assets/vat.js", "vendor/qrcode-generator.js", "assets/epc.js", "assets/docs/bedrijf.js", "assets/docs/documents.js", "assets/docs/voorbeeld.js"];
+const DOCS = ["assets/vat.js", "vendor/qrcode-generator.js", "assets/epc.js", "assets/visfiche.js", "assets/docs/bedrijf.js", "assets/docs/documents.js", "assets/docs/voorbeeld.js"];
 const hashOf = buf => crypto.createHash("sha256").update(buf).digest("hex").slice(0, 10);
 const read = rel => fs.readFileSync(path.join(ROOT, rel));
 

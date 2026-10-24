@@ -101,6 +101,8 @@ module.exports = async (req, res) => {
       bestelddoor: r.fields["Besteld door"] || "",
       herinneringen: [r.fields["Herinnering 1 op"] || "", r.fields["Herinnering 2 op"] || ""].filter(Boolean),
       lots: (() => { try { return r.fields["Lots"] ? JSON.parse(r.fields["Lots"]) : null; } catch (e) { return null; } })(),
+      // Visfiche figée à la préparation (specs/035) : { "nom de ligne": { … } } pour les documents.
+      fiche: require("../lib/trace").parseLots(r.fields["Productfiche"]),
       // Conditionnement figé par ligne (specs/023) : { "nom": { per, verpakking } } — documents, Magazijn, Leveringen.
       verpakking: __lj.pakMap(r.fields[__lj.FIELD]),
       // Régime de TVA (C-10) : figé sur une facture émise, sinon celui du client (documents, montants).

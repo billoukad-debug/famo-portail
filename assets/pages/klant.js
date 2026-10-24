@@ -60,6 +60,8 @@
   /* ---------- beschikbaarheid (enkel als de server een voorraad meestuurt) ---------- */
   const stock = p => (typeof p.voorraad === "number" ? p.voorraad : null);
   const capQty = (p, v) => { const s = stock(p); if (s == null) return v; const n = stepUnits(p); return Math.min(v, Math.max(0, n > 1 ? Math.floor(s / n + 1e-9) * n : s)); };
+  // Visfiche (spec 035) : « ontdooid » is een verplichte vermelding, dus zichtbaar op de regel zelf ; de rest in de details.
+  const thawTag = p => p.vis && p.vis.staat === "Ontdooid" ? '<span class="tag">' + K.t("ontdooid") + '</span>' : "";
   const stockTag = p => { const s = stock(p); if (s == null) return ""; return s > 0 ? '<span class="tag">' + K.esc(K.tt("Nog {n}", { n: K.qty(s) })) + '</span>' : '<span class="tag t-danger">' + K.t("Uitverkocht") + '</span>'; };
 
   /* ---------- favorieten : server (Clients.Favorieten) eerst, localStorage als cache ---------- */
@@ -146,7 +148,7 @@
     // de eenheid staat bij de prijs (« / kassa »), behalve in Compact (eenheid in de metakolom). Compact op een
     // smalle lijst : ook de prijs in de metaregel (de prijskolom verschijnt pas op een brede lijst).
     const kal = p.kaliber && K.searchKey(p.nom).indexOf(K.searchKey(p.kaliber)) < 0 ? p.kaliber : "";
-    const meta = [kal, compact ? unitLabel(p) : "", compact && pakP(p) ? K.pakOne(pakP(p), p.unite) : ""].filter(Boolean).map(K.esc).join(" · ") + stockTag(p) +
+    const meta = [kal, compact ? unitLabel(p) : "", compact && pakP(p) ? K.pakOne(pakP(p), p.unite) : ""].filter(Boolean).map(K.esc).join(" · ") + thawTag(p) + stockTag(p) +
       (compact ? '<span class="pm-p"><b class="mono">' + K.eur(p.prix) + '</b>' + (p.prix < p.base ? ' <small>' + K.t("uw prijs") + '</small>' : "") + '</span>' : "");
     // Vignet in de knop : een tik erop opent de details. alt leeg : de naam staat ernaast in dezelfde knop.
     const btn = '<button type="button" class="pr-x" data-x="' + p.id + '"' + (tiles ? ' aria-haspopup="dialog"' : ' aria-expanded="' + open + '" aria-controls="pd-' + p.id + '"') + '>' +
@@ -199,6 +201,16 @@
       });
     });
   }
+  // Visfiche (spec 035) : enkel wat ingevuld is ; labels via K.t, waarden in de taal van de klant (assets/visfiche.js).
+  function visRows(p, row) {
+    const VI = window.FamoVis, v = p.vis || {};
+    if (!VI || !Object.keys(v).length) return "";
+    const fz = VI.freezeText(v, K.lang);
+    return row(K.t("Wetenschappelijke naam"), v.wetenschappelijkeNaam ? "<i>" + K.esc(v.wetenschappelijkeNaam) + "</i>" + (v.faoCode ? " (" + K.esc(v.faoCode) + ")" : "") : "") +
+      row(K.t("Herkomst"), K.esc(VI.originParts(v, K.lang).join(" · "))) + row(K.t("Staat"), K.esc(VI.stateLabel(v.staat, K.lang))) +
+      row(K.t("Allergenen"), K.esc(VI.allergenList(v.allergenen, K.lang))) + row(K.t("Bewaren"), K.esc(v.bewaring || "")) +
+      row(K.t("Rauw te eten"), fz ? K.esc(fz.replace(/^[^:]+:\s*/, "")) : "");
+  }
   function detailHtml(p) {
     const s = stock(p), neg = p.prix < p.base;
     const row = (k, v) => v ? '<div><dt>' + K.esc(k) + '</dt><dd>' + v + '</dd></div>' : "";
@@ -208,7 +220,7 @@
       row(K.t("Prijs excl. btw"), '<span class="mono">' + K.eur(p.prix) + '</span> / ' + K.esc(unitLabel(p)) + (neg ? ' <s class="mono quiet">' + K.eur(p.base) + '</s> · ' + K.t("uw prijs") : "")) +
       row(K.t("Beschikbaar"), s == null ? "" : s > 0 ? K.esc(K.qty(s)) + " " + K.esc(unitLabel(p)) : '<span class="t-danger">' + K.t("Uitverkocht") + '</span>') +
       (pakP(p) ? row(K.t("Verpakking"), K.esc(K.pakOne(pakP(p), p.unite)) + ' = <span class="mono">' + K.eur(window.FamoVat.r2(p.prix * pakP(p).per)) + '</span>') : "") +
-      (pakP(p) && pakP(p).only ? row(K.t("Bestellen per"), K.esc(K.pakOne(pakP(p), p.unite))) : pakP(p) ? row(K.t("Bestellen per"), K.esc(K.t("per stuk of per verpakking"))) : isKg(p) ? row(K.t("Bestellen per"), K.t("0,5 kg")) : "") + '</dl>' +
+      (pakP(p) && pakP(p).only ? row(K.t("Bestellen per"), K.esc(K.pakOne(pakP(p), p.unite))) : pakP(p) ? row(K.t("Bestellen per"), K.esc(K.t("per stuk of per verpakking"))) : isKg(p) ? row(K.t("Bestellen per"), K.t("0,5 kg")) : "") + visRows(p, row) + '</dl>' +
       '<label class="pr-c"><span>' + K.t("Opmerking bij dit artikel") + '</span><input class="input" data-comment="' + p.id + '" value="' + K.esc(cart.comments[p.id] || "") + '" maxlength="120" placeholder="' + K.t("bv. dikke moot…") + '"></label></div>';
   }
   // Winkelmand naast de catalogus (computer) en balk onderaan (telefoon) : bijgewerkt zonder de lijst opnieuw te tekenen.

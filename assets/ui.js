@@ -198,6 +198,8 @@
   // Pied de page public commun (spec 032) : identité légale (WVV art. 2:20), contact, WhatsApp, liens.
   // K.publicFooter() rend la coquille ; K.fillPublicFooter(config) la remplit avec la réponse de
   // /api/config?public=1 (contactOnly) ; K.loadPublicFooter() fait les deux pour une page qui n'a pas déjà cette réponse.
+  // Visfiche (spec 035) : details van een product in de klantcatalogus.
+  Object.assign(K.FR, { "Wetenschappelijke naam": "Nom scientifique", "Herkomst": "Origine", "Staat": "État", "Allergenen": "Allergènes", "Bewaren": "Conservation", "Rauw te eten": "Consommation crue", "ontdooid": "décongelé" });
   Object.assign(K.FR, { "Colofon": "Mentions légales", "Ondernemingsnummer": "N° d'entreprise", "Btw": "TVA", "FAVV": "AFSCA", "WhatsApp": "WhatsApp", "Stuur ons een bericht op WhatsApp": "Envoyez-nous un message sur WhatsApp", "Wij gebruiken deze gegevens enkel om uw aanvraag te behandelen en u te contacteren.": "Nous utilisons ces données uniquement pour traiter votre demande et vous contacter.", "Privacyverklaring": "Déclaration de confidentialité" });
   K.waLink = n => { let d = String(n || "").replace(/\(0\)/g, "").replace(/\D/g, ""); if (d.startsWith("00")) d = d.slice(2); else if (d.startsWith("0")) d = "32" + d.slice(1); return d.length >= 9 && d.length <= 15 ? "https://wa.me/" + d : ""; };
   K.telHref = n => String(n || "").replace(/\(0\)/g, "").replace(/[^\d+]/g, "");
@@ -497,7 +499,7 @@
   /* ---------- documentmodule op aanvraag (leveringsbon, factuur, PDF) ---------- */
   // Enkel geladen bij het eerste document dat geopend wordt : scheelt ± 35 kB op elke pagina.
   // DOCS_VER wordt door scripts/assets-version.js bijgewerkt (cache-busting).
-  K.DOCS_VER = "79e3498208";
+  K.DOCS_VER = "28c241a75c";
   let docsLoading = null;
   K.docs = function () {
     if (global.FamoDocuments && global.famoDocPreview) return Promise.resolve();
@@ -508,8 +510,8 @@
       el.onload = resolve; el.onerror = () => reject(new Error(K.t("Documentmodule laden mislukt. Controleer de verbinding.")));
       document.head.appendChild(el);
     });
-    // QR de virement (specs/034) : bibliothèque figée (vendor/, MIT) puis assets/epc.js, avant documents.js.
-    docsLoading = ["/assets/vat.js", "/vendor/qrcode-generator.js", "/assets/epc.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
+    // QR de virement (specs/034) : bibliothèque figée (vendor/, MIT) puis assets/epc.js ; visfiche (specs/035) ; avant documents.js.
+    docsLoading = ["/assets/vat.js", "/vendor/qrcode-generator.js", "/assets/epc.js", "/assets/visfiche.js", "/assets/docs/bedrijf.js", "/assets/docs/documents.js", "/assets/docs/voorbeeld.js"]
       .reduce((p, src) => p.then(() => one(src)), Promise.resolve())
       .catch(e => { docsLoading = null; throw e; });
     return docsLoading;

@@ -16,14 +16,14 @@ window.FamoDocuments=(()=>{
       date:"Datum",document:"Document",order:"Bestelling",invoiceNo:"Factuur",customerNo:"Klantnummer",payStatus:"Betaalstatus",customer:"Klant",vat:"BTW",desc:"Beschrijving",qty:"Aantal",unit:"Eenheid",
       unitPrice:"Eenheidsprijs",subtotal:"Subtotaal",rateCol:"Btw-tarief",baseCol:"Maatstaf",vatCol:"Btw",amount:"Bedrag",totalEx:"Totaal excl. btw",vatLine:"btw",on:"op",totalInc:"Totaal incl. btw",noCompany:"Bedrijfsgegevens niet geladen",
       exampleBanner:"Voorbeeld bankgegevens.",qrScan:"Scan met uw bank-app om te betalen",qrLabel:"QR-code voor overschrijving",exampleFix:"Vervang IBAN/BIC via Beheer vóór echte facturatie.",
-      lot:"Lot",tht:"THT",thawed:"ontdooid",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
+      lot:"Lot",tht:"THT",thawed:"ontdooid",fao:"FAO-code",caught:"vangstdatum",harvested:"oogstdatum",tripId:"vangstreis",farmId:"kweekbedrijf",allergens:"Allergenen",keep:"Bewaren",ordered:"besteld",methods:{"Gevangen op zee":"Gevangen op zee","Gevangen in zoet water":"Gevangen in zoet water","Gekweekt":"Gekweekt"},
       proforma:"PRO FORMA",retour:"RETOURBON",receivedBy:"Ontvangen door",signed:"ondertekend",terms:"Onze algemene verkoopsvoorwaarden zijn van toepassing (versie {v}) : {u}",companyNo:"Ondernemingsnummer",tradeName:"handelsnaam",units:{caisse:"kassa",carton:"doos","pièce":"stuk",piece:"stuk",kg:"kg"}},
     fr:{delivery:"BON DE LIVRAISON",invoice:"FACTURE",credit:"NOTE DE CRÉDIT",bank:"Coordonnées bancaires",beneficiary:"Bénéficiaire",ref:"Communication",example:"Exemple — pas encore définitif",
       paid:"Payée",paidOn:"Payée le",creditOn:"Note de crédit sur la facture",reason:"Motif",creditDate:"Date de la note de crédit",invoiceDate:"Date de facture",dueDate:"Échéance",deliveryDate:"Date de livraison",
       date:"Date",document:"Document",order:"Commande",invoiceNo:"Facture",customerNo:"N° client",payStatus:"Statut de paiement",customer:"Client",vat:"TVA",desc:"Description",qty:"Quantité",unit:"Unité",
       unitPrice:"Prix unitaire",subtotal:"Sous-total",rateCol:"Taux TVA",baseCol:"Base",vatCol:"TVA",amount:"Montant",totalEx:"Total HTVA",vatLine:"TVA",on:"sur",totalInc:"Total TVAC",noCompany:"Coordonnées de l'entreprise non chargées",
       exampleBanner:"Coordonnées bancaires d'exemple.",qrScan:"Scannez avec votre app bancaire pour payer",qrLabel:"Code QR pour virement",exampleFix:"Remplacez l'IBAN/BIC dans Beheer avant de facturer.",
-      lot:"Lot",tht:"DLC",thawed:"décongelé",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
+      lot:"Lot",tht:"DLC",thawed:"décongelé",fao:"code FAO",caught:"capturé le",harvested:"récolté le",tripId:"sortie de pêche",farmId:"unité aquacole",allergens:"Allergènes",keep:"Conservation",ordered:"commandé",methods:{"Gevangen op zee":"Pêché en mer","Gevangen in zoet water":"Pêché en eaux douces","Gekweekt":"Élevé"},
       proforma:"PRO FORMA",retour:"BON DE RETOUR",receivedBy:"Réceptionné par",signed:"signé",terms:"Nos conditions générales de vente s'appliquent (version {v}) : {u}",companyNo:"N° d'entreprise",tradeName:"nom commercial",units:{caisse:"caisse",carton:"carton","pièce":"pièce",piece:"pièce",kg:"kg"}}
   };
   const langOf=order=>{const v=String((order&&(order.taal||(order.klant&&order.klant.taal)))||"").trim().toLowerCase();return v==="fr"?"fr":"nl";};
@@ -172,8 +172,27 @@ window.FamoDocuments=(()=>{
     const ibanFmt=value=>String(value||"").replace(/\s+/g,"").replace(/(.{4})/g,"$1 ").trim();
     const ogm=invoice&&!pro?structuredRef(order.factuurnummer):"";
     // Traçabilité (règl. UE 1379/2013 art. 35) : lot(s) livré(s) par article, instantané de la préparation.
-    const lotsOf=name=>{const m=order.lots&&typeof order.lots==="object"?order.lots:null;if(!m)return[];const k=Object.keys(m).find(x=>String(x).trim().toLowerCase()===String(name||"").trim().toLowerCase());return k?(m[k]||[]):[];};
-    const lotTxt=l=>[L.lot+" "+esc(l.lotnummer),l.wetenschappelijkeNaam?"<i>"+esc(l.wetenschappelijkeNaam)+"</i>":"",esc(l.vangstgebied),esc(L.methods[l.productiemethode]||l.productiemethode),esc(l.vistuig),l.ontdooid?L.thawed:"",l.tht?L.tht+" "+date(l.tht):""].filter(Boolean).join(" · ");
+    // specs/035 : + code FAO, date de capture, n° de sortie de pêche / unité aquacole, et la visfiche du produit
+    // figée à la préparation (order.fiche) : état, allergènes, conservation, traitement pour le cru.
+    // Seulement ce qui est rempli : jamais de case vide « — » qui ferait croire à une mention manquante.
+    const VIS=typeof window!=="undefined"?window.FamoVis:null;
+    const keyIn=(m,name)=>m&&typeof m==="object"?Object.keys(m).find(x=>String(x).trim().toLowerCase()===String(name||"").trim().toLowerCase()):undefined;
+    const lotsOf=name=>{const m=order.lots&&typeof order.lots==="object"?order.lots:null;const k=keyIn(m,name);return k!==undefined?(m[k]||[]):[];};
+    const ficheOf=name=>{const m=order.fiche&&typeof order.fiche==="object"?order.fiche:null;const k=keyIn(m,name);return k!==undefined&&m[k]&&typeof m[k]==="object"?m[k]:null;};
+    const sciTxt=o=>o.wetenschappelijkeNaam?"<i>"+esc(o.wetenschappelijkeNaam)+"</i>"+(o.faoCode?" ("+esc(o.faoCode)+")":""):(o.faoCode?L.fao+" "+esc(o.faoCode):"");
+    const zoneTxt=z=>esc(VIS?VIS.zoneLabel(z,lang):z);
+    const gearTxt=g=>esc(VIS?VIS.gearLabel(g,lang):g);
+    const originTxt=o=>[sciTxt(o),o.vangstgebied?zoneTxt(o.vangstgebied):"",esc(o.landVanKweek),esc(L.methods[o.productiemethode]||o.productiemethode),o.vistuig?gearTxt(o.vistuig):""];
+    const farmed=o=>o.productiemethode==="Gekweekt";
+    const lotTxt=l=>[L.lot+" "+esc(l.lotnummer)].concat(originTxt(l),[l.ontdooid?L.thawed:"",l.tht?L.tht+" "+date(l.tht):"",l.vangstdatum?(farmed(l)?L.harvested:L.caught)+" "+date(l.vangstdatum):"",l.vangstId?(farmed(l)?L.farmId:L.tripId)+" "+esc(l.vangstId):""]).filter(Boolean).join(" · ");
+    const ficheRows=(name,lots)=>{const v=ficheOf(name);if(!v)return"";const out=[];
+      if(!lots.length){const o=originTxt(v).filter(Boolean);if(o.length)out.push(o.join(" · "));}
+      const al=VIS?VIS.allergenList(v.allergenen,lang):(Array.isArray(v.allergenen)?v.allergenen.join(", "):"");
+      const st=v.staat&&!(v.staat==="Ontdooid"&&lots.some(l=>l.ontdooid))?(VIS?VIS.stateLabel(v.staat,lang):v.staat):"";
+      const misc=[st,al?L.allergens+": "+esc(al):"",v.bewaring?L.keep+": "+esc(v.bewaring):""].filter(Boolean);
+      if(misc.length)out.push(misc.join(" · "));
+      const fz=VIS?VIS.freezeText(v,lang):"";if(fz)out.push(esc(fz));
+      return out.map(t=>'<small class="lot">'+t+'</small>').join("");};
     // Poids réel (audit H-04) : quantité commandée à la création, montrée si la livraison diffère.
     const ordered=(!credit&&order.besteld)?parse(order.besteld):[];
     const orderedOf=name=>{const k=String(name||"").trim().toLowerCase();const o=ordered.find(x=>String(x.name||"").trim().toLowerCase()===k);return o?o.qty:null;};
@@ -189,7 +208,7 @@ window.FamoDocuments=(()=>{
       const qty=Number(String(row.qty).replace(",","."))||0;
       const unitPrice=row.price==null?null:row.price*sign;
       const sub=unitPrice==null?null:(window.FamoVat?window.FamoVat.r2(unitPrice*qty):unitPrice*qty);
-      return '<tr><td class="desc"><span class="item">'+esc(row.name)+'</span>'+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+pakTxt(row,qty,unitPrice)+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+'</td><td class="num">'+esc(qtyTxt(row.qty))+diffTxt(row)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num rate">'+fmtRate(lineRate(row.name))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
+      return '<tr><td class="desc"><span class="item">'+esc(row.name)+'</span>'+(row.comment?'<small>'+esc(row.comment)+'</small>':'')+pakTxt(row,qty,unitPrice)+lotsOf(row.name).map(l=>'<small class="lot">'+lotTxt(l)+'</small>').join("")+ficheRows(row.name,lotsOf(row.name))+'</td><td class="num">'+esc(qtyTxt(row.qty))+diffTxt(row)+'</td><td>'+esc(nlUnit(row.unit))+'</td>'+(priced?'<td class="num">'+(unitPrice==null?'—':eur(unitPrice))+'</td><td class="num rate">'+fmtRate(lineRate(row.name))+'</td><td class="num">'+(sub==null?'—':eur(sub))+'</td>':'')+'</tr>';
     }).join("");
     // Betaalstatus enkel wanneer betaald (met datum indien gekend).
     const paid=String(order.paiement||"")==="Payé"||/^(betaald|payé)$/i.test(String(order.paiement||""));

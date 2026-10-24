@@ -6,6 +6,18 @@
   "use strict";
   var items = [
     {
+      id: "visfiche-en-loten", datum: "2026-10-24", spec: "035",
+      titel: "Visfiche per product en meer gegevens per lot",
+      wat: "Bij elk product kunt u nu de Latijnse naam, de herkomst, de staat (vers, diepgevroren of ontdooid) en de allergenen invullen. Uw klanten zien dat in hun catalogus en op de leveringsbon. Bij elk lot vult u ook de vangstdatum en het nummer van de vangstreis in.",
+      doen: [
+        { tekst: "Open elk product, klik op „Visfiche” en neem over wat op het etiket of het document van de leverancier staat. Niet zeker? Laat het leeg.", link: "#/producten", label: "Naar Producten" },
+        { tekst: "Vink bij elk product de allergenen aan: vis, schaaldieren of weekdieren, en wat er nog in zit (bijvoorbeeld in een saus)." },
+        { tekst: "Verkoopt u vis om rauw te eten (sushi, poke)? Zet „Bestemd om rauw te eten” aan en kies hoe de leverancier de vis diepvroor." },
+        { tekst: "Bij elk nieuw lot: vul de vangstdatum, het nummer van de vangstreis of het kweekbedrijf en het netto gewicht in.", link: "/team/lots", label: "Naar Loten" },
+        { tekst: "Kies bij het klaarzetten altijd het lot. Vraagt een klant of het FAVV iets? Klik bij Loten op „Geleverde loten per klant”." }
+      ]
+    },
+    {
       id: "boekhouder-en-qr", datum: "2026-10-24", spec: "034",
       titel: "Facturen voor de boekhouder, per maand",
       wat: "Bij Beheer staat nu Boekhouder: kies een maand en u ziet alle facturen en creditnota's, met een bestand om aan uw boekhouder te geven. U noteert zelf wanneer u ze gestuurd hebt. Het portaal stuurt niets. Maakt het portaal ooit zelf de facturen, dan krijgt elke factuur een QR-code om te betalen.",
