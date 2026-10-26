@@ -786,9 +786,9 @@
     const row = (label, value) => value ? '<div class="row"><div>' + K.esc(label) + '<small class="ws-pre">' + K.esc(value) + '</small></div></div>' : "";
     const body = '<div class="mcard mb-10">' + tl + '</div>' + "" +
       (o.uitzondering ? K.c.warn('<b>' + K.t("Uitzondering levering") + '</b> ' + K.esc(o.uitzondering)) + '<div class="h-10"></div>' : "") +
-      '<div class="mcard mb-10"><div class="sec m-0 mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => { const pr = prodOf(o, l.name), og = pr ? originHtml(pr) : ""; return '<div class="d-flex jc-sb gap-10"><span class="minw-0">' + K.esc(lineTxt(l.qty, l.name, l.unit) + (l.unit && !kgUnit(l.unit) && !/^(pi[eè]ce|stuk)$/i.test(l.unit) ? " · " + K.unit(l.unit) : "") + (K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) ? " · " + K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) : "") + (l.comment ? " (" + l.comment + ")" : "")) + (og ? '<small class="x-o d-block">' + og + '</small>' : "") + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>'; }).join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div>' +
+      '<div class="mcard mb-10"><div class="sec m-0 mb-6">' + K.t("Artikelen") + '</div><div class="stack-6 fs-13">' + lines.map(l => { const pr = prodOf(o, l.name), og = pr ? originHtml(pr) : ""; return '<div class="d-flex jc-sb gap-10"><span class="minw-0" data-lname="' + K.esc(String(l.name || "").trim().toLowerCase()) + '">' + K.esc(lineTxt(l.qty, l.name, l.unit) + (l.unit && !kgUnit(l.unit) && !/^(pi[eè]ce|stuk)$/i.test(l.unit) ? " · " + K.unit(l.unit) : "") + (K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) ? " · " + K.pakCount(l.qty, l.unit, K.pakIn(o.verpakking, l.name)) : "") + (l.comment ? " (" + l.comment + ")" : "")) + (og ? '<small class="x-o d-block">' + og + '</small>' : "") + '</span>' + (l.price != null ? '<span class="mono">' + K.eur(l.price * l.qty) + '</span>' : "") + '</div>'; }).join("") + '<div class="d-flex jc-sb fw-600 bt-line pt-6"><span>' + K.t("Totaal excl. btw") + '</span><span class="mono">' + K.eur(o.total) + '</span></div>' +
       // Spec 038 : de herkomst hierboven komt uit de productfiche ; het lot per artikel staat op de leveringsbon (spec 035).
-      (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<p class="quiet fs-12 m-0">' + K.t("Lotnummer en herkomst per lot: zie de leveringsbon.") + '</p>' : "") + '</div></div>' +
+      (o.statut === "Facturée" || o.statut === "Sortie en livraison" ? '<p class="quiet fs-12 m-0" id="oLotNote">' + K.t("Lotnummer en herkomst per lot: zie de leveringsbon.") + '</p>' : "") + '</div></div>' +
       '<div class="mcard">' + row(K.t("Besteld op"), o.date ? K.dateLong(o.date) : "") + row(K.t("Gewenste leverdag"), o.dateLiv ? K.dateLong(o.dateLiv) : "") + row(K.t("Verwacht leveruur"), slotTxt(o)) +
       row(portaal() ? K.t("Factuurnummer") : K.t("Overzicht · pro forma"), docNr(o)) + row(K.t("Gefactureerd op"), portaal() ? stamp(o.factureeLe) : "") + row(K.t("Geleverd op"), stamp(o.livreeLe)) + row(K.t("Ontvangen door"), o.receptionnePar) +
       (o.paiement === "Payé" ? row(K.t("Betaald op"), stamp(o.payeLe) || K.t("Betaald")) : "") +
@@ -803,6 +803,20 @@
     panel = K.panel({ title: K.t("Bestelling") + " " + o.ref, sub: (o.dateLiv ? K.t("Levering") + " " + K.date(o.dateLiv) + " · " : "") + K.eur(o.total) + " " + K.t("excl. btw"), body, footer: '<div class="d-flex gap-8 f-wrap w-100p">' + actions(o) + '</div>', onClose: () => { panel = null; } });
     const st = panel.el.querySelector(".panel-h .h2"); if (st) st.insertAdjacentHTML("afterend", '<div class="mt-6">' + badge(o) + '</div>');
     bindOrderActions(panel.el);
+    if (o.statut === "Facturée" || o.statut === "Sortie en livraison") showLots(o.ref, panel);
+  }
+  // Spec 035/038 : op een geleverde bestelling het lot per artikel (zelfde gegevens als de leveringsbon, /api/klantdoc).
+  async function showLots(ref, pnl) {
+    let d; try { d = await api("/api/klantdoc", { json: Object.assign({}, creds(), { ref }) }); } catch (e) { return; }
+    const lots = d && d.order && d.order.lots && typeof d.order.lots === "object" ? d.order.lots : null; if (!lots || panel !== pnl) return;
+    const byName = new Map(Object.keys(lots).map(k => [String(k).trim().toLowerCase(), lots[k]]));
+    let any = false;
+    K.$$("[data-lname]", pnl.el).forEach(sp => {
+      const list = byName.get(sp.dataset.lname) || []; if (!Array.isArray(list) || !list.length) return;
+      any = true;
+      sp.insertAdjacentHTML("beforeend", list.map(l => '<small class="quiet d-block mono">' + K.esc([K.t("Lot") + " " + (l.lotnummer || "—"), l.tht ? K.t("houdbaar tot") + " " + K.date(l.tht) : ""].filter(Boolean).join(" · ")) + '</small>').join(""));
+    });
+    const note = pnl.el.querySelector("#oLotNote"); if (note && any) note.textContent = K.t("Lot per artikel, zoals op de leveringsbon.");
   }
   // Product van een regel : op referentie (o.items), anders op naam.
   const prodOf = (o, name) => { const it = (o.items || []).find(i => String(i.naam || "").toLowerCase() === String(name || "").toLowerCase()); return (it && it.productId && byId(it.productId)) || (cat.products || []).find(x => x.nom.toLowerCase() === String(name || "").toLowerCase()) || null; };
@@ -811,20 +825,40 @@
     const lines = linesOfOrder(o);
     if (lines.length !== (o.items || []).length) { K.toast(K.t("Wordt klaargezet. Bel Famo om nog iets te wijzigen."), { kind: "err" }); return; }
     const st = { lines };
-    const body = '<p class="quiet fs-13 m-0">' + K.t("Pas aantallen aan of zet op 0 om te schrappen. Toevoegen doet u in Bestellen.") + '</p><ul class="x-ul x-ul-p">' + lines.map(l => usualLineHtml(l, false).replace('data-stepper="u:', 'data-stepper="e:')).join("") + '</ul><div id="eErr"></div>' +
+    // Spec 038 : een product toevoegen gebeurt hier zelf (zoeken → « + »), niet meer via Bestellen en de winkelmand.
+    const body = '<p class="quiet fs-13 m-0">' + K.t("Pas aantallen aan of zet op 0 om te schrappen.") + '</p><ul class="x-ul x-ul-p" id="eLines">' + lines.map(l => usualLineHtml(l, false).replace('data-stepper="u:', 'data-stepper="e:')).join("") + '</ul>' +
+      '<div class="ke-add"><label class="flabel" for="eQ">' + K.t("Product toevoegen") + '</label><div class="search"><label class="ks-l">' + K.icon("search") + '<input id="eQ" type="search" placeholder="' + K.t("Zoek: zalm, 16/20, inktvis…") + '" autocomplete="off" spellcheck="false" enterkeyhint="search"></label></div><ul class="ke-hits" id="eHits" aria-live="polite"></ul></div><div id="eErr"></div>' +
       // Spec 038 : annuleren is een uitzondering, dus een discrete link onderaan het paneel (niet naast « Wijzigen »).
       '<p class="mt-14 m-0"><button type="button" class="linkbtn t-danger tap-44" data-cancel-order="' + K.esc(o.ref) + '">' + K.t("Hele bestelling annuleren") + '</button></p>';
-    panel = K.panel({ title: K.t("Bestelling wijzigen"), sub: o.ref + (o.dateLiv ? " · " + K.t("Levering") + " " + K.date(o.dateLiv) + " · " + K.tt("Wijzigen {tot}", { tot: totTxt(o.dateLiv) }) : ""), body, footer: '<a class="btn btn-o" href="#/catalogus">' + K.t("Toevoegen") + '</a><button type="button" class="btn btn-p" id="eSave"><span>' + K.t("Wijziging opslaan") + '</span> <span class="mono" id="eTot"></span></button>', onClose: () => { panel = null; } });
-    const tot = () => { const t = st.lines.reduce((s2, l) => s2 + window.FamoVat.r2(l.p.prix * l.qty), 0); panel.el.querySelector("#eTot").textContent = K.eur(t); panel.el.querySelector("#eSave").disabled = !st.lines.some(l => Math.abs(l.qty - l.orig) > 1e-9) || !st.lines.some(l => l.qty > 0); };
-    K.$$(".stepper", panel.el).forEach(stp => {
+    panel = K.panel({ title: K.t("Bestelling wijzigen"), sub: o.ref + (o.dateLiv ? " · " + K.t("Levering") + " " + K.date(o.dateLiv) + " · " + K.tt("Wijzigen {tot}", { tot: totTxt(o.dateLiv) }) : ""), body, footer: '<button type="button" class="btn btn-p btn-block" id="eSave"><span>' + K.t("Wijziging opslaan") + '</span> <span class="mono" id="eTot"></span></button>', onClose: () => { panel = null; } });
+    const bindLine = stp => {
       const id = String(stp.dataset.stepper || "").replace(/^e:/, ""), l = st.lines.find(x => x.p.id === id), inp = stp.querySelector("input"); if (!l) return;
       const n = stepUnits(l.p), step = n > 1 ? 1 : isKg(l.p) ? 0.5 : 1;
       const set = v0 => { let v = n > 1 ? Math.max(0, Math.round(v0)) * n : Math.max(0, Math.round(v0 * 1000) / 1000); if (n === 1 && !isKg(l.p)) v = Math.round(v); l.qty = capQty(l.p, v); inp.value = K.num(l.qty / n); pakSuffix(stp, l.p, l.qty); stp.closest("li").classList.toggle("x-off", !(l.qty > 0)); tot(); };
       stp.querySelector("[data-dec]").onclick = () => set((K.parseNum(inp.value) || 0) - step);
       stp.querySelector("[data-inc]").onclick = () => set((K.parseNum(inp.value) || 0) + step);
       inp.addEventListener("change", () => set(K.parseNum(inp.value) || 0));
-    });
+    };
+    // Zoeken in de catalogus (actieve producten, uitverkocht niet) ; een treffer « + » zet één stap op de bestelling.
+    const hits = () => {
+      const qk = K.searchKey(panel.el.querySelector("#eQ").value), box = panel.el.querySelector("#eHits");
+      if (!qk) { box.innerHTML = ""; return; }
+      const have = new Set(st.lines.map(l => l.p.id));
+      const list = (cat.products || []).filter(p => !have.has(p.id) && stock(p) !== 0 && K.searchHit(K.searchKey([p.nom, p.kaliber, p.vis && p.vis.wetenschappelijkeNaam].filter(Boolean).join(" ")), qk)).slice(0, 6);
+      box.innerHTML = list.length ? list.map(p => '<li><span class="minw-0"><b>' + K.esc(toon(p)) + '</b><small class="quiet mono d-block">' + K.eur(p.prix) + ' / ' + K.esc(unitLabel(p)) + '</small></span><button type="button" class="btn btn-o btn-sm" data-eadd="' + p.id + '" aria-label="' + K.esc(K.t("Toevoegen") + ": " + toon(p)) + '">+ ' + K.t("Toevoegen") + '</button></li>').join("") : '<li class="quiet fs-13">' + K.esc(K.t("Niets gevonden voor") + " „" + panel.el.querySelector("#eQ").value.trim() + "”") + '</li>';
+    };
+    const tot = () => { const t = st.lines.reduce((s2, l) => s2 + window.FamoVat.r2(l.p.prix * l.qty), 0); panel.el.querySelector("#eTot").textContent = K.eur(t); panel.el.querySelector("#eSave").disabled = !st.lines.some(l => Math.abs(l.qty - l.orig) > 1e-9) || !st.lines.some(l => l.qty > 0); };
+    K.$$(".stepper", panel.el).forEach(bindLine);
     tot();
+    panel.el.querySelector("#eQ").addEventListener("input", K.debounce(hits, 120));
+    K.on(panel.el, "click", "[data-eadd]", (e, t) => {
+      const p = byId(t.dataset.eadd); if (!p) return;
+      const v = capQty(p, stepUnits(p) > 1 ? stepUnits(p) : isKg(p) ? 0.5 : 1); if (!(v > 0)) { K.toast(K.t("Uitverkocht"), { kind: "err" }); return; }
+      const l = { p, qty: v, orig: 0 }; st.lines.push(l);
+      panel.el.querySelector("#eLines").insertAdjacentHTML("beforeend", usualLineHtml(l, false).replace('data-stepper="u:', 'data-stepper="e:'));
+      const stp = panel.el.querySelector('#eLines [data-stepper="e:' + CSS.escape(p.id) + '"]'); if (stp) { bindLine(stp); const inc = stp.querySelector("[data-inc]"); if (inc) inc.focus(); }
+      const q = panel.el.querySelector("#eQ"); q.value = ""; hits(); tot();
+    });
     bindOrderActions(panel.el);
     panel.el.querySelector("#eSave").onclick = e => saveOrder(o.ref, st.lines.filter(l => l.qty > 0).map(l => ({ productId: l.p.id, quantity: l.qty })), e.currentTarget, () => { closePanel(); if (K.hashParams().path === "bestellingen" || K.hashParams().path === "facturen") renderOrderList(); });
   }

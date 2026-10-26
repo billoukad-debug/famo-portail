@@ -60,7 +60,8 @@ const subs = async () => store().list(P.TABLE);
 const conf = async () => (await store().list("Configuratie"))[0];
 const patch = async (table, id, fields) => store().replaceAll(table, (await store().list(table)).map((r) => (r.id === id ? Object.assign({}, r, { fields: Object.assign({}, r.fields, fields) }) : r)));
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const LATER = addDays(lev.brusselsToday(), 5); // jamais touché par l'heure limite
+// Jamais touché par l'heure limite, et jamais un dimanche (pas de livraison) : +5 jours tombait un dimanche chaque mardi.
+const LATER = (() => { let d = addDays(lev.brusselsToday(), 5); if (new Date(d + "T12:00:00Z").getUTCDay() === 0) d = addDays(d, 1); return d; })();
 
 async function seed(confFields) {
   net.pushes.length = 0; net.reply = null;

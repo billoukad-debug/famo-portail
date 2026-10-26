@@ -251,7 +251,7 @@
   });
   // Spec 038 (correctifs x30) : contact, opmerking, factuurstatus, vaste producten.
   Object.assign(K.FR, {
-    "Een vraag?": "Une question ?", "Bel of mail Famo.": "Appelez ou écrivez à Famo.", "Uw gegevens": "Vos coordonnées", "Bedragen excl. btw": "Montants HTVA", "Liever even bellen?": "Vous préférez appeler ?", "Uw afgesproken prijzen": "Vos prix négociés", "Herkomst, staat en allergenen per product; lotnummer op de leveringsbon.": "Origine, état et allergènes par produit ; numéro de lot sur le bon de livraison.", "Bel, stuur een WhatsApp of mail Famo.": "Appelez, envoyez un WhatsApp ou un e-mail à Famo.",
+    "Een vraag?": "Une question ?", "Bel of mail Famo.": "Appelez ou écrivez à Famo.", "Uw gegevens": "Vos coordonnées", "Product toevoegen": "Ajouter un produit", "Pas aantallen aan of zet op 0 om te schrappen.": "Ajustez les quantités ou mettez 0 pour retirer.", "houdbaar tot": "à consommer de préférence avant le", "Lot per artikel, zoals op de leveringsbon.": "Lot par article, comme sur le bon de livraison.", "Bedragen excl. btw": "Montants HTVA", "Liever even bellen?": "Vous préférez appeler ?", "Uw afgesproken prijzen": "Vos prix négociés", "Herkomst, staat en allergenen per product; lotnummer op de leveringsbon.": "Origine, état et allergènes par produit ; numéro de lot sur le bon de livraison.", "Bel, stuur een WhatsApp of mail Famo.": "Appelez, envoyez un WhatsApp ou un e-mail à Famo.",
     "opmerking": "remarque", "Andere dag…": "Autre jour…", "Aanpasbaar {tot}": "Modifiable {tot}",
     "Geleverd · niet betaald": "Livré · non payé", "Vervallen sinds {d}": "Échue depuis le {d}", "Te betalen vóór {d}": "À payer avant le {d}",
     "Te betalen vóór": "À payer avant le", "Overzicht · pro forma": "Récapitulatif · pro forma",

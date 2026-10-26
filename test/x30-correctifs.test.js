@@ -202,3 +202,15 @@ test("spec 038 documentée (session, cookie) et note « Nieuw » pour Mohsen", (
   assert.match(spec, /Max-Age/); assert.match(spec, /localStorage/); assert.match(spec, /12 h/);
   assert.match(read("assets/nieuws.js"), /spec: "038"/);
 });
+
+test("Wijzigen : ajouter un produit dans le panneau ; détail livré : lot par article (données du bon, /api/klantdoc)", () => {
+  const k = read("assets/pages/klant.js");
+  assert.match(k, /'<div class="ke-add"><label class="flabel" for="eQ">' \+ K\.t\("Product toevoegen"\)/);
+  assert.match(k, /const list = \(cat\.products \|\| \[\]\)\.filter\(p => !have\.has\(p\.id\) && stock\(p\) !== 0 && K\.searchHit/, "produits actifs du catalogue, pas déjà dans la commande, pas épuisés");
+  assert.match(k, /const l = \{ p, qty: v, orig: 0 \}; st\.lines\.push\(l\);/, "nouvelle ligne = changement, le serveur revérifie à l'enregistrement");
+  assert.ok(!/<a class="btn btn-o" href="#\/catalogus">' \+ K\.t\("Toevoegen"\)/.test(k), "plus de détour par le catalogue et le panier");
+  assert.match(k, /if \(o\.statut === "Facturée" \|\| o\.statut === "Sortie en livraison"\) showLots\(o\.ref, panel\);/);
+  assert.match(k, /d = await api\("\/api\/klantdoc", \{ json: Object\.assign\(\{\}, creds\(\), \{ ref \}\) \}\)/);
+  const K = loadK();
+  for (const s of ["Product toevoegen", "Pas aantallen aan of zet op 0 om te schrappen.", "houdbaar tot", "Lot per artikel, zoals op de leveringsbon.", "Bedragen excl. btw"]) assert.ok(K.FR[s], "FR manquant : " + s);
+});

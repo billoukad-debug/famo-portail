@@ -57,6 +57,9 @@ faible : connexion 62 (régression : formulaire à 2 656 px sur téléphone), pa
   « Opnieuw bestellen » sur une commande encore modifiable ; « Annuleren » passe dans le panneau Wijzigen (lien discret) ;
   sous chaque article la ligne d'origine de la visfiche du produit, et sur une commande livrée le renvoi au bon de
   livraison pour le lot.
+- **FR-007b Wijzigen** : on ajoute un produit dans le panneau lui-même (recherche dans le catalogue actif, « + Toevoegen »,
+  une étape) ; le serveur revérifie tout à l'enregistrement (`/api/klantorder` action `wijzig`, déjà capable d'ajouter).
+  Sur une commande livrée, le détail affiche le lot par article quand l'équipe l'a saisi (données du bon, `/api/klantdoc`).
 - **FR-008 Compte et contact** : carte « Een vraag? » en haut du compte et sur la confirmation (WhatsApp **seulement si un
   numéro est configuré** dans la configuration publique, téléphone, e-mail) ; réglage « Tellers in het menu » retiré ;
   « Uitloggen » sur toute la largeur ; « Favorieten » devient « Uw vaste producten » (même liste que Bestellen : produits
