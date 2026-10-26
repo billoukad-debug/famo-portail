@@ -52,7 +52,12 @@ Statuts : chaque couleur = un état défini (Ontvangen ambre, Klaar Noordzee, On
 
 ## Typographie
 
-**Atkinson Hyperlegible Next** (OFL, hébergée dans `assets/fonts/`), une seule famille. Dessinée par le Braille Institute pour que chaque caractère se distingue (1/l/I, 0/O, 5/S) : c'est la raison du choix, pas la mode — l'équipe lit des références et des poids dans le froid, avec des gants. Conséquence assumée : **le zéro est barré** (pas de variante sans barre dans la police). Titres 700, léger tracking négatif ; corps 14,5 px ; chiffres tabulaires dans les colonnes de nombres seulement. Casse normale partout : aucun libellé en capitales.
+**Atkinson Hyperlegible Next** (OFL, hébergée dans `assets/fonts/`) pour tout ce qui se lit et se compte. Dessinée par le Braille Institute pour que chaque caractère se distingue (1/l/I, 0/O, 5/S) : c'est la raison du choix, pas la mode — l'équipe lit des références et des poids dans le froid, avec des gants. Conséquence assumée : **le zéro est barré** (pas de variante sans barre dans la police). Titres 700, léger tracking négatif ; corps 14,5 px ; chiffres tabulaires dans les colonnes de nombres seulement. Casse normale partout : aucun libellé en capitales.
+
+**Amendement x30 (spec 036, 24/10/2026, à valider par le gérant) : deux voix.** Le portail client ajoute une voix
+éditoriale, **Instrument Serif** (OFL, `assets/fonts/instrument-serif-*`, `--serif`), pour les titres de vue, le titre
+de la carte « Zoals elke maandag » et la confirmation. Elle ne sert **jamais** aux données, aux prix, aux quantités ni
+à l'équipe : Atkinson garde tout cela. Un nom de produit saisi en capitales s'affiche en casse normale (`FamoBestellen.naam`).
 
 ## Formes
 
@@ -62,9 +67,11 @@ Rayons hiérarchisés : **6** ce qu'on touche (boutons, champs), **10** ce qui c
 
 `assets/brand/famo-mark.svg` (fond clair : carré Noordzee, F blanc) et `famo-mark-light.svg` (timonerie : carré clair, F Diepzee) : un **F sobre**, dessiné en tracés (pas une lettre de police), coins arrondis 7/32. Choix du client le 30/09/2026 (le poisson de la spec 002 est retiré, spec 007). Utilisée par `.logo` (CSS), le favicon, les icônes PWA (`assets/icons/`) et l'en-tête des documents (`assets/docs/documents.js`). Le nom « FAMO Seafood » est écrit à côté.
 
+**Amendement x30 (spec 037, 24/10/2026) : une deuxième voix, éditoriale.** **Instrument Serif** (OFL, `assets/fonts/`, paquet officiel `@fontsource/instrument-serif`, auto-hébergée : la CSP `font-src 'self'` bloque Google Fonts) pour les titres et les grands chiffres de l'accueil public seulement (variable `--serif`). Elle supprime le « 22:ØØ » barré du titre. Atkinson reste pour les données, les prix, les formulaires et l'équipe. Décision de marque à confirmer par le gérant.
+
 ## Accueil client
 
-Titre « Vóór 22:00 besteld, morgen in uw keuken. » (heure limite lue dans la configuration), texte de service, formulaire de connexion. Pas de minuteur (retiré à la demande du client, spec 007), pas de trio de chiffres, pas de slogan.
+Spec 037 « De avondtoonbank » (classes `ac-*` dans `ui.css`) : en-tête timonerie avec « Aanmelden », bandeau vivant (heure limite, prochain jour livré, à l'heure de Bruxelles, `assets/tij.js` ; aucun créneau tant qu'il n'est pas configuré), titre serif « Vóór 22:00 besteld, *morgen in uw keuken.* » (heure lue dans la configuration), comptoir de six plaques d'espèces (aplats et formes SVG, « ter illustratie », jamais de photo copiée), fiche « Voorbeeld » de la carte d'identité d'un lot (mentions de la spec 035), « Zo werkt het » en 3 étapes vraies, connexion et « Een vraag vanavond? » (WhatsApp seulement si configuré), pied de page commun. Pas d'avis, de labels ni de chiffres inventés.
 
 ## Nom
 
@@ -72,7 +79,7 @@ Titre « Vóór 22:00 besteld, morgen in uw keuken. » (heure limite lue dans la
 
 ## Appareils
 
-- **Client** : téléphone et ordinateur ont la même importance. < 720 px : onglets en bas, barre panier au-dessus ; ≥ 720 px : en-tête en haut (marque, onglets, panier), catalogue sur toute la largeur, barre panier en bas ; ≥ 1100 px : colonne panier ; ≥ 1240 px : catégories à gauche (spec 019). Le catalogue a trois « Weergave » retenues sur l'appareil : **Lijst** (une ligne de ± 60 px : vignette 44 px, nom, prix, étoile, quantité ; deux lignes compactes au téléphone), **Tegels** (photo 4:3 entière sur fond doux — ce sont des emballages —, détail dans un panneau), **Compact** (texte seul, ± 46 px). Les lignes suivent la largeur de la liste (container queries). Barre d'outils collante (recherche + ×, nombre, Sorteren, Weergave, catégories), familles déduites des noms dans une grande catégorie (boutons rectangulaires, pas de pilules), titres de groupe collants, « Naar boven ». Vignette : photo principale ou icône neutre (`K.thumb`, aussi dans Voorraad, Invoeren et Beheer) ; le dépliage montre la galerie de toutes les vues (jusqu'à 6, `Foto`, envoyées depuis Beheer) : grande image qu'on fait glisser (scroll-snap), vignettes-boutons « Foto 2 van 3 », ← → au clavier, pas d'animation au survol (spec 018).
+- **Client** : téléphone et ordinateur ont la même importance. < 720 px : onglets en bas, barre panier au-dessus ; ≥ 720 px : en-tête en haut (marque, onglets, panier), catalogue sur toute la largeur, barre panier en bas ; ≥ 1100 px : colonne panier ; ≥ 1240 px : catégories à gauche (spec 019). **x30 (spec 036) : une seule vue « Bestellen »** — bandeau de l'heure collé en haut (timonerie), carte « Zoals elke maandag » au-dessus de la liste (à droite avec le panier ≥ 1100 px), filtres Alles · Uw vaste · Rauw OK · groupes métier, plaques d'espèce sans photo, un seul « + » de 44 px ; onglets Bestellen · Leveringen · Facturen · Account. Avant x30, le catalogue avait trois « Weergave » retenues sur l'appareil : **Lijst** (une ligne de ± 60 px : vignette 44 px, nom, prix, étoile, quantité ; deux lignes compactes au téléphone), **Tegels** (photo 4:3 entière sur fond doux — ce sont des emballages —, détail dans un panneau), **Compact** (texte seul, ± 46 px). Les lignes suivent la largeur de la liste (container queries). Barre d'outils collante (recherche + ×, nombre, Sorteren, Weergave, catégories), familles déduites des noms dans une grande catégorie (boutons rectangulaires, pas de pilules), titres de groupe collants, « Naar boven ». Vignette : photo principale ou icône neutre (`K.thumb`, aussi dans Voorraad, Invoeren et Beheer) ; le dépliage montre la galerie de toutes les vues (jusqu'à 6, `Foto`, envoyées depuis Beheer) : grande image qu'on fait glisser (scroll-snap), vignettes-boutons « Foto 2 van 3 », ← → au clavier, pas d'animation au survol (spec 018).
 - **Personnel** : tablette au magasin (820), téléphone en tournée (390), ordinateur au bureau (1280). Barre latérale 240px → rail 88px (≤ 1180px) → bandeau horizontal (≤ 720px). Cibles ≥ 44px, y compris les cases à cocher (zone 44px, case visible 22px).
 - **Bestellingen** : un appui sur une commande la déplie, un second ouvre sa page.
 

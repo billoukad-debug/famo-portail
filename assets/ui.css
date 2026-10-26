@@ -1,8 +1,8 @@
 /* Atkinson Hyperlegible Next (SIL OFL 1.1, assets/fonts/OFL-atkinson.txt), hébergée sur le site (RGPD, C-11).
    Dessinée par le Braille Institute pour distinguer chaque caractère (1/l/I, 0/O, 5/S, 8/B) : lisible dans la
    chambre froide, avec des gants, sur une tablette mouillée. Police variable 200–800. */
-@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
-@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin-ext.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin.woff2?v=18b2a1a39a) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-hyperlegible-next-latin-ext.woff2?v=7dae0c6c66) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 /* FAMO · Vismijn (spec 002, 30/09/2026) — le monde du produit : la criée, la glace, l'inox, la mer du Nord.
    IJs (fond froid) · Diepzee (encre, timonerie de l'équipe) · Noordzee (toute action). Marque : un F sobre (assets/brand/).
    Rayons hiérarchisés : 6 ce qu'on touche · 10 ce qui contient · 14 ce qui flotte. Ombres seulement sur ce qui flotte.
@@ -23,6 +23,8 @@
   --shadow:0 1px 2px rgba(14,34,41,.06),0 12px 32px rgba(14,34,41,.16);
   --lift:0 1px 2px rgba(14,34,41,.05),0 4px 12px rgba(14,34,41,.08);
   --sans:"Atkinson Hyperlegible Next",-apple-system,"Segoe UI",system-ui,sans-serif;--monof:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  /* x30 lot A (specs/036) : voix éditoriale (titres, grands chiffres), badge « Rauw OK », bandeau de l'heure */
+  --serif:"Instrument Serif",ui-serif,Georgia,"Times New Roman",serif;--rauw:#1F6B3A;--rauw-bg:#DCEFE2;--tide-ok:#7FE0A8;--tide-amber:#F2B84B;
 }
 
 /* Hoog contrast (knop in de bovenbalk, K.contrast ; volgt « meer contrast » van het toestel zolang er geen keuze is) :
@@ -39,6 +41,7 @@
   --danger:#841F11;--danger-bg:#F8E4DF;--klei:#8A3210;--gold:#8A3210;
   --th-bg:#EEF3F3;--row-hover:#EAF0F0;--chart-prev:#66787E;
   --deep:#03161C;--deep-2:#0C2A33;--deep-ink:#FFFFFF;--deep-ink-2:#D2DFE2;
+  --rauw:#124A26;--rauw-bg:#DCEFE2;
 }
 :root[data-contrast="hoog"] body{font-size:15.5px}
 :root[data-contrast="hoog"] :focus-visible{outline-width:3px}
@@ -1041,3 +1044,304 @@ a.kp-link:hover{background:var(--row-hover)}
 .nw-invite{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .notice a.btn-p{color:#fff}
 .nw-date{margin:0}.nw-todo{margin-bottom:4px}
+/* QR de virement dans le relevé client (specs/034) : replié par défaut, ≥ 2 × 2 cm, fond blanc (lisible en mode sombre). */
+.kqr summary{list-style:none;cursor:pointer;min-height:44px;display:inline-flex;align-items:center}
+.kqr summary::-webkit-details-marker{display:none}
+.kqr-fig{margin:8px 0 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.kqr-fig svg{display:block;width:168px;height:168px;flex:none;border-radius:6px}
+/* Visfiche (spec 035) : Beheer → Product, ingeklapt deel met herkomst en allergenen */
+.vis-box>summary{min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:var(--p);list-style:none}
+.vis-box>summary::-webkit-details-marker{display:none}
+.vis-box>summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);flex:none}
+.vis-box[open]>summary::before{transform:rotate(45deg)}
+.vis-box>summary:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.vis-alg{border:0;padding:0;margin:0;min-width:0}
+.vis-alg>legend{font-size:13px;font-weight:600;padding:0;margin-bottom:6px}
+.vis-alg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px}
+.vis-alg-grid>label{min-height:44px}
+
+/* =====================================================================================================
+   x30 lot A (specs/036) — écran « Bestellen » du portail client : bandeau de l'heure, carte « Zoals elke maandag »,
+   une seule vue de catalogue (plaques d'espèce, « + » qui devient un stepper, Rauw OK), voix serif des titres.
+   Tout est préfixé .x30 (la coque client) ou par des classes x-* nouvelles : aucune règle partagée n'est réécrite.
+   Jetons ajoutés au :root (--serif, --rauw, --rauw-bg, --tide-ok, --tide-amber) : contrôlés par contrast-check.js.
+   ===================================================================================================== */
+/* Instrument Serif (SIL OFL 1.1, assets/fonts/OFL-instrument-serif.txt), paquet npm @fontsource/instrument-serif 5.2.8,
+   hébergée sur le site (CSP font-src 'self' : Google Fonts est bloqué). Titres et grands chiffres seulement. */
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-normal.woff2?v=5eb09b5ac0) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-ext-400-normal.woff2?v=290e6267dd) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:swap;src:url(/assets/fonts/instrument-serif-latin-400-italic.woff2?v=5a51946dff) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+.x30{--x-tide-h:41px}
+/* Voix éditoriale : titres de page, titre de la carte, confirmation. Atkinson reste pour les données et les prix. */
+.x30 .ktitle{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.05;letter-spacing:-.005em}
+.x30 .ok-head .h1{font-family:var(--serif);font-weight:400;font-size:36px;letter-spacing:-.005em}
+.x30 .ksub{font-size:12.5px}
+
+/* ---- X2 bandeau de l'heure (timonerie) : collé en haut, jamais tronqué (le texte passe à la ligne) ---- */
+.x-tide{position:sticky;top:0;z-index:25;background:var(--deep);color:var(--deep-ink)}
+.x-tide-t{display:flex;align-items:center;gap:10px;margin:0;padding:9px 16px 8px;min-height:38px;font-size:13.5px;line-height:1.35}
+.x-tide-t b{color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
+.x-dot{width:8px;height:8px;border-radius:50%;background:var(--tide-ok);box-shadow:0 0 0 4px rgba(127,224,168,.18);flex:none}
+.x-bar{display:block;height:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.x-bar i{display:block;height:100%;background:var(--tide-ok);transform-origin:left center}
+.x-tide.x-amber .x-dot{background:var(--tide-amber);box-shadow:0 0 0 4px rgba(242,184,75,.22)}
+.x-tide.x-amber .x-bar i{background:var(--tide-amber)}
+@media (prefers-reduced-motion:no-preference){.x-bar i{transition:transform .6s cubic-bezier(.23,1,.32,1)}}
+@media (max-width:719px){
+  .x30 .mtop{top:var(--x-tide-h)}
+  .x30 .kt-s{top:var(--x-tide-h)}
+  .x30 .kt-c{top:calc(var(--x-tide-h) + 62px)}
+  .x30 .kl>.sec{top:calc(var(--x-tide-h) + 107px)}
+  html:has(.x30.kv-catalogus){scroll-padding-top:calc(156px + 41px)}
+}
+@media (min-width:720px){
+  .x-tide{top:64px;margin:0 -24px;padding:0 8px}
+  .x30 .ktools{top:calc(64px + var(--x-tide-h))}
+  .x30 .kl>.sec{top:calc(64px + var(--x-tide-h) + var(--kt-h,112px))}
+  html:has(.x30.kv-catalogus){scroll-padding-top:calc(64px + 41px + var(--kt-h,112px) + 48px)}
+}
+@media (min-width:1240px){.x-tide{margin:0 -32px;padding:0 16px}}
+
+/* ---- X1 carte « Zoals elke maandag » / « Uw bestelling » ---- */
+.x-usual{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);overflow:hidden;margin:12px 16px 8px}
+.x-usual[hidden]{display:none}
+.x-uh{padding:16px 16px 8px}
+.x-uh small{display:block;color:var(--ink-2);font-size:13px}
+.x-uh h2{font:400 34px/1.02 var(--serif);letter-spacing:-.01em;margin:4px 0 0;text-wrap:balance}
+.x-ul{list-style:none;margin:0;padding:0 16px}
+.x-ul li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line-soft)}
+.x-un{min-width:0}.x-un b{display:block;font-size:14.5px;line-height:1.25;font-weight:600;overflow-wrap:anywhere}.x-un small{color:var(--ink-2);font-size:12.5px}
+.x-ul li.x-off .x-un b{text-decoration:line-through;color:var(--ink-2)}
+.x-ul .stepper .st-u{padding-right:0}
+.x-uq{font-weight:700;padding:0 8px}
+.x-ul-p{padding:0;margin-top:8px}
+.x-uf{padding:12px 16px 16px;display:grid;gap:8px}
+.x-go{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:56px;padding:0 18px;border:0;border-radius:var(--r-lg);background:var(--p);color:#fff;font:700 16px/1.2 var(--sans);text-align:left;cursor:pointer}
+.x-go:hover{background:var(--p-deep)}
+.x-go:focus-visible{outline:2px solid var(--p);outline-offset:3px}
+.x-go:disabled{background:var(--soft);color:var(--ink-2);cursor:not-allowed}
+.x-go[hidden]{display:none}
+.x-go.x-danger{background:var(--danger)}
+.x-go .mono{white-space:nowrap}
+.x-help{margin:0;font-size:12.5px;color:var(--ink-2);text-align:center;text-wrap:balance}.x-help[hidden]{display:none}
+.x-state{margin:0;text-align:center}
+.ok-head .x-state{margin-top:10px}
+.x-uf .kc-min{margin:0;text-align:center}
+
+/* ---- Plaques d'espèce (sans photo) : aplat + forme ; jamais un pictogramme gris ---- */
+.x-pl{position:relative;display:block;flex:none;width:56px;height:56px;border-radius:var(--r-lg);overflow:hidden}
+.x-pl svg{position:absolute;right:-10px;bottom:-8px;width:76px;height:46px}
+.x-pl.x-uth,.pthumb.x-uth{width:40px;height:40px;border-radius:8px}.x-pl.x-uth svg{right:-8px;bottom:-6px;width:56px;height:34px}
+.pthumb.x-th{width:56px;height:56px;border-radius:var(--r-lg)}
+.x-pl-zalm{background:#F6DCD2}.x-pl-tonijn{background:#F0D5D7}.x-pl-garnaal{background:#F5E4DD}.x-pl-tiger{background:#E3E6EA}
+.x-pl-zeewier{background:#DDE9D5}.x-pl-inktvis,.x-pl-tube{background:#EEE8DF}.x-pl-ei{background:#F3EDE2}
+.x-pl-schelp{background:#E2E4EE}.x-pl-kreeft{background:#F6DDD6}.x-pl-vis{background:#DCE6EA}
+.x-plate-l{position:relative;flex:none;width:200px;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;align-self:flex-start}
+.x-plate-l svg{position:absolute;right:-6%;bottom:-14%;width:78%;height:auto}
+.x-plate-l i{position:absolute;left:12px;top:10px;right:12px;font:italic 400 21px/1.1 var(--serif);color:var(--ink)}
+@media (max-width:480px){.x-plate-l{width:100%}}
+
+/* ---- X6 catalogue : une seule vue (.kl[data-view=x30]) ---- */
+.kl[data-view=x30]{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:0 12px}
+.kl[data-view=x30] .prod{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"x ad" "pp ad" "d d";column-gap:12px;padding-top:10px;padding-bottom:10px;contain-intrinsic-size:auto 96px}
+.kl[data-view=x30] .pr-x{gap:12px;align-items:flex-start;padding:0}
+.kl[data-view=x30] .pr-t{padding-top:2px;gap:3px}
+.kl[data-view=x30] .pn{font-size:15px}
+.x-o{display:block;font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.x-o i{font-style:italic}
+.kl[data-view=x30] .prod>.pp{grid-area:pp;padding-left:68px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin-top:2px}
+.kl[data-view=x30] .prod>.x-add{grid-area:ad;align-self:center}
+.kl[data-view=x30] .prod>.stepper{grid-area:ad;align-self:center;display:none}
+.kl[data-view=x30] .pr-d{padding:10px 0 6px}
+.kl[data-view=x30] .prod.on{background:transparent}.kl[data-view=x30] .prod.on .pn{color:var(--ink)}
+.x-add{min-width:44px;height:44px;padding:0 10px;border:1px solid var(--p);border-radius:var(--r);background:var(--card);color:var(--p);font:600 22px/1 var(--sans);display:inline-flex;align-items:center;justify-content:center;gap:3px;cursor:pointer;white-space:nowrap}
+.x-add:hover{background:var(--p-soft)}
+.x-add.x-on{background:var(--p);color:#fff;font-size:15px;font-weight:700}.x-add.x-on:hover{background:var(--p-deep)}
+.x-add small{font-size:12px;font-weight:600}
+.x-add:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.x-dact{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.x-dact .fav{display:inline-flex;align-items:center;gap:6px}.x-dact .fav svg{width:18px;height:18px}
+.tag.x-tag-raw{background:var(--rauw-bg);color:var(--rauw);border-color:transparent;font-weight:700}
+.tag.x-tag-frz{background:var(--st-road-bg);color:var(--st-road-ink);border-color:transparent}
+.x30 .cats button.x-raw{color:var(--rauw)}.x30 .cats button.x-raw.on{border-bottom-color:var(--rauw)}
+.x30 .kside button.x-raw{color:var(--rauw)}.x30 .kside button.x-raw.on{background:var(--rauw-bg);color:var(--rauw)}
+@container kl (min-width:540px){
+  .kl[data-view=x30] .prod{grid-template-columns:minmax(0,1fr) minmax(110px,auto) auto;grid-template-areas:"x pp ad" "d d d";align-items:center}
+  .kl[data-view=x30] .prod>.pp{padding-left:0;margin:0;flex-direction:column;align-items:flex-end;gap:0}
+  .kl[data-view=x30] .prod.on>.x-add{display:none}
+  .kl[data-view=x30] .prod.on>.stepper{display:inline-flex}
+  .kl[data-view=x30] .x-dact .stepper{display:none}
+  .kl[data-view=x30] .pr-d{padding-left:68px}
+}
+@media (max-width:719px){
+  .kl[data-view=x30]{border-left:0;border-right:0;border-radius:0;padding:0 16px}
+  .x30.kv-catalogus .mtop{padding-top:14px}
+}
+
+/* ---- Mise en page : carte au-dessus de la liste (téléphone, tablette) ; à droite, avec le panier (≥ 1100) ---- */
+@media (min-width:720px){.x-usual{margin:4px 0 16px}}
+@media (min-width:1100px){
+  .x30 .kgrid{grid-template-columns:minmax(0,1fr) 360px}
+  .x30 .kgrid>.kcat{grid-column:1;grid-row:1}
+  .x30 .x-right{grid-column:2;grid-row:1;position:sticky;top:calc(64px + var(--x-tide-h) + 16px);display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 64px - var(--x-tide-h) - 32px);overflow:auto}
+  .x30 .x-right .kcart{position:static;max-height:none}
+  .x30 .x-usual{margin:0}
+  .x30 .x-uh h2{font-size:32px}
+}
+@media (min-width:1240px){
+  .x30 .kgrid{grid-template-columns:190px minmax(0,1fr) 360px}
+  .x30 .kside{grid-column:1;grid-row:1;top:calc(64px + var(--x-tide-h) + 16px)}
+  .x30 .kgrid>.kcat{grid-column:2}
+  .x30 .x-right{grid-column:3}
+}
+@media (min-width:1440px){.x30 .kgrid{grid-template-columns:210px minmax(0,1fr) 380px}}
+/* Pastille « Bevestigd · aanpasbaar tot … » : elle passe à la ligne plutôt que d'écraser la date (390 px). */
+.x30 .orow-st .cell-st,.x30 .x-state .cell-st{white-space:normal;text-align:left}
+@media (max-width:1023px){.x30 .orow-st{max-width:170px}}
+/* Facturen : même mise en page que Leveringen (≥ 1024 : lignes en tableau) */
+@media (min-width:720px){.kv-facturen .mtop .cats{margin:0;padding:0;flex:none}}
+@media (min-width:1024px){.kv-facturen .mlist.grid{display:flex;flex-direction:column;gap:16px;align-items:stretch}}
+/* ========== x30 lot C : accueil public « De avondtoonbank » (specs/037-x30-accueil) ==========
+   Deux voix : Instrument Serif (SIL OFL 1.1, assets/fonts/OFL-instrument-serif.txt, paquet @fontsource/instrument-serif
+   5.3.0, hébergée sur le site : CSP font-src 'self') pour les titres et les grands chiffres de l'accueil ; Atkinson
+   Hyperlegible Next pour tout le reste. Classes ac-* (accueil) : aucune collision avec .hero, .steps, .login du portail.
+   Plaques d'espèces : aplats et formes dessinés en SVG, aucune photo. */
+:root{--serif:"Instrument Serif",ui-serif,Georgia,"Times New Roman",serif;--ac-ice:#DCE7E8;--ac-sea:#9FD3DE}
+.ac{min-height:100vh;display:flex;flex-direction:column;background:var(--canvas)}
+.ac main{flex:1}.ac main:focus{outline:none}
+.ac-w{width:100%;max-width:1200px;margin:0 auto;padding:0 16px}
+/* en-tête timonerie */
+.ac-hd{background:var(--deep);color:#fff}
+.ac-hd-in{display:flex;align-items:center;gap:10px;min-height:64px}
+.ac-brand{padding:0;gap:10px;min-height:44px;color:#fff}.ac-brand:hover{color:#fff}
+.ac-brand b{color:#fff;font-size:16px}.ac-brand small{color:var(--deep-ink-2)}
+.ac-hd .logo{background-image:url(/assets/brand/famo-mark-light.svg)}
+.ac-nav{margin-left:auto;display:flex;align-items:center;gap:8px}
+.ac-hd .lang{background:transparent;border-color:rgba(255,255,255,.3)}
+.ac-hd .lang>*{color:var(--deep-ink)}.ac-hd .lang>*+*{border-left:1px solid rgba(255,255,255,.3)}
+.ac-hd .lang>.on{background:#fff;color:var(--deep)}
+.lang>a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:40px;padding:0 10px;font-size:12.5px;font-weight:600;letter-spacing:.04em;text-decoration:none}
+.lang>a:hover{text-decoration:none}
+.ac-btn-light{background:#fff;border-color:#fff;color:var(--deep)}.ac-btn-light:hover{background:var(--p-soft);border-color:var(--p-soft);color:var(--deep)}
+.ac-btn-ghost{background:transparent;border-color:rgba(255,255,255,.5);color:#fff}.ac-btn-ghost:hover{background:rgba(255,255,255,.1);color:#fff}
+.ac-hd :focus-visible,.ac-tide :focus-visible,.ac-hero :focus-visible{outline-color:var(--ac-sea)}
+/* bandeau vivant (assets/tij.js) */
+.ac-tide{background:var(--p-deep);color:#fff}
+.ac-tide-in{display:flex;align-items:center;gap:12px;min-height:44px;padding-top:10px;padding-bottom:10px}
+.ac-tide p{margin:0;font-size:14px;line-height:1.4;text-wrap:pretty}.ac-tide b{font-weight:700;font-variant-numeric:tabular-nums}
+.ac-dot{width:8px;height:8px;border-radius:50%;background:#7FE0A8;box-shadow:0 0 0 4px rgba(127,224,168,.2);flex:none}
+.ac-tide.is-soon{background:#6E4300}.ac-tide.is-soon .ac-dot{background:#FFC861;box-shadow:0 0 0 4px rgba(255,200,97,.25)}
+/* héros */
+.ac-hero{background:var(--deep);color:#fff;padding-top:28px;overflow:hidden}
+.ac-hero-in{display:grid;gap:28px}
+.ac-eyebrow{margin:0;color:var(--deep-ink-2);font-size:13.5px}
+.ac-h1{font-family:var(--serif);font-weight:400;font-size:48px;line-height:1;letter-spacing:-.01em;margin:12px 0 18px;color:#fff;text-wrap:balance}
+.ac-h1 em{font-style:italic;color:var(--ac-sea)}
+.ac-lead{margin:0 0 24px;font-size:16.5px;line-height:1.55;color:var(--deep-ink);max-width:34em;text-wrap:pretty}
+.ac-cta{display:flex;flex-wrap:wrap;gap:10px;margin:0}.ac-cta .btn{min-height:48px;padding:0 22px;font-size:15px}
+.ac-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.14);border-radius:var(--r-lg);overflow:hidden;margin:28px 0 0;max-width:34em}
+.ac-facts>div{background:var(--deep);padding:14px 16px 16px}
+.ac-facts dt{font-family:var(--serif);font-size:34px;line-height:1;color:#fff}
+.ac-facts dd{margin:6px 0 0;color:var(--deep-ink-2);font-size:13px;line-height:1.35}
+/* le comptoir : plaques d'espèces */
+.ac-counter{margin:0;background:var(--ac-ice);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:14px 14px 12px}
+.ac-plates{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ac-plate{position:relative;aspect-ratio:4/3;border-radius:var(--r-lg);padding:10px 12px;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.ac-plate svg{position:absolute;right:-8%;bottom:-12%;width:76%;height:auto}
+.ac-pn{position:relative;font-weight:700;font-size:14px;line-height:1.2;color:var(--ink)}
+.ac-la{position:relative;font-family:var(--serif);font-size:15.5px;line-height:1.15;color:var(--ink-2)}
+.ac-counter figcaption{margin:10px 2px 0;color:var(--ink-2);font-size:12.5px;line-height:1.4}
+.ac-c-zalm{background:#F6DCD2}.ac-c-tonijn{background:#F0D5D7}.ac-c-garnalen{background:#F5E4DD}.ac-c-inktvis{background:#EEE8DF}.ac-c-octopus{background:#EFE2E8}.ac-c-sintjakobs{background:#F4EBDC}
+/* sections */
+.ac-sec{padding:56px 0 0}
+.ac-sec-hd{margin:0 0 22px;max-width:46em}
+.ac-h2{font-family:var(--serif);font-weight:400;font-size:38px;line-height:1.04;letter-spacing:-.01em;color:var(--ink)}
+.ac-sub{margin:12px 0 0;color:var(--ink-2);font-size:15.5px;line-height:1.55;text-wrap:pretty}
+/* identiteitskaart (voorbeeld) */
+.ac-id{display:grid;background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);overflow:hidden}
+.ac-id-pl{position:relative;min-height:168px}
+.ac-id-pl svg{position:absolute;right:7%;bottom:-6%;width:72%;max-width:340px;height:auto}
+.ac-ex{position:absolute;left:14px;top:14px;background:var(--ink);color:#fff;font-size:12.5px;font-weight:700;line-height:1;border-radius:var(--r-xs);padding:6px 9px}
+.ac-id-b{padding:20px}
+.ac-id-n{font-family:var(--serif);font-weight:400;font-size:32px;line-height:1.08;letter-spacing:0}
+.ac-id-la{margin:4px 0 0;color:var(--ink-2);font-size:14.5px}.ac-id-la i{font-family:var(--serif);font-size:19px;color:var(--ink)}
+.ac-spec{margin:16px 0 0}
+.ac-spec>div{display:grid;grid-template-columns:minmax(96px,30%) minmax(0,1fr);gap:14px;padding:10px 0;border-top:1px solid var(--line-soft)}
+.ac-spec dt{color:var(--ink-2);font-size:14px}.ac-spec dd{margin:0;font-weight:600;font-size:14.5px;line-height:1.45}
+.ac-note{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line-soft);color:var(--ink-3);font-size:13px;line-height:1.45}
+/* zo werkt het */
+.ac-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.ac-steps>li{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+.ac-n{font-family:var(--serif);font-size:42px;line-height:.9;color:var(--p)}
+.ac-steps h3{font-size:16px;line-height:1.3;margin:2px 0 4px}.ac-steps p{margin:0;color:var(--ink-2);font-size:14.5px;line-height:1.5}
+/* aanmelden + een vraag */
+.ac-meet{padding-bottom:56px;scroll-margin-top:12px}
+.ac-split{display:grid;gap:16px}
+.ac-login,.ac-help{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ac-login{box-shadow:var(--lift)}
+.ac-h3{font-size:21px;line-height:1.25}
+.ac-help>p{margin:0;color:var(--ink-2);line-height:1.5}
+.ac-contact{display:grid;gap:8px}.ac-contact:empty{display:none}
+.ac-cbtn{display:flex;align-items:center;gap:12px;min-height:58px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--th-bg);color:var(--ink);text-decoration:none;min-width:0}
+.ac-cbtn:hover{border-color:var(--line-strong);background:var(--row-hover);color:var(--ink);text-decoration:none}
+.ac-cbtn .ico{width:22px;height:22px;color:var(--p)}
+.ac-cbtn b{display:block;font-size:15px;overflow-wrap:anywhere}.ac-cbtn small{display:block;color:var(--ink-2);font-size:13px}
+.ac .pub-ft{margin-top:0;padding-left:max(16px,calc((100% - 1200px) / 2 + 16px));padding-right:max(16px,calc((100% - 1200px) / 2 + 16px))}
+@media (min-width:720px){.ac .pub-ft{padding-left:max(32px,calc((100% - 1200px) / 2 + 32px));padding-right:max(32px,calc((100% - 1200px) / 2 + 32px))}}
+@media (min-width:1100px){.ac .pub-ft{padding-left:max(48px,calc((100% - 1200px) / 2 + 48px));padding-right:max(48px,calc((100% - 1200px) / 2 + 48px))}}
+@media (max-width:559px){.ac-brand small{display:none}.ac-brand b{font-size:15px}.ac-nav{gap:6px}.ac-hd-login{padding:0 12px}.ac-hd-in{gap:8px}}
+@media (pointer:coarse){.lang>a{min-height:44px}}
+@media (min-width:560px){.ac-plates{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:720px){.ac-w{padding:0 32px}.ac-hero{padding-top:44px}.ac-h1{font-size:70px}.ac-h2{font-size:44px}.ac-sec{padding-top:72px}.ac-meet{padding-bottom:72px}
+  .ac-id{grid-template-columns:minmax(0,4fr) minmax(0,7fr)}.ac-id-pl{min-height:100%}.ac-id-pl svg{top:50%;bottom:auto;right:50%;transform:translate(50%,-50%);width:76%}.ac-id-b{padding:28px 32px}.ac-login,.ac-help{padding:28px}}
+@media (min-width:900px){.ac-steps{grid-template-columns:repeat(3,minmax(0,1fr))}.ac-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+@media (min-width:1100px){.ac-w{padding:0 48px}.ac-hero{padding-top:64px}.ac-hero-in{grid-template-columns:minmax(0,7fr) minmax(0,5fr);align-items:end;gap:48px}
+  .ac-copy{padding-bottom:52px}.ac-h1{font-size:76px}.ac-h2{font-size:52px}.ac-counter{padding:20px 20px 16px}.ac-plates{gap:12px}.ac-plate{aspect-ratio:1/1}.ac-plate svg{width:86%}}
+
+/* ---------- x30 correctifs (spec 038) : contact, opmerking, winkelmand, fiche, toast, accueil ---------- */
+.kq{display:flex;flex-direction:column;gap:8px}
+.kq-h{margin:0;font:400 26px/1.1 var(--serif);color:var(--ink)}
+.kq-b{display:flex;flex-wrap:wrap;gap:8px}.kq-b:empty{display:none}
+.kq-btn{min-height:44px;gap:8px;min-width:0}.kq-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kn{display:flex;flex-direction:column;gap:4px;min-width:0}
+.kn-add{align-self:flex-start;min-height:44px;padding:0 2px;border:0;background:transparent;color:var(--p);font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:4px}
+.kn-add:focus-visible{outline:2px solid var(--p);outline-offset:2px;border-radius:var(--r-xs)}
+.kn-f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2)}.kn-f[hidden]{display:none}
+.kn-f .input{min-height:44px;font-size:13px}
+.kday summary{display:inline-flex;align-items:center;min-height:44px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--p)}
+.ok-ring .ok-ico{width:36px;height:36px;stroke:var(--st-done);stroke-width:2.4}
+@media (max-width:430px){.li{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n n" "s t" "c c"}.li>.stepper{justify-self:start}}
+/* Winkelmand op de telefoon : « Bestelling plaatsen » altijd onder de duim, boven de tabbalk. */
+@media (max-width:719px){
+  .kplace{position:fixed;left:0;right:0;bottom:calc(68px + env(safe-area-inset-bottom,0px));z-index:90;padding:10px 16px;background:var(--card);border-top:1px solid var(--line-soft);box-shadow:0 -6px 18px rgba(14,34,41,.08)}
+  .kv-winkelmand .kmain{padding-bottom:84px}
+  .toasts{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  body:has(.cartbar) .toasts,body:has(.kplace) .toasts{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+}
+@media (min-width:600px) and (max-width:719px){.kplace{left:50%;right:auto;transform:translateX(-50%);width:min(560px,100%)}}
+/* Fiche op de telefoon : eerst de identiteitskaart, daarna een kleine galerij. */
+@media (max-width:480px){
+  .kl[data-view=x30] .pr-d>.pr-info{order:1}
+  .kl[data-view=x30] .pr-d>.gal,.kl[data-view=x30] .pr-d>.x-plate-l{order:2;width:min(180px,56%)}
+}
+/* Connexion : « Tonen » 44 px. */
+.ac-login .pwwrap .input{min-height:48px;padding-right:96px}.ac-login .pwwrap .btn{top:2px;bottom:2px;min-height:44px;min-width:80px}
+/* Comptoir : vormen heel en gecentreerd ; op de telefoon drie kleine platen per rij. */
+.ac-plate svg{left:50%;right:auto;bottom:8%;transform:translateX(-50%);width:74%}
+@media (max-width:559px){.ac-plates{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.ac-plate{aspect-ratio:1/1;padding:8px 9px}.ac-pn{font-size:13px}.ac-la{font-size:12.5px}.ac-plate svg{width:80%;bottom:6%}}
+#loginForm{scroll-margin-top:12px}
+/* Leveringen / Facturen op de telefoon : de status onder de titel, zodat de titel niet breekt. */
+@media (max-width:480px){.x30 .orow-main{grid-template-areas:"d d c" "st st c" "s t c"}.x30 .orow-st{justify-self:start;max-width:none}}
+/* Toegang aanvragen (spec 038) : familie van de startpagina. */
+.av-hero{padding-bottom:28px}.av-h1{font-size:46px}
+.av-why{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.av-why>li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start}
+.av-why .ac-n{color:var(--ac-sea);font-size:36px}
+.av-wh{margin:2px 0 2px;font-size:16px;line-height:1.3;color:#fff}.av-why p{margin:0;color:var(--deep-ink);font-size:14.5px;line-height:1.5}
+.av .ac-meet{padding-top:28px}
+@media (min-width:900px){.av-why{grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.av-h1{font-size:64px}.av .ac-split{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}}
+/* Wijzigen : een product toevoegen in het paneel zelf. */
+.ke-add{display:flex;flex-direction:column;gap:6px;margin-top:16px}.ke-add .search input{min-height:44px}
+.ke-hits{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.ke-hits li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft)}.ke-hits li:last-child{border-bottom:0}
+.ke-hits .btn{flex:none;min-height:44px}

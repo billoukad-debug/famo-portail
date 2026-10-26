@@ -30,7 +30,11 @@ const PAIRS = [
   ["p-soft", "danger", 4.5, "action d'un toast d'erreur"], ["white", "p-deep", 4.5, "bouton principal survolé"],
   ["line-input", "card", 3, "contour de la recherche et des filtres (.search, dates van / tot)"], ["p", "card", 3, "anneau du champ quantité (stepper)"],
   // Rapportage (spec 022) : marques des graphiques contre la carte (WCAG 1.4.11) — barres (--p) et comparaison.
-  ["p", "card", 3, "barres et colonnes des graphiques"], ["chart-prev", "card", 3, "ligne « un an plus tôt » des graphiques"], ["p-deep", "card", 3, "barre survolée ou focalisée"]
+  ["p", "card", 3, "barres et colonnes des graphiques"], ["chart-prev", "card", 3, "ligne « un an plus tôt » des graphiques"], ["p-deep", "card", 3, "barre survolée ou focalisée"],
+  // x30 lot A (specs/036) : badge et filtre « Rauw OK », bandeau de l'heure (timonerie), sa jauge et son point.
+  ["rauw", "rauw-bg", 4.5, "badge « Rauw OK »"], ["rauw", "card", 4.5, "filtre « Rauw OK »"], ["rauw", "canvas", 4.5, "filtre « Rauw OK » (fond)"],
+  ["deep-ink", "deep", 4.5, "bandeau de l'heure"], ["white", "deep", 4.5, "bandeau de l'heure, chiffres en gras"],
+  ["tide-ok", "deep", 3, "jauge et point du bandeau (WCAG 1.4.11)"], ["tide-amber", "deep", 3, "jauge ambre, dernière demi-heure"]
 ];
 // Le rendu réel (opacités, fonds superposés) est vérifié par scripts/ux-audit.js (ACC-05) sur chaque écran.
 let bad = 0;

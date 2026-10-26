@@ -27,7 +27,7 @@ async function seed(conf) {
   await store().replaceAll("Commandes", [rec("recORD1", { "Référence": "CMD-2026-0001", Date: new Date().toISOString().slice(0, 10), Statut: "Reçue", Client: ["recCLA"], "Lignes (produits / quantités)": "Tong × 2 kg [€30.00]\nMosselen × 3 kg [€5.00]", Total: 75 })]);
   await store().replaceAll("Lots", []);
 }
-const LOT = { lotnummer: "L-2026-117", produit: "Tong", leverancier: "Visserij Noordzee", ontvangenOp: "2026-09-26", wetenschappelijkeNaam: "Solea solea", vangstgebied: "FAO 27 IV", vistuig: "boomkor", productiemethode: "Gevangen op zee", ontdooid: false, tht: "2026-10-01" };
+const LOT = { lotnummer: "L-2026-117", produit: "Tong", leverancier: "Visserij Noordzee", ontvangenOp: "2026-09-26", wetenschappelijkeNaam: "Solea solea", vangstgebied: "27.IV", vistuig: "Chaluts", productiemethode: "Gevangen op zee", ontdooid: false, tht: "2026-10-01" };
 
 test("lot : validation (numéro, produit, méthode de production)", async () => {
   await seed();
@@ -48,17 +48,18 @@ test("préparation avec lot → instantané figé, bon de livraison avec mention
   const snap = JSON.parse((await store().get("Commandes", "recORD1")).fields.Lots);
   assert.equal(snap.Tong[0].lotnummer, "L-2026-117");
   // La fiche du lot change ensuite : le bon de livraison garde l'instantané.
-  await call("lots.js", Object.assign({}, LOT, { id: lotId, vangstgebied: "FAO 27 VII" }));
+  await call("lots.js", Object.assign({}, LOT, { id: lotId, vangstgebied: "27.VII" }));
   const o = (await call("allorders.js", null, { method: "GET" })).payload.orders[0];
-  assert.equal(o.lots.Tong[0].vangstgebied, "FAO 27 IV");
+  assert.equal(o.lots.Tong[0].vangstgebied, "27.IV");
   // Bon de livraison (assets/docs/documents.js) : lot, nom scientifique, zone, méthode, engin, THT.
   const win = { console, Intl, Date }; win.window = win; vm.createContext(win);
-  for (const f of ["assets/vat.js", "assets/docs/bedrijf.js", "assets/docs/documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), win);
+  for (const f of ["assets/vat.js", "assets/visfiche.js", "assets/docs/bedrijf.js", "assets/docs/documents.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), win);
   win.FamoDocuments.setCompany({ bedrijfsnaam: "FAMO Seafood" });
   const html = win.FamoDocuments.build(Object.assign({}, o, { klant: { taal: "NL" } }), "delivery");
-  assert.match(html, /Lot L-2026-117 · <i>Solea solea<\/i> · FAO 27 IV · Gevangen op zee · boomkor · THT 01\/10\/2026/);
+  // Zone et engin en liste fermée depuis la spec 035 : libellé en clair (FAO 27.IV Noordzee, catégorie d'engin).
+  assert.match(html, /Lot L-2026-117 · <i>Solea solea<\/i> · FAO 27\.IV Noordzee · Gevangen op zee · Sleepnetten · THT 01\/10\/2026/);
   const fr = win.FamoDocuments.build(Object.assign({}, o, { klant: { taal: "FR" } }), "delivery");
-  assert.match(fr, /Pêché en mer/); assert.match(fr, /DLC 01\/10\/2026/);
+  assert.match(fr, /Pêché en mer/); assert.match(fr, /mer du Nord · Pêché en mer · Chaluts/); assert.match(fr, /DLC 01\/10\/2026/);
   // Rappel : qui a reçu le lot ?
   const t = await call("lots.js", null, { method: "GET", query: { trace: "L-2026-117" } });
   assert.equal(t.statusCode, 200);

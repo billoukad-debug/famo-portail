@@ -6,6 +6,70 @@
   "use strict";
   var items = [
     {
+      id: "klantportaal-afwerking", datum: "2026-10-25", spec: "038",
+      titel: "Klantportaal: sneller aanmelden, duidelijke facturen",
+      wat: "Wie het portaal sluit en binnen 12 uur terugkomt, blijft aangemeld; daarna staat het aanmelden bovenaan. Facturen tonen „Overzicht · pro forma” en „Te betalen vóór …”, ook leesbaar op de telefoon. De knop Bestelling plaatsen blijft in beeld. Account toont uw telefoon en e-mail.",
+      doen: [
+        { tekst: "Vul uw WhatsApp-nummer in bij Bedrijfsgegevens: dan verschijnt de knop WhatsApp ook in het klantportaal en op Toegang aanvragen.", link: "#/bedrijf", label: "Naar Bedrijfsgegevens" },
+        { tekst: "Klopt de betaaltermijn bij Bedrijfsgegevens met die van uw boekhouder? De datum „Te betalen vóór” wordt ermee berekend.", link: "#/bedrijf", label: "Naar Bedrijfsgegevens" },
+        { tekst: "Wilt u dat klanten langer dan 12 uur aangemeld blijven (bijvoorbeeld een dag)? Dat is een keuze tussen gemak en veiligheid. Zeg het aan Bilal." }
+      ]
+    },
+    {
+      id: "nieuwe-startpagina", datum: "2026-10-24", spec: "037",
+      titel: "Nieuwe startpagina van famoseafood.be",
+      wat: "De startpagina is vernieuwd: een balk die toont hoe lang klanten nog kunnen bestellen en wanneer er geleverd wordt, zes soorten vis als illustratie, een voorbeeld van de visfiche en uw contactgegevens. Aanmelden en Klant worden blijven zoals ze waren.",
+      doen: [
+        { tekst: "Kijk of de zes soorten (zalm, tonijn, garnalen, inktvis, octopus, sint-jakobsvrucht) passen bij wat u verkoopt. Zo niet, zeg welke het moeten zijn." },
+        { tekst: "Vul uw WhatsApp-nummer in bij Bedrijfsgegevens: dan verschijnt de knop WhatsApp op de startpagina.", link: "#/bedrijf", label: "Naar Bedrijfsgegevens" },
+        { tekst: "Een vast leveruur (bijvoorbeeld tussen 6 en 8 uur) tonen we pas als u het zeker kunt beloven. Laat het ons weten." }
+      ]
+    },
+    {
+      id: "bestellen-x30", datum: "2026-10-24", spec: "036",
+      titel: "Uw klanten bestellen hun gewone bestelling met één tik",
+      wat: "Bovenaan Bestellen ziet de klant „Zoals elke maandag”: zijn gewone bestelling, met de prijzen van vandaag. Eén tik en ze staat erin. Hij ziet ook hoeveel tijd er nog is. Hij past zijn bestelling zelf aan tot de deadline. Een tweede bestelling voor dezelfde dag komt bij de eerste.",
+      doen: [
+        { tekst: "Kijk op de proefversie hoe het scherm Bestellen eruitziet, op uw telefoon en op de computer. Is de nieuwe letter voor de titels goed voor u? Zeg het aan Bilal." },
+        { tekst: "Het groene „Rauw OK” staat alleen bij een product als u in de visfiche „Bestemd om rauw te eten” aanzet én kiest hoe de vis diepgevroren werd. Controleer dat voor uw sushi- en pokevis.", link: "#/producten", label: "Naar Producten" },
+        { tekst: "Er wordt nog geen leveruur getoond (bijvoorbeeld tussen 6 en 8 uur). Wilt u dat? Zeg aan Bilal welk uur altijd klopt." },
+        { tekst: "Kijk bij een bestelling naar Correcties: daar ziet u wat de klant zelf veranderde of toevoegde." }
+      ]
+    },
+    {
+      id: "visfiche-en-loten", datum: "2026-10-24", spec: "035",
+      titel: "Visfiche per product en meer gegevens per lot",
+      wat: "Bij elk product kunt u nu de Latijnse naam, de herkomst, de staat (vers, diepgevroren of ontdooid) en de allergenen invullen. Uw klanten zien dat in hun catalogus en op de leveringsbon. Bij elk lot vult u ook de vangstdatum en het nummer van de vangstreis in.",
+      doen: [
+        { tekst: "Open elk product, klik op „Visfiche” en neem over wat op het etiket of het document van de leverancier staat. Niet zeker? Laat het leeg.", link: "#/producten", label: "Naar Producten" },
+        { tekst: "Vink bij elk product de allergenen aan: vis, schaaldieren of weekdieren, en wat er nog in zit (bijvoorbeeld in een saus)." },
+        { tekst: "Verkoopt u vis om rauw te eten (sushi, poke)? Zet „Bestemd om rauw te eten” aan en kies hoe de leverancier de vis diepvroor." },
+        { tekst: "Bij elk nieuw lot: vul de vangstdatum, het nummer van de vangstreis of het kweekbedrijf en het netto gewicht in.", link: "/team/lots", label: "Naar Loten" },
+        { tekst: "Kies bij het klaarzetten altijd het lot. Vraagt een klant of het FAVV iets? Klik bij Loten op „Geleverde loten per klant”." }
+      ]
+    },
+    {
+      id: "boekhouder-en-qr", datum: "2026-10-24", spec: "034",
+      titel: "Facturen voor de boekhouder, per maand",
+      wat: "Bij Beheer staat nu Boekhouder: kies een maand en u ziet alle facturen en creditnota's, met een bestand om aan uw boekhouder te geven. U noteert zelf wanneer u ze gestuurd hebt. Het portaal stuurt niets. Maakt het portaal ooit zelf de facturen, dan krijgt elke factuur een QR-code om te betalen.",
+      doen: [
+        { tekst: "Vraag aan uw boekhouder: kan Billtobox de facturen van het portaal inlezen, of wil hij ze anders ontvangen?" },
+        { tekst: "Open Boekhouder, kies vorige maand en geef de lijst aan uw boekhouder. Klik daarna op Gestuurd vandaag.", link: "/beheer/boekhouder", label: "Naar Boekhouder" },
+        { tekst: "Staat er Onvolledig bij een factuur? Vul dan bij de klant het btw-nummer en het adres in.", link: "#/klanten", label: "Naar Klanten" }
+      ]
+    },
+    {
+      id: "vindbaar-op-google", datum: "2026-10-24", spec: "033",
+      titel: "Beter te vinden op Google",
+      wat: "Google kan nu de tekst van uw website lezen: wie u bent, wat u verkoopt, waar u levert en hoe klanten u bereiken. Stuurt u een link naar uw website op WhatsApp, dan ziet men uw naam, een korte tekst en uw logo. De website heeft ook een eigen link in het Frans.",
+      doen: [
+        { tekst: "Maak met uw eigen Google-account een Search Console aan voor famoseafood.be. Bilal helpt u, het duurt een kwartier." },
+        { tekst: "Maak een gratis Google Bedrijfsprofiel voor FAMO Seafood, met uw telefoon, uw website en de gemeenten waar u levert." },
+        { tekst: "Wilt u dat iedereen uw producten ziet op de pagina Ons aanbod? Zeg het aan Bilal: hij zet ze dan aan." },
+        { tekst: "Verandert uw telefoon, e-mail of adres? Pas het aan bij Bedrijf en zeg het ook aan Bilal: het staat nu ook vast op de website.", link: "#/bedrijf", label: "Naar Bedrijf" }
+      ]
+    },
+    {
       id: "contact-en-colofon", datum: "2026-10-24", spec: "032",
       titel: "Uw gegevens en contact onderaan elke pagina",
       wat: "Onderaan de website staan nu uw bedrijfsgegevens, uw e-mail, uw telefoon en een knop WhatsApp. Er is ook een nieuwe pagina Colofon. De privacytekst is aangevuld.",

@@ -107,7 +107,9 @@ test("families : un nom hostile reste une donnée — libellé brut, toujours é
   const src = fs.readFileSync(path.join(__dirname, "..", "assets", "pages", "klant.js"), "utf8");
   assert.match(src, /'<button type="button" data-fam="' \+ K\.esc\(key\)[^\n]*K\.esc\(label\)/, "familles : clé et libellé échappés");
   assert.match(src, /'<h2 class="sec">' \+ K\.esc\(K\.t\(g\)\)/, "titres de groupe échappés");
-  assert.match(src, /<span class="pn">' \+ K\.esc\(p\.nom\)/, "noms échappés");
+  // x30 (spec 036) : le nom affiché passe par toon(p) = FamoBestellen.naam(p.nom) (casse d'affichage), toujours via K.esc.
+  assert.match(src, /<span class="pn">' \+ K\.esc\((?:p\.nom|toon\(p\))\)/, "noms échappés");
+  assert.match(src, /const toon = p => FB\.naam\(p\.nom\)/, "toon : casse d'affichage, sans HTML");
   assert.match(src, /K\.c\.empty\(K\.t\("Niets gevonden voor"\) \+ " „" \+ q\.trim\(\) \+ "”"/, "terme de recherche réaffiché via K.c.empty (qui échappe)");
   assert.match(fs.readFileSync(path.join(__dirname, "..", "assets", "ui.js"), "utf8"), /c\.empty = \(title, text, action\) => '[^\n]*K\.esc\(title\)/, "K.c.empty échappe son titre");
 });

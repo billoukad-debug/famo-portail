@@ -9,7 +9,7 @@
 //   2.1.2   piège ou fuite : Tab / Maj+Tab doit rester dans la fenêtre ouverte (panneau, dialogue, aperçu) ;
 //   2.4.3   focus perdu (sur <body>) après une action ou un changement de vue ;
 //   4.1.2   état non exposé (aria-pressed / aria-current) sur les choix, filtres et onglets.
-// Catalogue (spec 019) : weergave au clavier (focus gardé, aria-pressed), famille, Naar boven.
+// Catalogue (spec 019, x30 spec 036) : carte « Zoals elke … », famille, « + », Naar boven.
 // Rapportage (spec 022, /beheer/rapportage) : lien de la barre, filtre (URL), tri (aria-sort), info-bulle au focus,
 // drill-down d'un mois puis « terug ».
 // Parcours : client (390, 990 et 1440 px) · équipe (1440 et 390 px) · beheer (1440 px).
@@ -94,7 +94,7 @@ function journey(label, p, cdp) {
         const f = await J.info(); J.check(f, where);
         if (await p.evaluate(s => !!(document.activeElement && document.activeElement.matches(s)), sel)) return f;
       }
-      add("parcours incomplet", label + " · " + where + " : « " + sel + " » jamais atteint au clavier");
+      if (!o.quiet) add("parcours incomplet", label + " · " + where + " : « " + sel + " » jamais atteint au clavier");
       return null;
     },
     // Après une action : le focus ne doit pas être perdu sur <body> (on laisse le temps au re-rendu).
@@ -134,20 +134,14 @@ async function klant(b, W) {
   await J.tabTo("#user", "connexion");
   await p.keyboard.type("aloha"); await J.press("Tab", "connexion"); await p.keyboard.type("welkom123"); await p.keyboard.press("Enter");
   await p.waitForURL(/klant/); await J.notLost("connexion → catalogue", 1500);
-  // Spec 019 : changer de weergave au clavier — le focus reste sur l'interrupteur, son état est exposé, la liste suit.
-  for (const v of ["tegels", "compact", "lijst"]) {
-    const sel = '[data-weergave="' + v + '"]';
-    if (!(await J.tabTo(sel, "weergave", { max: 60, back: v === "lijst" }))) continue;
-    await p.keyboard.press("Enter"); await J.notLost("weergave " + v, 400);
-    if (!(await is(p, sel))) add("2.4.3 focus déplacé après action", "klant " + W + " · weergave " + v + " : le focus quitte l'interrupteur");
-    if (await pressedOf(p, sel) !== "true") add("4.1.2 état non exposé", "klant " + W + " · weergave " + v + " sans aria-pressed=true");
-    if (await p.evaluate(() => document.getElementById("list").getAttribute("data-view")) !== v) add("parcours incomplet", "klant " + W + " · weergave " + v + " : la liste n'a pas changé");
-    const grp = await p.evaluate(s => { const g = document.querySelector(s).closest("[role=group]"); return g ? g.getAttribute("aria-label") || "" : ""; }, sel);
-    if (!grp) add("4.1.2 état non exposé", "klant " + W + " · weergave hors d'un groupe nommé");
+  // x30 (spec 036) : une seule vue ; la carte « Zoals elke … » est atteignable au clavier (− / + gardent le focus).
+  if (await J.tabTo("#xUsual [data-inc]", "carte habituelle", { max: 60 })) {
+    await p.keyboard.press("Enter"); await J.notLost("+ dans la carte", 300);
+    if (!(await is(p, "#xUsual [data-inc]"))) add("2.4.3 focus déplacé après action", "klant " + W + " · + dans la carte : le focus quitte le bouton");
   }
-  // Familles (grande catégorie) : filtre au clavier, état exposé, focus gardé ; « Alle » remet tout.
-  if (await J.tabTo('[data-cat="Algemeen"]', "catégories", { back: true, max: 40 })) {
-    await p.keyboard.press("Enter"); await J.notLost("catégorie Algemeen", 500);
+  // Familles (grand groupe métier, x30 : Garnalen) : filtre au clavier, état exposé, focus gardé ; « Alle » remet tout.
+  if ((await J.tabTo('[data-cat="Garnalen"]', "catégories", { max: 60, quiet: true })) || (await J.tabTo('[data-cat="Garnalen"]', "catégories", { back: true, max: 80 }))) {
+    await p.keyboard.press("Enter"); await J.notLost("groupe Garnalen", 500);
     if (await J.tabTo('[data-fam]:not([data-fam=""])', "familles", { max: 30 })) {
       const n0 = await p.evaluate(() => document.querySelectorAll("#list .prod:not(.hidden)").length);
       await p.keyboard.press("Enter"); await J.notLost("famille", 300);
@@ -169,8 +163,9 @@ async function klant(b, W) {
     }
   }
   // Deux produits au panier, puis toute la liste jusqu'au bouton « Bestellen » (masquage, anneau, noms).
-  if (await J.tabTo("[data-inc]", "catalogue")) { await p.keyboard.press("Enter"); await J.notLost("+ (1er produit)", 300); }
-  if (await J.tabTo(".prod:nth-of-type(3) [data-inc], [data-inc]:not(:focus)", "catalogue")) { await p.keyboard.press("Enter"); await J.notLost("+ (2e produit)", 300); }
+  // x30 : un seul « + » par produit (44 px) ; il garde le focus et montre ensuite la quantité.
+  if (await J.tabTo("#list [data-add]", "catalogue", { max: 120 })) { await p.keyboard.press("Enter"); await J.notLost("+ (1er produit)", 300); if (!(await is(p, "#list [data-add], #list .prod > .stepper [data-inc]"))) add("2.4.3 focus déplacé après action", "klant " + W + " · + : le focus quitte le bouton (ou son stepper)"); }
+  if (await J.tabTo("#list .prod:not(.on) [data-add]", "catalogue", { max: 120 })) { await p.keyboard.press("Enter"); await J.notLost("+ (2e produit)", 300); }
   const bestel = W < 1024 ? ".cartbar a" : "#cartPanel a.btn";
   await J.tabTo(bestel, "catalogue → Bestellen", { max: 400 });
   for (let i = 0; i < 25; i++) await J.press("Shift+Tab", "catalogue (Maj+Tab)");
@@ -219,7 +214,7 @@ async function klant(b, W) {
     if (!(await p.evaluate(o => document.activeElement && document.activeElement.getAttribute("data-open") === o, opener))) add("2.4.3 focus non rendu au déclencheur", "klant " + W + " · fiche commande");
   }
   // Navigation principale : chaque vue place le focus sur son titre.
-  for (const v of ["favorieten", "account", "catalogus"]) {
+  for (const v of ["facturen", "account", "catalogus"]) {
     if (await J.tabTo('.mtabs a[href="#/' + v + '"]', "navigation", { max: 120 })) { await p.keyboard.press("Enter"); await J.notLost("onglet " + v, 700); }
   }
   await ctx.close();
@@ -334,6 +329,9 @@ async function staff(b, W) {
     await p.keyboard.press("Enter"); await J.notLost("Vandaag : filter Nieuw", 500);
     if (await pressedOf(p, '.vd-filter [data-filter="nieuw"]') !== "true") add("4.1.2 état non exposé", "équipe " + W + " · Vandaag : filtre choisi sans aria-pressed=true");
   }
+  // Spec 036 : les paniers du même jour s'ajoutent à la commande existante ; après les passages 390 / 990 / 1440 il
+  // peut ne plus rester de commande « Nieuw » : l'étape se teste alors sur une commande Klaar ou Onderweg (filtre Alle).
+  if (!(await p.$(".vd-card [data-go]")) && await p.$('.vd-filter [data-filter="alle"]')) { await p.click('.vd-filter [data-filter="alle"]'); await p.waitForTimeout(400); }
   if (await J.tabTo(".vd-card [data-go]", "Vandaag", { max: 40 })) {
     const id = await p.evaluate(() => document.activeElement.dataset.go);
     await p.keyboard.press("Enter"); await J.notLost("Vandaag : stap", 1800);

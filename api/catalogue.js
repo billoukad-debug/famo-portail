@@ -4,6 +4,7 @@ const __ca = require("../lib/clientauth");
 const { at, atAll } = require("../lib/airtable");
 const __kl = require("../lib/klantlogin");
 const __pak = require("../lib/verpakking");
+const __vis = require("../assets/visfiche.js");
 // Anti-abus, première ligne : mémoire d'instance (best-effort sur serverless, chaque
 // instance a sa propre table). Seconde ligne, PERSISTANTE : le verrou par compte en base
 // (Clients « Echecs » / « Geblokkeerd tot »), qui tient sur toutes les instances.
@@ -184,6 +185,8 @@ module.exports = async (req, res) => {
         prix: __prices.unitPrice(r, negMap),
         kaliber: String(r.fields["Kaliber"] || "").trim(),
         omschrijving: String(r.fields["Omschrijving"] || "").trim(),
+        // Visfiche (specs/035) : nom scientifique, herkomst, état, allergènes… seulement ce qui est rempli.
+        vis: __vis.fromFields(r.fields),
         foto: photoOf(r.fields["Foto"]),
         // Spec 018 : toutes les vues (URL sûres), la première = foto.
         fotos: photosOf(r.fields["Foto"]),

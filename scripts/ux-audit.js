@@ -10,7 +10,7 @@
 // ACC-06 état « choisi » (.on) exposé (aria-pressed / aria-current / aria-selected / aria-expanded).
 // États visités en plus des pages : fiche commande (team/bestelling.html), Journaal, Magazijn Bord, confirmation de
 // commande, panier rempli, panneaux ouverts (Valideren, Leveruur, fiche client, produit), Leveringen en mode
-// Chauffeur, l'aperçu d'un document, la galerie photo d'un produit (client) et la gestion des photos (Beheer, spec 018), les trois weergaven du catalogue, ses familles et sa barre collante (spec 019),
+// Chauffeur, l'aperçu d'un document, la galerie photo d'un produit (client) et la gestion des photos (Beheer, spec 018), le catalogue « Bestellen » (une vue, spec 036), ses familles et sa barre collante (spec 019),
 // l'aperçu de « Testperiode afsluiten » (Beheer → Systeemstatus, spec 021), la Rapportage (base, filtres, tableau
 // ouvert, info-bulle, hoog contrast ; spec 022).
 //
@@ -24,8 +24,6 @@ const EXE = process.env.CHROMIUM || (require("fs").existsSync("/opt/pw-browsers/
 // Un écran = une URL, ou { url, name, before(page), after(page) } : before avant l'ouverture, after pour ouvrir un panneau.
 const firstOrder = async p => p.evaluate(() => fetch("/api/allorders", { credentials: "include" }).then(r => r.json()).then(d => { const o = (d.orders || []).find(x => x.statut === "Facturée") || (d.orders || [])[0]; return o ? o.id : ""; }));
 const clickAndWait = (sel, ms) => async p => { const el = p.locator(sel).first(); if (await el.count()) { await el.click(); await p.waitForTimeout(ms || 800); } };
-// Catalogue client (spec 019) : weergave retenue sur l'appareil (localStorage), posée avant l'ouverture de l'écran.
-const weergave = v => async p => { await p.evaluate(v => localStorage.setItem("famoKlantWeergave", JSON.stringify(v)), v); };
 const pages = {
   staff: ["/team/bestellingen#/tabel", "/team/bestellingen#/bord", "/team/bestellingen#/kalender",
     // Bestellen per e-mail (specs/020) : file « Te controleren », puis le texte de la première e-mail déplié.
@@ -45,6 +43,8 @@ const pages = {
     // Rapportage (spec 022) : page à part ; vue de base, filtre client + trimestre (drill-down), tableau mensuel ouvert
     // avec info-bulle (focus), hoog contrast. Le téléphone (390 px) est couvert par la boucle des largeurs.
     "/beheer/rapportage",
+    // Export boekhouder (spec 034) : période, documents, UBL, statut d'envoi.
+    "/beheer/boekhouder",
     // Vandaag (spec 024) : écran, menu ⋯, + Bestelling (client choisi), et le menu court du mode Eenvoudig.
     "/team/vandaag",
     { name: "/team/vandaag · menu ⋯", url: "/team/vandaag", after: clickAndWait(".vd-card [data-more]", 600) },
@@ -61,14 +61,13 @@ const pages = {
     { name: "/beheer#/status · Testperiode afsluiten (voorbeeld)", url: "/beheer#/status", after: clickAndWait("#tpVoorbeeld", 1500) }],
   klant: [{ name: "/klant#/catalogus", url: "/klant#/catalogus", mid: true },
     { name: "/klant#/catalogus · galerij van een product", url: "/klant#/catalogus", after: clickAndWait(".prod:has(img.pthumb) .pr-x", 900), mid: true },
-    // Spec 019 : les trois weergaven (aussi à 990 px), les familles d'une grande catégorie, la barre collante après défilement,
-    // le détail d'une tuile (panneau).
-    { name: "/klant#/catalogus · Compact", url: "/klant#/catalogus", before: weergave("compact"), mid: true },
-    { name: "/klant#/catalogus · Tegels", url: "/klant#/catalogus", before: weergave("tegels"), mid: true },
-    { name: "/klant#/catalogus · Tegels · detail (paneel)", url: "/klant#/catalogus", before: weergave("tegels"), after: clickAndWait(".prod:has(img.pthumb) .pr-x", 900), mid: true },
-    { name: "/klant#/catalogus · familles (Algemeen)", url: "/klant#/catalogus", before: weergave("lijst"), after: async p => { await clickAndWait('[data-cat="Algemeen"]:visible', 500)(p); await clickAndWait("[data-fam]:nth-child(3)", 400)(p); }, mid: true },
-    { name: "/klant#/catalogus · barre collante (défilé)", url: "/klant#/catalogus", before: weergave("lijst"), after: async p => { await p.evaluate(() => window.scrollTo(0, 2400)); await p.waitForTimeout(500); }, mid: true },
-    "/klant#/winkelmand", "/klant#/bestellingen", "/klant#/favorieten", "/klant#/account",
+    // x30 (spec 036) : une seule vue ; un produit ouvert (fiche + stepper), un groupe métier avec ses familles, Rauw OK,
+    // la barre collante après défilement, la carte « Zoals elke … » une fois commandée (modifiable).
+    { name: "/klant#/catalogus · produit ouvert (+ puis détails)", url: "/klant#/catalogus", after: async p => { await clickAndWait("#list [data-add]", 300)(p); await clickAndWait("#list .prod.on .pr-x", 600)(p); }, mid: true },
+    { name: "/klant#/catalogus · familles (Garnalen)", url: "/klant#/catalogus", after: async p => { await clickAndWait('[data-cat="Garnalen"]:visible', 500)(p); await clickAndWait("[data-fam]:nth-child(3)", 400)(p); }, mid: true },
+    { name: "/klant#/catalogus · Rauw OK", url: "/klant#/catalogus", after: clickAndWait('[data-cat="Rauw OK"]:visible', 500), mid: true },
+    { name: "/klant#/catalogus · barre collante (défilé)", url: "/klant#/catalogus", after: async p => { await p.evaluate(() => window.scrollTo(0, 2400)); await p.waitForTimeout(500); }, mid: true },
+    "/klant#/winkelmand", "/klant#/bestellingen", "/klant#/facturen", "/klant#/favorieten", "/klant#/account",
     { name: "/klant#/winkelmand (rempli)", url: "/klant#/winkelmand", before: async p => { await p.evaluate(() => { const c = JSON.parse(sessionStorage.getItem("famoKlantCatalogus") || "{}"); const items = {}; (c.products || []).slice(0, 3).forEach(x => { items[x.id] = 2; }); localStorage.setItem("famoCart:aloha", JSON.stringify({ items, comments: {}, note: "", day: "" })); }); } },
     { name: "/klant#/bevestigd (commande reçue)", url: "/klant#/bevestigd", before: async p => { await p.evaluate(() => sessionStorage.setItem("famoLastOrder", JSON.stringify({ ref: "CMD-TEST", total: 42, day: new Date(Date.now() + 864e5).toISOString().slice(0, 10), items: [{ nom: "Test", qty: 2, prix: 21 }], at: Date.now(), mail: { customer: { ok: true } }, email: "test@example.com" }))); } },
     { name: "/klant#/bestellingen · fiche commande", url: "/klant#/bestellingen", after: async p => { await clickAndWait('[data-of="alles"]', 300)(p); await clickAndWait(".orow-main", 600)(p); } }],
