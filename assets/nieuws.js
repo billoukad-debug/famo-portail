@@ -6,6 +6,14 @@
   "use strict";
   var items = [
     {
+      id: "meerdere-categorieen", datum: "2026-10-31", spec: "039",
+      titel: "Een product in meerdere categorieën",
+      wat: "Een product kan nu in meer dan één categorie staan, bijvoorbeeld tonijn bij Vis en ook bij Sushi. Open het product en tik bij „Ook tonen in” de andere categorieën aan. De eerste categorie blijft de hoofdcategorie: die bepaalt de volgorde en de rapporten.",
+      doen: [
+        { tekst: "Open een product en tik bij „Ook tonen in” de extra categorieën aan.", link: "#/producten", label: "Naar Producten" }
+      ]
+    },
+    {
       id: "contact-en-colofon", datum: "2026-10-24", spec: "032",
       titel: "Uw gegevens en contact onderaan elke pagina",
       wat: "Onderaan de website staan nu uw bedrijfsgegevens, uw e-mail, uw telefoon en een knop WhatsApp. Er is ook een nieuwe pagina Colofon. De privacytekst is aangevuld.",

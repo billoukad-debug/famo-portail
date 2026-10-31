@@ -4,6 +4,7 @@ const __ca = require("../lib/clientauth");
 const { at, atAll } = require("../lib/airtable");
 const __kl = require("../lib/klantlogin");
 const __pak = require("../lib/verpakking");
+const __cats = require("../lib/categorieen");
 // Anti-abus, première ligne : mémoire d'instance (best-effort sur serverless, chaque
 // instance a sa propre table). Seconde ligne, PERSISTANTE : le verrou par compte en base
 // (Clients « Echecs » / « Geblokkeerd tot »), qui tient sur toutes les instances.
@@ -179,6 +180,8 @@ module.exports = async (req, res) => {
         id: r.id,
         nom: r.fields["Produit"],
         cat: r.fields["Catégorie"] || "",
+        // Spec 039 : toutes ses catégories, la principale d'abord.
+        cats: __cats.catsOf(r.fields),
         unite: r.fields["Unité"] || "",
         base: r.fields["Prix de base"] || 0,
         prix: __prices.unitPrice(r, negMap),

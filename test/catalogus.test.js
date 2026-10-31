@@ -168,3 +168,9 @@ test("pref : valeur retenue par appareil, inconnue → défaut, stockage absent 
 test("textes du catalogue traduits (FR)", () => {
   for (const k of ["Weergave", "Lijst", "Tegels", "Compact", "Sorteren", "Standaard", "Naam A–Z", "Prijs ↑", "Prijs ↓", "Naar boven", "Zoekterm wissen", "Soort", "Alle", "Overige", "{n} producten", "1 product"]) assert.ok(K.FR[k], "FR manquant : " + k);
 });
+
+test("K.catsOf (spec 039) : toutes les catégories affichées, la principale d'abord, sans doublon", () => {
+  assert.deepStrictEqual(plain(K.catsOf({ cat: "Poisson", cats: ["Poisson", "Sushi & poke", "vis"] })), ["Vis", "Sushi & poke"]);
+  assert.deepStrictEqual(plain(K.catsOf({ cat: "Vis", extraCats: ["Promo"] })), ["Vis", "Promo"]);
+  assert.deepStrictEqual(plain(K.catsOf({ cat: "" })), ["Algemeen"]);
+});
