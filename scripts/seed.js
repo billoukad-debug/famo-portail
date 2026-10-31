@@ -92,7 +92,7 @@ function seed(db, opts) {
     { "Produit": "VANNAMEI GARNALEN GEPELD 26/30", "Prix de base": 11, "Unité": "pièce", "Catégorie": "Algemeen", "Actif": true, "Kaliber": "26/30" },
     { "Produit": "Scampi", "Prix de base": 15, "Unité": "caisse", "Catégorie": "Algemeen", "Actif": true },
     { "Produit": "Oesters Zeeuwse creuse nr. 3", "Prix de base": 0.85, "Unité": "pièce", "Catégorie": "Coquillages", "Actif": true },
-    { "Produit": "Tonijn sashimi blok", "Prix de base": 29.9, "Unité": "kg", "Catégorie": "Poisson", "Actif": true },
+    { "Produit": "Tonijn sashimi blok", "Prix de base": 29.9, "Unité": "kg", "Catégorie": "Poisson", "Extra categorieën": "Sushi & poke", "Actif": true },
     { "Produit": "Vis (oud artikel)", "Prix de base": 3, "Unité": "caisse", "Catégorie": "Algemeen", "Actif": false },
     // Spec 019 : comme en production — une grande catégorie « Algemeen », le kaliber dans le nom (familles,
     // affichage dense) ; « Vegetarisch » et « Surimi ». Ajoutés après les 13 produits historiques (tests).

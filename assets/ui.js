@@ -268,6 +268,9 @@
   K.byVolgorde = (a, b) => VO(a) - VO(b) || cmpText(a.nom, b.nom);
   K.catOrder = (products, keyOf) => { const m = new Map(); (products || []).forEach(p => { const k = keyOf(p); m.set(k, Math.min(m.has(k) ? m.get(k) : 1e9, VO(p))); }); return (a, b) => (m.has(a) ? m.get(a) : 1e9) - (m.has(b) ? m.get(b) : 1e9) || String(a).localeCompare(String(b), "nl"); };
   K.cat = v => { const k = String(v || "").trim().toLowerCase(); return dict().cat[k] || String(v || "").trim() || K.t("Algemeen"); };
+  // Spec 039 : toutes les catégories affichées d'un produit, la principale d'abord, sans doublon
+  // (« poisson », « Vis » et « vis » = Vis). Client : p.cats ; Beheer : p.cat + p.extraCats.
+  K.catsOf = p => { const raw = p && Array.isArray(p.cats) && p.cats.length ? p.cats : [p && p.cat].concat((p && p.extraCats) || []), out = []; raw.forEach(c => { const l = K.cat(c); if (!out.some(o => o.toLowerCase() === l.toLowerCase())) out.push(l); }); return out; };
   /* ---- Kaliber (spec 018) : « 8/12 » < « 13/15 » < « 16/20 » < « 21/25 » ; « U10 » / « U/10 » (onder 10)
      eerst ; « 1-2 kg » volgens het eerste getal ; zonder getal na de getallen (alfabetisch) ; leeg laatst. */
   const NUMC = typeof Intl !== "undefined" && Intl.Collator ? new Intl.Collator("nl", { numeric: true, sensitivity: "base" }) : null;

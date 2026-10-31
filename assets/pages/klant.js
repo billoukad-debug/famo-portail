@@ -204,7 +204,7 @@
     const row = (k, v) => v ? '<div><dt>' + K.esc(k) + '</dt><dd>' + v + '</dd></div>' : "";
     return galleryHtml(p) +
       '<div class="pr-info">' + (p.omschrijving ? '<p class="pr-desc">' + K.esc(p.omschrijving) + '</p>' : "") + '<dl>' +
-      row(K.t("Categorie"), K.esc(K.t(K.cat(p.cat)))) + row(K.t("Gewicht"), K.esc(p.kaliber)) + row(K.t("Eenheid"), K.esc(unitLabel(p))) +
+      row(K.t("Categorie"), K.esc(K.catsOf(p).map(c => K.t(c)).join(", "))) + row(K.t("Gewicht"), K.esc(p.kaliber)) + row(K.t("Eenheid"), K.esc(unitLabel(p))) +
       row(K.t("Prijs excl. btw"), '<span class="mono">' + K.eur(p.prix) + '</span> / ' + K.esc(unitLabel(p)) + (neg ? ' <s class="mono quiet">' + K.eur(p.base) + '</s> · ' + K.t("uw prijs") : "")) +
       row(K.t("Beschikbaar"), s == null ? "" : s > 0 ? K.esc(K.qty(s)) + " " + K.esc(unitLabel(p)) : '<span class="t-danger">' + K.t("Uitverkocht") + '</span>') +
       (pakP(p) ? row(K.t("Verpakking"), K.esc(K.pakOne(pakP(p), p.unite)) + ' = <span class="mono">' + K.eur(window.FamoVat.r2(p.prix * pakP(p).per)) + '</span>') : "") +
@@ -232,11 +232,13 @@
   // Wat de catalogus toont : categorie, groepen (favorieten eerst bij « Alles »), sortering, families, zoekteksten.
   function catalogState() {
     // Catégorie affichée = traduction (K.cat) ; la valeur Airtable reste la clé de filtre.
-    const all = (cat.products || []).slice().sort(K.byVolgorde);
+    // Spec 039 : un produit est dans chacune de ses catégories (K.catsOf) ; sous « Alles » il reste une
+    // seule fois, dans sa catégorie principale. Les catégories « en plus » seules viennent après.
+    const all = (cat.products || []).slice().sort(K.byVolgorde), inCat = (p, c) => K.catsOf(p).includes(c);
     const byCat = K.catOrder(cat.products, p => K.cat(p.cat));
-    const catNames = Array.from(new Set(all.map(p => K.cat(p.cat)))).sort(byCat);
-    const products = all.filter(p => catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : K.cat(p.cat) === catFilter));
-    const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" ? "Favorieten" : K.cat(p.cat)); (groups[g] = groups[g] || []).push(p); });
+    const catNames = Array.from(new Set(all.flatMap(p => K.catsOf(p)))).sort(byCat);
+    const products = all.filter(p => catFilter === "Alles" || (catFilter === "Favorieten" ? favs[p.id] : inCat(p, catFilter)));
+    const groups = {}; products.forEach(p => { const g = catFilter === "Favorieten" ? "Favorieten" : (favs[p.id] && catFilter === "Alles" ? "Favorieten" : catFilter === "Alles" ? K.cat(p.cat) : catFilter); (groups[g] = groups[g] || []).push(p); });
     const sorter = K.catalogSort(sortMode); Object.keys(groups).forEach(g => groups[g].sort(sorter));
     const order = Object.keys(groups).sort((a, b) => (a === "Favorieten" ? -1 : b === "Favorieten" ? 1 : byCat(a, b)));
     // Families binnen één categorie (niet « Alles » of « Favorieten »), op de volgorde van Beheer
@@ -244,8 +246,8 @@
     const fams = catFilter === "Alles" || catFilter === "Favorieten" ? null : K.families(products), famOf = new Map();
     if (fams) { fams.families.forEach(f => f.ids.forEach(id => famOf.set(id, f.key))); fams.rest.forEach(id => famOf.set(id, REST)); }
     if (famFilter && !famOf.size) famFilter = "";
-    const hay = new Map(products.map(p => [p.id, K.searchKey([p.nom, p.kaliber, K.cat(p.cat), p.omschrijving].filter(Boolean).join(" "))]));
-    const count = c => c === "Alles" ? all.length : c === "Favorieten" ? all.filter(p => favs[p.id]).length : all.filter(p => K.cat(p.cat) === c).length;
+    const hay = new Map(products.map(p => [p.id, K.searchKey([p.nom, p.kaliber, K.catsOf(p).join(" "), p.omschrijving].filter(Boolean).join(" "))]));
+    const count = c => c === "Alles" ? all.length : c === "Favorieten" ? all.filter(p => favs[p.id]).length : all.filter(p => inCat(p, c)).length;
     return { all, cats: ["Alles", "Favorieten", ...catNames], count, products, groups, order, fams, famOf, hay };
   }
   const catBtn = c => '<button type="button" data-cat="' + K.esc(c) + '"' + (c === catFilter ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + K.esc(K.t(c)) + '<span class="kcount">' + CS.count(c) + '</span></button>';

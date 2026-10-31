@@ -137,6 +137,7 @@ textarea.input{padding:10px 12px;min-height:76px;resize:vertical}
 .views a:hover,.views button:hover{color:var(--ink);text-decoration:none}
 .views .on{color:var(--p);border-bottom-color:var(--p);font-weight:600}
 .tools{display:flex;align-items:center;gap:8px;padding:12px 28px;flex-wrap:wrap}
+.catchip{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line-strong);background:var(--card);color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer}.catchip:hover{background:var(--soft);color:var(--ink)}.catchip.on{background:var(--p-soft);border-color:var(--p);color:var(--p-deep);font-weight:600}
 .tool{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border-radius:var(--r-sm);font-size:13.5px;color:var(--ink-2);font-weight:500;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap}.tool:hover{background:var(--soft);color:var(--ink)}.tool.on{background:var(--p-soft);color:var(--p)}
 select.input.tool,input.input.tool{border-color:var(--line-input);background:var(--card)} /* G-16 : contour des filtres ≥ 3:1 (dates van / tot comprises) */
 .content{padding:0 28px 100px;display:flex;flex-direction:column;gap:16px;min-width:0}

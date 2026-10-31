@@ -33,7 +33,8 @@ jobs:
 
   navigateur:
     name: Navigateur (ux-audit, audit clavier)
-    runs-on: ubuntu-latest
+    # ubuntu-latest = 26.04 depuis fin octobre 2026 : Playwright 1.56.1 ne sait pas y installer Chromium.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       PLAYWRIGHT_VERSION: "1.56.1"

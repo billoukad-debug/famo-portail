@@ -116,6 +116,7 @@ module.exports = async (req, res) => {
       id: r.id,
       nom: r.fields["Produit"],
       cat: r.fields["Catégorie"] || "",
+      cats: require("../lib/categorieen").catsOf(r.fields),
       unite: r.fields["Unité"] || "",
       base: r.fields["Prix de base"] || 0,
       prix: __prices.unitPrice(r, negMap),

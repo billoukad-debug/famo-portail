@@ -31,7 +31,7 @@
   function render() { return K.keep(page, draw); }
   function draw() {
     const cl = clients.find(c => c.id === clientId);
-    const list = products.filter(p => !q || (p.nom + " " + (p.kaliber || "") + " " + K.cat(p.cat)).toLowerCase().includes(q));
+    const list = products.filter(p => !q || (p.nom + " " + (p.kaliber || "") + " " + K.catsOf(p).join(" ")).toLowerCase().includes(q));
     if (!day) day = firstDay();
     dayErr = checkDate(day);
     const tooEarly = !dayErr && day === K.addDays(K.today(), 1) && pastDeadline();

@@ -56,6 +56,7 @@ Types : texte, nombre, case (booléen), date (`AAAA-MM-JJ`), date-heure (ISO UTC
 | `Prix de base` | nombre (€ HTVA) | onboarding | catalogue, staff, prices | |
 | `Unité` | liste `kg` / `pièce` / `caisse` / `carton` | onboarding | catalogue, order, staff, updateorder | Valeur FR stockée, affichée en NL (`kg`, `stuk`, `kassa`, `doos`). |
 | `Catégorie` | texte | onboarding | catalogue, staff, rapportage | Rapportage (spec 022) : répartition par catégorie, affichée en néerlandais (`K.cat`). |
+| `Extra categorieën` | texte (une catégorie par ligne, 10 au plus) | onboarding (saveProduct, renameCategory) | catalogue, staff, onboarding | Spec 039 : catégories **en plus** de `Catégorie` (qui reste la principale : volgorde, rapportage, vitrine, facture). Le produit apparaît dans chacune côté client (`cats`, `K.catsOf`). Vide = une seule catégorie. |
 | `Actif` | case | onboarding | catalogue, config, order, staff, stock | Inactif = absent du catalogue client. |
 | `Kaliber` | texte | onboarding | catalogue, staff, stock | Texte libre (« 16/20 », « U10 », « 400-600 », « 1-2 kg ») ; trié numériquement par `K.kaliberKey` (spec 018 : U10 d'abord, puis par premier nombre, texte à la fin). |
 | `Omschrijving` | texte | onboarding | catalogue | |
